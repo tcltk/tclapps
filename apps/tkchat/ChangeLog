@@ -1,3 +1,7 @@
+2004-11-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Primitive /userinfo support for tkjabber.
+
 2004-11-17  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: jabber: fix ~ in URL recognition regexp.

@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.222 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.223 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.222 2004/11/17 21:15:14 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.223 2004/11/17 23:34:58 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3295,8 +3295,8 @@ proc ::tkchat::userPost {} {
 		    EditMacros
 		}
 		{^/userinfo} {
-		    set UserClicked 1
-		    msgSend $msg
+                    set UserClicked 1
+                    msgSend $msg
 		}
 		{^/\?} {
 		    doSearch $msg
@@ -6376,7 +6376,7 @@ proc gtklook_style_init {} {
 # Jabber handling
 
 namespace eval tkjabber {
-    variable jabber ""
+    variable jabber ; if {![info exists jabber]} {set jabber ""}
     variable topic
     variable jhttp ""
     variable muc
@@ -6920,6 +6920,17 @@ proc tkjabber::MucEnterCB {mucName type args} {
     
 }
 
+proc ::tkjabber::userinfo {nick} {
+    variable jabber
+    variable conference
+
+    if {[string match "/userinfo *" $nick]} {
+        set nick [string range $nick 10 end]
+    }
+    log::log debug "userinfo for \"$nick\""
+    jlib::vcard_get $jabber $conference/$nick [namespace current]::VCardGetProc
+}
+
 proc tkjabber::msgSend { msg args } {
     variable jabber
     variable roster
@@ -6933,7 +6944,7 @@ proc tkjabber::msgSend { msg args } {
     }
 
     if { [string match "/userinfo *" $msg] } {
-	tkchat::addSystem "Userinfo not implemented yet."
+        userinfo $msg
 	return
     }
 
