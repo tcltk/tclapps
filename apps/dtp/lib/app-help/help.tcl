@@ -84,17 +84,20 @@ proc ::app-help::run {argv} {
 	set data [tools::getfile $in]
     } else {
 	set data [get_doc $topic]
-        tools::putfile $in $data
+        catch {tools::putfile $in $data}
     }
 
     # Convert the input into the requested format,
-    # return it to stdout, and cache it too.
+    # return it to stdout, and cache it too. Catch
+    # any errors happening in the caching operation,
+    # we may run in a read-only filesystem (not even
+    # transparent).
 
     package require dtglue
     set data [dtglue::cvtstring $format $data "$topic Documentation"]
 	
     file mkdir [file dirname $cached]
-    tools::putfile $cached $data
+    catch {tools::putfile $cached $data}
 
     puts stdout $data
     return

@@ -1,3 +1,10 @@
+2003-03-24  Andreas Kupries  <andreask@activestate.com>
+
+	* lib/app-help/help.tcl (app-help::run): Catching errors
+	  generating when trying to cache a new file in the
+	  starkit/pack. Application ight be set read-only instead of
+	  transparent.
+
 2003-03-13  Andreas Kupries  <andreask@activestate.com>
 
 	* WRAPPING.txt: Clarified that an installed tcllib cannot be used.
