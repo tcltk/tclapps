@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.242 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.243 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.242 2004/12/03 09:08:22 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.243 2004/12/03 10:30:55 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2588,7 +2588,10 @@ proc ::tkchat::userPost {} {
 		}
 		{^/wiki[: ]} {
 		    set q [http::formatQuery [string range $msg 6 end]]
-		    gotoURL http://purl.org/tcl/wiki/$q
+		    gotoURL http://wiki.tcl.tk/$q
+		}
+		{^/help} {
+		    gotoURL http://wiki.tcl.tk/tkchat
 		}
 		{^/google\s} {
 		    set msg [string range $msg 8 end]
