@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.236 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.237 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.236 2004/11/26 10:07:33 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.237 2004/12/01 02:09:09 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -646,10 +646,10 @@ proc ::tkchat::babelfishMenu {} {
 proc ::tkchat::babelfishMenuPost {x y} {
     variable babelfishinit 0
     log::log debug "babelfishmenu post"
-    if {![winfo exists ${mbar}.tr]} {
+    if {![winfo exists .mbar.tr]} {
         babelfishMenu
+        tkwait variable babelfishinit
     }
-    tkwait variable babelfishinit
     .mbar.help.tr post $x $y
 }
 
@@ -5561,7 +5561,7 @@ proc tkchat::whiteboard_eval { wbitem color } {
 }
 
 proc tkchat::whiteboard_transmit {w id} {
-    set attrs [list xmlns tcl.tk:whiteboard color $::Options(MyColor)]
+    set attrs [list xmlns urn:tkchat:whiteboard color $::Options(MyColor)]
 
     set wbitem ".wb.c create line [string map {.0 {}} [$w coords $id]]"
 
@@ -5573,7 +5573,7 @@ proc tkchat::whiteboard_transmit {w id} {
 }
 
 proc tkchat::whiteboard_clear { } {
-    set attrs [list xmlns tcl.tk:whiteboard color $::Options(MyColor)]
+    set attrs [list xmlns urn:tkchat:whiteboard color $::Options(MyColor)]
 
     set wbitem ".wb.c delete all"
 
@@ -5644,7 +5644,7 @@ namespace eval tkjabber {
     Variable HistoryLines {}
     Variable HaveHistory 0
     
-    Variable conference tcl@tach.tclers.tk
+    Variable conference
 
     Variable muc_jid_map ;# array with conference-id to user-jid map.  
     Variable users ;# 
@@ -5884,11 +5884,11 @@ proc tkjabber::MsgCB {jlibName type args} {
 			set ts 0
 		    }
 		}
-		"tcl.tk:tkchat" {
+		"urn:tkchat:chat" {
 		    array set tkchatAttr [wrapper::getattrlist $x]		    
 		    set color [wrapper::getattribute $x color]
 		}
-		"tcl.tk:whiteboard" {		    
+		"urn:tkchat:whiteboard" {		    
 		    tkchat::whiteboard_eval [wrapper::getcdata $x] [wrapper::getattribute $x color]
 		    return
 		}
@@ -6011,10 +6011,21 @@ proc tkjabber::MsgCB {jlibName type args} {
 	}
     }   
 }
+
 proc tkjabber::PresCB {jlibName type args} {
     log::log debug "|| PresCB > type=$type, args=$args"
-    tkchat::addSystem "|| MyPresCB > type=$type, args=$args"
+    switch -exact -- $type {
+        probe {
+            # We do not need to reply.
+        }
+        default {
+            array set a {-from {} -to {}}
+            array set a $args
+            tkchat::addSystem "Received $type presence message from $a(-from)."
+        }
+    }
 }
+
 proc tkjabber::ConnectProc {jlibName args} {
     variable conn
     log::log debug "ConnectProc args '$args'"
@@ -6208,6 +6219,9 @@ proc tkjabber::msgSend { msg args } {
 	return
     }
 
+    # Trim the nolog prefix - it's already an extended attribute.
+    regexp {^/nolog\s?(.*)$} $msg -> msg
+
     if { [llength $args] > 0 } {
 	array set opts $args
     }
@@ -6257,13 +6271,17 @@ proc tkjabber::msgSend { msg args } {
     }
     
     # Example usage
-    #set x [wrapper::createtag x -attrlist {xmlns tcl.tk:tkchat} \
-	    -subtags [list [wrapper::createtag color -attrlist {attr1 val1 attr2 val2} -chdata $::Options(MyColor)]]]
+    #set x [wrapper::createtag x -attrlist {xmlns urn:tkchat:chat} \
+    #    -subtags [list [wrapper::createtag color \
+    #                        -attrlist {attr1 val1 attr2 val2} \
+    #                        -chdata $::Options(MyColor)]]]
 
-    set attrs [concat $opts(-attrs) [list xmlns tcl.tk:tkchat color $::Options(MyColor)]]
-
-    set xlist [concat [list [wrapper::createtag x -attrlist $attrs]] $opts(-xlist)]
+    set attrs [concat $opts(-attrs) \
+                   [list xmlns urn:tkchat:chat color $::Options(MyColor)]]
     
+    set xlist [concat [list [wrapper::createtag x -attrlist $attrs]] \
+                   $opts(-xlist)]
+    log::log debug "send_message $msg $xlist"
     foreach user $users {
 	$jabber send_message $user -body $msg -type $type -xlist $xlist
     }

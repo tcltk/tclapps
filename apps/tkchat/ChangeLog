@@ -1,3 +1,9 @@
+2004-12-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Remove the stupid /nolog prefix from the message
+	body. It's already an attribute of the message.
+	Use a 'real' uri for tkchat namespace attributes.
+
 2004-11-26  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: First attempt at making tkchat work on a PockectPC
