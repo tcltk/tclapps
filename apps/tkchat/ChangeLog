@@ -1,3 +1,8 @@
+2004-01-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Added scrollbar to the online users window and made
+	this widget word wrap.
+
 2003-12-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Applied fix from dgp for bug #849829. 

@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.129 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.130 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.129 2003/12/03 22:47:29 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.130 2004/01/14 14:12:50 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1745,17 +1745,18 @@ proc ::tkchat::createFonts {} {
 }
 
 proc ::tkchat::displayUsers {} {
+    global Options
     if {[winfo exists .pane]} {
-        if {$::Options(DisplayUsers)} {
-            .pane add .names -sticky news
+        if {$Options(DisplayUsers)} {
+            .pane add $Options(NamesWin) -sticky news
         } else {
-            .pane forget .names
+            .pane forget $Options(NamesWin)
         }
     } else {
-        if {$::Options(DisplayUsers)} {
-            grid .names
+        if {$Options(DisplayUsers)} {
+            grid $Options(NamesWin)
         } else {
-            grid remove .names
+            grid remove $Options(NamesWin)
         }
     }
 }
@@ -2128,8 +2129,8 @@ proc ::tkchat::CreateGUI {} {
     text .names -background "#[getColor MainBG]" \
           -foreground "#[getColor MainFG]" \
           -relief sunken -bd 2 -width 8 -font FNT -state disabled \
-          -cursor left_ptr -height 1
-
+          -cursor left_ptr -height 1 -wrap word
+    
     # bottom frame for entry
     frame .btm
     button .ml -text ">>" -command ::tkchat::showExtra 
@@ -2172,6 +2173,7 @@ proc ::tkchat::CreateGUI {} {
                                 [winfo pointerx %W] [winfo pointery %W]}
 
     # using explicit rows for restart
+    set Options(NamesWin) [MakeScrolledWidget .names]
     if {$UsePane} {
         .txt configure -width 10
         .names configure -width 10
@@ -2179,13 +2181,15 @@ proc ::tkchat::CreateGUI {} {
         grid columnconfigure .txtframe 0 -weight 1
         grid rowconfigure .txtframe 0 -weight 1
         .pane add .txtframe -sticky news
-        .pane add .names -sticky news
+        #.pane add .names -sticky news
+        .pane add $Options(NamesWin) -sticky news
         grid .pane -sticky news -padx 1 -pady 2
         grid .btm  -sticky news
     } else {
-        grid .txt .sbar .names -sticky news -padx 1 -pady 2
+        #grid .txt .sbar .names -sticky news -padx 1 -pady 2
+        grid .txt .sbar $Options(NamesWin) -sticky news -padx 1 -pady 2
         grid configure .sbar -sticky ns
-        grid .btm              -sticky news -columnspan 3
+        grid .btm            -sticky news -columnspan 3
     }
     grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
     grid configure .eMsg .mb -sticky ew
@@ -2268,6 +2272,40 @@ proc ::tkchat::NickVisMenu {} {
     }
 }
 
+proc ::tkchat::ScrolledWidgetSet {sbar f1 f2} {
+    $sbar set $f1 $f2
+    if {($f1 == 0) && ($f2 == 1)} {
+        grid remove $sbar
+    } else {
+        grid $sbar
+    }
+} 
+
+proc ::tkchat::MakeScrolledWidget {w args} {
+    global Options
+    if {[package provide tile] != {}} {
+        set sbcmd tscrollbar
+    } else {
+        set sbcmd scrollbar
+    }
+    
+    set parent [winfo parent $w]
+    for {set n 0} {[winfo exists $parent.f$n]} {incr n} {}
+    set f [frame $parent.f$n]
+    set vs [$sbcmd $f.vs -orient vertical -command [list $w yview]]
+    set hs [$sbcmd $f.hs -orient horizontal -command [list $w xview]]
+    $w configure \
+        -yscrollcommand [list [namespace origin ScrolledWidgetSet] $vs] \
+        -xscrollcommand [list [namespace origin ScrolledWidgetSet] $hs]
+    raise $w $f
+
+    grid configure $w $vs -in $f -sticky news
+    grid configure $hs -  -in $f -sticky news
+    grid rowconfigure $f 0 -weight 1
+    grid columnconfigure $f 0 -weight 1
+
+    return $f
+}
 
 proc ::tkchat::About {} {
     variable rcsid
@@ -3318,7 +3356,7 @@ proc ::tkchat::saveRC {} {
         }
 	array set tmp [array get Options]
 	set ignore {
-            History FetchTimerID OnlineTimerID FinalList
+            History FetchTimerID OnlineTimerID FinalList NamesWin
             FetchToken OnlineToken ProxyPassword ProxyAuth
             URL URL2 URLchk URLlogs errLog ChatLogChannel PaneUsersWidth
         }
@@ -3356,6 +3394,8 @@ proc ::tkchat::scroll_set {sbar f1 f2} {
         }
     }
     set Options(AutoScroll) [expr {(1.0 - $f2) < 1.0e-6 }]
+    log::log debug "scroll_set: $sbar set $f1 $f2 (AutoScroll:\
+       $Options(AutoScroll))"
 }
 
 
