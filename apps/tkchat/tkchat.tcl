@@ -38,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.17 2001/11/01 21:56:44 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.18 2001/11/02 19:14:20 hobbs Exp $}
 }
 
 set ::DEBUG 1
@@ -791,19 +791,36 @@ proc gotoURL {url} {
     .txt config -cursor left_ptr
 }
 
+proc formatClock {str} {
+    global Options
+    set out [stripStr $str]
+    if {[regexp {^[\s:]*(\d+)} $out -> ticks]} {
+        set cmd [list clock format $ticks -gmt $Options(TimeGMT)] 
+        if {![string equal $Options(TimeFormat) ""]} {
+            lappend cmd -format $Options(TimeFormat)
+        }
+        set out [eval $cmd]
+    } 
+    return $out
+}
+
 proc addAction {clr nick str} {
     global Options
     checkNick $nick $clr
     .txt config -state normal
     .txt insert end "\t* $nick " [list NICK NICK-$nick]
-    foreach {str url} [parseStr $str] {
-	regsub -all "\n" $str "\n\t" str
-	if {[string equal $url ""]} {
-	    .txt insert end "$str " [list MSG NICK-$nick ACTION]
-	} else {
-	    .txt insert end "$str " \
-		    [list MSG NICK-$nick ACTION URL URL-[incr ::URLID]]
-	    .txt tag bind URL-$::URLID <1> [list gotoURL $url]
+    if {[string equal $nick clock]} {
+        .txt insert end "[formatClock $str] " [list NICK-$nick ACTION]
+    } else {
+	foreach {str url} [parseStr $str] {
+	    regsub -all "\n" $str "\n\t" str
+	    if {[string equal $url ""]} {
+		.txt insert end "$str " [list MSG NICK-$nick ACTION]
+	    } else {
+		.txt insert end "$str " \
+			[list MSG NICK-$nick ACTION URL URL-[incr ::URLID]]
+		.txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	    }
 	}
     }
     .txt insert end "\n"
@@ -1211,7 +1228,7 @@ proc changeSettings {} {
     catch {unset DlgData}
     # make copy of current settings
     array set DlgData [array get Options Color,*]
-    foreach item {MaxLines Refresh} {
+    foreach item {MaxLines Refresh TimeFormat TimeGMT} {
 	set DlgData($item) $Options($item)
     }
     
@@ -1231,10 +1248,15 @@ proc changeSettings {} {
 	    -vcmd {string is integer %P} -invcmd bell
     label $t.l2a -text "Error Log Filename"
     entry $t.e2a ; $t.e2a insert 0 $Options(LogFile)
-    eval tk_optionMenu $t.m2a Options(LogLevel) [lsort -command ::log::lvCompare $::log::levels]
+    eval tk_optionMenu $t.m2a Options(LogLevel) \
+	    [lsort -command ::log::lvCompare $::log::levels]
     label $t.l2b -text "Chat Log Filename"
     entry $t.e2b ; $t.e2b insert 0 $Options(ChatLogFile)
-    checkbutton $t.c2c -text "Hide Entry/Exit Messages" -variable Options(hideTraffic)
+    checkbutton $t.c2c -text "Hide Entry/Exit Messages" \
+	    -variable Options(hideTraffic)
+    label $t.l2c -text "Time Format String"
+    entry $t.e2c -textvar DlgData(TimeFormat)
+    checkbutton $t.cb2c -text "GMT" -var DlgData(TimeGMT)
     label $t.l3 -text "Color Selections"
     foreach {idx str} {MainBG Background MainFG Foreground} { 
 	label $t.nm$idx -text "$str" -anchor e
@@ -1260,6 +1282,7 @@ proc changeSettings {} {
     bind $f <Configure> {
 	wm geometry [winfo toplevel %W] [expr {%w + 30}]x500
 	[winfo parent %W] config -scrollregion [list 0 0 %w %h]
+        bind %W <Configure> {}
     }
     label $f.nknm -text "NickName"
     button $f.alldef -text "All Default" -command {
@@ -1310,13 +1333,14 @@ proc changeSettings {} {
     grid $t.l2           $t.e2         -           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l2a          $t.e2a        -         $t.m2a     -     -   -padx 1 -pady 3 -sticky ew
     grid $t.l2b          $t.e2b        -           x        x   -padx 1 -pady 3 -sticky ew
+    grid $t.l2c          $t.e2c        -           -        -  $t.cb2c   -padx 1 -pady 3 -sticky ew
     grid $t.c2c            -           x           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l3             -           -           -        -     -   -padx 5 -pady 5
     grid $t.nmMainBG $t.defMainBG $t.ovrMainBG $t.clrMainBG x     x   -padx 2 -pady 2 -sticky news
     grid $t.nmMainFG $t.defMainFG $t.ovrMainFG $t.clrMainFG x     x   -padx 2 -pady 2 -sticky news
     grid $t.f              -           -           -        -  $t.scr -padx 1 -pady 5 -sticky news
     grid $t.f2             -           -           -        -     -   -padx 1 -pady 10 -sticky news
-    grid rowconfigure $t 8 -weight 1
+    grid rowconfigure $t 9 -weight 1
     grid columnconfigure $t 4 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
@@ -1344,11 +1368,7 @@ proc changeSettings {} {
 	    # propagate changes to main data
 	    array set Options [array get DlgData]
 	    # update colors
-	    .txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
-	    .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
-	    foreach nk $Options(NickList) {
-		.txt tag config NICK-$nk -foreground "#[getColor $nk]"
-	    }
+            applyColors
 
             # Update the logfile (if changed). Close the old filehandle
             set newname [$t.e2a get]
@@ -1365,6 +1385,16 @@ proc changeSettings {} {
     }
     #grab release $t
     destroy $t
+}
+
+proc applyColors {} {
+    global Options
+    # update colors
+    .txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
+    .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
+    foreach nk $Options(NickList) {
+        .txt tag config NICK-$nk -foreground "#[getColor $nk]"
+    }
 }
 
 # Point the Chat log to a new file.
@@ -1558,6 +1588,8 @@ proc ::tkchat::Init {} {
         LogLevel        info
         errLog		stderr
         hideTraffic     1
+        TimeFormat      "At the tone, the time is %H:%M on %A %d %b %Y"
+        TimeGMT         0
     }
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
@@ -1575,13 +1607,6 @@ proc ::tkchat::Init {} {
     if {[info exists ::env(HOME)] && \
 	    [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
 	catch {source $rcfile}
-	##
-	## TEMPORARY WORK-AROUND FOR MINI.NET DNS PROBLEMS
-	##
-	regsub -- {^http://mini\.net} $Options(URL) \
-		$::tkchat::HOST Options(URL)
-	regsub -- {^http://mini\.net} $Options(URL2) \
-		$::tkchat::HOST Options(URL2)
     }
     set Options(Offset) 50
     catch {unset Options(FetchToken)}
@@ -1611,6 +1636,7 @@ proc ::tkchat::Init {} {
     ::tkchat::ChangeFont -family $Options(Font,-family)
     ::tkchat::ChangeFont -size $Options(Font,-size)
 
+    applyColors
     # connect
     if {$Options(AutoConnect)} {
 	logonChat

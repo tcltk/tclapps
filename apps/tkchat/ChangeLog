@@ -1,3 +1,9 @@
+2001-11-02  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added formatting of clock to local time, auto
+	application of user colors on startup, and removed temporary
+	work-around for accidental mini.net DNS hijack.
+
 2001-11-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (msgDone): fixed typo in the ncode check.
