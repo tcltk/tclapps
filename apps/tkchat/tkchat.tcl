@@ -69,7 +69,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.212 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.213 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -101,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.212 2004/11/10 21:25:40 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.213 2004/11/12 14:03:09 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6568,7 +6568,25 @@ proc tkjabber::MsgCB {jlibName type args} {
 		}		
 	    } else {		
 		if { [info exists m(-body)] > 0 } {
-		    set opts {}		    
+		    set opts {}
+		    if { [string match "ijchain*" $from] } {
+			set pos [string first " " $m(-body)]
+			set from [string trim [string range $m(-body) 0 $pos]]
+			incr pos
+			set m(-body) [string range $m(-body) $pos end]
+			if { $from eq "<azbridge>" } {
+			    set pos [string first " " $m(-body)]
+			    set from "[string trim [string range $m(-body) 0 $pos]]"
+			    incr pos
+			    set m(-body) [string range $m(-body) $pos end]
+			    if { $from eq "*" } {
+				set pos [string first " " $m(-body)]
+				set from "<[string trim [string range $m(-body) 0 $pos]]>"
+				incr pos
+				set m(-body) "/me [string range $m(-body) $pos end]"				
+			    }
+			}
+	    	    }
 		    set nolog [string match "/nolog*" $m(-body)] 
 		    if { $nolog } {
 			set m(-body) [string trim [string range $m(-body) 6 end]]

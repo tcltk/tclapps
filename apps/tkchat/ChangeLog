@@ -1,3 +1,7 @@
+2004-11-12  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added nicer display of ijchain messages in jabber mode.
+
 2004-11-10  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Updated the dict.leo.org translator to work with the
