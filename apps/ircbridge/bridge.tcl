@@ -6,7 +6,7 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.7 2003/10/10 08:01:36 pascalscheffers Exp $
+# $Id: bridge.tcl,v 1.8 2003/10/21 09:01:40 afaupell Exp $
 
 # There's a lot that could be added here.
 
@@ -64,7 +64,6 @@ proc chat::addHelp {name str} {
     #puts "HELP: $name $str"
 }
 
-
 proc chat::Send {str} {
     variable Options
     variable Limit
@@ -119,23 +118,23 @@ proc client::create { server port nk chan } {
     variable cn
     variable channel $chan
     variable nick $nk
-    set cn [::irc::connection $server $port]
+    set cn [::irc::connection]
 
     $cn registerevent 001 {
-        set ::client::nick [who]
+        set ::client::nick [target]
         cmd-join $::client::channel
     }
 
     $cn registerevent 433 {
         if { [lindex [additional] 0] == $::client::nick } {
-            cmd-send "NICK [string trim $::client::nick 0123456789][string range [expr rand()] end-2 end]"
+            cmd-send "NICK [string trimright $::client::nick 0123456789][string range [expr rand()] end-2 end]"
         }
     }
 
     $cn registerevent 353 {
 	#List of online users sent on channel join
 	::log::log debug "UsersOnline [msg]"
-	set ::onlineircusers [split [string trim [msg]] " "]
+	set ::onlineircusers [split [string map {@ "" % "" + ""} [string trim [msg]]] " "]
 	set item [lsearch $::onlineircusers ircbridge]
 	if { $item > -1 } {
 	    set ::onlineircusers [lreplace $::onlineircusers $item $item]
@@ -178,9 +177,13 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent QUIT {
-	if { [who] != $client::nick } {
+	if { [who] != $::client::nick } {
 	    chat::msgSend "*** [who] leaves"
+	    if { [who] == [string trimright $::client::nick 0123456789] } {
+	        cmd-send "NICK [who]"
+	    }
 	}
+	
     }
 
     $cn registerevent PRIVMSG {
@@ -195,22 +198,35 @@ proc client::create { server port nk chan } {
 	}
     }
     
-    $cn registerevent EOF {
-        ::client::connect $::client::cn
+    $cn registerevent NICK {
+        if { [who] == $::client::nick } {
+            set ::client::nick [msg]
+        } else {
+            chat::msgSend "*** [who] is now known as [msg]"
+        }
     }
+    
+    $cn registerevent EOF "
+        ::log::log notice \"Disconnected from IRC\"
+        ::client::connect \$::client::cn $server $port
+    "
 
-    return $cn
+    connect $cn $server $port
 }
-
 
 # connect to the server and register
 
-proc client::connect {cn} {
+proc client::connect {cn server port} {
     variable ::chat::Limit
     variable nick
     # set up variable for rate limiting
     array set Limit [list last [clock seconds] queue {} lines 0]
-    $cn connect
+    ::log::log notice "Connecting to $server on port $port"
+    if {[catch {$cn connect $server $port} err]} {
+        ::log::log notice "Could not connect: $err"
+        after 10000 [list [namespace current]::connect $cn $server $port]
+        return
+    }
     $cn user $nick localhost domain "Tcl'ers Chat connector - See: http://mini.net/tcl/6248"
     $cn nick $nick
     ping
@@ -225,9 +241,11 @@ proc client::ping {} {
 
 proc bgerror {args} {
     global errorInfo
-    ::log::log error "BGERROR: $args"
+    ::log::log error "BGERROR: [join $args]"
     ::log::log error "ERRORINFO: $errorInfo"
 }
+
+::irc::config debug 0
 
 #Stuff for daemon[ize] see http://wiki.tcl.tk/deamon
 
@@ -264,9 +282,7 @@ if { [lindex $argv 0] eq "-d" } {
 }
 
 set onlineircusers [list]
-
 client::create irc.debian.org 6667 ircbridge \#tcl
-client::connect $client::cn
 ::chat::Init
 
 vwait forever
