@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.99 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.100 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.99 2003/07/17 18:53:39 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.100 2003/07/27 18:43:21 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1125,6 +1125,14 @@ proc addMessage {clr nick str} {
 		# with the right color info.
 		set nick $truenick
 		set str  $msg
+
+                if {$nick == "ijchain"} {
+                    # ijchain is a Jabber to IRC link.
+                    if {[regexp {&lt;(.*?)&gt; (.*)$} $str -> truenick msg]} {
+                        set nick $truenick
+                        set str $msg
+                    }
+                }
 		
 		#Probably obsolete regexp now ircbridge parses CTCPs:
 		if { [regexp {^ACTION (.+)} $str -> action] } {

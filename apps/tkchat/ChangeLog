@@ -1,3 +1,7 @@
+2003-07-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (addMessage): Fix for the Jabber bridge nick handling.
+
 2003-07-17  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: correct display of URLs with & in them on Windows.
