@@ -1,3 +1,24 @@
+2003-03-29  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
+
+	* WRAPPING.txt: Added a description of the new one-step process
+	  for assembly + wrap.
+
+	* lib/tools/sync.tcl: 
+	* lib/app-assemble/assemble.tcl: Added wrapping of the assembled
+	  directory hierarchy to the code. The synchronization engine to
+	  do this can be found in 'sync.tcl' and was lifted from 'sdx'.
+
+	* lib/app-changelog/changelog.tcl: New package /
+	  subcommand. Parsing of changelogs and conversion into a doctools
+	  document for integration into other documentation.
+
+2003-03-28  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
+
+	* lib/app-doc/doc.tcl: New package / subcommand. Command added to
+	  aid in the quick conversion of a single file without having to
+	  jump through all the hoops required for the batch processing of
+	  large sets.
+
 2003-03-25  Andreas Kupries  <andreask@activestate.com>
 
 	* lib/app-help/help.tcl (app-help::run): Extended the range

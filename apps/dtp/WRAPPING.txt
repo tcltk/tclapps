@@ -22,4 +22,19 @@ Only 2 steps are required
 
 2)   sdx wrap dtp
 
+Alternatively we can do this one step.
+
+1)   tclsh dtp.vfs/main.tcl assemble TCLLIB_DIR APPNAME
+
+     Here APPNAME is the name of the starkit to generate.
+
+     For this single step to work the tclsh has to have access to the
+     tclvfs package and mk4tcl. In other words, use a either a tclsh
+     from an ActiveTcl 8.4.2 (or higher) installation, or a
+     tclkit. Both come with the require packages.
+
+     The operation does all of the assembly described in step 1 of the
+     two-step process and then wraps the completed directory hierarchy
+     into a starkit, like sdx does.
+
 ==============================================

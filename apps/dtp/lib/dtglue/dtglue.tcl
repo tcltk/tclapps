@@ -114,6 +114,22 @@ proc ::dtglue::cvtfiles {format iomap para subst} {
     return
 }
 
+proc ::dtglue::cvtonefile {format docfile para} {
+    Setup dt $format $para
+
+    puts stderr "    Processing $docfile ..."
+
+    dt configure -file $docfile
+    if {[catch {
+	set data [dt format [tools::getfile $docfile]]
+    }]} {
+	tools::internalerror
+    }
+
+    dt destroy
+    return $data
+}
+
 # ------------------------------------------------------
 
 proc ::dtglue::getmeta {files} {

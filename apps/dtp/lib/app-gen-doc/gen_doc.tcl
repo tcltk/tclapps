@@ -17,7 +17,7 @@ set ::app-gen-doc::help(cmdline) {
 Processes all input files listed in [arg iomap] and converts into the
 requested output [arg format]. The results are written to the output
 files listed in [arg iomap]. If [arg meta] is present the meta
-infomration containied in it is read and used to create
+information containied in it is read and used to create
 cross-references between the manpages, if supported by the engine for
 the chosed output [arg format].
 

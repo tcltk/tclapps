@@ -5,18 +5,37 @@
 package require tools
 package require optchecker
 
-namespace eval app-assemble {}
+namespace eval app-assemble {
+    variable header {#!/bin/sh
+# %
+exec @PROG@ "$0" ${1+"$@"}
+package require starkit
+starkit::header @TYPE@ @OPTS@
+}
+append header \32
+regsub % $header \\ header
+}
 
 # ------------------------------------------------------
 # Acceptable syntax for cmdline functionality
 
 set ::app-assemble::help(cmdline) {
-[call [cmd {@appname@}] [method assemble] [arg tcllibdir]]
+[call [cmd {@appname@}] [method assemble] [arg tcllibdir] [opt [arg appfile]]]
 
 Takes the relevant files from the textutil and doctools modules found
-in the directory [file tcllibdir] (sources, or installation) and
-copies them into the appropiate places of the directory hierarchy this
-application is under.
+in the directory [file tcllibdir] and copies them into the appropiate
+places of the directory hierarchy this application is under. Note that
+[arg tcllibdir] has to refer to the sources of tcllib. An installation
+of tcllib does not have all the required files (documentation) in its
+hierarchy.
+
+[nl]
+
+If, and only if the argument [arg appfile] is present the method will
+not only assemble the sources, but also wrap the copleted directory
+hierarchy and write the generated starkit to the named file, creating
+all directories as necessary.
+
 }
 
 proc ::app-assemble::help {topic} {
@@ -29,8 +48,9 @@ proc ::app-assemble::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-assemble::run {argv} {
-    set errstring "wrong#args: assemble tcllibdir"
-    if {[llength $argv] != 1} {tools::usage $errstring}
+    set errstring "wrong#args: assemble tcllibdir ?appfile?"
+    if {[llength $argv] < 1} {tools::usage $errstring}
+    if {[llength $argv] > 2} {tools::usage $errstring}
 
     set tcllibdir [lindex $argv 0]
 
@@ -46,6 +66,17 @@ proc ::app-assemble::run {argv} {
 
     GetTextutil $textutil $ourlibdir
     GetDoctools $doctools $ourlibdir $ourhelpdir
+
+    if {[llength $argv] == 2} {
+	set appfile [lindex $argv 1]
+	if {[catch {
+	    file mkdir [file dirname $appfile]
+	}]} {
+	    tools::usage "Unable to create directory for output file \"$appfile\"."
+	}
+
+	Wrap [::tools::topdir] $appfile
+    }
     return
 }
 
@@ -157,6 +188,64 @@ proc ::app-assemble::CopyFiles {srcdstlist} {
 	puts "\tAssemble $src" ; # \t $dst""
 
 	file copy -force $src $dst
+    }
+    return
+}
+
+proc ::app-assemble::Wrap {topdir appfile} {
+
+    puts "\tWrap to $appfile"
+
+    variable header
+    set prog  tclkit
+    set ropts -readonly
+    set type  mk4
+
+    regsub @PROG@ $header $prog  header
+    regsub @OPTS@ $header $ropts header
+    regsub @TYPE@ $header $type  header
+
+    set n [string length $header]
+    while {$n <= 240} {
+	append header ################
+	incr n 16
+    }
+    set slop [expr { 15 - (($n + 15) % 16) }]
+    for {set i 0} {$i < $slop} {incr i} {
+	append header #
+    }
+    set n [string length $header]
+    if {$n % 16 != 0} {
+	error "Header size is $n, should be a multiple of 16"
+    }
+
+    file delete    $appfile
+    tools::putfile $appfile $header
+
+    package require mk4vfs
+    vfs::mk4::Mount $appfile $appfile
+    set argv [list -compress 1 -verbose 0 -noerror 0 $topdir $appfile]
+    set argv0 ""
+    source [file join $topdir lib tools sync.tcl]
+    vfs::unmount $appfile
+
+    # Make the result executable
+    switch $::tcl_platform(platform) {
+	unix {
+	    catch {file attributes $appfile -permissions +x}
+	}
+	windows {
+	    set batfile [file root $appfile].bat
+	    if {![file exists $batfile]} {
+		set fd [open $batfile w]
+		puts -nonewline $fd \
+			"@$prog [file tail $appfile] %1 %2 %3 %4 %5 %6 %7 %8 %9"
+		close $fd
+	    }
+	}
+	macintosh {
+	    catch {file attributes $appfile -creator TKd4}
+	}
     }
     return
 }
