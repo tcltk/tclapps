@@ -1,5 +1,11 @@
 2002-02-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: removed -timeout options for further testing. The
+	timeout handling code remains but isn't called.
+	Fixed a frink warning.
+
+2002-02-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
 	* tkchat.tcl: do not save value of Options(URLlogs)
 
 2002-02-15  Don Porter <dgp@users.sf.net>

@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.35 2002/02/18 22:52:43 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.36 2002/02/19 00:43:20 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -184,8 +184,7 @@ proc tkchat::GetHistLogIdx {szary} {
     # get list of available logs
     set url "$Options(URLlogs)/?M=D"
     set tok [::http::geturl $url \
-                 -headers [buildProxyHeaders] \
-                 -timeout $Options(timeout)]
+                 -headers [buildProxyHeaders]]
     errLog "History Fetch: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
         ok {
@@ -227,8 +226,7 @@ proc tkchat::ParseHistLog {log} {
     set url "$Options(URLlogs)/$log"
     log::log info "History: Fetch log \"$url\""
     set tok [::http::geturl $url \
-                 -headers [buildProxyHeaders] \
-                 -timeout $Options(timeout)]
+                 -headers [buildProxyHeaders]]
              
     errLog "History: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
@@ -259,7 +257,7 @@ proc tkchat::ParseHistLog {log} {
             }
         }
         reset {
-            errLog "User reset post operation" 
+            errLog "History fetch was reset."
         }
         timeout {
             errLog "History fetch timed out" 
@@ -361,11 +359,11 @@ proc msgSend {str {user ""}} {
         ::http::geturl $Options(URL) \
             -query [string map {%5f _} $qry] \
             -headers [buildProxyHeaders] \
-            -timeout $Options(timeout) \
             -command msgDone
     } msg]} {
-        errLog "Retrying msgSend: $msg"
-        after idle [msgSend $str $user]
+        set delay [expr {$Options(Refresh) * 1000 / 2}]
+        errLog "Retrying msgSend after $delay: $msg"
+        after $delay [msgSend $str $user]
     }
 }
 
@@ -383,10 +381,10 @@ proc msgDone {tok} {
                 } else {
                     log::log error "Post error: [::http::code $tok] - need to retry"
                     set Options(msgSend_Retry) 1
+                    # FRINK: nocheck
                     after idle [list ::http::geturl $Options(URL) \
                                       -query [set ${tok}(-query)] \
                                       -headers [buildProxyHeaders] \
-                                      -timeout $Options(timeout) \
                                       -command msgDone]
                 }
             } else {
@@ -421,7 +419,6 @@ proc logonChat {} {
     ::http::geturl $Options(URL2) \
           -query $qry \
           -headers [buildProxyHeaders] \
-          -timeout $Options(timeout) \
           -command logonDone
 }
 
@@ -450,7 +447,6 @@ proc logoffChat {} {
     ::http::geturl $Options(URL2) \
           -query $qry \
           -headers [buildProxyHeaders] \
-          -timeout $Options(timeout) \
           -command logoffDone
     logonScreen
 }
@@ -516,7 +512,6 @@ proc fetchPage {} {
         set Options(FetchToken) [::http::geturl $Options(URL) \
                                      -query $qry \
                                      -headers [buildProxyHeaders] \
-                                     -timeout $Options(timeout) \
                                      -command fetchDone]
     } msg]} {
         # If the http connection failed and we caught it then we probably
@@ -592,7 +587,6 @@ proc onlinePage {} {
         set Options(OnlineToken) [::http::geturl $Options(URL) \
                                       -query $qry \
                                       -headers [buildProxyHeaders] \
-                                      -timeout $Options(timeout) \
                                       -command onlineDone]
     } msg]} {
         errLog "Fetch error: $msg"
