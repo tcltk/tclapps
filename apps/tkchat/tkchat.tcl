@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.262 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.263 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.262 2005/02/12 23:48:34 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.263 2005/02/16 01:02:54 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -633,9 +633,9 @@ proc ::tkchat::translate {from to text} {
     set url {http://babelfish.altavista.com/babelfish/tr}
     append op $from _ $to
     set query [http::formatQuery tt urltext urltext $text lp $op]
-    set tok [http::geturl $url \
-             -query $query \
-             -headers [buildProxyHeaders] \
+    set hdrs [buildProxyHeaders]
+    lappend hdrs "Accept-Charset" "ISO-8859-1,utf-8"
+    set tok [http::geturl $url -query $query -headers $hdrs \
              -command [list ::tkchat::fetchurldone ::tkchat::translateDone]]
 }
 
@@ -2853,7 +2853,6 @@ proc ::tkchat::showExtra {} {
 }
 proc ::tkchat::logonScreen {} {
     global Options LOGON
-    set have_tls [expr {[package provide tls] != {}}]
     tkjabber::disconnect
     if {![winfo exists .logon]} {
 	toplevel .logon -class dialog
@@ -2888,20 +2887,18 @@ proc ::tkchat::logonScreen {} {
         entry .logon.econf -textvar Options(JabberConference)
 	#checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
         #      -var Options(UseJabberPoll)
-        if {$have_tls} {
-            frame .logon.sslopt -borderwidth 0
-            radiobutton .logon.nossl -text "No SSL" \
-                -var Options(UseJabberSSL) -value no -underline 1 \
-                -command ::tkjabber::TwiddlePort
-            radiobutton .logon.rjabberssl -text "Jabber SSL" \
-                -var Options(UseJabberSSL) -value ssl \
-                -command ::tkjabber::TwiddlePort
-            radiobutton .logon.rstarttls -text "STARTTLS" \
-                -var Options(UseJabberSSL) -value starttls \
-                -command ::tkjabber::TwiddlePort
 
-            bind .logon <Alt-e> {.logon.rjabberssl invoke}
-        }
+        frame .logon.sslopt -borderwidth 0
+        radiobutton .logon.nossl -text "No SSL" \
+            -var Options(UseJabberSSL) -value no -underline 1 \
+            -command ::tkjabber::TwiddlePort
+        radiobutton .logon.rjabberssl -text "Jabber SSL" \
+            -var Options(UseJabberSSL) -value ssl \
+            -command ::tkjabber::TwiddlePort
+        radiobutton .logon.rstarttls -text "STARTTLS" \
+            -var Options(UseJabberSSL) -value starttls \
+            -command ::tkjabber::TwiddlePort
+        
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect) \
             -underline 5
         frame  .logon.f  -border 0
@@ -2923,6 +2920,7 @@ proc ::tkchat::logonScreen {} {
         bind .logon <Alt-a> {focus .logon.epw}
         bind .logon <Alt-r> {.logon.rpw invoke}
         bind .logon <Alt-t> {.logon.atc invoke}
+        bind .logon <Alt-e> {.logon.rjabberssl invoke}
         bind .logon <Alt-j> {focus .logon.ejsrv}
         bind .logon <Alt-b> {focus .logon.ejres}
         bind .logon <Alt-o> {focus .logon.nossl}
@@ -2937,6 +2935,9 @@ proc ::tkchat::logonScreen {} {
         pack .logon.epp -in .logon.fpx -side right -fill y
         pack .logon.eph -in .logon.fpx -side right -fill both -expand 1
 
+        pack .logon.nossl .logon.rjabberssl .logon.rstarttls \
+            -in .logon.sslopt -side left 
+
 	grid .logon.prx -           -           -in $lf -sticky w -pady 3
         grid  x         .logon.lph  .logon.fpx  -in $lf -sticky w -pady 3
 	grid  x         .logon.lpan .logon.epan -in $lf -sticky w -pady 3
@@ -2947,14 +2948,9 @@ proc ::tkchat::logonScreen {} {
 	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
 	grid x        .logon.ljres .logon.ejres -in $lf -sticky w -pady 3
 	grid x        .logon.lconf .logon.econf -in $lf -sticky w -pady 3
-        if {$have_tls} {
-            pack .logon.nossl .logon.rjabberssl .logon.rstarttls \
-                -in .logon.sslopt -side left 
-            grid x .logon.sslopt - -in $lf -sticky w -pady 3
-        }
-	#grid x          .logon.rjabberpoll -    -in $lf -sticky w -pady 3
-	grid x          .logon.atc         -    -in $lf -sticky w -pady 3
-	grid x          x              .logon.f -in $lf -sticky e -pady 4
+        grid x        .logon.sslopt -           -in $lf -sticky w -pady 3
+	grid x        .logon.atc    -           -in $lf -sticky w -pady 3
+	grid x        x             .logon.f    -in $lf -sticky e -pady 4
 
         pack $lf -side top -fill both -expand 1
 	wm resizable .logon 0 0
@@ -2962,6 +2958,15 @@ proc ::tkchat::logonScreen {} {
         bind .logon <Return> [list .logon.ok invoke]
         bind .logon <Escape> [list .logon.cn invoke]
     }
+
+    set have_tls [expr {[package provide tls] != {}}]
+    if {! $have_tls} {
+        .logon.nossl invoke
+        foreach w {.logon.nossl .logon.rjabberssl .logon.rstarttls} {
+            $w configure -state disabled
+        }
+    }
+
     optSet
     catch {::tk::PlaceWindow .logon widget .}
     wm deiconify .logon
@@ -2984,6 +2989,7 @@ proc ::tkchat::logonScreen {} {
 
 proc ::tkchat::optSet {args} {
     global Options
+
     if {$Options(UseProxy)} {
 	set s normal
     } else {
@@ -6690,10 +6696,11 @@ proc tkjabber::MucEnterCB {mucName type args} {
 	}
 	available {
 	    #tkchat::addSystem  "MucEnter: type=$type, args='$args'"
-	    #only load history when it is not loaded already.
-	    if { !$tkjabber::HaveHistory } {
-	    # Force history loading to the background
-		after 10 tkchat::LoadHistory
+	    #only load history for tclers chat when it is not loaded already.
+	    if {$conference eq "tcl@tach.tclers.tk" \
+                    &&  !$tkjabber::HaveHistory } {
+                # Force history loading to the background
+		after 10 [list tkchat::LoadHistory]
 	    }
 	}
 	default {
@@ -6897,7 +6904,11 @@ proc ::tkchat::updateJabberNames { } {
 	-command [list ::tkchat::MsgTo "All Users"]
     set Options(OnLineUsers) {}
     foreach person [lsort -dictionary [$::tkjabber::muc participants $::tkjabber::conference]] {
-	regexp {([^/])/(.+)} $person -> conf name
+
+        if {![regexp {([^/])/(.+)} $person -> conf name]} {
+            log::log debug "updateJabberNames: regexp failed on '$person'"
+            continue
+        }
 
         set status [list online];# FIX ME
         if {[info exists members($name,status)]} {

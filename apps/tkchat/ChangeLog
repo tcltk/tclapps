@@ -1,3 +1,10 @@
+2005-02-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Get the babelfish code to use utf-8. This fixes
+	translation of Russian in both directions. Probably Asian
+	languages too.
+	Show SSL options as disabled when SSL unavailable.
+
 2005-02-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fixed encoding of the channel after starttls
