@@ -112,7 +112,7 @@ proc ::vnc::attach {server {port {}}} {
 	}
     }
     if {[catch {set chan [socket $host $port]} err]} {
-	return -code error "Unable to connect to $server on port $port:\n$err"
+	return -code error "Unable to connect to '$host:$port':\n$err"
     }
     fconfigure $chan -translation binary
 
