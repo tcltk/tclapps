@@ -1,5 +1,7 @@
 2004-01-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Quiten errors in checkDone. If an error occurs,
+	we'll move along to fetchPage for a retry.
 	* tkchat.tcl:  Added scrollbar to the online users window and made
 	this widget word wrap.
 

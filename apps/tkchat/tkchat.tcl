@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.130 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.131 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.130 2004/01/14 14:12:50 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.131 2004/01/14 14:39:26 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -619,7 +619,8 @@ proc ::tkchat::checkDone {start tok} {
 	    errLog "Timeout occurred while updating the chat page."
 	}
 	error - Error - ERROR {
-	    tk_messageBox -message "fetchPage error: [::http::error $tok]"
+	    errLog "Error occurred while checking for udpdates: \
+                [::http::error $tok]"
 	}
     }
     ::http::cleanup $tok
