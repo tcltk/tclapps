@@ -57,7 +57,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.158 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.159 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -84,7 +84,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.158 2004/04/29 22:58:36 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.159 2004/05/13 12:40:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5124,7 +5124,7 @@ proc ::tkchat::UserInfoSendDone {tok} {
 # At some point I want to support multiple icons for nochat/chat/alert.
 #
 proc ::tkchat::WinicoInit {} {
-    catch {
+    catch {}
         package require Winico
         variable TaskbarIcon
         set icofile [file join [file dirname [info script]] tkchat.ico]
@@ -5134,9 +5134,15 @@ proc ::tkchat::WinicoInit {} {
                 -pos 0 \
                 -text [wm title .] \
                 -callback [list [namespace origin WinicoCallback] %m %i]
+            bind [. cget -class] <Destroy> [namespace origin WinicoCleanup]
             Hook add chat [namespace origin WinicoChatHook]
         }
-    }
+    
+}
+
+proc ::tkchat::WinicoCleanup {} {
+    variable TaskbarIcon
+    winico taskbar delete $TaskbarIcon
 }
 
 proc ::tkchat::WinicoCallback {msg icn} {
