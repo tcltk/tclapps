@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.223 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.224 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.223 2004/11/17 23:34:58 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.224 2004/11/17 23:50:48 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3558,7 +3558,8 @@ proc ::tkchat::logonScreen {} {
         #      -var Options(UseJabberPoll) 
         if {$have_tls} {
             checkbutton .logon.rjabberssl -text "Use Jabber SSL" \
-                -var Options(UseJabberSSL) -underline 0
+                -var Options(UseJabberSSL) -underline 0 \
+                -command ::tkjabber::TwiddlePort
         }
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect) \
             -underline 5
@@ -6442,6 +6443,8 @@ proc tkjabber::connect { } {
             set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
                             $Options(JabberServer) $Options(JabberPort) \
                             $Options(UseJabberSSL)]
+        } elseif $Options(UseJabberSSL) {
+            set socket [tls::socket $Options(JabberServer) $Options(JabberPort)]
         } else {
             set socket [socket $Options(JabberServer) $Options(JabberPort)]
         }
@@ -7164,6 +7167,15 @@ proc ::tkjabber::LoadHistoryLines {} {
     }
 
     .txt configure -state $state
+}
+
+proc ::tkjabber::TwiddlePort {} {
+    global Options
+    if {$Options(UseJabberSSL) && $Options(JabberPort) == 5222} {
+        incr Options(JabberPort)
+    } elseif {!$Options(UseJabberSSL) && $Options(JabberPort) == 5223} {
+        incr Options(JabberPort) -1
+    }
 }
 
 # -------------------------------------------------------------------------

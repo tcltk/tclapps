@@ -1,6 +1,8 @@
 2004-11-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Primitive /userinfo support for tkjabber.
+	* tkchat.tcl: Added support for SSL without proxy. Use port 5223
+	or all.tclers.tk:443. Added port hinting in the dialog.
 
 2004-11-17  Pascal Scheffers  <pascal@scheffers.net>
 
