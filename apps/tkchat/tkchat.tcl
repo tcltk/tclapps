@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.137 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.138 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.137 2004/02/05 16:44:18 dgp Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.138 2004/02/09 13:36:19 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -100,6 +100,10 @@ namespace eval ::tkchat {
     # used for dynamically created command aliases (added by JJM 25/Sep/2003)
     variable commandAliases
     array set commandAliases [list names [list] types [list] bodies [list]]
+
+    #NoisyUsers: temporarily hide users who are blabbering
+    variable noisyUsers      
+
 }
 
 proc ::tkchat::errLog {args} {
@@ -1322,6 +1326,11 @@ proc ::tkchat::addMessage {clr nick str {mark end}} {
     global Options
     variable map
     set w .txt
+
+    if { [nickIsNoisy $nick] } {
+	return
+    }
+
     checkNick $nick $clr
     checkAlert NORMAL $nick $str
     $w config -state normal
@@ -1336,6 +1345,10 @@ proc ::tkchat::addMessage {clr nick str {mark end}} {
 		# with the right color info.
 		set nick $truenick
 		set str  $msg
+
+		if { [nickIsNoisy $nick] } {
+		    return
+		}
 
                 if {$nick == "ijchain"} {
                     # ijchain is a Jabber to IRC link.
@@ -1675,7 +1688,7 @@ proc ::tkchat::doIrcBridgeWhisper { clr name str } {
 	onlineusers {
 	    set tmp [string range $str [expr [string first : $str]+1] end]
 	    set ircOnlineUsers [split [string trim $tmp] " "]
-	    addSystem "Users on IRC: $ircOnlineUsers"
+	    #addSystem "Users on IRC: $ircOnlineUsers"
 	}
 	default {
 	    addAction $clr $name " whispers: $str"
@@ -1690,7 +1703,7 @@ proc ::tkchat::didIrcBridgeWhisper { clr name str } {
     set str [string trim $str]
     switch -glob -- $str {
 	onlineusers* {
-	    addSystem "Asking ircbridge for online users..."
+	    #addSystem "Asking ircbridge for online users..."
 	}
 	default {
 	    addAction $clr $Options(Username) \
@@ -2364,8 +2377,12 @@ proc ::tkchat::About {} {
 	"\t\ttakes exactly one argument.\n\t\t/alias foo script addSystem \"test!\"\n" {} \
 	"\t\t/alias foo proc thisProc\n" {} \
 	"\t\tproc thisProc { arguments } { addSystem \$arguments }\n" {} \
-	"/unalias <pattern>\t\t/unalias f*" {}
+	"/unalias <pattern>\t\t/unalias f*\n" {} \
+        "/noisy ?<nick>? ?<minutes>?\t\tToggle <nick> noisy for x minutes (default 5)\n" {} \
+	"\t\tmessages from noisy users are not diplayed.\n" {} \
+	"\t\tNot specifying a nick will give you a list of noisy users.\n" {} 
 
+	
 
     $w.text config -state disabled
     catch {::tk::PlaceWindow $w widget .}
@@ -2768,6 +2785,9 @@ proc ::tkchat::userPost {} {
                 {^/unalias\s?} {
                     processAliasCommand $msg              
                 }
+		{^/noisy\s?} {
+		    noisyUser $msg
+		}
                 default  {
                     if {![checkAlias $msg]} then {
                         # might be server command - pass it on
@@ -5041,6 +5061,92 @@ proc ::tkchat::GoogleSelection {} {
     set t [.txt get [lindex $sel 0] [lindex $sel 1]]
     gotoURL http://www.google.com/search?ie=UTF-8&oe=UTF-8&[::http::formatQuery q $t]
 }
+
+# -------------------------------------------------------------------------
+
+# NoisyUsers
+
+proc ::tkchat::noisyUser { msg } {
+    variable noisyUsers
+
+    #Assign msg elements to cmd, nick and time:
+    foreach {cmd nick time} [lrange [split $msg " "] 0 2] {}
+
+    if { [string equal $nick ""] } {
+	set cnt 0
+	foreach {nick time} [array get noisyUsers] {
+	    incr cnt
+	    if { $time < [clock seconds] } {
+		addSystem "$nick is no longer noisy (timeout expired)"
+		unset noisyUsers($nick)
+	    } else {
+		addSystem "$nick is noisy until [clock format $time -format %H:%M:%S]"
+	    }
+	}
+	if { $cnt == 0 } {
+	    addSystem "You don't consider anyone noisy right now"
+	}
+	return
+    }
+
+    if { [info exists noisyUsers($nick)] } {
+	if { [string is integer -strict $time] } {
+	    switch $time {
+		-1 -
+		0 {
+		    unset noisyUsers($nick)
+		    addSystem "$nick is no longer considered noisy."  
+		}
+		default {
+		    set noisyUsers($nick) [expr {[clock seconds] + 60*$time}]
+		    if { $time > 1 } {			
+			addSystem "$nick is considered noisy for $time minutes."
+		    } else {
+			addSystem "$nick is considered noisy for $time minute."
+		    }
+		}
+	    }
+	} else {
+	    #No time given, remove from noisyUsers
+	    unset noisyUsers($nick)
+	    addSystem "$nick is no longer considered noisy."
+	}	
+    } else {
+	if { ![string is integer -strict $time] } {
+	    set time 5
+	}
+	switch $time {
+	    -1 -
+	    0 {
+		addSystem "$nick not considered noisy at this time."  
+	    }
+	    default {
+		set noisyUsers($nick) [expr {[clock seconds] + 60*$time}]
+		if { $time > 1 } {			
+		    addSystem "$nick is considered noisy for $time minutes."
+		} else {
+		    addSystem "$nick is considered noisy for $time minute."
+		}
+	    }
+	}
+    }
+}
+
+proc ::tkchat::nickIsNoisy { nick } {
+    variable noisyUsers
+
+    if { [info exists noisyUsers($nick)] } {
+	if { [clock seconds] < $noisyUsers($nick) } {	    
+	    return 1
+	} else {
+	    addSystem "$nick is no longer considered noisy (timeout expired)."
+	    unset noisyUsers($nick)
+	    return 0
+	}
+    }
+    return 0
+}
+
 
 # -------------------------------------------------------------------------
 
