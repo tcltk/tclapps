@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.241 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.242 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.241 2004/12/03 08:49:01 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.242 2004/12/03 09:08:22 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4028,8 +4028,6 @@ proc ::tkchat::Init {args} {
 	Alert,NORMAL	     1
 	Alert,ACTION	     1
         WhisperIndicatorColor #ffe0e0
-	EntryMessageColor    #005500
-	ExitMessageColor     #550000
         UseBabelfish         0
 	JabberResource       tkchat	
     }
@@ -4061,6 +4059,10 @@ proc ::tkchat::Init {args} {
     # Set the 'Hardcoded' Options:
     set Options(JabberLogs) "http://tclers.tk/conferences/tcl"
     set Options(JabberConference) tcl@tach.tclers.tk
+    array set Options {
+	EntryMessageColor    #002500
+	ExitMessageColor     #250000
+    }
     
     if { $::tcl_platform(os) eq "Windows CE" } {
 	# Disable history loading on wince
