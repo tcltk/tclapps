@@ -1,3 +1,8 @@
+2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added options dialog, updated handling of nick
+	updates, added debug menu.  (hartweg)
+
 2001-09-27  Don Porter  <dgp@users.sourceforge.net>
 
 	* tkchat.tcl:  Fixed ability to click and follow URLs on
