@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.191 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.192 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -70,8 +70,11 @@ proc tkchatrcPostload {} {}
 if {[info exists ::env(HOME)] && \
 	[file readable [set rctclfile \
 			    [file join $::env(HOME) .tkchatrc.tcl]]]} {
-    if {[catch {uplevel \#0 source $rctclfile}]} {
-	puts stderr $::errorInfo
+    if {[catch {uplevel \#0 source $rctclfile} err]} {
+        tk_messageBox -type ok -icon error \
+            -title "Error while loading \"$rctclfile\"" \
+            -message $err
+        log::log error $err
 	exit
     }
 }
@@ -89,7 +92,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.191 2004/10/16 23:31:51 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.192 2004/10/19 11:14:48 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -430,7 +433,7 @@ proc ::tkchat::LoadHistory {} {
 	    tkwait window $t
 	    foreach log [lrange $loglist $HistQueryNum end] {
 		if {[catch {ParseHistLog $log} new]} {
-		    puts "ERROR: $new"
+		    log::log error "error parsing history: \"$new\""
 		} else {
 		    set FinalList [concat $FinalList $new]
 		}
@@ -443,7 +446,7 @@ proc ::tkchat::LoadHistory {} {
 	    # fetch log
 	    set log [lindex $loglist $idx]
 	    if {[catch {ParseHistLog $log} new]} {
-		puts "ERROR: $new"
+                log::log error "error parsing history: \"$new\""
 	    } else {
 		set FinalList [concat $new $FinalList]
 	    }
@@ -1731,7 +1734,7 @@ proc ::tkchat::say { message args } {
 	set festival [open "|festival --pipe" w]
     }
 
-    puts [string map [list "\"" ""] $message]
+    log::log debug [string map [list "\"" ""] $message]
     puts $festival "(SayText \"$message\")"
     flush $festival
 }
@@ -6078,7 +6081,7 @@ proc tkjabber::openStream {} {
     variable socket
     variable jabber
     global Options
-    puts "OPENSTREAM"
+    log::log debug "OPENSTREAM"
     $jabber openstream $Options(JabberServer) -cmd [namespace current]::ConnectProc -socket $socket    
 }
 
