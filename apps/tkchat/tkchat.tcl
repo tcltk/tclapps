@@ -62,7 +62,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.196 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.197 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -94,7 +94,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.196 2004/10/26 18:42:06 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.197 2004/11/03 09:03:04 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3321,8 +3321,10 @@ proc ::tkchat::logonScreen {} {
               -var Options(SavePW) -underline 0
 	checkbutton .logon.rjabber -text "Use Jabber Server (experimental)" \
               -var Options(UseJabber) 
-	label .logon.ljsrv -text "Jabber server" 
+        frame .logon.fjsrv
+	label .logon.ljsrv -text "Jabber server:port" 
 	entry .logon.ejsrv -textvar Options(JabberServer)
+	entry .logon.ejprt -textvar Options(JabberPort) -width 5
 	checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
               -var Options(UseJabberPoll) 
         if {$have_tls} {
@@ -3355,6 +3357,9 @@ proc ::tkchat::logonScreen {} {
 	trace variable Options(SavePW)    w [namespace origin optSet]
 	trace variable Options(UseJabber) w [namespace origin joptSet]
 
+        pack .logon.ejprt -in .logon.fjsrv -side right -fill y
+        pack .logon.ejsrv -in .logon.fjsrv -side right -fill both -expand 1
+
 	grid .logon.prx -           -           -in $lf -sticky w -pady 3
 	grid  x         .logon.lph  .logon.eph  -in $lf -sticky w -pady 3
 	grid  x         .logon.lpp  .logon.epp  -in $lf -sticky w -pady 3
@@ -3364,7 +3369,7 @@ proc ::tkchat::logonScreen {} {
 	grid .logon.lpw .logon.epw  -           -in $lf -sticky ew
 	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
 	grid x          .logon.rjabber -        -in $lf -sticky w -pady 3
-	grid .logon.ljsrv .logon.ejsrv -        -in $lf -sticky w -pady 3
+	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
         if {$have_tls} {
             grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
         }
@@ -3420,7 +3425,11 @@ proc ::tkchat::optSet {args} {
 proc ::tkchat::joptSet {args} {
     global Options
     set state [expr {$Options(UseJabber) ? "normal" : "disabled"}]
-    foreach w {.logon.rjabberssl .logon.rjabberpoll} {
+    set jwidgets {
+        .logon.rjabberssl .logon.rjabberpol .logon.rjabberpoll
+        .logon.ljsrv .logon.ejsrv .logon.ejprt
+    }
+    foreach w $jwidgets {
         if {[winfo exists $w]} {$w configure -state $state}
     }
 }

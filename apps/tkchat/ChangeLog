@@ -1,3 +1,7 @@
+2004-10-29  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add jabber port setting and disable when not in use.
+
 2004-10-16  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Jabber. Register account popup fixed for jabberd2,
 	nickname conflict resolution added at room entry.
