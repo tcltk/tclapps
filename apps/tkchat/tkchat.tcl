@@ -35,7 +35,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
     }
 }
 
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.65 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.66 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -46,7 +46,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.65 2002/08/13 12:56:46 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.66 2002/09/26 19:50:32 drh Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1000,11 +1000,71 @@ proc checkNick {nick clr} {
     }
 }
 
+# Beep and/or deiconify and raise the main window as an idle callback.
+# This is done as an idle callback because there might be many requests
+# to alert in a row and we want to batch them all together into one
+# action.
+#
+proc alertWhenIdle {} {
+    variable alert_pending
+    if {![info exists alert_pending]} {
+        set alert_pending 1
+        after idle [namespace current]alertCallback
+    }
+}
+proc alertCallback {} {
+    variable alert_pending
+    global Options
+    catch {unset alert_pending}
+    if {$Options(Alert,RAISE) && [llength [grab current]]==0} {
+        wm deiconify .
+        raise .
+    }
+    if {$Options(Alert,SOUND)} bell
+}
+
+
+# Check to see if an alert is desired for the given message.  Issue
+# the alert if so.
+#
+# As a side effect, record the time of last post for user $nick in
+# the global LastPost() array.
+#
+proc checkAlert {msgtype nick str} {
+    global Options LastPost
+    set now [clock seconds]
+    set LastPost($nick) $now
+    set x Alert,$msgtype
+    if {![info exists Options($x)] || !$Options($x)} {
+        return
+    }
+    set alert 0
+    if {$Options(Alert,ALL)} {
+        set alert 1
+    }
+    if {!$alert && $Options(Alert,ME)} {
+        set myname [string tolower $Options(Username)]
+        set txt [string tolower $str]
+        if {[string first $myname $txt]>=0} {
+            set alert 1
+        }
+    }
+    if {!$alert && $Options(Alert,TOPIC)} {
+        if {![info exists LastPost($nick)] || $LastPost($nick)<$now-300} {
+            set alert 1
+        }
+    }
+    if {$alert} {
+        alertWhenIdle
+    }
+}
+
 proc addMessage {clr nick str} {
     global Options
     variable map
     set w .txt
     checkNick $nick $clr
+    checkAlert NORMAL $nick $str
     $w config -state normal
     $w insert end "$nick\t" [list NICK NICK-$nick]
     if {[string equal $nick clock]} {
@@ -1196,6 +1256,7 @@ proc formatClock {str} {
 proc addAction {clr nick str} {
     global Options
     checkNick $nick $clr
+    checkAlert ACTION $nick $str
     .txt config -state normal
     .txt insert end "    * $nick " [list NICK NICK-$nick]
     if {[string equal $nick clock]} {
@@ -1354,6 +1415,8 @@ proc ::tkchat::CreateGUI {} {
           -underline 0 -menu [menu .mbar.emot -tearoff 0]
     .mbar add cascade -label Visibility \
           -underline 0 -menu [menu .mbar.vis -tearoff 0]
+    .mbar add cascade -label Alerts \
+          -underline 0 -menu [menu .mbar.alert -tearoff 0]
     .mbar add cascade -label Debug -underline 0 \
           -menu [menu .mbar.dbg -tearoff 0]
     .mbar add cascade -label Help -underline 0 \
@@ -1492,6 +1555,37 @@ proc ::tkchat::CreateGUI {} {
               -underline 10
     }
     
+    ## Alert Menu
+    ##
+    set m .mbar.alert
+    foreach {tag text} {
+        SOUND     "Beep on alert"
+        RAISE     "Raise to top on alert"
+    } {
+        $m add checkbutton -label "$text" \
+              -onval 1 -offval 0 \
+              -var Options(Alert,$tag)
+    }
+    $m add separator
+    foreach {tag text} {
+        ALL       "Alert when any message received"
+        ME        "Alert when username mentioned"
+        TOPIC     "Alert when someone speaks who was quiet"
+    } {
+        $m add checkbutton -label "$text" \
+              -onval 1 -offval 0 \
+              -var Options(Alert,$tag)
+    }
+    $m add separator
+    foreach {tag text} {
+        NORMAL    "Alert on regular posts"
+        ACTION    "Alert on whispers and \"/me\" posts"
+    } {
+        $m add checkbutton -label "$text" \
+              -onval 1 -offval 0 \
+              -var Options(Alert,$tag)
+    }
+
     ## Debug Menu
     ##
     set m .mbar.dbg
@@ -2657,6 +2751,13 @@ proc ::tkchat::Init {} {
         Visibility,WELCOME   1
         Visibility,MEMO      1
         Visibility,HELP      1
+        Alert,SOUND          0
+        Alert,RAISE          1
+        Alert,ALL            0
+        Alert,ME             1
+        Alert,TOPIC          1
+        Alert,NORMAL         1
+        Alert,ACTION         1
     }
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
