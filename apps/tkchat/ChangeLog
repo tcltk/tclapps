@@ -1,3 +1,9 @@
+2002-04-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: added language translation to the help menu via
+	the babelfish website. The selection is translated and the result
+	printed as a system message in the chat window.
+
 2002-03-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (Debug): New debug menu item to load support for

@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.49 2002/03/22 14:11:54 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.50 2002/04/10 23:58:47 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -276,6 +276,9 @@ proc ::tkchat::ParseHistLog {log} {
 proc ::tkchat::LoadHistory {} {
     global Options    
     
+    # hook in the translation menu initialization (background function)
+    babelfishInit
+
     set FinalList {}
     if {$Options(HistoryLines) == 0} {
         # don't even bother
@@ -639,6 +642,87 @@ proc onlineDone {tok} {
     }
     ::http::cleanup $tok
 }
+
+# -------------------------------------------------------------------------
+# Translate the selection using Babelfish.
+# -------------------------------------------------------------------------
+
+proc tkchat::fetchurldone {cmd tok} {
+    errLog "fetchurl: status was [::http::status $tok] [::http::code $tok]"
+    switch -- [::http::status $tok] {
+	ok - OK - Ok {
+            $cmd $tok
+	}
+	reset - Reset - RESET {
+	    errLog "Reset called during fetch of URL"
+	}
+	timeout - Timeout - TIMEOUT {
+	    errLog "Timeout occurred during fetch of URL"
+	}
+	error - Error - ERROR {
+	    tk_messageBox -message "Fetch URL error: [::http::error $tok]"
+	}
+    }
+    ::http::cleanup $tok
+}
+
+proc tkchat::translateSel {from to} {
+    if {![catch {selection get} msg]} {
+        log::log debug "translate: $from $to \"$msg\""
+        translate $from $to $msg
+    }
+}
+
+proc tkchat::translate {from to text} {
+    set url {http://world.altavista.com/sites/gben/pos/babelfish/tr}
+    append op $from _ $to
+    set query [http::formatQuery tt urltext urltext $text lp $op]
+    set tok [http::geturl $url \
+             -query $query \
+             -headers [buildProxyHeaders] \
+             -command [list ::tkchat::fetchurldone ::tkchat::translateDone]]
+}
+
+proc tkchat::translateDone {tok} {
+    set ::tkchat::translate [http::data $tok]
+    set r [regexp {<TEXTAREA NAME="q".*?>(.*?)</TEXTAREA>} \
+            [::http::data $tok] -> text]
+    set text [string trim $text]
+    log::log debug "Translate: \"$text\""
+    if {$r} {
+        addSystem "TR: $text"
+    } else {
+        errLog "Translation returned no matching data."
+    }
+}
+
+proc tkchat::babelfishInit {} {
+    set url {http://world.altavista.com/sites/gben/pos/babelfish/trns}
+    set tok [http::geturl $url \
+             -headers [buildProxyHeaders] \
+             -command [list ::tkchat::fetchurldone \
+                            ::tkchat::babelfishInitDone]]
+}
+
+proc tkchat::babelfishInitDone {tok} {
+    set ::tkchat::babelfish [http::data $tok]
+    if {[regexp {<select name="lp">(.*?)</select>} [::http::data $tok] -> r]} {
+        .mbar.help.tr delete 0 end
+        set lst [split [string trim $r] \n]
+        foreach option $lst {
+            regexp {<option value="(.*?)"[^>]*>(.*?)</option>} \
+                    $option -> value label
+            set value [split $value _]
+            log::log debug "option: $label $value"
+            .mbar.help.tr add command -label $label \
+                    -command [concat [namespace current]::translateSel $value]
+        }
+    } else {
+        log::log debug "babelfish received no data"
+    }
+}
+
+# -------------------------------------------------------------------------
 
 proc updateNames {rawHTML} {
     global Options
@@ -1459,6 +1543,7 @@ proc ::tkchat::CreateGUI {} {
     ##
     set m .mbar.help
     $m add command -label About... -underline 0 -command tkchat::About
+    $m add cascade -label Translate -underline 0 -menu [menu $m.tr]
     
     text .txt -background "#[getColor MainBG]" \
           -foreground "#[getColor MainFG]" \
