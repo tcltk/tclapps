@@ -44,7 +44,8 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 # We sometimes need to _really_ use the Tk widgets at the moment...
 #
 catch {
-    rename ::entry ::tk::entry
+    # BUG : Entry renaming doesn't work with activetcl 8.4.6.1
+    #rename ::entry ::tk::entry
     rename ::label ::tk::label
     rename ::radiobutton ::tk::radiobutton
     if {![catch {package require tile 0.4}]} {
@@ -54,12 +55,11 @@ catch {
             namespace import -force tile::*
         }
     } else {
-        interp alias {} entry {} ::tk::entry
+        #interp alias {} entry {} ::tk::entry
 	interp alias {} label {} ::tk::label
 	interp alias {} radiobutton {} ::tk::radiobutton
     }
 }
-
 # Under windows, we can use DDE to open urls
 if {$tcl_platform(platform) == "windows"} {
     package require dde
@@ -68,7 +68,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.203 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.204 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.203 2004/11/07 20:37:54 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.204 2004/11/08 10:41:57 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -339,7 +339,7 @@ proc ::tkchat::GetHistLogIdx {szary} {
     # Show a max of 7 days worth of logs
     return [lrange $loglist end-6 end]
 }
-proc ::tkchat::ParseHistLog {log} {
+proc ::tkchat::ParseHistLog {log {reverse 0}} {
     global Options
 
     if { $Options(UseJabber) } {
@@ -367,8 +367,15 @@ proc ::tkchat::ParseHistLog {log} {
 		# Jabber logs
 		set I [interp create -safe]
 		interp alias $I m {} ::tkjabber::ParseLogMsg
+		if { $reverse } {
+		    set histTmp $::tkjabber::HistoryLines
+		    set ::tkjabber::HistoryLines {}
+		}
 		$I eval [::http::data $tok]
-		set retList [tkjabber::LogMsgLines]
+		if { $reverse } {		    
+		    set ::tkjabber::HistoryLines [concat $::tkjabber::HistoryLines $histTmp]
+		}
+		#set retList [tkjabber::LogMsgLines]
 	    } else {
 		set logdata [split  [::http::data $tok] \n]
 		set lastnick ""
@@ -485,7 +492,7 @@ proc ::tkchat::LoadHistory {} {
 	for {set idx [expr {[llength $loglist] - 1}]} {$idx >= 0} {incr idx -1} {
 	    # fetch log
 	    set log [lindex $loglist $idx]
-	    if {[catch {ParseHistLog $log} new]} {
+	    if {[catch {ParseHistLog $log 1} new]} {
                 log::log error "error parsing history: \"$new\""
 	    } else {
 		set FinalList [concat $new $FinalList]
@@ -512,15 +519,15 @@ proc ::tkchat::LoadHistory {} {
     }
 
     set Options(FinalList) $FinalList
+
+    .txt config -state disabled
+    .txt see end
     
     if { $Options(UseJabber) } {
 	::tkjabber::LoadHistoryLines
     } else {
 	LoadHistoryLines
-    }
-
-    .txt config -state normal
-    .txt see end
+    }    
 }
 
 
@@ -1454,15 +1461,35 @@ proc ::tkchat::stripStr {str} {
 }
 
 proc ::tkchat::parseStr {str} {
+    global Options
     # get href info return list of str link pairs
     set sList {}
-    while {[regexp -nocase -- {^(.*?)<A.*?HREF="(.+?)".*?>(.*?)</A>(.*?)$} \
-                  $str -> pre url link post]} {
-	if {[string length $pre]} {
-	    lappend sList [stripStr $pre] ""
-	}
-	lappend sList [stripStr $link] $url
-	set str $post
+    if { $Options(UseJabber) } {
+	set HTTPRE {https?://(((([A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]|[A-Za-z0-9])\.)*([a-zA-Z][A-Za-z0-9-]*[A-Za-z0-9]|[a-zA-Z]))|([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+))(:[0-9]+)?(/([a-zA-Z0-9$_.+!*'(,);:@&=-]|%[0-9A-Fa-f][0-9A-Fa-f])*(/([a-zA-Z0-9$_.+!*'(,);:@&=-]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(\?([a-zA-Z0-9$_.+!*'(,);:@&=-]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?}
+	while {[regexp -nocase -- $HTTPRE $str url]} {
+	    set pre ""
+	    set post ""
+	    set pos [string first $url $str]
+	    if { $pos > 0 } {
+		set pre [string range $str 0 [expr {$pos-1}]]			 
+	    }
+	    set post [string range $str [expr {$pos+[string length $url]}] end]
+	    
+	    if {[string length $pre]} {
+		lappend sList [stripStr $pre] ""
+	    }
+	    lappend sList [stripStr $url] $url
+	    set str $post
+	}    	
+    } else {
+	while {[regexp -nocase -- {^(.*?)<A.*?HREF="(.+?)".*?>(.*?)</A>(.*?)$} \
+		      $str -> pre url link post]} {
+	    if {[string length $pre]} {
+		lappend sList [stripStr $pre] ""
+	    }
+	    lappend sList [stripStr $link] $url
+	    set str $post
+	}    
     }
     if {[string length $str]} {
 	lappend sList [stripStr $str] ""
@@ -1657,7 +1684,7 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}}
                 eval $cmd [list $str $url]
             }
 	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NICK-$nick NOLOG]
+		set tags [list MSG NOLOG NICK-$nick]
 	    } else {
 		set tags [list MSG NICK-$nick]		
 	    }
@@ -1936,9 +1963,9 @@ proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0} {extraOpts ""}} 
     } else {
 	foreach {str url} [parseStr $str] {
 	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NICK-$nick ACTION NOLOG]
+		set tags [list MSG NOLOG NICK-$nick ACTION]
 	    } else {
-		set tags [list MSG NICK-$nick ACTION]		
+		set tags [list MSG NICK-$nick ACTION]	
 	    }
 	    if {$url != ""} {
 		lappend tags URL URL-[incr ::URLID]
@@ -2368,6 +2395,19 @@ proc ::tkchat::CreateGUI {} {
 	-val 1 -command {tkchat::OpenChatLog close} -underline 0
     $m.chatLog add command -label "To File..." \
 	-command {tkchat::OpenChatLog open} -underline 0
+    
+    if { $Options(UseJabber) } {
+	$m add cascade -label "Server Chat Logging" \
+	    -menu [menu $m.chatServLog -tearoff 0] \
+	    -underline 0
+	$m.chatServLog add radiobutton -label "Log my messages, do not log my actions (old style)" -val oldStyle \
+	    -var Options(ServerLogging) -underline 1
+	$m.chatServLog add radiobutton -label "Log my messages and actions" -val all \
+	    -var Options(ServerLogging) -underline 0
+	$m.chatServLog add radiobutton -label "Do not log my messages and actions" -val none \
+	    -var Options(ServerLogging) -underline 3	
+    }
+    
     $m add cascade -label "Loading Server History" \
 	-menu [menu $m.hist -tearoff 0] \
 	-underline 15
@@ -2581,7 +2621,7 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure INFO -lmargin2 50
     .txt tag configure NICK -font NAME
     .txt tag configure ACTION -font ACT
-    .txt tag configure NOLOG -font ACT -foreground #aaaaaa
+    .txt tag configure NOLOG -font ACT -background #eeeeee
     .txt tag configure SYSTEM -font SYS
     .txt tag configure STAMP -font STAMP
     .txt tag configure URL -underline 1
@@ -3250,6 +3290,26 @@ proc ::tkchat::userPost {} {
 		    }
 		    gotoURL $q
 		}
+		{^/log\s?} {
+		    if { [string equal $msg "/log"] } {
+			# Set the global logging state
+			set Options(ServerLogging) all
+			addSystem "Your messages will be logged by the server."
+		    } else {
+			# Send a single message with logging enabled:
+			msgSend [string trim [string range $msg 4 end]]
+		    }
+		}
+		{^/nolog\s?} {
+		    if { [string equal $msg "/nolog"] } {
+			# Set the global logging state
+			set Options(ServerLogging) none
+			addSystem "Your messages will not be logged by the server."
+		    } else {
+			# Send a single message without logging:
+			msgSend $msg
+		    }
+		}	
 		{^/nick\s?} {
 		    if { $Options(UseJabber) } {
 			tkjabber::setNick [string range $msg 6 end]
@@ -3260,10 +3320,45 @@ proc ::tkchat::userPost {} {
 			tkjabber::setTopic [string range $msg 7 end]
 		    }
 		}
+		{^/me\s?} {
+		    if { $Options(UseJabber) } {
+			switch $Options(ServerLogging) {
+			    oldStyle -
+			    none {
+				msgSend "/nolog$msg"
+			    }
+			    default {
+				msgSend $msg
+			    }			    
+			}
+		    } else {
+			msgSend $msg
+		    }
+		}
+		{^/msg\s} {
+		    if { $Options(UseJabber) } {
+			if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
+			    msgSend $privMsg $toNick
+			}
+		    } else {
+			msgSend $msg
+		    }
+		}
 		default	 {
 		    if {![checkAlias $msg]} then {
-			# might be server command - pass it on
-			msgSend $msg
+			# might be server command - pass it on			
+			if { $Options(UseJabber) } {
+			    switch $Options(ServerLogging) {
+				none {
+				    msgSend "/nolog $msg"
+				}				
+				default {
+				    msgSend $msg
+				}			    
+			    }
+			} else {
+			    msgSend $msg
+			}
 		    }
 		}
 	    }
@@ -3286,7 +3381,18 @@ proc ::tkchat::userPost {} {
 		set msg [string map $map $Options(Macro,$macro)]
 	    }
 	    if {[string equal $Options(MsgTo) "All Users"]} {
-		msgSend $msg
+		if { $Options(UseJabber) } {
+		    switch $Options(ServerLogging) {
+			none {
+			    msgSend "/nolog $msg"
+			}				
+			default {
+			    msgSend $msg
+			}			    
+		    }
+		} else {
+		    msgSend $msg
+		}
 	    } else {
 		msgSend $msg $Options(MsgTo)
 	    }
@@ -4544,6 +4650,7 @@ proc ::tkchat::Init {args} {
 	UseJabber	0
 	UseJabberPoll	0
 	UseJabberSSL	0
+	ServerLogging all
 	MyColor		000000
 	FetchTimerID	-1
 	OnlineTimerID	-1
@@ -6702,7 +6809,7 @@ proc ::tkjabber::setTopic { newtopic } {
     
 }
 
-proc ::tkjabber::ParseLogMsg { when nick msg opts args } {
+proc ::tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
     variable HistoryLines
     set time [clock scan ${when} -gmt 1]
     lappend HistoryLines [list $time $nick $msg]

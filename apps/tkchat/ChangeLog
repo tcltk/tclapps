@@ -1,3 +1,7 @@
+2004-11-08  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: More work on jabber history loading, added /(no)log
+        commands and menu options to set message logging behaviour. Added http(s)
+        url RE for jabber mode.
 
 2004-11-07  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Added jabber history loading
