@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.169 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.170 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.169 2004/06/29 22:05:41 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.170 2004/06/29 23:32:32 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3663,7 +3663,7 @@ proc ::tkchat::saveRC {} {
 	array set tmp [array get Options]
 	set ignore {
             History FetchTimerID OnlineTimerID FinalList NamesWin
-            FetchToken OnlineToken ProxyPassword ProxyAuth
+            FetchToken OnlineToken OnLineUsers ProxyPassword ProxyAuth
             URL URL2 URLchk URLlogs errLog ChatLogChannel PaneUsersWidth
         }
 	if {!$tmp(SavePW)} {
@@ -4219,7 +4219,6 @@ proc ::tkchat::Init {args} {
 	set Options(Color,$name,Mine)  $clr
 	set Options(Color,$name,Which) Web
     }
-
     # attach a trace function to the log level
     trace variable Options(LogLevel) w [namespace origin LogLevelSet]
     LogLevelSet
@@ -4243,15 +4242,26 @@ proc ::tkchat::Init {args} {
             -style     { set Options(Style) [Pop args 1] }
             -theme     { set Options(Theme) [Pop args 1] }
             -loglevel  { LogLevelSet [Pop args 1] }
+            -useragent { set Options(UserAgent) [Pop args 1] }
             -- { Pop args ; break }
             default {
                 return -code error "bad option \"$option\":\
-                    must be one of -nologin, -style, -theme, -loglevel or --."
+                    must be one of -nologin, -style, -theme,\
+                    -loglevel, -useragent or --."
             }
         }
         Pop args
     }
 
+    # Set the useragent string to something a bit more standard.
+    if {[info exists Options(UserAgent)]} {
+        http::config -useragent $Options(UserAgent)
+    } else {
+        http::config -useragent "Mozilla/4.0\
+            ([string totitle $::tcl_platform(platform)];\
+            $::tcl_platform(os)) http/[package provide http]\
+            Tcl/[package provide Tcl]"
+    }
 
     # Open the error log to file if specified. Default is stderr.
     if {[string length $Options(LogFile)] > 0} {
