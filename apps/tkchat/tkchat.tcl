@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.227 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.228 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.227 2004/11/18 11:35:11 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.228 2004/11/18 13:04:45 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -318,7 +318,7 @@ proc ::tkchat::GetHistLogIdx {szary} {
 			set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
 		    }
 		    foreach line [split [::http::data $tok] \n] {
-			puts "$RE $line"
+			# puts "$RE $line"
 			if { [regexp  -- $RE $line -> logname size] } {
 			    if { $Options(UseJabber) } {
 				set logname [string map {"%2d" -} $logname]
@@ -1289,7 +1289,7 @@ proc ::tkchat::getColor {name} {
 proc ::tkchat::fadeColor {color} {
     if {[scan $color "%2x%2x%2x" r g b] == 3} {
 	foreach c {r g b} {
-	    set $c [expr {255 - int((255-[set $c])*.6)}]
+	    set $c [expr {255 - int((255-[set $c]) * .5)}]
 	}
 	set color [format "%02x%02x%02x" $r $g $b]
     }
@@ -1607,9 +1607,10 @@ proc ::tkchat::checkNick {nick clr} {
         }
         set clr [getColor $nick]
         if {$clr == ""} { set clr [getColor MainFG] }
-	set nclr [fadeColor $clr]
-	.txt tag configure NICK-$nick -foreground "#$clr"
-	.txt tag configure NOLOG-$nick -foreground "#$nclr"
+	if {[catch {
+	    .txt tag configure NICK-$nick -foreground "#$clr"
+	    .txt tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
+	} msg]} then { log::log debug "nickCheck: \"$msg\"" }
     }
 }
 
@@ -1739,7 +1740,7 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}}
                 eval $cmd [list $str $url]
             }
 	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NOLOG-$nick ACTION]
+		set tags [list MSG NOLOG-$nick NOLOG]
 	    } else {
 		set tags [list MSG NICK-$nick]
 	    }
@@ -2022,9 +2023,9 @@ proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0} {extraOpts ""}} 
     } else {
 	foreach {str url} [parseStr $str] {
 	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NOLOG-$nick ACTION]
+		set tags [list MSG NOLOG-$nick ACTION NOLOG]	
 	    } else {
-		set tags [list MSG NICK-$nick ACTION]	
+		set tags [list MSG NICK-$nick ACTION]
 	    }
 	    if {$url != ""} {
 		lappend tags URL URL-[incr ::URLID]
@@ -2211,10 +2212,11 @@ proc ::tkchat::addHelp {clr name str} {
 }
 
 proc ::tkchat::createFonts {} {
-    font create FNT  -family helvetica -size -12 -weight normal -slant roman
-    font create ACT  -family helvetica -size -12 -weight normal -slant italic
-    font create NAME -family helvetica -size -12 -weight bold	-slant roman
-    font create SYS  -family helvetica -size -12 -weight bold	-slant italic
+    font create FNT   -family helvetica -size -12 -weight normal -slant roman
+    font create ACT   -family helvetica -size -12 -weight normal -slant italic
+    font create NOLOG -family helvetica -size -12 -weight normal -slant roman
+    font create NAME  -family helvetica -size -12 -weight bold	-slant roman
+    font create SYS   -family helvetica -size -12 -weight bold	-slant italic
     font create STAMP -family helvetica -size -12 -weight bold	-slant roman
 }
 
@@ -2688,7 +2690,7 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure INFO -lmargin2 50
     .txt tag configure NICK -font NAME
     .txt tag configure ACTION -font ACT
-    .txt tag configure NOLOG -font ACT 
+    .txt tag configure NOLOG -font NOLOG
     .txt tag configure SYSTEM -font SYS
     .txt tag configure STAMP -font STAMP
     .txt tag configure URL -underline 1
@@ -4075,9 +4077,10 @@ proc ::tkchat::applyColors {} {
         if {$clr == ""} {
             set clr [getColor MainFG]
         }
-        if {[catch {
-            .txt tag config NICK-$nk -foreground "#$clr"
-        } msg]} { log::log debug "applyColors: \"$msg\"" }
+	if {[catch {
+	    .txt tag config NICK-$nk -foreground "#$clr"
+	    .txt tag config NOLOG-$nk -foreground "#[fadeColor $clr]"
+	} msg]} then { log::log debug "applyColors: \"$msg\"" }
     }
 }
 
@@ -4312,7 +4315,7 @@ proc ::tkchat::SetFont { fontString } {
     foreach { family size } $fontString break
     set ::Options(Font,-family) $family
     set ::Options(Font,-size) $size
-    foreach font {FNT ACT NAME SYS STAMP} {
+    foreach font {FNT ACT NOLOG NAME SYS STAMP} {
 	font configure $font -family $family -size $size
     }
     return
@@ -4320,7 +4323,7 @@ proc ::tkchat::SetFont { fontString } {
 
 proc ::tkchat::ChangeFont {opt val} {
     set ::Options(Font,$opt) $val
-    foreach font {FNT ACT NAME SYS STAMP} {
+    foreach font {FNT ACT NOLOG NAME SYS STAMP} {
 	font configure $font $opt $val
     }
 }

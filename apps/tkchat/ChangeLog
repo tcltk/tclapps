@@ -1,3 +1,7 @@
+2004-11-18  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Completed color fading on nolog messages.
+
 2004-11-18  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Debugging stuff removed.
