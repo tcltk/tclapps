@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.105 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.106 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.105 2003/07/31 23:16:54 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.106 2003/08/15 23:24:16 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -723,7 +723,8 @@ proc tkchat::translateDone {tok} {
     set text [string trim $text]
     log::log debug "Translate: \"$text\""
     if {$r} {
-        addSystem "TR: $text"
+        #addSystem "TR: $text"
+        showInfo Translation $text
     } else {
         errLog "Translation returned no matching data."
     }
@@ -1420,7 +1421,7 @@ proc addUnknown {str} {
     global Options
 }
 
-proc showInfo {title str} {
+proc ::tkchat::showInfo {title str} {
     set t .infobox
     set i 0
     while {[winfo exists $t]} {
@@ -1477,7 +1478,7 @@ proc addHelp {clr name str} {
         set tag HELP
     }
     if {$Options(Popup,$tag)} {
-	showInfo $tag $str
+	::tkchat::showInfo $tag $str
     }
 
     if {$clr != ""} {
@@ -1928,6 +1929,8 @@ proc ::tkchat::CreateGUI {} {
     bind .txt <Down>       {.txt yview scroll   1 units}
     bind .txt <Button-4>   {.txt yview scroll  -1 units}
     bind .txt <Button-5>   {.txt yview scroll   1 units}
+    bind .txt <Button-3>   {.mbar.help.tr post \
+                                [winfo pointerx %W] [winfo pointery %W]}
 
     # using explicit rows for restart
     if {$UsePane} {
@@ -2103,8 +2106,8 @@ proc ::tkchat::userPost {} {
                 {^/!} {
                     resetSearch
                 }
-                {^/(urn:)?tip:\d+} {
-                    if {[regexp {(?:urn:)?tip:(\d+)} $msg -> tip]} {
+                {^/(urn:)?tip[: ]\d+} {
+                    if {[regexp {(?:urn:)?tip[: ](\d+)} $msg -> tip]} {
                         gotoURL http://purl.org/tcl/tip/$tip
                     }
                 }

@@ -1,3 +1,9 @@
+2003-08-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed translation code to appear in a dialog.
+	Added a context menu to access translation. 
+	Support space separator in the /tip command.
+
 2003-07-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Changed the pane resizing so that the chat window is
