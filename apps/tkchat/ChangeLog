@@ -2,6 +2,7 @@
 
 	* tkchat.tcl: Merged in improvements for tile and winico handling
 	from Donal Fellows. (Patch #1061218).
+	* tkchat.tcl: Added cyclops smiley.
 
 2004-10-29  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

@@ -68,7 +68,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.198 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.199 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.198 2004/11/05 23:06:34 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.199 2004/11/05 23:46:26 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4398,6 +4398,13 @@ proc ::tkchat::Smile {} {
 	RBgwYcKEEAVCRJgwYcKEECUCRJgwYcKEECUCRJgwIcKEECUCRIgwYcKEECUC
 	RJgwYUKEEAVCRJgwYcKEAAFKRJgwYMKEACFKRJgwYcKEECVKRJgwYcKEECVK
 	BAgQIECAECVKBQA7
+    }
+
+    SmileId cyclops "O-\]" "O-)" "0-\]" "0-)"
+    image create photo ::tkchat::img::cyclops -format GIF -data {
+        R0lGODlhDwAPAKEAANnZ2QAAAP//AP///yH5BAEAAAMALAAAAAAPAA8AAAIz
+        nB2Zx5MC4WIhWnlqVDagDYSa4I2BKG4jGQLr08HqRUvaumH3dX82h/HVPBTc
+        pOFQEA8FADs=
     }
 }
 
