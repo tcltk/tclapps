@@ -1,3 +1,7 @@
+2004-12-08  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Prevent multiple reconnect timers running at the same time.
+
 2004-12-08  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::parseStr): Simplified the URL parsing
