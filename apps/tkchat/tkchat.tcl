@@ -31,6 +31,8 @@ package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 package require base64		; # tcllib
 
+catch {package require tls}     ; # tls (optional)
+
 # We need Tk 8.3.2 to get -state options for [label]s
 if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
     if {![package vsatisfies $tk_patchLevel 8.3.2]} {
@@ -60,7 +62,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.192 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.193 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -92,7 +94,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.192 2004/10/19 11:14:48 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.193 2004/10/19 15:22:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3290,12 +3292,15 @@ proc ::tkchat::showExtra {} {
 }
 proc ::tkchat::logonScreen {} {
     global Options LOGON
+    set have_tls [expr {[package provide tls] != {}}]
     pause on 0
     if {![winfo exists .logon]} {
 	toplevel .logon -class dialog
 	wm withdraw .logon
 	wm transient .logon .
 	wm title .logon "Logon to the Tcl'ers Chat"
+
+        set lf [frame .logon.frame]
 	checkbutton .logon.prx -text "Use Proxy" -var Options(UseProxy) \
             -underline 7
 	label .logon.lph -text "Proxy Host" -underline 6
@@ -3315,16 +3320,24 @@ proc ::tkchat::logonScreen {} {
 	checkbutton .logon.rjabber -text "Use Jabber Server (experimental)" \
               -var Options(UseJabber) -underline 0
 	checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
-              -var Options(UseJabberPoll) -underline 0	
+              -var Options(UseJabberPoll) -underline 0
+        if {$have_tls} {
+            checkbutton .logon.rjabberssl -text "Use Jabber SSL" \
+                -var Options(UseJabberSSL) -underline 0
+        }
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect) \
             -underline 5
+        frame  .logon.f  -border 0
 	button .logon.ok -text "Logon" -command "set LOGON 1" -width 8 -underline 0
-	button .logon.cn -text "Quit" -width 8 -underline 0 \
+	button .logon.cn -text "Cancel" -command "set LOGON 0" -width 8 -underline 0
+	button .logon.qu -text "Quit" -width 8 -underline 0 \
             -command [namespace origin quit]
+        catch {.logon.ok configure -default active}
+        pack .logon.qu .logon.cn .logon.ok -in .logon.f -side right
 
         bind .logon <Alt-x> {.logon.prx invoke}
         bind .logon <Alt-l> {.logon.ok invoke}
-        bind .logon <Alt-q> {.logon.cn invoke}
+        bind .logon <Alt-q> {.logon.qu invoke}
         bind .logon <Alt-h> {focus .logon.eph}
         bind .logon <Alt-p> {focus .logon.epp}
         bind .logon <Alt-u> {focus .logon.epan}
@@ -3334,26 +3347,34 @@ proc ::tkchat::logonScreen {} {
         bind .logon <Alt-r> {.logon.rpw invoke}
         bind .logon <Alt-c> {.logon.atc invoke}
 
-	trace variable Options(UseProxy) w [namespace origin optSet]
-	trace variable Options(SavePW) w [namespace origin optSet]
-	grid .logon.prx - - -sticky w -pady 3
-	grid  x .logon.lph .logon.eph -sticky w -pady 3
-	grid  x .logon.lpp .logon.epp -sticky w -pady 3
-	grid  x .logon.lpan .logon.epan -sticky w -pady 3
-	grid  x .logon.lpap .logon.epap -sticky w -pady 3
-	grid .logon.lnm .logon.enm - -sticky ew -pady 5
-	grid .logon.lpw .logon.epw - -sticky ew
-	grid x .logon.rpw  - -sticky w -pady 3 -pady 3
-	grid x .logon.rjabber  - -sticky w -pady 3 -pady 3
-	grid x .logon.rjabberpoll  - -sticky w -pady 3 -pady 3
-	grid x .logon.atc  - -sticky w -pady 3
-	grid .logon.ok - .logon.cn -pady 10
+	trace variable Options(UseProxy)  w [namespace origin optSet]
+	trace variable Options(SavePW)    w [namespace origin optSet]
+	trace variable Options(UseJabber) w [namespace origin joptSet]
+
+	grid .logon.prx -           -           -in $lf -sticky w -pady 3
+	grid  x         .logon.lph  .logon.eph  -in $lf -sticky w -pady 3
+	grid  x         .logon.lpp  .logon.epp  -in $lf -sticky w -pady 3
+	grid  x         .logon.lpan .logon.epan -in $lf -sticky w -pady 3
+	grid  x         .logon.lpap .logon.epap -in $lf -sticky w -pady 3
+	grid .logon.lnm .logon.enm  -           -in $lf -sticky ew -pady 5
+	grid .logon.lpw .logon.epw  -           -in $lf -sticky ew
+	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
+	grid x          .logon.rjabber -        -in $lf -sticky w -pady 3
+        if {$have_tls} {
+            grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
+        }
+	grid x          .logon.rjabberpoll -    -in $lf -sticky w -pady 3
+	grid x          .logon.atc         -    -in $lf -sticky w -pady 3
+	grid x          x              .logon.f -in $lf -sticky e -pady 4
+
+        pack $lf -side top -fill both -expand 1
 	wm resizable .logon 0 0
         raise .logon
         bind .logon <Return> [list .logon.ok invoke]
         bind .logon <Escape> [list .logon.cn invoke]
     }
     optSet
+    joptSet
     catch {::tk::PlaceWindow .logon widget .}
     wm deiconify .logon
     tkwait visibility .logon
@@ -3362,13 +3383,15 @@ proc ::tkchat::logonScreen {} {
     vwait LOGON
     grab release .logon
     wm withdraw .logon
-    if {$Options(UseProxy)} {
-        catch {unset Options(ProxyAuth)}
-	::http::config -proxyhost $Options(ProxyHost) \
-            -proxyport $Options(ProxyPort)
+    if {$LOGON} {
+        if {$Options(UseProxy)} {
+            catch {unset Options(ProxyAuth)}
+            ::http::config -proxyhost $Options(ProxyHost) \
+                -proxyport $Options(ProxyPort)
+        }
+        # connect
+        logonChat
     }
-    # connect
-    logonChat
 }
 
 proc ::tkchat::optSet {args} {
@@ -3386,6 +3409,14 @@ proc ::tkchat::optSet {args} {
     } else {
 	.logon.atc config -state disabled
 	set Options(AutoConnect) 0
+    }
+}
+
+proc ::tkchat::joptSet {args} {
+    global Options
+    set state [expr {$Options(UseJabber) ? "normal" : "disabled"}]
+    foreach w {.logon.rjabberssl .logon.rjabberpoll} {
+        if {[winfo exists $w]} {$w configure -state $state}
     }
 }
 
@@ -4400,6 +4431,7 @@ proc ::tkchat::Init {args} {
 	SavePW		0
 	UseJabber	0
 	UseJabberPoll	0
+	UseJabberSSL	0
 	MyColor		000000
 	FetchTimerID	-1
 	OnlineTimerID	-1
@@ -6067,8 +6099,15 @@ proc tkjabber::connect { } {
 		    -command [namespace current]::httpCB]
 	openStream
 	
-    } else {    
-	set socket [socket $Options(JabberServer) $Options(JabberPort)]    
+    } else {
+        set ssl [expr {![catch {package require tls}]}]
+        if {$Options(UseProxy)} {
+            set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
+                            $Options(JabberServer) $Options(JabberPort) \
+                            $Options(UseJabberSSL)]
+        } else {
+            set socket [socket $Options(JabberServer) $Options(JabberPort)]
+        }
         $jabber setsockettransport $socket
 	openStream
     }
@@ -6105,6 +6144,10 @@ proc tkjabber::SendAuth { } {
     #tkchat::addSystem "Logged in as $myId"
 
     update idletasks
+
+    if {$Options(UseProxy)} { 
+        after 30000 [list jlib::schedule_keepalive $jabber]
+    }
 }
 
 
@@ -6472,6 +6515,41 @@ proc ::tkjabber::setTopic { newtopic } {
     
 }
 
+# -------------------------------------------------------------------------
+
+proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport ssl} {
+
+    set sock [socket $proxyserver $proxyport]
+    fconfigure $sock -blocking 0 -buffering line -translation crlf
+
+    set proxyauth [join [::tkchat::buildProxyHeaders] {: }]
+    puts $sock "CONNECT $jabberserver:$jabberport HTTP/1.1"
+    puts $sock "Host: $jabberserver"
+    puts $sock "User-Agent: [http::config -useragent]"
+    puts $sock "Proxy-Connection: keep-alive"
+    puts $sock "Connection: keep-alive"
+    if {[string length $proxyauth] > 0} {
+        puts $sock "$proxyauth"
+    }
+    puts $sock ""
+
+    fileevent $sock readable {set proxy_readable ""}
+    global proxy_readable
+    vwait proxy_readable
+    fileevent $sock readable {}
+
+    set block [read $sock]
+    set result [lindex [split $block \n] 0]
+    set code [lindex [split $result { }] 1]
+    fconfigure $sock -blocking 1 -translation binary -buffering none
+
+    if {$code >= 200 && $code < 300} {
+        if {$ssl} { tls::import $sock }
+    } else {
+        error "proxy connect failed: $block"
+    }
+    return $sock
+}
 
 # -------------------------------------------------------------------------
 
