@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.183 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.184 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.183 2004/09/19 01:37:47 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.184 2004/10/12 12:35:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -209,7 +209,7 @@ proc ::tkchat::Retrieve {} {
 		       -headers [buildProxyHeaders] -timeout 30000]
 	::http::wait $token
         if {[string equal [::http::status $token] "ok"] && \
-                [::http::status $token] == 200} {
+                [::http::ncode $token] == 200} {
             set code [catch {
                 set data [::http::data $token]
                 if {[string length $data] < 1} {
@@ -225,7 +225,8 @@ proc ::tkchat::Retrieve {} {
             set code 1
             set err [::http::error $token]
             if {[string length $err] < 1} {
-                set err [http::data $token]
+                # limit this to 30 lines 
+                set err [join [lrange [split [http::data $token] "\n"] 0 30] "\n"]
             }
         }
 

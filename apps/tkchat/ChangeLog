@@ -1,3 +1,10 @@
+2004-10-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::Retrieve): Fixed a dumb bug introduced in
+	1.178 that broke the download. Added a line limit to the size of
+	message we attempt to display - too big a message can do funny
+	things to the messagebox.
+
 2004-09-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Add user set-able value to fade too.
