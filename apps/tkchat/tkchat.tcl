@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.88 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.89 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.88 2003/03/10 13:42:43 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.89 2003/03/10 20:27:24 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -67,6 +67,10 @@ namespace eval ::tkchat {
                           "%user% looks at the clock and dashes out the door" \
                           "%user% macht wie eine Banane ..." \
                          ]
+
+    # Variables to control the search function.
+    variable searchString ""
+    variable searchOffset end
 }
 
 set ::DEBUG 1
@@ -1835,6 +1839,12 @@ proc ::tkchat::userPost {} {
                     set ::UserClicked 1
                     msgSend $msg
                 }
+                "^/\\?" {
+                    doSearch $msg
+                }
+                "^/!" {
+                    resetSearch
+                }
                 default  {
                     # might be server command - pass it on
                     msgSend $msg
@@ -2000,6 +2010,108 @@ proc ::tkchat::optSet {args} {
 	.logon.atc config -state disabled
 	set Options(AutoConnect) 0
     }
+}
+
+# Patch 627521 by Pascal Scheffers:
+# Search the chat window. msg should be what the user entered including 
+# the /? prefix.
+proc ::tkchat::doSearch {msg} {
+    variable searchString
+    variable searchOffset
+
+    if { [regexp {^/\?(.+)} $msg -> newSearch] } {
+	if { ![string equal $newSearch $searchString] } {
+	    # new search string differs from the previous, new search!
+
+	    set searchString $newSearch
+	    set searchOffset end 
+	    
+	    # clear all current search marks:
+	    set marks [.txt tag ranges found]
+	    for { set i 0 } { $i < [llength $marks] } { incr i 2 } {
+		.txt tag remove found [lindex $marks $i] [lindex $marks [expr $i+1]]
+	    }
+	    
+            set offset end
+	    set foundAt [.txt search -count foundLength \
+			 -regexp \
+			 -backwards \
+			 -nocase -- \
+			 $searchString \
+			 $offset 0.0]	    
+
+	    while { ![string equal $foundAt ""] } {
+		# puts "Found at $foundAt"
+		# yes, the expression was found
+
+		set foundLine [lindex [split $foundAt .] 0]
+		set foundChar [lindex [split $foundAt .] 1]
+
+		.txt tag add found $foundAt \
+		    "$foundLine.[expr $foundChar + $foundLength]"
+
+		if { $foundChar == 0 } {
+		    # decrement line no, not char pos.
+		    set offset "[expr $foundLine -1].99999"
+		} else {
+		    # decrement char pos:
+		    set offset "$foundLine.[expr $foundChar - 1]"
+		}
+
+		set foundAt [.txt search -count foundLength \
+				 -regexp \
+				 -backwards \
+				 -nocase -- \
+				 $::tkchat::searchString \
+				 $offset 0.0]	    
+	    }	    
+	}
+    }
+
+    # do we need to search at all?
+    if { ![string equal $searchString ""] } {	
+
+	set foundAt [.txt search -count foundLength \
+			 -regexp \
+			 -backwards \
+			 -nocase -- \
+			 $searchString \
+			 $searchOffset]
+
+	if { ![string equal $foundAt ""] } {
+	    # yes, the expression was found
+
+	    set foundLine [lindex [split $foundAt .] 0]
+	    set foundChar [lindex [split $foundAt .] 1]
+
+	    .txt see $foundAt
+	    
+	    # figure out the previous character:
+	    if { $foundChar == 0 } {
+		# decrement line no, not char pos.
+		set searchOffset "[expr $foundLine -1].99999"
+	    } else {
+		# decrement char pos:
+		set searchOffset "$foundLine.[expr $foundChar - 1]"
+	    }
+	} else {
+	    if { [string equal $searchOffset end] } {
+		addSystem "Bummer. Could not find '$searchString'"
+	    }
+	}
+    }
+}
+
+# Clear the search state and move back to the end of input.
+proc ::tkchat::resetSearch {} {
+    set marks [.txt tag ranges found]
+    for {set i 0} {$i < [llength $marks]} {incr i 2} {
+        .txt tag remove found \
+            [lindex $marks $i] \
+            [lindex $marks [expr {$i + 1}]]
+    }
+    set ::tkchat::searchOffset end
+    .txt see end
 }
 
 # a couple of little helper funcs
@@ -2185,7 +2297,7 @@ proc ::tkchat::ChangeColors {} {
               }]
     }
     grid x $f.allWeb $f.allInv $f.allMine x -padx 1 -pady 1
-    foreach {idx str} {MainBG Background MainFG Foreground} {
+    foreach {idx str} {MainBG Background MainFG Foreground SearchBG Searchbackgr} {
         buildRow $f $idx $str
     }
     grid [label $f.online -text "Online Users" -font SYS] - - -
@@ -2247,6 +2359,7 @@ proc applyColors {} {
     # update colors
     .txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
     .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
+    .txt tag configure found -background "#[getColor SearchBG]"
     foreach nk $Options(NickList) {
         .txt tag config NICK-$nk -foreground "#[getColor $nk]"
     }
@@ -2882,7 +2995,7 @@ proc ::tkchat::Init {} {
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
     set Options(URLlogs) $::tkchat::HOST/tchat/logs
-    foreach {name clr} { MainBG FFFFFF MainFG 000000 } {
+    foreach {name clr} { MainBG FFFFFF MainFG 000000 SearchBG FF8C44} {
 	set Options(Color,$name,Web)   $clr
 	set Options(Color,$name,Inv)   [invClr $clr]
 	set Options(Color,$name,Mine)  $clr
