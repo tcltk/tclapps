@@ -1,3 +1,8 @@
+2003-09-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added support for placing bookmarks and cycling
+	between marks. See the context menu (Button-3).
+
 2003-09-20  Donal K. Fellows  <dkf@users.sf.net>
 
 	* tkchat.tcl (UserInfoDialog,UserInfoParseCallback): Made code

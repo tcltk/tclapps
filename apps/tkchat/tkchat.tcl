@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.120 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.121 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.120 2003/09/20 20:37:36 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.121 2003/09/21 22:47:49 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2170,7 +2170,8 @@ proc ::tkchat::About {} {
         "/bug ?group? ?tracker? id\topen a sourceforge tracker item in browser\n" {} \
         "/?<text>\t\t\tsearch the chat buffer for matching text.\
          Repeating the command will progress\n\t\t\tto the previous match\n" {} \
-        "/!\t\t\tclear the previous search result\n" {}
+        "/!\t\t\tclear the previous search result\n" {} \
+        "/see <mark>\tgoto named mark or index (eg: bookmark1 end 0.0)" {}
 
     $w.text config -state disabled
     catch {::tk::PlaceWindow $w widget .}
@@ -2238,6 +2239,9 @@ proc ::tkchat::userPost {} {
                         append q "&q=$msg"
                         gotoURL $q
                     }
+                }
+                {^/see\s} {
+                    .txt see [lindex $msg 1]
                 }
                 default  {
                     # might be server command - pass it on
@@ -3438,6 +3442,8 @@ proc ::tkchat::Init {} {
 	set tag [lindex [split $idx ,] end]
 	.txt tag config $tag -elide $Options($idx)
     }
+
+    BookmarkInit
     
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
@@ -3464,11 +3470,6 @@ proc ::tkchat::Init {} {
 	logonScreen
     }
 }
-
-if {![info exists ::URLID]} {
-    ::tkchat::Init
-}
-
 
 #############################################################
 #
@@ -4384,3 +4385,112 @@ proc ::tkchat::UserInfoSendDone {tok} {
 }
 
 # -------------------------------------------------------------------------
+
+proc ::tkchat::BookmarkInit {} {
+    # FIX ME: need to make a better image :)
+    image create photo ::tkchat::img::bookmark -format GIF \
+        -data {R0lGODlhEAAQAJEAANnZ2QAAAAD//////yH5BAEAAAAALAAAAAAQABAAAAJC
+            hI+pyxTfCD6S/CDYAST/YACC5KMFQJB8tAAIko8WAEHy0QIgSD5aAATJRwuA
+            oVA+xgAMLZRvMQNAM+PbzBB8TN0sADs=}
+
+    menu .mbar.mm -tearoff 0
+    .mbar.mm add command -label "Set Bookmark" -accelerator Ctrl-F2 \
+        -command ::tkchat::BookmarkAdd
+    .mbar.mm add command -label "Prev Bookmark" -accelerator Shift-F2 \
+        -command ::tkchat::BookmarkNext
+    .mbar.mm add command -label "Next Bookmark" -accelerator F2 \
+        -command ::tkchat::BookmarkPrev
+    .mbar.mm add command -label "Clear Bookmarks" \
+        -command ::tkchat::BookmarkClear
+    .mbar.mm add cascade -label "Translate" -menu .mbar.help.tr
+    
+    bind .txt <Button-1> {focus %W ; %W mark set insert @%x,%y}
+    bind .txt <Button-3> {
+        %W mark set AddBookmark "@%x,%y linestart"
+        .mbar.mm post %X %Y
+        %W mark unset AddBookmark
+    }
+    bind . <F2> ::tkchat::BookmarkNext
+    bind . <Shift-F2> ::tkchat::BookmarkPrev
+    bind . <Control-F2> ::tkchat::BookmarkAdd
+}
+
+proc ::tkchat::BookmarkAdd {} {
+    variable bookmark
+    if {![info exists bookmark(id)]} {set bookmark(id) 0}
+    if {[catch {.txt index AddBookmark}]} {
+        set x [expr {[winfo pointerx .txt] - [winfo rootx .txt]}]
+        set y [expr {[winfo pointery .txt] - [winfo rooty .txt]}]
+        .txt mark set AddBookmark "@$x,$y linestart"
+    }
+    .txt configure -state normal
+    .txt image create AddBookmark -image ::tkchat::img::bookmark
+    .txt mark set bookmark[incr bookmark(id)] AddBookmark
+    .txt mark unset AddBookmark
+    .txt configure -state disabled
+}
+
+proc ::tkchat::BookmarkNext {} {
+    variable bookmark
+    if {![info exists bookmark(last)]} {set bookmark(last) 0.0}
+    if {$bookmark(last) == "end" || [catch {.txt index $bookmark(last)}]} {
+        set bookmark(last) 0.0
+    }
+    while {$bookmark(last) != {}} {
+        set bookmark(last) [.txt mark next $bookmark(last)]
+        if {[string match "bookmark*" $bookmark(last)]} {
+            break
+        }
+    }
+    if {$bookmark(last) == {}} {
+        set bookmark(last) end
+    }
+    .txt see $bookmark(last)
+    return $bookmark(last)
+}
+        
+proc ::tkchat::BookmarkPrev {} {
+    variable bookmark
+    if {![info exists bookmark(last)]} {set bookmark(last) end}
+    if {$bookmark(last) == "0.0" || [catch {.txt index $bookmark(last)}]} {
+        set bookmark(last) end
+    }
+    while {$bookmark(last) != {}} {
+        set bookmark(last) [.txt mark previous $bookmark(last)]
+        if {[string match "bookmark*" $bookmark(last)]} {
+            break
+        }
+    }
+    if {$bookmark(last) == {}} {
+        set bookmark(last) 0.0
+    }
+    .txt see $bookmark(last)
+    return $bookmark(last)
+}
+
+proc ::tkchat::BookmarkClear {} {
+    set mark 0.0
+    while {[set mark [.txt mark next $mark]] != {}} {
+        if {[string match "bookmark*" $mark]} {
+            set remove $mark
+            set mark "[.txt index $mark] + 1 char"
+            BookmarkRemove $remove
+        }
+    }
+}
+
+proc ::tkchat::BookmarkRemove {mark} {
+    if {[lsearch [.txt mark names] $mark] != -1} {
+        .txt configure -state normal
+        .txt delete "$mark - 1 char"
+        .txt mark unset $mark
+        .txt configure -state disabled
+    }
+}
+
+# -------------------------------------------------------------------------
+
+if {![info exists ::URLID]} {
+    ::tkchat::Init
+}
+
