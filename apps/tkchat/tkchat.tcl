@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.40 2002/03/15 03:05:54 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.41 2002/03/15 14:03:11 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -83,7 +83,7 @@ proc errLog {args} {
 
 # trace handler to set the log level whenever Options(LogLevel) is changed
 # enable the selected level and above
-proc tkchat::LogLevelSet {args} {
+proc ::tkchat::LogLevelSet {args} {
     global Options
     log::lvSuppressLE emergency 0         ;# unsuppress all
     log::lvSuppressLE $Options(LogLevel)  ;# suppress all below selected
@@ -111,7 +111,7 @@ proc buildProxyHeaders {} {
 
 # Retrieve the lastest version of tkchat from the SourceForge CVS.
 # This code is (almost) entirely ripped from TkCon. - PT.
-proc tkchat::Retrieve {} {
+proc ::tkchat::Retrieve {} {
     variable HEADUrl
     set rcsVersion {}
 
@@ -175,7 +175,7 @@ proc checkForRedirection {tok optionName} {
     return 0
 }
 
-proc tkchat::GetHistLogIdx {szary} {
+proc ::tkchat::GetHistLogIdx {szary} {
     global Options
     upvar $szary ary
 
@@ -219,7 +219,7 @@ proc tkchat::GetHistLogIdx {szary} {
     ::http::cleanup $tok
     return $loglist
 }
-proc tkchat::ParseHistLog {log} {
+proc ::tkchat::ParseHistLog {log} {
     global Options
     
     set retList {}
@@ -274,7 +274,7 @@ proc tkchat::ParseHistLog {log} {
 
 # this called on first logon and after a purge
 # so not bothering to backgound it
-proc tkchat::LoadHistory {} {
+proc ::tkchat::LoadHistory {} {
     global Options
 
     set FinalList {}
@@ -908,7 +908,6 @@ proc addMessage {clr nick str} {
     $w config -state normal
     $w insert end $nick [list NICK NICK-$nick] "\t"
     foreach {str url} [parseStr $str] {
-	#set str [string map [list "\n" "\n\t"] $str]
 	foreach cmd [array names ::tkchat::MessageHooks] {
 	    eval $cmd [list $str $url]
 	}
@@ -924,8 +923,9 @@ proc addMessage {clr nick str} {
     if {$Options(AutoScroll)} { $w see end }
 }
 
-proc tkchat::Insert {w str tags} {
+proc ::tkchat::Insert {w str tags} {
     global Options
+    set str [string map {"\n" "\n\t"} $str]
     if {$Options(emoticons)} {
 	variable ::tkchat::img
 	variable ::tkchat::img::re
@@ -951,7 +951,7 @@ proc tkchat::Insert {w str tags} {
     }
 }
 
-proc tkchat::Hook {do type cmd} {
+proc ::tkchat::Hook {do type cmd} {
     switch -glob -- $type {
 	msg - mes* { set var [namespace current]::MessageHooks }
 	default {
@@ -1093,7 +1093,6 @@ proc addAction {clr nick str} {
         .txt insert end "[formatClock $str] " [list NICK-$nick ACTION]
     } else {
 	foreach {str url} [parseStr $str] {
-	    #set str [string map [list "\n" "\n\t"] $str]
 	    set tags [list MSG NICK-$nick ACTION]
 	    if {$url != ""} {
 		lappend tags URL URL-[incr ::URLID]
@@ -1159,7 +1158,6 @@ proc showInfo {title str} {
     $t.txt tag bind URL <Enter> [list $t.txt config -cursor hand2]
     $t.txt tag bind URL <Leave> [list $t.txt config -cursor left_ptr]
     foreach {str url} [parseStr $str] {
-	#set str [string map [list "\n" "\n\t"] $str]
 	if {$url == ""} {
 	    $t.txt insert end "$str " INFO
 	} else {
@@ -1221,7 +1219,7 @@ proc createFonts {} {
     font create SYS  -family helvetica -size -12 -weight bold	-slant italic
 }
 
-proc tkchat::CreateGUI {} {
+proc ::tkchat::CreateGUI {} {
     global Options
 
     wm title . "Tcl'ers Chat"
@@ -1385,10 +1383,10 @@ proc tkchat::CreateGUI {} {
           -cursor left_ptr -height 1
     button .ml -text "More >>>" -command showExtra
     entry .eMsg
-    bind .eMsg <Return> userPost
-    bind .eMsg <KP_Enter> userPost
+    bind .eMsg <Return> ::tkchat::userPost
+    bind .eMsg <KP_Enter> ::tkchat::userPost
     text .tMsg -height 6 -font FNT
-    button .post -text Post -command userPost
+    button .post -text Post -command ::tkchat::userPost
     menubutton .mb -indicator on -relief raised -bd 2 \
           -menu .mb.mnu -textvar Options(MsgTo)
     set Options(MsgTo) "All Users"
@@ -1421,7 +1419,7 @@ proc tkchat::CreateGUI {} {
     wm deiconify .
 }
 
-proc tkchat::About {} {
+proc ::tkchat::About {} {
     variable rcsid
     global Options
     
@@ -1450,7 +1448,7 @@ proc tkchat::About {} {
     
 }
 
-proc userPost {} {
+proc ::tkchat::userPost {} {
     global Options
     if {[winfo ismapped .eMsg]} {
 	set str [.eMsg get]
@@ -1458,13 +1456,29 @@ proc userPost {} {
 	set str [.tMsg get 1.0 end]
     }
     set msg [string trim $str]
-    if {$msg == ""} {
-	return
-    }
-    if {[string equal $Options(MsgTo) "All Users"]} {
-	msgSend $msg
-    } else {
-	msgSend $msg $Options(MsgTo)
+    switch -glob -- $msg {
+        "" {
+            # skip
+        }
+        "/*" {
+            # possible command
+            switch -exact -- $msg {
+                "/smile" - "/smiles" - "smiley" - "smileys" {
+                    ::tkchat::ShowSmiles
+                }
+                default  {
+                    # might be server command - pass it on
+                    msgSend $msg
+                }
+            }
+        }
+        default {
+            if {[string equal $Options(MsgTo) "All Users"]} {
+                msgSend $msg
+            } else {
+                msgSend $msg $Options(MsgTo)
+            }
+        }
     }
     .eMsg delete 0 end
     .tMsg delete 1.0 end
@@ -1593,7 +1607,7 @@ proc buildRow {f idx disp} {
           -padx 2 -pady 2 -sticky ew
 }
 
-proc tkchat::ChangeColors {} {
+proc ::tkchat::ChangeColors {} {
     global Options DlgData
 
     # clear old data
@@ -1712,7 +1726,7 @@ proc applyColors {} {
 }
 
 # Point the Chat log to a new file.
-proc tkchat::OpenChatLog {opt} {
+proc ::tkchat::OpenChatLog {opt} {
     global Options
     switch -exact -- $opt {
         close {
@@ -1747,7 +1761,7 @@ proc tkchat::OpenChatLog {opt} {
 
 
 # Point the Error Log to a new file
-proc tkchat::OpenErrorLog {opt} {
+proc ::tkchat::OpenErrorLog {opt} {
     global Options
     switch -exact -- $opt {
         stderr {
@@ -1837,7 +1851,7 @@ proc scroll_set {sbar f1 f2} {
 }
 
 
-proc tkchat::Debug {cmd args } {
+proc ::tkchat::Debug {cmd args } {
     switch -- $cmd {
 	console {
 	    if {$::tkchat::_console} {
@@ -1886,7 +1900,7 @@ proc tkchat::Debug {cmd args } {
     }
 }
 
-proc tkchat::ChangeFont {opt val} {
+proc ::tkchat::ChangeFont {opt val} {
     set ::Options(Font,$opt) $val
     foreach font [font names] {
 	font configure $font $opt $val
@@ -2002,6 +2016,8 @@ proc ::tkchat::Smile {} {
 	7qpphjrrWRxxTnsMTjSEd1ILCQAAIf4aQ29weXJpZ2h0IKkgMjAwMCBLbGFh
 	cyBXaXQAOw==
     }
+    array set imgre { >:[-^]?\\( mad }
+    array set img { >:( mad >:-( mad >:^( mad }
     image create photo ::tkchat::img::mad -format GIF -data {
 	R0lGODlhDwAPALP/AMDAwEpKSjk5Kd7ehP//Y729QoSEKefnKa2tEEpKAISE
 	AK2tAL29AO/vAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAARlEEhZ0EJlalAW
@@ -2061,6 +2077,10 @@ proc ::tkchat::Smile {} {
 	AAsAAwADAAAICgATMEhAsGCCgAAAIfkEBQwAEwAsBQAJAAUAAwAACAwABwgc
 	mKDggAQEAwIAOw==
     }
+    array set imgre { [;:8][-^]?/ smirk-glasses }
+    array set img { ;/ smirk-glasses ;-/ smirk-glasses ;^/ smirk-glasses }
+    array set img { :/ smirk-glasses :-/ smirk-glasses :^/ smirk-glasses }
+    array set img { 8/ smirk-glasses 8-/ smirk-glasses 8^/ smirk-glasses }
     image create photo ::tkchat::img::smirk-glasses -format GIF -data {
 	R0lGODlhDwAPANX/AMDAwM/RAKepAJmbAI2PAICCAHp7AGxtAGlqAP//APr7
 	APX2APX1AOrqANzdANXVAM7OAMzNAMvMAMnKAMnJAMjIAMfHAMTFAMLDAMDB
@@ -2117,7 +2137,36 @@ proc ::tkchat::Smile {} {
     set ::tkchat::img::re "[join [array names imgre] |]"
 }
 
-proc tkchat::Init {} {
+proc ::tkchat::ShowSmiles {} {
+    set t .smileys
+    if {[winfo exists $t]} {
+        wm deiconify $t
+        raise $t
+    } else {
+        variable img
+        foreach {i e} [array get img] {
+            lappend tmp($e) $i
+        }
+        toplevel $t
+        wm title $t "Available Emoticons"
+        wm protocol $t WM_DELETE_WINDOW "wm withdraw $t"
+        set txt [text $t.txt -background black -foreground white \
+                       -font NAME -tabs {1.5i l 2.0i l} \
+                       -height [expr [llength [image names]] + 5]]
+        foreach image [lsort [image names]] {
+            set name [lindex [split $image :] end]
+            $txt insert end "$name\t"
+            $txt image create end -image $image
+            if {[info exists tmp($name)]} {
+                $txt insert end "\t[join $tmp($name) "   "]"
+            }
+            $txt insert end \n
+        }
+        pack $txt -expand 1 -fill both
+    }
+}
+
+proc ::tkchat::Init {} {
     global Options env
     catch {set Options(BROWSER) $env(BROWSER)}
     catch {set Options(NETSCAPE) $env(NETSCAPE)}
