@@ -38,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.22 2001/11/13 17:36:05 scfiead Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.23 2001/11/14 16:09:09 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -922,6 +922,8 @@ proc showInfo {title str} {
     }
     $t.txt insert end "\n"
     $t.txt config -state disabled
+    button $t.close -text Close -command [list destroy $t]
+    pack $t.close -side right
 }
 
 proc addHelp {clr name str} {
@@ -996,6 +998,7 @@ proc ::tkchat::createGUI {} {
 	    -variable ::tkchat::pause \
 	    -command { pause $::tkchat::pause }
     $m add command -label Logout -command logonScreen
+    $m add command -label "Save Options" -command saveRC
     $m add separator
     $m add command -label Exit -command quit
 
@@ -1515,9 +1518,15 @@ proc saveRC {} {
 	foreach idx $ignore {
 	    catch {unset tmp($idx)}
 	}
+	set oplist [list]
+	foreach option [lsort [array names tmp]] {
+	    lappend oplist [list $option $tmp($option)]
+	}
 	if {![catch {open $rcfile w 0600} fd]} {
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
-	    puts $fd [list array set Options [array get tmp]]
+	    puts $fd "array set Options {"
+	    puts $fd [join $oplist "\n"]
+	    puts $fd "}"
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	    close $fd
 	}
