@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.234 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.235 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.234 2004/11/24 09:32:56 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.235 2004/11/25 11:34:20 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -775,7 +775,7 @@ proc ::tkchat::parseStr {str} {
     global Options
     # get href info return list of str link pairs
     set sList {}
-    set HTTPRE {https?://(((([A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]|[A-Za-z0-9])\.)*([a-zA-Z][A-Za-z0-9-]*[A-Za-z0-9]|[a-zA-Z]))|([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+))(:[0-9]+)?(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(\?([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?}
+    set HTTPRE {https?://(((([A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]|[A-Za-z0-9])\.)*([a-zA-Z][A-Za-z0-9-]*[A-Za-z0-9]|[a-zA-Z]))|([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+))(:[0-9]+)?(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(\?([a-zA-Z0-9$_.+!*'(,);:@&=~/-]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?}
     while {[regexp -nocase -- $HTTPRE $str url]} {
 	set pre ""
 	set post ""

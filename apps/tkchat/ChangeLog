@@ -1,3 +1,7 @@
+2004-11-25  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: URL re fix
+
 2004-11-24  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Removed /jest in favor of /ot/?me for /nolog shorthand.
