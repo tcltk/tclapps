@@ -1,0 +1,49 @@
+CSVop, a tool to manipulate CSV files
+=====================================
+
+Internal notes
+--------------
+
+Directory structure, basic
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/
+	main.tcl
+	lib/
+		app-*/	Application packages
+		tools/	Tool package, common code
+	data/
+
+Directory structure, help
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+/
+	lib/
+		app-help/
+			pkgIndex.tcl	Package Index
+			help.tcl	Implementation
+	data/
+		help/
+			<cmdline.man>
+			csv.man
+			cache/
+				<format>/
+					Cached data
+
+
+Command line, possible future sub commands
+------------------------------------------
+
+Command line, internal (future)
+-------------------------------
+
+	csvop wrap
+		Wrap your self into a starkit.
+		See Misc. below.
+
+
+Misc
+----
+
+Need a tool to setup the complete tree of CSV, using soft-links to the
+originating files.
+

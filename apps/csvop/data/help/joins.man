@@ -1,0 +1,97 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin joining n 1.0]
+[copyright {2003 Andreas Kupries <andreas_kupries@users.sourceforge.net>}]
+[moddesc {Joining tables}]
+[titledesc {Joining tables}]
+[description]
+
+Joining is an operation from relational algebra for relational databases.
+
+[para]
+
+The easiest way to understand the regular inner join is that it
+creates the cartesian product of all the tables involved first and
+then keeps only all those rows in the resulting table for which the
+values in the specified key columns are equal to each other.
+
+[para]
+
+Implementing this description naively, i.e. as described above will
+generate a [emph huge] intermediate result. To avoid this the
+cartesian product and the filtering of row are done at the same
+time. What is required is a fast way to determine if a key is present
+in a table. In a true database this is done through indices. Here we
+use arrays internally.
+
+[para]
+
+An [term outer] join is an extension of the inner join for two
+tables. There are three variants of outerjoins, called [term left],
+[term right], and [term full] outer joins. Their result always
+contains all rows from an inner join and then some additional rows.
+
+[list_begin enum]
+[enum]
+
+For the left outer join the additional rows are all rows from the left
+table for which there is no key in the right table. They are joined to
+an empty row of the right table to fit them into the result.
+
+[enum]
+
+For the right outer join the additional rows are all rows from the right
+table for which there is no key in the left table. They are joined to
+an empty row of the left table to fit them into the result.
+
+
+[enum]
+
+The full outer join combines both left and right outer join. In other
+words, the additional rows are as defined for left outer join, and
+right outer join, combined.
+
+[list_end]
+
+[para]
+
+We extend all the joins from two to [var n] tables ([var n] > 2) by
+executing
+
+[example {
+    (...((table1 join table2) join table3) ...) join tableN
+}]
+
+[para]
+
+Examples for all the joins:
+
+[example {
+    Inner Join
+
+    {0 foo}              {0 bagel}    {0 foo   0 bagel}
+    {1 snarf} inner join {1 snatz}  = {1 snarf 1 snatz}
+    {2 blue}             {3 driver}
+
+    Left Outer Join
+
+    {0 foo}                   {0 bagel}    {0 foo   0 bagel}
+    {1 snarf} left outer join {1 snatz}  = {1 snarf 1 snatz}
+    {2 blue}                  {3 driver}   {2 blue  {} {}}
+
+    Right Outer Join
+
+    {0 foo}                    {0 bagel}    {0 foo   0 bagel}
+    {1 snarf} right outer join {1 snatz}  = {1 snarf 1 snatz}
+    {2 blue}                   {3 driver}   {{} {}   3 driver}
+
+    Full Outer Join
+
+    {0 foo}                   {0 bagel}    {0 foo   0 bagel}
+    {1 snarf} full outer join {1 snatz}  = {1 snarf 1 snatz}
+    {2 blue}                  {3 driver}   {2 blue  {} {}}
+                                           {{} {}   3 driver}
+}]
+
+
+[keywords {inner join} {left outer join} {right outer join} {full outer join} {outer join} join]
+[manpage_end]

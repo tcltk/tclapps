@@ -1,0 +1,30 @@
+[comment {-*- tcl -*-}]
+[manpage_begin general n 0.4]
+[copyright {2003 Andreas Kupries <andreas_kupries@users.sourceforge.net>}]
+[moddesc   {CSV processing}]
+[titledesc {General options}]
+[description]
+
+All commands of [cmd csvop] accept the following general options:
+
+[list_begin definitions]
+[lst_item "[option -sep] [arg char]"]
+
+By default the character comma [const ,] is used to separate the
+column of a csv formatted record. Using this option an arbitrary
+character [arg char] can be specified as column separator.
+
+[lst_item [option -alternate]]
+
+By default all commands assume that all their csv input is in the
+regular CSV format.  Usage of this option changes this so that they
+assume that all csv input is in the alternate CSV format.
+
+[nl]
+
+[emph Note] that this option is only about the input read by the
+various commands. Their output will always be in regular syntax.
+
+[list_end]
+
+[manpage_end]

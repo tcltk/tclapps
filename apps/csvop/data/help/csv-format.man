@@ -1,0 +1,80 @@
+[comment {-*- tcl -*-}]
+[manpage_begin csv n 0.4]
+[copyright {2002-2003 Andreas Kupries <andreas_kupries@users.sourceforge.net>}]
+[moddesc   {CSV processing}]
+[titledesc {Specification of the CSV format}]
+[description]
+
+The format of regular CSV files is specified as 
+
+[list_begin enum]
+
+[enum]
+Each record of a csv file (comma-separated values, as exported e.g. by
+Excel) is a set of ASCII values separated by ",". In some cases the
+separation character may be ";".  This is not important as the
+functions provided here allow any separator character.
+
+[enum]
+If and only if a value contains the specified separator ("," by
+default), then the value has to be specified between "". If the value
+does not contain the separator character, then quoting is optional.
+
+[enum]
+If a value contains the character ", that character is represented by
+"".
+
+[enum]
+The output string "" represents the value ". In other words, it is
+assumed that it was created through rule 3, and only this rule,
+i.e. that the value was not quoted.
+
+[enum]
+The absence of a value is represented by no character whatsoever.
+
+[list_end]
+[para]
+
+An alternate format definition mainly used by MS products specifies
+that the output string "" is an representation of the absent value. In
+other words, it is assumed that the output was generated out of the
+empty string by quoting it (i.e. rule 2), and not through rule 3. This
+is the only difference between the regular and the alternate formats.
+
+[section EXAMPLE]
+
+Using the regular format, the record
+
+[para]
+[example {
+123,"","123,521.2",,"Mary says ""Hello, I am Mary"""
+}]
+
+[para]
+is parsed into the items
+
+[para]
+[example {
+a) 123
+b) "
+c) 123,521.2
+d)
+	(that is, an empty or missing value)
+e) Mary says "Hello, I am Mary"
+}]
+
+[para]
+Using the alternate format, the record is parsed as
+
+[para]
+[example {
+a) 123
+b)
+	(that is, an empty or missing value)
+c) 123,521.2
+d)
+	(that is, an empty or missing value)
+e) Mary says "Hello, I am Mary"
+}]
+
+[manpage_end]

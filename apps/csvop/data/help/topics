@@ -1,0 +1,4 @@
+cmdline      {Information about the available subcommands}
+genopt       {General options for the subcommands}
+csv-format   {csv format specification}
+joins        {Examples of table joins}
