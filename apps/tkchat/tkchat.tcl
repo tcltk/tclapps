@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.224 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.225 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.224 2004/11/17 23:50:48 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.225 2004/11/18 06:14:36 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6501,7 +6501,6 @@ proc tkjabber::SendAuth { } {
     
     #set username tkchat
     #set password tkchat
-    set Options(JabberResource) tkabber
     set myId [$jabber send_auth $username $Options(JabberResource) [namespace current]::LoginCB \
 	-digest [sha1::sha1 $conn(id)$password]]
         

@@ -1,3 +1,7 @@
+2004-11-18  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Debugging stuff removed.
+
 2004-11-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Primitive /userinfo support for tkjabber.
