@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.171 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.172 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.171 2004/08/05 14:31:11 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.172 2004/08/13 08:40:57 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -659,10 +659,34 @@ proc ::tkchat::pause {pause {notify 1}} {
 
 proc ::tkchat::checkPage {} {
     global Options
-    set tok [http::geturl $Options(URLchk) \
-                 -headers [buildProxyHeaders] \
-                 -command [list ::tkchat::checkDone [clock seconds]]]
-    errLog "checkPage token $tok"
+
+    if { [catch {
+
+	set tok [http::geturl $Options(URLchk) \
+		     -headers [buildProxyHeaders] \
+		     -command [list ::tkchat::checkDone [clock seconds]]]
+	errLog "checkPage token $tok"
+	set Options(retryFailedCheckPage) 5
+
+    } ] } {
+
+	if { ![info exists Options(retryFailedCheckPage)] } {
+	    set Options(retryFailedCheckPage) 5
+	}
+	addSystem "checkPage failed: [lindex [split $::errorInfo "\n"] 0]"
+	errLog "error ::tkchat::checkPage: $::errorInfo"
+        if {!$::tkchat::pause} {
+            after [expr {$Options(retryFailedCheckPage)*1000}] ::tkchat::checkPage
+	    addSystem "Trying again in $Options(retryFailedCheckPage) seconds."        
+	    set Options(retryFailedCheckPage) [expr {$Options(retryFailedCheckPage)*2}]
+	    if { $Options(retryFailedCheckPage) > 15*60 } {
+		# Max out at 15 minutes intervals:
+		set Options(retryFailedCheckPage) [expr {15*60}]
+	    }
+	}
+
+    }
+
 }
 
 proc ::tkchat::checkDone {start tok} {
@@ -3665,6 +3689,7 @@ proc ::tkchat::saveRC {} {
             History FetchTimerID OnlineTimerID FinalList NamesWin
             FetchToken OnlineToken OnLineUsers ProxyPassword ProxyAuth
             URL URL2 URLchk URLlogs errLog ChatLogChannel PaneUsersWidth
+	    retryFailedCheckPage
         }
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password

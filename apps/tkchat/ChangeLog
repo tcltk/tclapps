@@ -1,3 +1,8 @@
+2004-08-13  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added a [catch] to checkPage to prevent it from
+	stop updating after a temporary DNS failure. 
+
 2004-08-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fix a bug with overly greedy date string matching
