@@ -1,3 +1,8 @@
+2004-08-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix a bug with overly greedy date string matching
+	in the history parsing code.
+
 2004-06-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added support for forcing a user selected user-agent
