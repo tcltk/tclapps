@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.97 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.98 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.97 2003/05/13 22:50:11 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.98 2003/07/01 09:27:05 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1118,17 +1118,22 @@ proc addMessage {clr nick str} {
 	$w insert end "$nick\t" [list NICK NICK-$nick]
         .txt insert end "[formatClock $str] " [list NICK-$nick MSG]
     } else {
-	if {[string equal $nick "ircbridge"] && \
-		[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
-	    # Use their true nick, but display bridge users as <$nick>
-	    # This allows people registered in both systems to appear
-	    # with the right color info.
-	    set nick $truenick
-	    set str  $msg
-	    if { [regexp {ACTION (.+)} $str -> action] } {
-		addAction $clr "<$nick>" [string range $action 0 end-1]
-	    } else {
-		$w insert end "<$nick>\t" [list NICK NICK-$nick]
+	if {[string equal $nick "ircbridge"]} {
+	    if {[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
+		# Use their true nick, but display bridge users as <$nick>
+		# This allows people registered in both systems to appear
+		# with the right color info.
+		set nick $truenick
+		set str  $msg
+		
+		#Probably obsolete regexp now ircbridge parses CTCPs:
+		if { [regexp {^ACTION (.+)} $str -> action] } {
+		    addAction $clr "<$nick>" [string range $action 0 end-1]
+		} else {
+		    $w insert end "<$nick>\t" [list NICK NICK-$nick]
+		}
+	    } elseif {[regexp {^\* ([^ ]+) (.*)$} $str -> truenick msg] } {
+		addAction $clr "<$truenick>" $msg		      
 	    }
 	} else {
 	    $w insert end "$nick\t" [list NICK NICK-$nick]
