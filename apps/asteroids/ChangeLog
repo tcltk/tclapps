@@ -1,4 +1,10 @@
 2005-02-27  Jeff Godfrey <jeff_godfrey@pobox.com>
+    * asteroids.tcl
+    - Fixed - Newly added "Pause" state didn't work with "Game Loop Godfrey"
+    - Added back ability to return to main menu during game play by pressing
+      <Esc> (lost when Pause mode was added)
+
+2005-02-27  Jeff Godfrey <jeff_godfrey@pobox.com>
 
     * asteroids.tcl:
     - General code formatting and alignment cleanup
