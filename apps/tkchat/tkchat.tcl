@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.96 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.97 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -45,10 +45,10 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     # this is http://mini.net - but that recently had a dns problem
-    variable HOST http://purl.org/mini
+    variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.96 2003/04/30 20:13:53 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.97 2003/05/13 22:50:11 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1810,7 +1810,7 @@ proc ::tkchat::CreateGUI {} {
     ##
     set m .mbar.help
     $m add command -label About... -underline 0 -command tkchat::About
-    $m add cascade -label Translate -underline 0 -menu [menu $m.tr]
+    $m add cascade -label "Translate Selection" -underline 0 -menu [menu $m.tr]
 
     # main display
     text .txt -background "#[getColor MainBG]" \
@@ -1958,37 +1958,40 @@ proc ::tkchat::userPost {} {
         "/*" {
             # possible command
             switch -re -- $msg {
-                "^/smiley?s?$" {
+                {^/smiley?s?$} {
                     ::tkchat::ShowSmiles
                 }
-                "^/colou?rs?$" {
+                {^/colou?rs?$} {
                     tkchat::ChangeColors
                 }
-                "^/font " {
+                {^/font } {
                     set name [string trim [string range $msg 5 end]]
                     catch {::tkchat::ChangeFont -family $name}
                 }
-                "^/(font)?size [0-9]+" {
+                {^/(font)?size [0-9]+} {
                     regexp -- {[0-9]+} $msg size
                     catch {::tkchat::ChangeFont -size $size}
                 }
-                "^/macros?$" {
+                {^/macros?$} {
                     tkchat::EditMacros
                 }
-                "^/userinfo" {
+                {^/userinfo} {
                     set ::UserClicked 1
                     msgSend $msg
                 }
-                "^/\\?" {
+                {^/\?} {
                     doSearch $msg
                 }
-                "^/!" {
+                {^/!} {
                     resetSearch
                 }
-                "^/(urn:)?tip:\\d+" {
+                {^/(urn:)?tip:\d+} {
                     if {[regexp {(?:urn:)?tip:(\d+)} $msg -> tip]} {
                         gotoURL http://purl.org/tcl/tip/$tip
                     }
+                }
+                {^/bug } {
+		    doBug $msg
                 }
                 default  {
                     # might be server command - pass it on
@@ -2161,105 +2164,138 @@ proc ::tkchat::optSet {args} {
     }
 }
 
+proc ::tkchat::doBug {msg} {
+    # msg should be off form: ^/bug ?group? ?tracker? id
+    # category defaults to Tcl bugs
+    set len [llength $msg]
+    if {$len < 2 || $len > 4} {
+	addSystem "wrong # args: must be /bug ?group? ?tracker? id"
+	return
+    }
+    array set groups {
+	tcl     10894	tk      12997	tcllib  12883
+	incrtcl 13244	expect  13179	tclx    13247
+    }
+    array set trackers {
+	bugs    1	patches 3	rfes    35	frs     35
+    }
+    # defaults
+    set gid tcl
+    set tid bugs
+    set id [lindex $msg end]
+    if {$len == 3} {
+	set gid [string tolower [lindex $msg 1]]
+    } elseif {$len == 4} {
+	set gid [string tolower [lindex $msg 1]]
+	set tid [string tolower [lindex $msg 2]]
+    }
+
+    set group [array names groups $gid]
+    if {[llength $group] != 1} {
+	set group [array names groups $gid*]
+	if {[llength $group] != 1} {
+	    addSystem "Invalid group '$gid', must be one of\
+		    [join [array names groups {, }]]"
+	    return
+	}
+    }
+    set group   $groups($group)
+
+    set tracker [array names trackers $tid]
+    if {[llength $tracker] != 1} {
+	set tracker [array names trackers $tid*]
+	if {[llength $tracker] != 1} {
+	    addSystem "Invalid tracker '$tid', must be one of\
+		    [join [array names trackers {, }]]"
+	    return
+	}
+    }
+    set tracker $trackers($tracker)
+
+    set url "http://sourceforge.net/tracker/index.php?func=detail"
+    append url "&aid=$id&group_id=$group"
+    if {$tracker < 10} {
+	set atid $tracker$group
+    } else {
+	set atid [expr {$tracker*10000 + $group}]
+    }
+    append url "&atid=$atid"
+
+    # Until exec works correctly with &, just show the URL for C&P
+    #gotoURL $url
+    addSystem $url
+}
+
+## ::tkchat::Find - searches in text widget $w for $str and highlights it
+## If $str is empty, it just deletes any highlighting
+# ARGS: w	- text widget
+#	str	- string to search for
+#	-case	TCL_BOOLEAN	whether to be case sensitive	DEFAULT: 0
+#	-regexp	TCL_BOOLEAN	whether to use $str as pattern	DEFAULT: 0
+## Taken from tkcon
+##
+proc ::tkchat::Find {w str args} {
+    $w tag remove found 1.0 end
+    set opts  {}
+    foreach {key val} $args {
+	switch -glob -- $key {
+	    -c* { if {[string is true -strict $val]} { set case 1 } }
+	    -r* { if {[string is true -strict $val]} { lappend opts -regexp } }
+	    default { return -code error "Unknown option $key" }
+	}
+    }
+    if {![info exists case]} { lappend opts -nocase }
+    if {[string match {} $str]} return
+    $w mark set foundmark 1.0
+    while {[string compare {} [set ix [eval $w search $opts -count numc -- \
+	    [list $str] foundmark end]]]} {
+	$w tag add found $ix ${ix}+${numc}c
+	$w mark set foundmark ${ix}+1c
+    }
+    return
+}
+
 # Patch 627521 by Pascal Scheffers:
 # Search the chat window. msg should be what the user entered including 
 # the /? prefix.
+# Modified by JH to be less compute-intensive, tighter code
 proc ::tkchat::doSearch {msg} {
     variable searchString
     variable searchOffset
 
-    if { [regexp {^/\?(.+)} $msg -> newSearch] } {
-	if { ![string equal $newSearch $searchString] } {
+    if {[regexp {^/\?(.+)} $msg -> newSearch]} {
+	if {$newSearch != "" && ![string equal $newSearch $searchString]} {
 	    # new search string differs from the previous, new search!
-
 	    set searchString $newSearch
-	    set searchOffset end 
-	    
-	    # clear all current search marks:
-	    set marks [.txt tag ranges found]
-	    for { set i 0 } { $i < [llength $marks] } { incr i 2 } {
-		.txt tag remove found [lindex $marks $i] [lindex $marks [expr $i+1]]
-	    }
-	    
-            set offset end
-	    set foundAt [.txt search -count foundLength \
-			 -regexp \
-			 -backwards \
-			 -nocase -- \
-			 $searchString \
-			 $offset 0.0]	    
-
-	    while { ![string equal $foundAt ""] } {
-		# puts "Found at $foundAt"
-		# yes, the expression was found
-
-		set foundLine [lindex [split $foundAt .] 0]
-		set foundChar [lindex [split $foundAt .] 1]
-
-		.txt tag add found $foundAt \
-		    "$foundLine.[expr $foundChar + $foundLength]"
-
-		if { $foundChar == 0 } {
-		    # decrement line no, not char pos.
-		    set offset "[expr $foundLine -1].99999"
-		} else {
-		    # decrement char pos:
-		    set offset "$foundLine.[expr $foundChar - 1]"
-		}
-
-		set foundAt [.txt search -count foundLength \
-				 -regexp \
-				 -backwards \
-				 -nocase -- \
-				 $::tkchat::searchString \
-				 $offset 0.0]	    
-	    }	    
+	    Find .txt $searchString -regexp 1
+	    set searchOffset 0
 	}
     }
 
     # do we need to search at all?
-    if { ![string equal $searchString ""] } {	
-
-	set foundAt [.txt search -count foundLength \
-			 -regexp \
-			 -backwards \
-			 -nocase -- \
-			 $searchString \
-			 $searchOffset]
-
-	if { ![string equal $foundAt ""] } {
-	    # yes, the expression was found
-
-	    set foundLine [lindex [split $foundAt .] 0]
-	    set foundChar [lindex [split $foundAt .] 1]
-
-	    .txt see $foundAt
-	    
-	    # figure out the previous character:
-	    if { $foundChar == 0 } {
-		# decrement line no, not char pos.
-		set searchOffset "[expr $foundLine -1].99999"
+    if {$searchString != ""} {
+	# we need to query each time since the ranges will change if
+	# we are clipping output at the top
+	set ranges [.txt tag ranges found]
+	set len [llength $ranges]
+	if {$len} {
+	    if {$searchOffset <= 0 || $searchOffset > $len} {
+		# wrap to last (this is also the first seen)
+		set searchOffset [expr {$len - 2}]
 	    } else {
-		# decrement char pos:
-		set searchOffset "$foundLine.[expr $foundChar - 1]"
+		incr searchOffset -2
 	    }
+	    .txt see [lindex $ranges $searchOffset]
 	} else {
-	    if { [string equal $searchOffset end] } {
-		addSystem "Bummer. Could not find '$searchString'"
-	    }
+	    addSystem "Bummer. Could not find '$searchString'"
 	}
     }
 }
 
 # Clear the search state and move back to the end of input.
 proc ::tkchat::resetSearch {} {
-    set marks [.txt tag ranges found]
-    for {set i 0} {$i < [llength $marks]} {incr i 2} {
-        .txt tag remove found \
-            [lindex $marks $i] \
-            [lindex $marks [expr {$i + 1}]]
-    }
-    set ::tkchat::searchOffset end
+    variable searchString ""
+    .txt tag remove found 1.0 end
     .txt see end
 }
 

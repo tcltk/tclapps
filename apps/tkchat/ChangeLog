@@ -1,3 +1,9 @@
+2003-05-13  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: simplify find stuff, add support for
+	"/bug ?group? ?tracker? id" requests that print correct URL.  We
+	can't use gotoURL until exec handles &'s in args correctly.
+
 2003-04-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (getRecentLines): Fix for bug #729709: alerts no
