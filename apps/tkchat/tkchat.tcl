@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.114 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.115 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.114 2003/09/16 23:14:54 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.115 2003/09/17 00:26:31 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -567,15 +567,15 @@ proc pause {pause {notify 1}} {
 
 proc ::tkchat::checkPage {} {
     global Options
-    errLog "checkPage called"
     set tok [http::geturl $Options(URLchk) \
                  -headers [buildProxyHeaders] \
-                 -command ::tkchat::checkDone]
+                 -command [list ::tkchat::checkDone [clock seconds]]]
     errLog "checkPage token $tok"
 }
 
-proc ::tkchat::checkDone {tok} {
-    errLog "checkDone status [::http::status $tok]"
+proc ::tkchat::checkDone {start tok} {
+    set elapsed [expr {[clock seconds] - $start}]
+    errLog "checkDone in $elapsed secs status [::http::status $tok]"
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
             if {[checkForRedirection $tok URL]} {
@@ -3294,7 +3294,6 @@ proc ::tkchat::ShowSmiles {} {
         pack $txt -expand 1 -fill both
     }
 }
-
 proc ::tkchat::Init {} {
     global Options env
     catch {set Options(BROWSER) $env(BROWSER)}
