@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.215 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.216 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.215 2004/11/15 11:38:16 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.216 2004/11/15 19:37:36 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -576,7 +576,7 @@ proc ::tkchat::LoadHistoryLines {} {
 
 
 proc ::tkchat::msgSend {str {user ""}} {
-    
+  
     
     global Options
     if { $::Options(UseJabber) } {
@@ -1684,6 +1684,11 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}}
 	return
     }
 
+    #for colors, it is better to extract the displayed nick from the one used for
+    #tags.
+    set displayNick $nick
+    regexp {^<(.+)>$} $nick displayNick nick
+
     checkNick $nick $clr
     checkAlert NORMAL $nick $str
     $w config -state normal
@@ -1693,7 +1698,7 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}}
         $w insert $mark "[formatClock $str] " [list NICK-$nick MSG]
     } else {
 	::tkchat::InsertTimestamp $w $nick $mark $timestamp	
-	$w insert $mark "$nick\t" [list NICK NICK-$nick]
+	$w insert $mark "$displayNick\t" [list NICK NICK-$nick]
         foreach {str url} [parseStr $str] {
             foreach cmd [array names ::tkchat::MessageHooks] {
                 eval $cmd [list $str $url]
@@ -1971,8 +1976,12 @@ proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0} {extraOpts ""}} 
     checkAlert ACTION $nick $str
     array set opts $extraOpts
     .txt config -state normal
+    #for colors, it is better to extract the displayed nick from the one used for
+    #tags.
+    set displayNick $nick
+    regexp {^<(.+)>$} $nick displayNick nick
     ::tkchat::InsertTimestamp .txt $nick $mark $timestamp
-    .txt insert $mark "   * $nick " [list NICK NICK-$nick]
+    .txt insert $mark "   * $displayNick " [list NICK NICK-$nick]
     if {[string equal $nick clock]} {
         .txt insert $mark "[formatClock $str] " [list NICK-$nick ACTION]
     } else {
@@ -3479,6 +3488,7 @@ proc ::tkchat::logonScreen {} {
     global Options LOGON
     set have_tls [expr {[package provide tls] != {}}]
     pause on 0
+    tkjabber::disconnect    
     if {![winfo exists .logon]} {
 	toplevel .logon -class dialog
 	wm withdraw .logon
@@ -6343,7 +6353,8 @@ namespace eval tkjabber {
     variable reconnect 0 ;# set to 1 after a succesful connect.
     
     variable HistoryLines {}
-
+    variable HaveHistory 0
+    
     variable conference tcl@tach.tclers.tk
 
     variable muc_jid_map ;# array with conference-id to user-jid map.  
@@ -6363,6 +6374,11 @@ proc tkjabber::connect { } {
     variable reconnect 
     global Options
     
+    if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
+	set keepalive_seconds 30
+    } else {
+	set keepalive_seconds 90
+    }    
     
     if { !$reconnect } {     
 	if { $roster eq "" } {
@@ -6371,7 +6387,8 @@ proc tkjabber::connect { } {
 	set jabber [jlib::new $roster [namespace current]::ClientCB  \
 			-iqcommand          [namespace current]::IqCB  \
 			-messagecommand     [namespace current]::MsgCB \
-			-presencecommand    [namespace current]::PresCB]
+			-presencecommand    [namespace current]::PresCB \
+			-keepalivesecs	    $keepalive_seconds]
 	
 	set browser [browse::new $jabber -command [namespace current]::BrowseCB]
     }   
@@ -6396,6 +6413,30 @@ proc tkjabber::connect { } {
     
     # The next thing which will/should happen is the a call to ConnectProc by
     # jabberlib.        
+}
+
+proc tkjabber::disconnect { } {
+    variable jhttp
+    variable jabber
+    variable roster
+    variable browser    
+    variable socket 
+    variable conn
+    variable reconnect 
+    global Options
+    
+    set reconnect 0
+    
+    if { $socket eq "" } {
+	return
+    }
+    
+    catch {close $socket}    
+    if { [catch {$jabber closestream}] } {
+	log::log error "Closestream: $::errorInfo"
+    }
+    tkchat::addSystem "Disconnected from jabber server."    
+    
 }
 
 proc tkjabber::openStream {} {
@@ -6426,10 +6467,9 @@ proc tkjabber::SendAuth { } {
     #tkchat::addSystem "Logged in as $myId"
 
     update idletasks
-
-    if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
-        after 30000 [list jlib::schedule_keepalive $jabber]
-    }
+    
+    # The jabber keep alive packets are a single newline character.    
+    after 30000 [list jlib::schedule_keepalive $jabber]
 }
 
 
@@ -6491,16 +6531,30 @@ proc tkjabber::ClientCB {jlibName cmd args} {
 	    tkchat::addSystem "Connection to Jabber Server Established"	    
 	}
 	disconnect {
-	    tkchat::addSystem "Disconnected from server"
-	    after 1000 tkjabber::connect
+	    tkchat::addSystem "Disconnected from server, will try to reconnect in 5 seconds."
+	    after 5000 tkjabber::connect
 	}
 	networkerror {
 	    array set x $args
-	    tkchat::addSystem "Network error $x(-body)"
-	    after 1000 tkjabber::connect
+	    tkchat::addSystem "Network error $x(-body), will try to reconnect in 5 seconds."
+	    after 5000 tkjabber::connect
+	}
+	streamerror {
+	    array set x $args
+	    set type [lindex $x(-errormsg) 0]
+	    set message [lindex $x(-errormsg) 1]
+	    switch -- $type {
+		conflict {
+		    tkchat::addSystem $message		    
+		}
+		default {
+		    tkchat::addSystem "ClientCB: $cmd ; args='$args'"		    
+		}
+	    }
+	    disconnect
 	}
 	default {
-	    tkchat::addSystem "MyClientProc: jlibName=$jlibName, cmd=$cmd, args='$args'"
+	    tkchat::addSystem "ClientCB: jlibName=$jlibName, cmd=$cmd, args='$args'"
 	}
     }  
     update idletasks
@@ -6824,7 +6878,7 @@ proc tkjabber::MucEnterCB {mucName type args} {
 	available {
 	    #tkchat::addSystem  "MucEnter: type=$type, args='$args'"
 	    #only load history when it is not loaded already.
-	    if { ![llength [.txt tag ranges HISTORY]] } {
+	    if { !$tkjabber::HaveHistory } {
 	    # Force history loading to the background
 		after 10 tkchat::LoadHistory
 	    }
@@ -6845,6 +6899,11 @@ proc tkjabber::msgSend { msg args } {
 	-user {}
 	-xlist {}
 	-attrs {}
+    }
+
+    if { [string match "/userinfo *" $msg] } {
+	tkchat::addSystem "Userinfo not implemented yet."
+	return
     }
 
     if { [llength $args] > 0 } {
@@ -6970,6 +7029,8 @@ proc ::tkjabber::setTopic { newtopic } {
 
 proc ::tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
     variable HistoryLines
+    variable HaveHistory
+    set HaveHistory 1
     set time [clock scan ${when} -gmt 1]
     lappend HistoryLines [list $time $nick $msg]
     if { [llength $args] > 0 } {
