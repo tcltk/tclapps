@@ -1,3 +1,8 @@
+2003-01-15  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (addMessage): show ircbridge users as <$nick> in the
+	display.
+
 2002-12-09  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl (alertCallback): check for focus, not grab, in the

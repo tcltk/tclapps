@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.72 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.73 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.72 2002/12/10 03:31:24 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.73 2003/01/15 19:26:01 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1072,10 +1072,21 @@ proc addMessage {clr nick str} {
     checkNick $nick $clr
     checkAlert NORMAL $nick $str
     $w config -state normal
-    $w insert end "$nick\t" [list NICK NICK-$nick]
-    if {[string equal $nick clock] || [string equal $nick tick]} {
+    if {[string equal $nick "clock"] || [string equal $nick "tick"]} {
+	$w insert end "$nick\t" [list NICK NICK-$nick]
         .txt insert end "[formatClock $str] " [list NICK-$nick MSG]
     } else {
+	if {[string equal $nick "ircbridge"] && \
+		[regexp {^(\w+) says: (.*)$} $str -> truenick msg]} {
+	    # Use their true nick, but display bridge users as <$nick>
+	    # This allows people registered in both systems to appear
+	    # with the right color info.
+	    set nick $truenick
+	    set str  $msg
+	    $w insert end "<$nick>\t" [list NICK NICK-$nick]
+	} else {
+	    $w insert end "$nick\t" [list NICK NICK-$nick]
+	}
         foreach {str url} [parseStr $str] {
             foreach cmd [array names ::tkchat::MessageHooks] {
                 eval $cmd [list $str $url]
