@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.258 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.259 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.258 2005/02/07 23:17:39 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.259 2005/02/08 01:12:12 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4250,6 +4250,7 @@ proc ::tkchat::Init {args} {
     ChangeFont -size $Options(Font,-size)
 
     applyColors
+    createRosterImages
 
     #call the (possibly) user defined postload proc:
     tkchatrcPostload
@@ -6167,10 +6168,9 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 	    set action ""
             set newnick ""
 	    # online/away/offline, etc.
-	    set status online
-	    if { [info exists p(-show)] } {
-		set status $p(-show)
-	    }
+	    set status [list online]
+	    if { [info exists p(-show)] } { set status [list $p(-show)] }
+	    if { [info exists p(-status)] } { lappend status $p(-status) }
 	    switch -- $p(-type) {
 		available {
 		    set action entered
@@ -6185,7 +6185,8 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
                                 if {[llength $item] > 0} {
                                     set usrjid [wrapper::getattribute \
                                                     [lindex $item 0] jid]
-                                    set members($p(-resource)) $usrjid
+                                    set members($p(-resource),jid) $usrjid
+                                    set members($p(-resource),status) $status
                                 }
                                 break
                             }
@@ -6223,8 +6224,11 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
                             }
                         }
                     }
-                    if {[info exists members($p(-resource))]} {
-                        unset members($p(-resource))
+                    if {[info exists members($p(-resource),jid)]} {
+                        unset members($p(-resource),jid)
+                    }
+                    if {[info exists members($p(-resource),status)]} {
+                        unset members($p(-resource),status)
                     }
 		    # Do we want to be this nick?
 		    if { $grabNick ne "" && $p(-resource) eq $grabNick } {
@@ -6234,15 +6238,17 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 
 		}
 	    }
+
 	    if { $jid ne $conference } {
 		set tstatus [string map {
 		    dnd "do not disturb"
 		    xa "away (idle)"
 		    chat "I want to chat"
 		    away "away"
-		} $status]
-
-		tkchat::addSystem "$jid has $action ($tstatus)"
+		} [lindex $status 0]]
+                set m "$jid has $action ($tstatus)"
+                if {[llength $status] > 1} {append m ": [lindex $status 1]"}
+		tkchat::addSystem $m
 		return
 	    }
 	
@@ -6821,8 +6827,8 @@ proc ::tkjabber::send_memo {to msg {subject Memo}} {
     variable members
 
     if {[string first @ $to] == -1} {
-        if {[info exists members($to)]} {
-            set to $members($to)
+        if {[info exists members($to,jid)]} {
+            set to $members($to,jid)
         } else {
             tkchat::addSystem "Cannot find a JID for '$to'."
             return
@@ -6840,6 +6846,7 @@ proc ::tkjabber::send_memo {to msg {subject Memo}} {
 
 proc ::tkchat::updateJabberNames { } {
     global Options
+    variable ::tkjabber::members
 
     set scrollcmd [.names cget -yscrollcommand]
     .names configure -yscrollcommand {}
@@ -6860,6 +6867,11 @@ proc ::tkchat::updateJabberNames { } {
     set Options(OnLineUsers) {}
     foreach person [lsort -dictionary [$::tkjabber::muc participants $::tkjabber::conference]] {
 	regexp {([^/])/(.+)} $person -> conf name
+
+        set status [list online];# FIX ME
+        if {[info exists members($name,status)]} {
+            set status $members($name,status)
+        }
 	
 	lappend Options(OnLineUsers) $name
 	# NOTE : the URL's don't work because of the & in them
@@ -6867,6 +6879,20 @@ proc ::tkchat::updateJabberNames { } {
 	# and if we follow spec and escape them with %26 then
 	# the cgi script on the other end pukes so we will
 	# just do an inline /userinfo when they are clicked
+        switch -exact -- [lindex $status 0] {
+            online {
+                .names image create end -image ::tkchat::roster::online
+            }
+            chat {
+                .names image create end -image ::tkchat::roster::chat
+            }
+            dnd {
+                .names image create end -image ::tkchat::roster::dnd
+            }
+            away - xa {
+                .names image create end -image ::tkchat::roster::away
+            }
+        }
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
 	.names tag bind URL-$::URLID <1> \
 	    "set ::tkchat::UserClicked 1;\
@@ -6880,6 +6906,31 @@ proc ::tkchat::updateJabberNames { } {
     .names configure -yscrollcommand $scrollcmd
     .names config -state disabled
 }
+
+proc ::tkchat::createRosterImages {} {
+    image create photo ::tkchat::roster::chat -data {
+        R0lGODlhDgAKAMIAAAAAAP//gICAgP///4CAQACA/wBAgH9/fyH5BAEKAAcA
+        LAAAAAAOAAoAAAMseAesy22FKda4F0hq8dDARFSA9ymAoEIsWhSG4czL+8a0
+        a+M5YMOy3o9HSwAAOw==
+    }
+    image create photo ::tkchat::roster::online -data {
+        R0lGODlhDgAKAMIAAAAAAP//gICAgICAQACA/wBAgP///////yH5BAEKAAcA
+        LAAAAAAOAAoAAAMkeAes/itIAR+QgVZ1w9DbIozhQhBFEQLnmW5s+1axq9It
+        ekMJADs=
+    }
+    image create photo ::tkchat::roster::away -data {
+        R0lGODlhDgAKAMIAAAAAAP//gICAgP///4CAQACA/wBAgP///yH5BAEKAAcA
+        LAAAAAAOAAoAAAMzeAesy8CBQMUaeMRFgwCZpnEB8WXguAhsymARUBSGkcKa
+        PNN2GO+8R2MBrDmOupnxqEgAADs=
+    }
+    image create photo ::tkchat::roster::dnd -data {
+        R0lGODlhDgAKAOMAAAAAAP//gICAgP8AAICAQP///wCA/wBAgP//////////
+        /////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ5ECFA5aTAgsDF
+        HOCQTVwgAGGYbQFxDkVciBIg3Kg8r4ZxHKiUCNDr/YIgXvF3qUyKvoNlSlxK
+        p5IIADs=
+    }
+}
+
 
 proc ::tkjabber::setNick { newnick } {
     variable muc
@@ -7126,16 +7177,20 @@ proc tkjabber::SubscriptionRequest {from status} {
 
 proc tkjabber::away {status} {
     variable Away
+    variable conference
     set Away 1
+    set jid $conference/[$tkjabber::muc mynick $conference]
     $tkjabber::jabber send_presence -type available \
-        -from [$tkjabber::jabber myjid] -show away -status $status
+        -from $jid -to $conference -show away -status $status
 }
 
 proc tkjabber::back {status} {
     variable Away
+    variable conference
     set Away 0
+    set jid $conference/[$tkjabber::muc mynick $conference]
     $tkjabber::jabber send_presence -type available \
-        -from [$tkjabber::jabber myjid] -show online -status $status
+        -from $jid -to $conference -show online -status $status
 }
 
 # -------------------------------------------------------------------------
