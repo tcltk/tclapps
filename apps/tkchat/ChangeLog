@@ -1,5 +1,10 @@
 2002-02-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: noise reduction from the last patch for timeout
+	cases. Also added some menu navigation underlines.
+
+2002-02-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
 	* tkchat.tcl: Added HTTP error checking to the history fetching
 	code and handle the redirection case where /?M=D gets appended to
 	the log file root URL.

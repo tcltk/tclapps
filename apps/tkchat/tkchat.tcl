@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.30 2002/02/01 19:47:49 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.31 2002/02/01 21:52:04 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -204,7 +204,7 @@ proc tkchat::GetHistLogIdx {szary} {
             }
         }
         reset { errLog "User reset post operation" }
-        timeout { tk_messageBox -message "History Fetch timed out." }
+        timeout { errLog "History Fetch timed out." }
         error {  tk_messageBox -message "History Fetch error: [:http::error $tok]" }
     }
     ::http::cleanup $tok
@@ -254,7 +254,7 @@ proc tkchat::ParseHistLog {log} {
             errLog "User reset post operation" 
         }
         timeout {
-            tk_messageBox -message "History fetch timed out" 
+            errLog "History fetch timed out" 
         }
         error {
             tk_messageBox -message "History fetch error: [::http::error $tok]"
@@ -382,7 +382,7 @@ proc msgDone {tok} {
             }
         }
 	reset { errLog "User reset post operation" }
-	timeout { tk_messageBox -message "Message Post timed out" }
+	timeout { errLog "Message Post timed out" }
 	error {
 	    tk_messageBox -message \
                   "Message Post Errored: [::http::error $tok]"
@@ -401,9 +401,9 @@ proc logonChat {} {
     global Options
     errLog "Logon to $Options(URL2)"
     set qry [::http::formatQuery \
-                   action	login \
-                   name	$Options(Username) \
-                   password	$Options(Password) \
+                   action       login \
+                   name         $Options(Username) \
+                   password     $Options(Password) \
                   ]
     ::http::geturl $Options(URL2) \
           -query $qry \
@@ -533,7 +533,7 @@ proc fetchDone {tok} {
 	    errLog "User reset post operation"
 	}
 	timeout - Timeout - TIMEOUT {
-	    tk_messageBox -message "Message Post timed out"
+	    errLog "Message Post timed out"
 	}
 	error - Error - ERROR {
 	    tk_messageBox -message "Message Post Errored: [::http::error $tok]"
@@ -594,7 +594,7 @@ proc onlineDone {tok} {
 	    errLog "User reset post operation"
 	}
 	timeout {
-	    tk_messageBox -message "Message Post timed out"
+	    errLog "Message Post timed out"
 	}
 	error {
 	    tk_messageBox -message "Message Post Errored: [::http::error $tok]"
@@ -1174,28 +1174,34 @@ proc tkchat::CreateGUI {} {
     menu .mbar -type menubar
     . config -menu .mbar
 
-    .mbar add cascade -label File -menu [menu .mbar.file -tearoff 0]
-    .mbar add cascade -label Preferences -menu [menu .mbar.edit -tearoff 0]
-    .mbar add cascade -label Debug -menu [menu .mbar.dbg -tearoff 0]
-    .mbar add cascade -label Help -menu [menu .mbar.help -tearoff 0]
+    .mbar add cascade -label File -underline 0 \
+          -menu [menu .mbar.file -tearoff 0]
+    .mbar add cascade -label Preferences \
+          -underline 0 -menu [menu .mbar.edit -tearoff 0]
+    .mbar add cascade -label Debug -underline 0 \
+          -menu [menu .mbar.dbg -tearoff 0]
+    .mbar add cascade -label Help -underline 0 \
+          -menu [menu .mbar.help -tearoff 0]
 
     ## File Menu
     ##
     set m .mbar.file
     $m add checkbutton -label Pause \
           -variable ::tkchat::pause \
+          -underline 0 \
           -command { pause $::tkchat::pause }
-    $m add command -label Logout -command logonScreen
-    $m add command -label "Save Options" -command saveRC
+    $m add command -label Logout -underline 0 -command logonScreen
+    $m add command -label "Save Options" -underline 0 -command saveRC
     $m add separator
-    $m add command -label Exit -command quit
+    $m add command -label Exit -underline 1 -command quit
 
     ## Edit Menu
     ##
     set m .mbar.edit
-    $m add command -label Colors... \
+    $m add command -label Colors... -underline 0 \
           -command tkchat::ChangeColors
-    $m add cascade -label "Font Name" -menu [menu $m.fontName -tearoff 0]
+    $m add cascade -label "Font Name" -underline 0 \
+          -menu [menu $m.fontName -tearoff 0]
     set num 0
     foreach name [lsort [font families]] {
 	$m.fontName add radiobutton -label $name \
@@ -1207,7 +1213,8 @@ proc tkchat::CreateGUI {} {
             $m.fontName entryconfig end -columnbreak 1
         }
     }
-    $m add cascade -label "Font Size" -menu [ menu $m.fontSize -tearoff 0]
+    $m add cascade -label "Font Size" -underline 5 \
+          -menu [ menu $m.fontSize -tearoff 0]
     foreach sz {8 10 12 14 16 18 24 28 36} {
 	$m.fontSize add radiobutton -label $sz \
               -var Options(Font,-size) \
@@ -1248,29 +1255,32 @@ proc tkchat::CreateGUI {} {
     ## Debug Menu
     ##
     set m .mbar.dbg
-    $m add comman -label "Reload Script" \
+    $m add comman -label "Reload Script" -underline 0 \
           -command [list ::tkchat::Debug reload]
-    $m add comman -label "Restart Script" \
+    $m add comman -label "Restart Script" -underline 2 \
           -command [list ::tkchat::Debug restart]
-    $m add comman -label "Retrieve Script" \
+    $m add comman -label "Retrieve Script" -underline 2 \
           -command [list ::tkchat::Debug retrieve]
-    $m add comman -label "Evaluate Selection" \
+    $m add comman -label "Evaluate Selection" -underline 1 \
           -command [list ::tkchat::Debug evalSel]
-    $m add comman -label "Purge Chat Window" \
+    $m add comman -label "Purge Chat Window" -underline 0 \
           -command [list ::tkchat::Debug purge]
     $m add separator
-    $m add cascade -label "Error Logging" -menu [menu $m.err -tearoff 0]
-    $m.err add cascade -label "Log Level" -menu [menu $m.err.lvl -tearoff 0]
-    $m.err add radiobutton -label "To Stderr" -var ::Options(LogStderr) -val 1 \
+    $m add cascade -label "Error Logging" -underline 0 \
+          -menu [menu $m.err -tearoff 0]
+    $m.err add cascade -label "Log Level" -underline 0 \
+          -menu [menu $m.err.lvl -tearoff 0]
+    $m.err add radiobutton -label "To Stderr" -underline 3 \
+          -var ::Options(LogStderr) -val 1 \
           -command {tkchat::OpenErrorLog stderr}
-    $m.err add command -label "To File..." \
+    $m.err add command -label "To File..." -underline 3 \
           -command {tkchat::OpenErrorLog pick}
     foreach lvl [lsort -command ::log::lvCompare $::log::levels] {
         $m.err.lvl add radiobutton -label $lvl -val $lvl \
               -var Options(LogLevel)
     }
     $m add separator
-    $m add checkbutton -label "Console" \
+    $m add checkbutton -label "Console" -underline 0 \
           -variable ::tkchat::_console \
           -command [list ::tkchat::Debug console] \
           -state disabled
@@ -1299,7 +1309,7 @@ proc tkchat::CreateGUI {} {
     ## Help Menu
     ##
     set m .mbar.help
-    $m add command -label About... -command tkchat::About
+    $m add command -label About... -underline 0 -command tkchat::About
 
 
     text .txt -background "#[getColor MainBG]" \
@@ -1853,7 +1863,7 @@ proc tkchat::Init {} {
         TimeFormat      "At the tone, the time is %H:%M on %A %d %b %Y"
         TimeGMT         0
         HistoryLines    -1
-        timeout         15000
+        timeout         30000
     }
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
