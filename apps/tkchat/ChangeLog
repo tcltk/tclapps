@@ -2,6 +2,7 @@
 
 	* tkchat.tcl: Bug #1156611 fixed. It seems jabberlib changed to
 	interface for the send_iq command.
+	* tkchat.tcl: Fixed a problem with the SASL authentication code.
 
 2005-03-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

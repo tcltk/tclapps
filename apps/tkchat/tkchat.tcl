@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.267 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.268 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.267 2005/03/22 00:47:35 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.268 2005/03/22 01:14:12 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1916,13 +1916,13 @@ proc ::tkchat::CreateGUI {} {
 	-command [list ::tkchat::Debug console] \
 	-state disabled
     set ::tkchat::_console 0
-    if {[llength [info commands tkcon]]} {
+    if {[llength [info commands ::tkcon]]} {
 	$m entryconfig "Console" -state normal \
 	    -command {
 		if {$::tkchat::_console} { tkcon show } else { tkcon hide }
 	    }
     } elseif { $::tcl_platform(platform) ne "unix" &&
-	[llength [info commands console]] > 0 } {
+	[llength [info commands ::console]] > 0 } {
 	$m entryconfig "Console" -state normal
 	console eval {
 	    bind .console <Map> {
@@ -5701,7 +5701,7 @@ proc ::tkchat::EditOptions {} {
     if {[lsearch [wm attributes .] -alpha] != -1} {
         set gimmicks 1
         set scale scale
-        if {[info command tscale] != {}} {
+        if {[info command ::tscale] != {}} {
             set scale tscale
         }
         checkbutton $gf.fade -text "When not active, fade to " -underline 2 \
@@ -6148,7 +6148,8 @@ proc tkjabber::SendAuth { } {
     set pass $Options(Password)
     set ress $Options(JabberResource)
 
-    if {[info command jlib::havesasl] ne "" && [jlib::havesasl]} {
+    if {[info command ::jlib::havesasl] ne "" && [::jlib::havesasl]} {
+        log::log debug "SASL GO"
         jlib::auth_sasl $jabber $user $ress $pass \
             [namespace origin OnSaslFinish]
     } else {
