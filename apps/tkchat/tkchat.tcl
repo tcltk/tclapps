@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.36 2002/02/19 00:43:20 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.37 2002/03/06 16:25:57 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1006,9 +1006,9 @@ proc gotoURL {url} {
 	    #
 	    # -remote argument might need formatting as a command
 	    # 		Try that first
-	    if {[catch {exec $Options(BROWSER) -remote openURL($url)}]} {
+	    if {[catch {exec $Options(BROWSER) -remote openURL($url) 2> /dev/null}]} {
 	        # Try -remote with raw URL argument 
-	        if {[catch {exec $Options(BROWSER) -remote $url}]} {
+	        if {[catch {exec $Options(BROWSER) -remote $url 2> /dev/null}]} {
 		    # perhaps browser doesn't understand -remote flag
 		    if {[catch {exec $Options(BROWSER) $url &} emsg]} {
 		        tk_messageBox -message \
@@ -1444,11 +1444,14 @@ proc hideExtra {} {
     grid remove .tMsg
     grid config .eMsg -row 1 -column 1 -columnspan 2 -sticky ew
     .ml config -text "More >>>" -command showExtra
+    .eMsg delete 0 end
+    .eMsg insert end [string trim [.tMsg get 1.0 end]]
 }
 proc showExtra {} {
     grid remove .eMsg
     grid config .tMsg -row 1 -column 1 -columnspan 2 -sticky ew
     .ml config -text "Less <<<" -command hideExtra
+    .tMsg delete 1.0 end
     .tMsg insert end [.eMsg get]
 }
 proc logonScreen {} {
