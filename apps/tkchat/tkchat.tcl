@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.32 2002/02/02 00:53:13 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.33 2002/02/14 01:37:47 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -351,11 +351,16 @@ proc msgSend {str {user ""}} {
                    msg_to	$user \
                    msg		$str \
                   ]
-    ::http::geturl $Options(URL) \
-          -query [string map {%5f _} $qry] \
-          -headers [buildProxyHeaders] \
-          -timeout $Options(timeout) \
-          -command msgDone
+    if {[catch {
+        ::http::geturl $Options(URL) \
+            -query [string map {%5f _} $qry] \
+            -headers [buildProxyHeaders] \
+            -timeout $Options(timeout) \
+            -command msgDone
+    } msg]} {
+        errLog "Retrying msgSend: $msg"
+        after idle [msgSend $str $user]
+    }
 }
 
 proc msgDone {tok} {
@@ -394,7 +399,7 @@ proc msgDone {tok} {
 }
 
 proc logonChat {} {
-    if 0 {
+    if {0} {
         # use when testing only - allows restarts without actually logging in again
         catch {pause off}
         return
@@ -501,21 +506,36 @@ proc fetchPage {} {
                    new_msg_on_top 0 \
                    ls		"" \
                   ]
-    set Options(FetchToken) [::http::geturl $Options(URL) \
-                                   -query $qry \
-                                   -headers [buildProxyHeaders] \
-                                   -timeout $Options(timeout) \
-                                   -command fetchDone]
+    if {[catch {
+        set Options(FetchToken) [::http::geturl $Options(URL) \
+                                     -query $qry \
+                                     -headers [buildProxyHeaders] \
+                                     -timeout $Options(timeout) \
+                                     -command fetchDone]
+    } msg]} {
+        # If the http connection failed and we caught it then we probably
+        # are not connected to the network. Keep trying - maybe we are moving
+        # our laptop or something :)
+        errLog "Fetch error: $msg"
+        if {!$::tkchat::pause} {
+            set Options(FetchTimerID) \
+                [after [expr {$Options(Refresh) * 1000}] fetchPage]
+        }
+    }
 }
 
 proc fetchDone {tok} {
     global Options
-    if {[string equal $tok $Options(FetchToken)]} {
-	unset Options(FetchToken)
-    } else {
-	errLog "Fetch Command finished with token $tok" \
-              "expected $Options(FetchToken)"
-	unset Options(FetchToken)
+    # If we timed out while still tying to connect this variable may not
+    # be set.
+    if {[info exists Options(FetchToken)]} {
+        if {[string equal $tok $Options(FetchToken)]} {
+            unset Options(FetchToken)
+        } else {
+            errLog "Fetch Command finished with token $tok" \
+                "expected $Options(FetchToken)"
+            unset Options(FetchToken)
+        }
     }
     if {!$::tkchat::pause} {
 	set Options(FetchTimerID) \
@@ -532,13 +552,13 @@ proc fetchDone {tok} {
 	    if {[catch {parseData [::http::data $tok]} err]} { errLog $err }
 	}
 	reset - Reset - RESET {
-	    errLog "User reset post operation"
+	    errLog "Reset called while updating the chat page."
 	}
 	timeout - Timeout - TIMEOUT {
-	    errLog "Message Post timed out"
+	    errLog "Timeout occurred while updating the chat page."
 	}
 	error - Error - ERROR {
-	    tk_messageBox -message "Message Post Errored: [::http::error $tok]"
+	    tk_messageBox -message "fetchPage error: [::http::error $tok]"
 	}
     }
     ::http::cleanup $tok
@@ -562,21 +582,31 @@ proc onlinePage {} {
                    new_msg_on_top 0 \
                    ls		"" \
                   ]
-    set Options(OnlineToken) [::http::geturl $Options(URL) \
-                                    -query $qry \
-                                    -headers [buildProxyHeaders] \
-                                    -timeout $Options(timeout) \
-                                    -command onlineDone]
+    if {[catch {
+        set Options(OnlineToken) [::http::geturl $Options(URL) \
+                                      -query $qry \
+                                      -headers [buildProxyHeaders] \
+                                      -timeout $Options(timeout) \
+                                      -command onlineDone]
+    } msg]} {
+        errLog "Fetch error: $msg"
+        if {!$::tkchat::pause} {
+            set Options(FetchTimerID) \
+                [after [expr {$Options(Refresh) * 1000}] onlinePage]
+        }
+    }
 }
 
 proc onlineDone {tok} {
     global Options
-    if {[string equal $tok $Options(OnlineToken)]} {
-	unset Options(OnlineToken)
-    } else {
-	errLog "Online Command finished with token $tok" \
-              "expected $Options(OnlineToken)"
-	unset Options(OnlineToken)
+    if {[info exists Options(OnlineToken)]} {
+        if {[string equal $tok $Options(OnlineToken)]} {
+            unset Options(OnlineToken)
+        } else {
+            errLog "Online Command finished with token $tok" \
+                "expected $Options(OnlineToken)"
+            unset Options(OnlineToken)
+        }
     }
     if {!$::tkchat::pause} {
 	set Options(OnlineTimerID) \
@@ -593,13 +623,13 @@ proc onlineDone {tok} {
 	    if {[catch {updateNames [::http::data $tok]} err]} { errLog $err }
 	}
 	reset {
-	    errLog "User reset post operation"
+	    errLog "Reset called while retrieving the online page."
 	}
 	timeout {
-	    errLog "Message Post timed out"
+	    errLog "Retrieval of the online users information timed out."
 	}
 	error {
-	    tk_messageBox -message "Message Post Errored: [::http::error $tok]"
+	    tk_messageBox -message "onlinePage error: [::http::error $tok]"
 	}
     }
     ::http::cleanup $tok
