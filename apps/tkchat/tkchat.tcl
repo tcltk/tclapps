@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.109 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.110 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.109 2003/08/19 19:21:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.110 2003/08/25 17:01:10 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2301,63 +2301,13 @@ proc ::tkchat::optSet {args} {
 }
 
 proc ::tkchat::doBug {msg} {
-    # msg should be off form: ^/bug ?group? ?tracker? id
-    # category defaults to Tcl bugs
-    set len [llength $msg]
-    if {$len < 2 || $len > 4} {
-	addSystem "wrong # args: must be /bug ?group? ?tracker? id"
+    # msg should be off form: ^/bug id
+    if {[llength $msg] != 2} {
+	addSystem "wrong # args: must be /bug id"
 	return
     }
-    array set groups {
-	tcl     10894	tk      12997	tcllib  12883
-	incrtcl 13244	expect  13179	tclx    13247
-    }
-    array set trackers {
-	bugs    1	patches 3	rfes    35	frs     35
-    }
-    # defaults
-    set gid tcl
-    set tid bugs
-    set id [lindex $msg end]
-    if {$len == 3} {
-	set gid [string tolower [lindex $msg 1]]
-    } elseif {$len == 4} {
-	set gid [string tolower [lindex $msg 1]]
-	set tid [string tolower [lindex $msg 2]]
-    }
-
-    set group [array names groups $gid]
-    if {[llength $group] != 1} {
-	set group [array names groups $gid*]
-	if {[llength $group] != 1} {
-	    addSystem "Invalid group '$gid', must be one of\
-		    [join [array names groups {, }]]"
-	    return
-	}
-    }
-    set group   $groups($group)
-
-    set tracker [array names trackers $tid]
-    if {[llength $tracker] != 1} {
-	set tracker [array names trackers $tid*]
-	if {[llength $tracker] != 1} {
-	    addSystem "Invalid tracker '$tid', must be one of\
-		    [join [array names trackers {, }]]"
-	    return
-	}
-    }
-    set tracker $trackers($tracker)
-
-    set url "http://sourceforge.net/tracker/index.php?func=detail"
-    append url "&aid=$id&group_id=$group"
-    if {$tracker < 10} {
-	set atid $tracker$group
-    } else {
-	set atid [expr {$tracker*10000 + $group}]
-    }
-    append url "&atid=$atid"
-
-    # Until exec works correctly with &, just show the URL for C&P
+    set id  [lindex $msg end]
+    set url "http://sourceforge.net/support/tracker.php?aid=$id"
     gotoURL $url
 }
 
