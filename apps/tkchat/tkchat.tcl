@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.250 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.251 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.250 2004/12/11 01:22:04 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.251 2004/12/11 01:36:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5090,6 +5090,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     if {[info exists UI(timeout)]} {
         log::log debug "cleanup as no UI"
         unset $uivar
+        addSystem "No info available for $jid"
         return
     }
 
@@ -5104,8 +5105,8 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     # country Country city City age Age 
     # photo_url "Picture URL" icq_uin "ICQ uin"
     foreach {key text} {FN "Real name" EMAIL_USERID Email URL "Homepage URL" \
-                            ADR_LOCALITY "City" \
-                            ADR_CTRY "Country" BDAY "Birthday"} {
+                            ADR_LOCALITY "City"  ADR_CTRY "Country" \
+                            PHOTO_EXTVAL "Photo URL" BDAY "Birthday"} {
         set l [label $f.l$key -text $text -anchor nw]
         set e [entry $f.e$key \
                    -textvariable [set uivar]($key) \
@@ -5146,7 +5147,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     
     if {[set [namespace current]::$id] == 1} {
         set UI(DESC) [$et get 0.0 end]
-        UserInfoSend
+        UserInfoSend $jid
     }
     destroy $dlg
     unset [namespace current]::$id
