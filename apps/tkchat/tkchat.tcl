@@ -17,9 +17,6 @@
 # \
       exec wish "$0" ${1+"$@"}
 
-if {[package present starkit]} {
-    package provide app-tkchat 1.63
-}
 
 if {![info exists env(PATH)]} {
     set env(PATH) .
@@ -38,6 +35,8 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
     }
 }
 
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.65 $}]
+
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
     variable MessageHooks
@@ -47,7 +46,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.64 2002/08/13 12:02:46 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.65 2002/08/13 12:56:46 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
