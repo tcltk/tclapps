@@ -1,3 +1,7 @@
+2001-12-06  Bruce Hartweg  <brhartweg@bigfoot.com>
+
+	* tkchat.tcl: Move most stuff out of dialog onto menus - cleaned up dialog (now just colors), a few other minor cleanups (also missed from davidw checking in v25 for me was the ability to grab the history logs at startup)
+
 2001-12-05  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Cleaned up things in the "Options Settings" dialog.
