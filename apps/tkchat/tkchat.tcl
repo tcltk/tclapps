@@ -35,7 +35,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.11 2001/10/15 11:50:11 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.12 2001/10/15 16:11:12 patthoyts Exp $}
 }
 
 set ::DEBUG 1
@@ -127,7 +127,7 @@ proc tkchat::Retrieve {} {
 proc checkForRedirection {tok optionName} {
     global Options
     set ncode [::http::ncode $tok]
-    if {[expr $ncode == 302]} {
+    if {[expr {$ncode == 302}]} {
         upvar \#0 $tok state
         array set meta $state(meta)
         if {[info exists meta(Location)]} {
@@ -160,7 +160,7 @@ proc msgSend {str {user ""}} {
 
 proc msgDone {tok} {
     errLog "Post: status was [::http::status $tok] [::http::code $tok]"
-    switch [::http::status $tok] {
+    switch -- [::http::status $tok] {
 	ok { 
             checkForRedirection $tok URL
             if {[catch {fetchPage} err]} { errLog $err }
@@ -191,7 +191,7 @@ proc logonChat {} {
 
 proc logonDone {tok} {
     errLog "Logon: status was [::http::status $tok] [::http::code $tok]"
-    switch [::http::status $tok] {
+    switch -- [::http::status $tok] {
 	ok {
             if {[checkForRedirection $tok URL2]} {
                 ::http::cleanup $tok
@@ -289,10 +289,10 @@ proc fetchDone {tok} {
     }
     if {!$::tkchat::pause} {
 	set Options(FetchTimerID) \
-		[after [expr $Options(Refresh) * 1000] fetchPage]
+                [after [expr {$Options(Refresh) * 1000}] fetchPage]
     }
     errLog "Fetch: status was [::http::status $tok] [::http::code $tok]"
-    switch [::http::status $tok] {
+    switch -- [::http::status $tok] {
 	ok - OK - Ok {
             if {[checkForRedirection $tok URL]} {
                 ::http::cleanup $tok
@@ -351,7 +351,7 @@ proc onlineDone {tok} {
 		[after [expr {$Options(Refresh) * 1000}] onlinePage]
     }
     errLog "Online: status was [::http::status $tok] [::http::code $tok]"
-    switch [::http::status $tok] {
+    switch -- [::http::status $tok] {
 	ok {
             if {[checkForRedirection $tok URL]} {
                 ::http::cleanup $tok
@@ -381,7 +381,7 @@ proc updateNames {rawHTML} {
     foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
 	# NOTE : the URL's don't work because of the & in them
 	# doesn't work well when we exec the call to browsers
-	# and if we follow spec and esacpe them with %26 then
+	# and if we follow spec and escape them with %26 then
 	# the cgi script on the other end pukes so we will
 	# just do an inline /userinfo when they are clicked
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
@@ -623,7 +623,7 @@ proc addMessage {clr nick str} {
 }
 
 proc ::tkchat::hook {do type cmd} {
-    switch -glob $type {
+    switch -glob -- $type {
 	msg - mes* { set var MessageHooks }
 	default {
 	    return -code error "unknown hook type \"$type\": must be\
@@ -633,7 +633,7 @@ proc ::tkchat::hook {do type cmd} {
     variable $var
     switch -exact -- $do {
 	add	{ set ${var}($cmd) {} }
-	remove	{ catch {unset ${var}($cmd)} }
+	remove	{ catch {unset -- ${var}($cmd)} }
 	default	{
 	    return -code error "unknown hook action \"$type\": must be\
 		    add or remove"
@@ -685,7 +685,7 @@ proc gotoURL {url} {
     }
     global tcl_platform Options
     # this code from  http://purl.org/mini/tcl/557.html
-    switch $tcl_platform(platform) {
+    switch -- $tcl_platform(platform) {
 	"unix" {
 	    expr {
 		[info exists Options(BROWSER)]
@@ -778,7 +778,7 @@ proc showInfo {title str} {
     toplevel $t
     wm title $t $title
     set height [expr {[string length $str] / 75 + 1}]
-    if {[set lines [regexp -all "\n" $str]] > $height} {
+    if {[set lines [regexp -all -- "\n" $str]] > $height} {
 	set height $lines
     }
     text $t.txt -cursor left_ptr -wrap word -height $height -font NAME
@@ -1152,7 +1152,7 @@ proc changeSettings {} {
     set f [frame $t.f.cvs.frm]
     $t.f.cvs create window 2 2 -anchor nw -window $f
     bind $f <Configure> {
-	wm geometry [winfo toplevel %W] [expr %w + 30]x500
+	wm geometry [winfo toplevel %W] [expr {%w + 30}]x500
 	[winfo parent %W] config -scrollregion [list 0 0 %w %h]
     }
     label $f.nknm -text "NickName"
@@ -1217,7 +1217,7 @@ proc changeSettings {} {
     set working 1
     while {$working} {
 	vwait ::DlgDone
-	switch $::DlgDone {
+	switch -- $::DlgDone {
 	    ok {
 		set working 0
 		set change 1
@@ -1288,7 +1288,7 @@ proc scroll_set {sbar f1 f2} {
 }
 
 proc ::tkchat::debug {cmd args } {
-    switch $cmd {
+    switch -- $cmd {
 	console {
 	    if {$::tkchat::_console} {
 		console show
