@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.122 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.123 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.122 2003/09/21 22:51:49 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.123 2003/09/24 09:49:02 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -80,6 +80,8 @@ namespace eval ::tkchat {
 
     # a variable to support nickname completion
     variable lastCompletion "" 
+
+    variable ircOnlineUsers [list]
 }
 
 proc ::tkchat::errLog {args} {
@@ -234,6 +236,7 @@ proc ::tkchat::ParseHistLog {log} {
     
     set retList {}
     set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[([^\]]+)\]\s+([^:]+):?\s*(.*)$}
+    set ircRE {ircbridge: \*\*\* (.+) (.+)$}
     # fetch log
     set url "$Options(URLlogs)/$log"
     log::log info "History: Fetch log \"$url\""
@@ -254,8 +257,15 @@ proc ::tkchat::ParseHistLog {log} {
                     }
                     # only show messages - don't care about enter/exit/new user crap
                     if {[string equal $type MSG]} {
-                        set lastnick $nick
-                        set lastdata $data
+			#but we _do_ care about ircbridge joins/leaves:		
+			if {[regexp -nocase -- $ircRE $line -> inick iaction]} {
+			    updateIrcUsers $inick $iaction
+			    set lastnick ""
+			    set lastdata ""		    
+			} else {
+			    set lastnick $nick
+			    set lastdata $data
+			}
                     } else {
                         set lastnick ""
                         set lastdata ""
@@ -828,6 +838,37 @@ proc ::tkchat::babelfishInitDone {tok} {
 
 # -------------------------------------------------------------------------
 
+proc tkchat::updateIrcUsers { who what } {
+    global Options 
+    variable ircOnlineUsers
+    set userNo [lsearch -exact $ircOnlineUsers $who]
+
+    #Check for rename:
+    if { [regexp {([^ ]+) is now known as} $who -> realwho] } {
+	updateIrcUsers $realwho leaves
+	updateIrcUsers $what joins
+	return
+    } 
+
+    switch $what {
+	joins {
+	    if { $userNo == -1 } {
+		lappend ircOnlineUsers $who
+		set ircOnlineUsers [lsort -dictionary $ircOnlineUsers]
+	    }	    
+	}
+	leaves {
+	    if { $userNo > -1 } {
+		set ircOnlineUsers [lreplace $ircOnlineUsers $userNo $userNo]		
+	    }
+	}
+	default {
+	    log::log debug "Unknown ircbridge user update action '$what'"
+	}
+    }
+
+}
+
 proc ::tkchat::MsgTo {{user "All Users"}} {
     global Options
     variable MsgToColors
@@ -855,6 +896,7 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
 
 proc ::tkchat::updateNames {rawHTML} {
     global Options
+    variable ::tkchat::ircOnlineUsers
 
     # Delete all URL-* tags to prevent a huge memory leak
     foreach tagname [.names tag names] {
@@ -886,6 +928,14 @@ proc ::tkchat::updateNames {rawHTML} {
 	.mb.mnu add command -label $name \
               -command [list ::tkchat::MsgTo $name]
     }
+    foreach name $ircOnlineUsers {
+        lappend Options(OnLineUsers) $name
+	.names insert end "$name" [list NICK] "\n"
+	incr i
+	.mb.mnu add command -label $name \
+              -command [list set Options(MsgTo) $name]	
+    }
+
     .names insert 1.0 "$i Users Online\n\n" TITLE
     .names config -state disabled
 }
@@ -985,6 +1035,8 @@ namespace eval ::tkchat {
         Action {^<B>\*\s+(\S+)\s+(.+)</B>$}
         Traffic {^<B>\s*(\S+)\s+has (entered|left) the chat</B>$}
         System {^<B>(.*)</B>$}
+	IrcUsers {^<B>ircbridge</B>: \*\*\* ([^ ]+) (joins|leaves)$}
+	IrcUserRename {^<B>ircbridge</B>: \*\*\* ([^ ]+) is now known as ([^ ]+)$}
     }
 }
 
@@ -1075,7 +1127,26 @@ proc ::tkchat::addNewLines {input} {
 		set nickColor $clr
 		set nick $name
 		set msgLines [list [string trimright $str]]
+	    } elseif {[regexp -nocase -- $RE(IrcUsers) $line -> nick str]} {	
+		log::log debug "IrcUsers RE"
+		switch $str {
+		    joins { 
+			addTraffic <$nick> entered 
+		    }
+		    leaves { 
+			addTraffic <$nick> left 
+		    }		    
+		}
+		::tkchat::updateIrcUsers $nick $str
+	    } elseif {[regexp -nocase -- $RE(IrcUserRename) $line -> nick newnick]} {	
+		log::log debug "IrcUserRename RE"
+		::tkchat::updateIrcUsers $nick leaves
+		::tkchat::updateIrcUsers $newnick joins
+
+		addSystem "In a fit of schizophrenia, <$nick> would really like to be <$newnick>" 
+
 	    } elseif {[regexp -nocase -- $RE(Message) $line -> nick str]} {
+		log::log debug "Message RE"
 		addMessage $color $nick [string trim $str]
 	    } elseif {[regexp -nocase -- $RE(Help) $line -> name str]} {
 		addHelp $color $name [string trim $str]

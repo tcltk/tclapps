@@ -1,3 +1,9 @@
+2003-09-24  Pascal Scheffers  <pascal@scheffers.net>
+	
+	* tkchat.tcl: Added functions and regular expressions to list the
+	users who are online on the IRC side of the chat (purely based on
+	ircbridge joins/leaves/isnowknowas messages)
+
 2003-09-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added support for placing bookmarks and cycling
