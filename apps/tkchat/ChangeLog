@@ -1,6 +1,7 @@
 2001-09-28  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: corrected minor warnings and height of info box
+	Added support for working as a scripted document (landers)
 
 2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
 

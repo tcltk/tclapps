@@ -5,29 +5,21 @@
 ###########################################################
 #
 # author: Bruce B Hartweg brhartweg@bigfoot.com
+# updates: Jeff Hobbs, et al
 #
-# This program is free to use, modify, extend
-# at will, the autor provides no warantees, guarantees
+# This program is free to use, modify, extend at will,
+# the author(s) provides no warantees, guarantees
 # or any responsibility for the use, re-use, abuse
 # that may or may not happen. If you somehow sell
 # this and make a ton of money - good for you, how
 # about sending me some?
 ############################################################
-#
-# Suggestions can be sent to the author - fixes even better!
-# If you update this file on the Wiki PLEASE add to the change
-# log so others can see what has been done so fizxes/changes
-# aren't lost or overwritten
-#
-############################################################
-#
-# Ideas for expansion: 
-# - Query userinfo and display images if registered. - Memo handling
-#
-# I might fix addMessage to add a general new-message-hook callback so that
-# this could be a loadable plugin. Steve Cassidy
-#
-############################################################
+
+if {[info exists scripdoc::self]} {
+    # Enable functionality as a scripted document
+    lappend auto_path [file join $scripdoc::self lib]
+}
+
 package require http		; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
