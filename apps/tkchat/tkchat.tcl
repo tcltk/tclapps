@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.152 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.153 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.152 2004/03/16 16:17:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.153 2004/03/18 16:13:03 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5352,23 +5352,27 @@ proc gtklook_style_init {} {
     set activeBG     #4a6984
     set troughColor  #bdb6ad
 
+    font create GtkLookFont \
+        -family Helvetica -size 12 -weight normal
+    font create GtkLookDialogFont \
+        -family Helvetica -size 16 -weight bold -slant italic
+
     option add *background $defaultColor widgetDefault
     option add *borderWidth 1 widgetDefault
-    option add *highlightThickness 0
-    option add *troughColor $troughColor
+    option add *highlightThickness 0 widgetDefault
+    option add *troughColor $troughColor widgetDefault
     option add *activeBorderWidth 1 widgetDefault
     option add *selectBorderWidth 1 widgetDefault
-    option add *font -adobe-helvetica-medium-r-normal-*-12-*-*-*-*-*-*
-    #option add *font {Helvetica 12}
+    option add *font GtkLookFont widgetDefault
 
-    option add *Button.highlightThickness 1
-    option add *Checkbutton.highlightThickness 1
-    option add *Radiobutton.highlightThickness 1
+    option add *Button.highlightThickness 1 widgetDefault
+    option add *Checkbutton.highlightThickness 1 widgetDefault
+    option add *Radiobutton.highlightThickness 1 widgetDefault
     
-    option add *Listbox.background white
-    option add *Listbox.selectBorderWidth 0
-    option add *Listbox.selectForeground $activeFG
-    option add *Listbox.selectBackground $activeBG
+    option add *Listbox.background white widgetDefault
+    option add *Listbox.selectBorderWidth 0 widgetDefault
+    option add *Listbox.selectForeground $activeFG widgetDefault
+    option add *Listbox.selectBackground $activeBG widgetDefault
 
     option add *Entry.background white
     option add *Entry.foreground black
@@ -5395,6 +5399,8 @@ proc gtklook_style_init {} {
 
     option add *Labelframe.borderWidth 2
     option add *Frame.borderWidth 2
+
+    option add *Dialog.msg.font GtkLookDialogFont
 }
 
 # -------------------------------------------------------------------------
