@@ -1,3 +1,9 @@
+2003-09-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Updated to support JCW's new chatter.cgi
+	script. This improves response time without flogging the bandwidth
+	of the server (we hope).
+
 2003-09-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::LoadHistoryLines): Mask off the alerts

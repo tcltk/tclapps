@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.113 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.114 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.113 2003/09/15 00:37:15 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.114 2003/09/16 23:14:54 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -458,7 +458,7 @@ proc msgDone {tok} {
                 }
             } else {
                 checkForRedirection $tok URL
-                if {[catch {fetchPage} err]} { errLog $err }
+                if {[catch {::tkchat::fetchPage} err]} { errLog $err }
             }
         }
 	reset { errLog "User reset post operation" }
@@ -559,12 +559,55 @@ proc pause {pause {notify 1}} {
 	    raise .pause
 	}
     } else {
-	fetchPage
-	onlinePage
+        # Always do a fetchPage here - not checkPage.
+	::tkchat::fetchPage
+	::tkchat::onlinePage
     }
 }
 
-proc fetchPage {} {
+proc ::tkchat::checkPage {} {
+    global Options
+    errLog "checkPage called"
+    set tok [http::geturl $Options(URLchk) \
+                 -headers [buildProxyHeaders] \
+                 -command ::tkchat::checkDone]
+    errLog "checkPage token $tok"
+}
+
+proc ::tkchat::checkDone {tok} {
+    errLog "checkDone status [::http::status $tok]"
+    switch -- [::http::status $tok] {
+	ok - OK - Ok {
+            if {[checkForRedirection $tok URL]} {
+                ::http::cleanup $tok
+                checkPage
+                return
+            }
+
+            if {[::http::ncode $tok] >= 500} {
+                errLog "Error calling check script. [http::error $tok]"
+            } else {
+                if {[catch {parseData [::http::data $tok]} err]} {
+                    errLog $err 
+                }
+            }
+	}
+	reset - Reset - RESET {
+	    errLog "Reset called while updating the chat page."
+	}
+	timeout - Timeout - TIMEOUT {
+	    errLog "Timeout occurred while updating the chat page."
+	}
+	error - Error - ERROR {
+	    tk_messageBox -message "fetchPage error: [::http::error $tok]"
+	}
+    }
+    ::http::cleanup $tok
+    fetchPage
+    onlinePage
+}
+
+proc ::tkchat::fetchPage {} {
     global Options
 
     if {[info exists Options(FetchToken)]} {
@@ -589,20 +632,21 @@ proc fetchPage {} {
         set Options(FetchToken) [::http::geturl $Options(URL) \
                                        -query $qry \
                                        -headers [buildProxyHeaders] \
-                                       -command fetchDone]
+                                       -command ::tkchat::fetchDone]
     } msg]} {
         # If the http connection failed and we caught it then we probably
         # are not connected to the network. Keep trying - maybe we are moving
         # our laptop or something :)
         errLog "Fetch error: $msg"
         if {!$::tkchat::pause} {
-            set Options(FetchTimerID) \
-                  [after [expr {$Options(Refresh) * 1000}] fetchPage]
+            #set Options(FetchTimerID) \
+            #  [after [expr {$Options(Refresh) * 1000}] ::tkchat::fetchPage]
+            after 1000 ::tkchat::checkPage
         }
     }
 }
 
-proc fetchDone {tok} {
+proc ::tkchat::fetchDone {tok} {
     global Options
     # If we timed out while still tying to connect this variable may not
     # be set.
@@ -616,15 +660,16 @@ proc fetchDone {tok} {
         }
     }
     if {!$::tkchat::pause} {
-	set Options(FetchTimerID) \
-              [after [expr {$Options(Refresh) * 1000}] fetchPage]
+	#set Options(FetchTimerID) \
+        #      [after [expr {$Options(Refresh) * 1000}] ::tkchat::fetchPage]
+        after 1000 ::tkchat::checkPage
     }
     errLog "Fetch: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
             if {[checkForRedirection $tok URL]} {
                 ::http::cleanup $tok
-                fetchPage
+                ::tkchat::fetchPage
                 return
             }
             if {[::http::ncode $tok] >= 500} {
@@ -649,7 +694,7 @@ proc fetchDone {tok} {
     ::http::cleanup $tok
 }
 
-proc onlinePage {} {
+proc ::tkchat::onlinePage {} {
     global Options
     if {[info exists Options(OnlineToken)]} {
 	# already fetching page, don't start again
@@ -671,17 +716,13 @@ proc onlinePage {} {
         set Options(OnlineToken) [::http::geturl $Options(URL) \
                                         -query $qry \
                                         -headers [buildProxyHeaders] \
-                                        -command onlineDone]
+                                        -command ::tkchat::onlineDone]
     } msg]} {
         errLog "Fetch error: $msg"
-        if {!$::tkchat::pause} {
-            set Options(FetchTimerID) \
-                  [after [expr {$Options(Refresh) * 1000}] onlinePage]
-        }
     }
 }
 
-proc onlineDone {tok} {
+proc ::tkchat::onlineDone {tok} {
     global Options
     if {[info exists Options(OnlineToken)]} {
         if {[string equal $tok $Options(OnlineToken)]} {
@@ -692,16 +733,12 @@ proc onlineDone {tok} {
             unset Options(OnlineToken)
         }
     }
-    if {!$::tkchat::pause} {
-	set Options(OnlineTimerID) \
-              [after [expr {$Options(Refresh) * 1000}] onlinePage]
-    }
     errLog "Online: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
             if {[checkForRedirection $tok URL]} {
                 ::http::cleanup $tok
-                onlinePage
+                ::tkchat::onlinePage
                 return
             }
 	    if {[catch {updateNames [::http::data $tok]} err]} { errLog $err }
@@ -2777,7 +2814,7 @@ proc ::tkchat::saveRC {} {
 	set ignore {
             History FetchTimerID OnlineTimerID FinalList
             FetchToken OnlineToken ProxyPassword
-            URL URL2 URLlogs errLog ChatLogChannel PaneUsersWidth
+            URL URL2 URLchk URLlogs errLog ChatLogChannel PaneUsersWidth
         }
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password
@@ -3317,8 +3354,9 @@ proc ::tkchat::Init {} {
 	Alert,NORMAL	     1
 	Alert,ACTION	     1
     }
-    set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
-    set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
+    set Options(URL)	 $::tkchat::HOST/cgi-bin/chat.cgi
+    set Options(URL2)	 $::tkchat::HOST/cgi-bin/chat2.cgi
+    set Options(URLchk)	 $::tkchat::HOST/cgi-bin/chatter.cgi
     set Options(URLlogs) $::tkchat::HOST/tchat/logs
     foreach {name clr} { MainBG FFFFFF MainFG 000000 SearchBG FF8C44} {
 	set Options(Color,$name,Web)   $clr
