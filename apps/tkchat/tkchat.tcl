@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.51 2002/04/15 09:11:02 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.52 2002/04/19 16:01:26 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -222,7 +222,7 @@ proc ::tkchat::ParseHistLog {log} {
     global Options
     
     set retList {}
-    set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[(\S+)\]\s+([^:]+):?\s*(.*)$}
+    set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[([^\]])\]\s+([^:]+):?\s*(.*)$}
     # fetch log
     set url "$Options(URLlogs)/$log"
     log::log info "History: Fetch log \"$url\""
@@ -250,7 +250,7 @@ proc ::tkchat::ParseHistLog {log} {
                         set lastdata ""
                     }
                 } else {
-                    append lastdata $line 
+                    append lastdata "\n$line"
                 }
             }
             if {[string length $lastnick]>0} {
