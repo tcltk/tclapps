@@ -2,6 +2,7 @@
 
 	* tkchat.tcl: Debugging stuff removed.
 	* tkchat.tcl: (jabber) Whiteboard is back.
+	* tkchat.tcl: Add whiteboard enable menu item
 
 2004-11-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

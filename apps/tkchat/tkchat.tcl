@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.226 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.227 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.226 2004/11/18 10:43:22 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.227 2004/11/18 11:35:11 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2481,6 +2481,10 @@ proc ::tkchat::CreateGUI {} {
 	$m.hist add radiobutton -label "Load at least $l lines" -val $l \
 	    -var Options(HistoryLines)
     }
+    
+    $m add separator
+    $m add checkbutton -label "Enable Whiteboard" -underline 0 \
+	-variable Options(EnableWhiteboard)
 
     ## Emoticon Menu
     ##
@@ -4763,6 +4767,7 @@ proc ::tkchat::Init {args} {
         Transparency    100
         AutoFade        0
         AutoFadeLimit   80
+	EnableWhiteboard 1
 	Popup,USERINFO	1
 	Popup,WELCOME	0
 	Popup,MEMO	1
@@ -6380,9 +6385,14 @@ proc gtklook_style_init {} {
 # Whiteboard
 
 proc tkchat::whiteboard_eval { wbitem color } {
-    if { ![winfo exists .wb] } {
+
+    if { ![winfo exists .wb]  } {
+        if { !$::Options(EnableWhiteboard) } {
+            return
+        }
 	whiteboard_open
-    }
+    } 
+    
     set ::wbentry $wbitem
     
     catch {
@@ -6390,14 +6400,14 @@ proc tkchat::whiteboard_eval { wbitem color } {
     }
 }
 
-proc tkchat::wbtransmit {w id} {
+proc tkchat::whiteboard_transmit {w id} {
     set attrs [list xmlns tcl.tk:whiteboard color $::Options(MyColor)]
 
     set wbitem ".wb.c create line [string map {.0 {}} [$w coords $id]]"
 
     set xlist [list [wrapper::createtag x -attrlist $attrs -chdata $wbitem]]
     
-    $tkjabber::jabber send_message $tkjabber::conference -body "/me draws on the whiteboard." -type groupchat -xlist $xlist
+    $tkjabber::jabber send_message $tkjabber::conference -type groupchat -xlist $xlist
     
     .wb.e selection range 0 end
 }
@@ -6409,13 +6419,14 @@ proc tkchat::whiteboard_clear { } {
 
     set xlist [list [wrapper::createtag x -attrlist $attrs -chdata $wbitem]]
     
-    $tkjabber::jabber send_message $tkjabber::conference -body "/me clears the whiteboard." -type groupchat -xlist $xlist
+    $tkjabber::jabber send_message $tkjabber::conference -type groupchat -xlist $xlist
     
     .wb.e selection range 0 end
          
 }
  
 proc tkchat::whiteboard_open {} {
+    
     if { !$::Options(UseJabber) } {
 	tk_messageBox -message "The whiteboard only works in jabber mode. Sorry"
 	return
@@ -6430,7 +6441,7 @@ proc tkchat::whiteboard_open {} {
 	button $wb.bclear -text "clear" -command ::tkchat::whiteboard_clear
 	bind $wb.c <1> {set entry ""; set id [%W create line %x %y %x %y]}
 	bind $wb.c <B1-Motion> {%W coords $id [concat [%W coords $id] %x %y]}
-	bind $wb.c <ButtonRelease-1> {::tkchat::wbtransmit %W $id}
+	bind $wb.c <ButtonRelease-1> {::tkchat::whiteboard_transmit %W $id}
 	grid $wb.e $wb.bclear -sticky new
 	grid $wb.c - -sticky new
 	#pack $wb.e $wb.c -fill both -expand 1
