@@ -1,3 +1,8 @@
+2004-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added command-line option for setting the jabber
+	server and port eg: tkchat -jabberserver jabber80.com:80
+	
 2004-10-16  Pascal Scheffers  <pascal@scheffers.net>
         * tkchat.tcl: More work on Jabber
 
