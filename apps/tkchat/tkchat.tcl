@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.85 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.86 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.85 2003/03/08 15:45:56 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.86 2003/03/08 17:10:26 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -416,9 +416,9 @@ proc msgDone {tok} {
     ::http::cleanup $tok
 }
 
-proc logonChat {{retry 0}} {
+proc ::tkchat::logonChat {{retry 0}} {
     if { ! $retry } {
-        if {[catch {::tkchat::LoadHistory} err]} { errLog $err }
+        if {[catch {LoadHistory} err]} { errLog $err }
     }
     if {0} {
         # use when testing only - allows restarts without actually logging in again
@@ -436,10 +436,10 @@ proc logonChat {{retry 0}} {
     ::http::geturl $Options(URL2) \
           -query $qry \
           -headers [buildProxyHeaders] \
-          -command logonDone
+          -command [namespace origin logonDone]
 }
 
-proc logonDone {tok} {
+proc ::tkchat::logonDone {tok} {
     errLog "Logon: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
@@ -458,17 +458,17 @@ proc logonDone {tok} {
     }
     ::http::cleanup $tok
 }
-proc logoffChat {} {
+proc ::tkchat::logoffChat {} {
     global Options
     set qry [::http::formatQuery action gotourl url chat.cgi]
     ::http::geturl $Options(URL2) \
           -query $qry \
           -headers [buildProxyHeaders] \
-          -command logoffDone
+          -command [namespace origin logoffDone]
     logonScreen
 }
 
-proc logoffDone {tok} {
+proc ::tkchat::logoffDone {tok} {
     errLog "Logoff: status was [::http::status $tok][::http::code $tok]"
     # don't really care if this works or not
     ::http::cleanup $tok
@@ -1465,7 +1465,8 @@ proc ::tkchat::CreateGUI {} {
 	    -variable ::tkchat::pause \
 	    -underline 0 \
 	    -command { pause $::tkchat::pause }
-    $m add command -label "Logout" -underline 0 -command logonScreen
+    $m add command -label "Logout" -underline 0 \
+	    -command [namespace origin logonScreen]
     $m add command -label "Save Options" -underline 0 -command saveRC
     $m add separator
     $m add command -label "Exit" -underline 1 -command quit
@@ -1950,8 +1951,8 @@ proc ::tkchat::logonScreen {} {
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect)
 	button .logon.ok -text "Logon" -command "set LOGON 1" -width 8
 	button .logon.cn -text "Quit" -command quit -width 8
-	trace variable Options(UseProxy) w optSet
-	trace variable Options(SavePW) w optSet
+	trace variable Options(UseProxy) w [namespace origin optSet]
+	trace variable Options(SavePW) w [namespace origin optSet]
 	grid .logon.prx - - -sticky w -pady 3
 	grid  x .logon.lph .logon.eph -sticky w -pady 3
 	grid  x .logon.lpp .logon.epp -sticky w -pady 3
@@ -1982,7 +1983,7 @@ proc ::tkchat::logonScreen {} {
     logonChat
 }
 
-proc optSet {args} {
+proc ::tkchat::optSet {args} {
     global Options
     if {$Options(UseProxy)} {
 	set s normal
