@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.128 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.129 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.128 2003/10/08 10:56:59 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.129 2003/12/03 22:47:29 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3346,7 +3346,7 @@ proc ::tkchat::saveRC {} {
 proc ::tkchat::scroll_set {sbar f1 f2} {
     global Options
     $sbar set $f1 $f2
-    if {[string equal "$f1$f2" "01"]} {        
+    if {($f1 == 0) && ($f2 == 1)} {
 	grid remove $sbar
     } else {
         if {[winfo exists .pane]} {
@@ -3355,7 +3355,7 @@ proc ::tkchat::scroll_set {sbar f1 f2} {
             grid $sbar
         }
     }
-    set Options(AutoScroll) [string equal $f2 1]
+    set Options(AutoScroll) [expr {(1.0 - $f2) < 1.0e-6 }]
 }
 
 

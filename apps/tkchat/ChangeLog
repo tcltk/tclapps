@@ -1,3 +1,7 @@
+2003-12-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied fix from dgp for bug #849829. 
+
 2003-10-08  Pascal Scheffers  <pascal@scheffers.net>
 	
 	* tkchat.tcl: Updated irc online users listing by asking ircbridge
