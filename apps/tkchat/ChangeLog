@@ -1,3 +1,8 @@
+2004-12-03  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Sort the online users list -dictionary. Call [muc exit] to
+	cleanup the roster for the chat.
+
 2004-11-26  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Added jabber resource in the connect dialog. Improved the

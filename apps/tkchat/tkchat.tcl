@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.239 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.240 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.239 2004/12/01 12:14:26 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.240 2004/12/03 07:45:27 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5752,6 +5752,15 @@ proc tkjabber::disconnect { } {
 
 proc tkjabber::cleanup {} {
     variable jabber
+    variable muc
+    variable conference 
+    
+    if { [catch {
+	$muc exit $conference
+    }] } {
+	log::log error "Cleanup: $::errorInfo"
+    }
+    
     if { [catch {$jabber closestream}] } {
 	log::log error "Closestream: $::errorInfo"
     }    
@@ -5893,6 +5902,7 @@ proc tkjabber::IqCB {jlibName type args} {
 }
 proc tkjabber::MsgCB {jlibName type args} {    
     variable conference
+    variable muc
     variable topic
     variable LastMessage
     
@@ -6018,6 +6028,11 @@ proc tkjabber::MsgCB {jlibName type args} {
 	    if { [info exists m(-error)] } {
 		switch -- [lindex $m(-error) 0] {
 		    405 {
+			if { [catch {
+			    $muc exit $conference
+			}] } {
+			    log::log debug "MUC EXIT: $::errorInfo"
+			}
 			tkchat::addSystem "$m(-from): [lindex $m(-error) 1]. Trying to get in again..."
 			$::tkjabber::muc enter $::tkjabber::conference $::Options(Nickname) -command [namespace current]::MucEnterCB
 		    }
@@ -6343,7 +6358,7 @@ proc ::tkchat::updateJabberNames { } {
     .mb.mnu add command -label "All Users" \
 	-command [list ::tkchat::MsgTo "All Users"]
     set Options(OnLineUsers) {}
-    foreach person [$::tkjabber::muc participants $::tkjabber::conference] {
+    foreach person [lsort -dictionary [$::tkjabber::muc participants $::tkjabber::conference]] {
 	regexp {([^/])/(.+)} $person -> conf name 
 	
 	lappend Options(OnLineUsers) $name
