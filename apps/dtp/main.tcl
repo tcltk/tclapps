@@ -34,13 +34,17 @@ if 0 {
     puts \t[join $auto_path \n\t]
 }
 
+# Without a command divert the user immediately to help.
 
 if {[llength $argv] < 1} {
-    puts stderr "usage: $argv0 subcommand arguments..."
-    exit 1
+    set command help
+} else {
+    set command [lindex $argv 0]
+}
+if {[string equal $command ""]} {
+    set command help
 }
 
-set command [lindex $argv 0]
 
 if {![file exists [file join $top lib app-$command]]} {
     cd [file join $top lib]

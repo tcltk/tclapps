@@ -50,7 +50,7 @@ proc ::app-help::run {argv} {
 
 	    and _format_ one of
 
-	        nroff, html, tmml, latex, or list
+	        nroff, html, tmml, latex, wiki, text, or list
 	"
     }
 
