@@ -38,13 +38,15 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.20 2001/11/09 20:00:29 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.21 2001/11/12 22:45:20 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
 	    "%user% has entered the chat!" \
 	    "Out of a cloud of smoke, %user% appears!" \
 	    "%user% saunters in." \
+	    "%user% wanders in." \
+	    "%user% checks into the chat." \
 	    "%user% is feeling chatty!" \
 	    ]
     set MSGS(left) [list \
@@ -52,6 +54,7 @@ namespace eval ::tkchat {
 	    "In a cloud of smoke, %user% disappears!" \
 	    "%user% exits, stage left!" \
 	    "%user% doesn't want to talk to you anymore!" \
+	    "%user% looks at the clock and dashes out the door" \
 	    "%user% macht wie eine Banane ..." \
 	    ]
 }
@@ -534,14 +537,14 @@ array set RE {
 proc addNewLines {input} {
     global Options RE
 
+    # Add the input to the history.  It's OK to do this before processing.
+    eval [list lappend Options(History)] $input
+    # Only need enough history for matching new data.
+    set Options(History) [lrange $Options(History) end-60 end]
+
     set inHelp 0
     set inMsg 0
-    set added 0
     foreach line $input {
-	set added 1
-	lappend Options(History) $line
-	# only need enough history for matching new data
-	set Options(History) [lrange $Options(History) end-60 end]
 	# see if color is defined & strip it off
 	if {[regexp -nocase -- $RE(Color) $line -> clr text]} {
 	    set line $text
@@ -602,9 +605,11 @@ proc addNewLines {input} {
 	    }
 	}
     }
+
     if { [.txt index end] > $Options(MaxLines) } {
 	.txt config -state normal
 	.txt delete 1.0 "end - $Options(MaxLines) lines"
+	.txt config -state disabled
     }
 }
 
@@ -892,8 +897,8 @@ proc showInfo {title str} {
     pack $t.txt -expand 1 -fill both
     bind $t.txt <1> { focus %W }
     $t.txt tag config URL -underline 1
-    $t.txt tag bind URL <Enter> "$t.txt config -cursor hand2"
-    $t.txt tag bind URL <Leave> "$t.txt config -cursor left_ptr"
+    $t.txt tag bind URL <Enter> [list $t.txt config -cursor hand2]
+    $t.txt tag bind URL <Leave> [list $t.txt config -cursor left_ptr]
     foreach {str url} [parseStr $str] {
 	set str [string map [list "\n" "\n\t"] $str]
 	if {$url == ""} {

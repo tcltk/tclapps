@@ -1,3 +1,8 @@
+2001-11-12  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: minor changes to history handling for speed.
+	Redisable the text widget when cleaning the buffer.
+
 2001-11-09  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: added a little humo(u)r to entry/exit messages.
