@@ -1,3 +1,8 @@
+2003-08-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::PaneLeave): Fix a problem with the event
+	binding when not showing the online users pane.
+
 2003-08-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Changed translation code to appear in a dialog.
