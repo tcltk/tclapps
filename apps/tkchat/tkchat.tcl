@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.256 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.257 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.256 2004/12/22 19:02:31 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.257 2005/02/05 00:04:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -165,6 +165,20 @@ if {[package vcompare [package provide Tcl] 8.3] == 0} {
 } else {
     interp alias {} ::tkchat::tk_windowingsystem {} tk windowingsystem
 }
+
+# -------------------------------------------------------------------------
+
+msgcat::mcmset en_gb { Login "Connect" Logout "Disconnect" }
+msgcat::mcmset de    {
+    Login "Login" Logout "Ausloggen" Yes "Ja" No "Nein"
+    "Subscribe request from %s" "Subskriptionsanfrage von %s"
+}
+msgcat::mcmset fr {
+    Login "Se connecter" Logout "Se d\u00e9connecter" Yes "Oui" No "Non"
+    "Subscribe request from %s" "Requ\u00eate d'enregistrement de %s"
+}
+
+# -------------------------------------------------------------------------
 
 proc ::tkchat::errLog {args} {
     log::logMsg [join $args]
@@ -530,12 +544,16 @@ proc ::tkchat::logonChat {{retry 0}} {
     # These package requires should be moved to the top of the script
     # when jabber support matures.
     lappend ::auto_path [file join [file dirname [info script]] lib]
-    package require sha1	        ; # tcllib
-    package require jlib            ; # jlib
-    package require browse          ; # jlib
-    package require muc             ; # jlib	
-    #package require jlibhttp        ; # jlib
-    
+    package require sha1;               # tcllib
+    package require jlib;               # jlib
+    package require browse;             # jlib
+    package require muc;                # jlib	
+    #package require jlibhttp;          # jlib
+
+    if {[info exists Options(JabberDebug)] && $Options(JabberDebug)} {
+        set jlib::debug 2
+    }
+
     # Logon to the jabber server.
     tkjabber::connect
 }
@@ -765,15 +783,16 @@ proc ::tkchat::invClr {clr {grays 0}} {
     # up on a dark BG if it was originally a white BG
     # so even the color is grey & the inv color is also
     # grey that is OK
+    set r 0; set g 0; set b 0 ;# default to black
     scan $clr %2x%2x%2x r g b
     set R [expr {(~$r)%256}]
     set G [expr {(~$g)%256}]
     set B [expr {(~$b)%256}]
     # A little extra magic to avoid near shades of grey
     if {$grays && abs($R-$r) < 32 && abs($G-$g) < 32 && abs($B-$b) < 32} {
-	set R [expr {($r+128)%256}]
-	set G [expr {($g+128)%256}]
-	set B [expr {($b+128)%256}]
+        set R [expr {($r+128)%256}]
+        set G [expr {($g+128)%256}]
+        set B [expr {($b+128)%256}]
     }
     return [format "%02x%02x%02x" $R $G $B]
 }
@@ -1699,7 +1718,7 @@ proc ::tkchat::CreateGUI {} {
 	-variable ::tkchat::pause \
 	-underline 0 \
 	-command { ::tkchat::pause $::tkchat::pause }
-    $m add command -label "Logout" -underline 0 \
+    $m add command -label [msgcat::mc Login] -underline 0 \
 	-command [namespace origin logonScreen]
     $m add command -label "Save Options" -underline 0 \
 	-command [namespace origin saveRC]
@@ -2204,7 +2223,7 @@ proc ::tkchat::About {} {
     wm transient $w .
     wm title $w "About TkChat $rcsVersion"
     button $w.b -text Dismiss -command [list wm withdraw $w]
-    text $w.text -height 30 -bd 1 -width 100
+    text $w.text -height 34 -bd 1 -width 100
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
     $w.text tag config center -justify center
@@ -2217,6 +2236,9 @@ proc ::tkchat::About {} {
     $w.text insert end "Commands\n" h1 \
 	"/msg <nick> <text>\t\tsend private message to user <nick>\n" {} \
 	"/userinfo <nick>\t\tdisplay registered information for user <nick>\n" {} \
+        "/afk ?reason?\t\tset your status to away with an optional reason\n" {} \
+        "/back ?reason?\t\tindicate that you have returned\n" {} \
+        "/away ?reason?\t\tsynonym for /afk\n" {} \
 	"/google <text>\t\topen a google query for <text> in web browser\n" {} \
 	"/googlefight <word> <word>\tperform a google fight between two words or phrases (in quotes)\n" {} \
 	"/tip:<NUM>\t\topen the specified TIP document in web browser\n" {} \
@@ -2721,6 +2743,16 @@ proc ::tkchat::userPost {} {
 			tkjabber::msgSend $privMsg -user $toNick
 		    }
 		}
+                {^/away} -
+                {^/afk} {
+                    set status ""
+                    regexp {^/(?:afk)|(?:away)\s*(.*)$} $msg -> status
+                    tkjabber::away $status
+                }
+                {^/back} {
+                    set status [string range $msg 5 end]
+                    tkjabber::back $status
+                }
 		default	 {
 		    if {![checkAlias $msg]} then {
 			# might be server command - pass it on			
@@ -2864,9 +2896,13 @@ proc ::tkchat::logonScreen {} {
 	#checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
         #      -var Options(UseJabberPoll) 
         if {$have_tls} {
-            checkbutton .logon.rjabberssl -text "Use Jabber SSL" \
-                -var Options(UseJabberSSL) -underline 2 \
+            radiobutton .logon.rjabberssl -text "Use Jabber SSL" \
+                -var Options(UseJabberSSL) -value 1 -underline 2 \
                 -command ::tkjabber::TwiddlePort
+            radiobutton .logon.rstarttls -text "Use STARTTLS" \
+                -var Options(UseJabberSSL) -value 0 \
+                -command ::tkjabber::TwiddlePort
+                
             bind .logon <Alt-e> {.logon.rjabberssl invoke}
         }
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect) \
@@ -2910,7 +2946,7 @@ proc ::tkchat::logonScreen {} {
 	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
 	grid x        .logon.ljres .logon.ejres -in $lf -sticky w -pady 3
         if {$have_tls} {
-            grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
+            grid x .logon.rjabberssl .logon.rstarttls -in $lf -sticky w -pady 3
         }
 	#grid x          .logon.rjabberpoll -    -in $lf -sticky w -pady 3
 	grid x          .logon.atc         -    -in $lf -sticky w -pady 3
@@ -3468,7 +3504,7 @@ proc ::tkchat::saveRC {} {
             History FetchTimerID OnlineTimerID FinalList NamesWin
             FetchToken OnlineToken OnLineUsers ProxyPassword ProxyAuth
             URL URL2 URLchk URLlogs errLog ChatLogChannel PaneUsersWidth
-	    retryFailedCheckPage
+	    retryFailedCheckPage JabberDebug JabberConnect
         }
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password
@@ -4127,7 +4163,9 @@ proc ::tkchat::Init {args} {
             -theme     { set Options(Theme) [Pop args 1] }
             -loglevel  { LogLevelSet [Pop args 1] }
             -useragent { set Options(UserAgent) [Pop args 1] }
+            -debug     { set Options(JabberDebug) 1 }
 	    -conference { set Options(JabberConference) [Pop args 1] }
+            -connect   { set Options(JabberConnect) [Pop args 1] }
             -jabberserver {
                 set j [split [Pop args 1] :]
                 if {[llength $j] > 0} {
@@ -5888,6 +5926,7 @@ namespace eval tkjabber {
     Variable muc_jid_map ;# array with conference-id to user-jid map.  
     Variable users ;# 
     Variable user_alias
+    Variable Away 0
 
     # Provides a map of nicks to full jids (works because the chat is
     # not anonymous. Used for the /memo function.
@@ -5905,6 +5944,8 @@ proc tkjabber::connect { } {
     variable reconnect
     variable conference
     variable reconnectTimer
+    variable have_tls
+
     global Options
 
     if { $reconnectTimer ne "" } {
@@ -5944,13 +5985,19 @@ proc tkjabber::connect { } {
 	if { [catch {
 	    if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
 		set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
-				$Options(JabberServer) $Options(JabberPort) \
-				$Options(UseJabberSSL)]
+				$Options(JabberServer) $Options(JabberPort)]
 	    } elseif {$have_tls && $Options(UseJabberSSL)} {
 		set socket [tls::socket $Options(JabberServer) $Options(JabberPort)]
 	    } else {
 		if {$Options(JabberPort) == 5223} {incr Options(JabberPort) -1}
-		set socket [socket $Options(JabberServer) $Options(JabberPort)]
+                if {[info exists Options(JabberConnect)] 
+                    && $Options(JabberConnect) ne ""} {
+                    foreach {srv prt} [split $Options(JabberConnect) :] break
+                    if {$prt eq ""} {set prt $Options(JabberPort)}
+                    set socket [socket $srv $prt]
+                } else {
+                    set socket [socket $Options(JabberServer) $Options(JabberPort)]
+                }
 	    }
 	} res] } {
 	    # Connection failed.
@@ -5965,7 +6012,10 @@ proc tkjabber::connect { } {
     }
     
     # The next thing which will/should happen is the a call to ConnectProc by
-    # jabberlib.        
+    # jabberlib.
+    if {[winfo exists .mbar.file]} {
+        .mbar.file entryconfigure 0 -label [msgcat::mc Logout]
+    }
 }
 
 proc tkjabber::disconnect { } {
@@ -5991,16 +6041,15 @@ proc tkjabber::disconnect { } {
 	return
     }
     
-    catch {close $socket}
     cleanup
     tkchat::addSystem "Disconnected from jabber server."    
-    
 }
 
 proc tkjabber::cleanup {} {
     variable jabber
     variable muc
     variable conference 
+    variable socket
     
     if { [catch {
 	$muc exit $conference
@@ -6010,7 +6059,14 @@ proc tkjabber::cleanup {} {
     
     if { [catch {$jabber closestream}] } {
 	log::log error "Closestream: $::errorInfo"
-    }    
+    }
+
+    #catch {close $socket}
+    catch {jlib::resetsocket $jabber}
+    set socket ""
+    if {[winfo exists .mbar.file]} {
+        .mbar.file entryconfigure 0 -label [msgcat::mc Login]
+    }
 }
 
 proc tkjabber::openStream {} {
@@ -6018,7 +6074,35 @@ proc tkjabber::openStream {} {
     variable jabber
     global Options
     log::log debug "OPENSTREAM"
-    $jabber openstream $Options(JabberServer) -cmd [namespace current]::ConnectProc -socket $socket    
+    $jabber openstream $Options(JabberServer) \
+        -cmd [namespace current]::ConnectProc \
+        -socket $socket \
+        -version 1.0
+}
+
+proc tkjabber::ConnectProc {jlibName args} {
+    global Options
+    variable conn
+    variable jabber
+    variable have_tls
+
+    log::log debug "ConnectProc args '$args'"
+
+    array set conn $args
+    tkchat::addSystem "Connected to $conn(from), sending credentials."
+    update idletasks
+
+    # Now send authentication details:
+    if {$have_tls && !$Options(UseJabberSSL)} {
+        jlib::starttls $jabber [namespace origin OnStartTlsFinish]
+    } else {
+        SendAuth
+    }
+}
+
+proc tkjabber::OnStartTlsFinish {jlib type args} {
+    log::log debug "starttls: $jlib $type $args"
+    SendAuth
 }
 
 proc tkjabber::SendAuth { } {
@@ -6029,21 +6113,40 @@ proc tkjabber::SendAuth { } {
     variable jabber
     variable myId
        
-    set username $Options(Username)
-    set password $Options(Password)
+    set user $Options(Username)
+    set pass $Options(Password)
+    set ress $Options(JabberResource)
     
-    #set username tkchat
-    #set password tkchat
-    set myId [$jabber send_auth $username $Options(JabberResource) [namespace current]::LoginCB \
-	-digest [sha1::sha1 $conn(id)$password]]
-        
-    log::log debug "SendAuth: Logged in as $myId"
+    jlib::auth_sasl $jabber $user $ress $pass [namespace origin OnSaslFinish]
+}
+
+proc ::tkjabber::OnSaslFinish {jlib type args} {
+    log::log debug "OnSaslFinish $type $args"
+    if {$type eq "error"} {
+        # try using the non-sasl login
+        SendAuthOld
+    } else {
+        update idletasks
+        log::log debug "Calling login callback..."
+        LoginCB $jlib $type $args
+    }
+}
+
+proc tkjabber::SendAuthOld {} {
+    global Options    
+    variable conn
+    variable jabber
+    variable myId
+       
+    set user $Options(Username)
+    set pass $Options(Password)
+    set ress $Options(JabberResource)
+    
+    set myId [$jabber send_auth $username $ress \
+                  [namespace origin LoginCB] -digest [sha1::sha1 $conn(id)$pass]]
+    log::log debug "SendAuth: Logging in as $myId"
 
     update idletasks
-    
-    # The jabber keep alive packets are a single newline character.    
-    after 30000 [list jlib::schedule_keepalive $jabber]
-    
     # The next callback is the LoginCB
 }
 
@@ -6389,29 +6492,20 @@ proc tkjabber::MsgCB {jlibName type args} {
 
 proc tkjabber::PresCB {jlibName type args} {
     log::log debug "|| PresCB > type=$type, args=$args"
+    array set a {-from {} -to {} -status {}}
+    array set a $args
     switch -exact -- $type {
         probe {
             # We do not need to reply.
         }
+        subscribe {
+            after idle [list [namespace origin SubscriptionRequest] \
+                            $a(-from) $a(-status)]
+        }
         default {
-            array set a {-from {} -to {}}
-            array set a $args
             tkchat::addSystem "Received $type presence message from $a(-from)."
         }
     }
-}
-
-proc tkjabber::ConnectProc {jlibName args} {
-    variable conn
-    log::log debug "ConnectProc args '$args'"
-
-    array set conn $args
-    tkchat::addSystem "Connected to $conn(from), sending credentials."
-    update idletasks
-
-    # Now send authentication details:
-    SendAuth
-    
 }
 
 proc tkjabber::httpCB { status message } {
@@ -6467,6 +6561,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	}
 	result {
 	    tkchat::addSystem "Logged in."
+            #after 20000 [list jlib::schedule_keepalive $jlibname]
 	    set tkjabber::reconnect 1
 	    set tkjabber::connectionRetryTime [expr {int(5+rand()*5.0)}] 
 	    $jabber send_presence -type available    
@@ -6607,6 +6702,7 @@ proc tkjabber::msgSend { msg args } {
     variable jabber
     variable roster
     variable conference
+    variable Away
     set users {}
     
     array set opts {
@@ -6619,6 +6715,8 @@ proc tkjabber::msgSend { msg args } {
         after idle [list [namespace current]::userinfo $msg]
 	return
     }
+
+    if {$Away} {back ""}
 
     # Trim the nolog prefix - it's already an extended attribute.
     regexp {^/nolog\s?(.*)$} $msg -> msg
@@ -6695,17 +6793,20 @@ proc tkjabber::msgSend { msg args } {
 #       A helper function for splitting out parts of Jabber IDs.
 #
 proc ::tkjabber::jid {part jid} {
+    log::log debug "jid $part '$jid'"
     set r {}
-    regexp {^(?:([^@]*)@)?([^/]+)(?:/(.+))?} $jid -> node domain resource
-    switch -exact -- $part {
-        node      { set r $node }
-        domain    { set r $domain }
-        resource  { set r $resource }
-        !resource { set r ${node}@${domain} }
-        jid       { set r $jid }
-        default {
-            return -code error "invalid part \"$part\":\
-                must be one of node, domain, resource or jid."
+    if {[regexp {^(?:([^@]*)@)?([^/]+)(?:/(.+))?} $jid \
+             -> node domain resource]} {
+        switch -exact -- $part {
+            node      { set r $node }
+            domain    { set r $domain }
+            resource  { set r $resource }
+            !resource { set r ${node}@${domain} }
+            jid       { set r $jid }
+            default {
+                return -code error "invalid part \"$part\":\
+                    must be one of node, domain, resource or jid."
+            }
         }
     }
     return $r
@@ -6986,9 +7087,62 @@ proc ::tkjabber::scheduleReconnect {} {
     }
 }
 
+
+# Respond to subscriptin requests
+proc tkjabber::SubscriptionRequest {from status} {
+    variable subs_uid
+    if {![info exists subs_uid]} { set subs_uid 0 }
+    set jid [jid !resource $from]
+    set ttl [msgcat::mc "Subscribe request from %s" $jid]
+    set msg [msgcat::mc "Do you want to let %s add you to their roster?" $jid]
+    set status [string trim $status]
+    set wid dlg[incr subs_uid]
+    set dlg [toplevel .$wid -class Dialog]
+    wm title $dlg $ttl
+    set f [frame $dlg.f -borderwidth 0]
+    set lt [label $f.lt -text "$ttl" -anchor w]
+    set ls [label $f.ls -text " \"$status\"" -anchor w]
+    set lm [label $f.lm -text "$msg" -anchor w]
+    set fb [frame $f.fb -borderwidth 0]
+    set yes [button $fb.yes -text [msgcat::mc "Yes"] -default active \
+                 -command [list set [namespace current]::$wid subscribed]]
+    set no  [button $fb.no -text [msgcat::mc "No"] -default normal \
+                 -command [list set [namespace current]::$wid unsubscribed]]
+    bind $dlg <Return>     [list $yes invoke]
+    bind $dlg <Key-Escape> [list $no  invoke]
+    pack $no $yes -side right
+    pack $lt $ls $lm $fb -side top -fill x -expand 1
+    pack $f -side top -fill both -expand 1
+    set [namespace current]::$wid waiting
+    tkwait variable [namespace current]::$wid
+    destroy $dlg
+    set response [set [namespace current]::$wid]
+    $tkjabber::jabber send_presence -type $response \
+        -from [$tkjabber::jabber myjid] \
+        -to $jid
+    unset [namespace current]::$wid
+    return
+}
+
+proc tkjabber::away {status} {
+    variable Away
+    set Away 1
+    $tkjabber::jabber send_presence -type available \
+        -from [$tkjabber::jabber myjid] -show away -status $status
+}
+
+proc tkjabber::back {status} {
+    variable Away
+    set Away 0
+    $tkjabber::jabber send_presence -type available \
+        -from [$tkjabber::jabber myjid] -show online -status $status
+}    
+
 # -------------------------------------------------------------------------
 
-proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport ssl} {
+proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
+    global Options
+    variable have_tls
 
     set sock [socket $proxyserver $proxyport]
     fconfigure $sock -blocking 0 -buffering line -translation crlf
@@ -7015,7 +7169,9 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport ssl} 
     fconfigure $sock -blocking 1 -translation binary -buffering none
 
     if {$code >= 200 && $code < 300} {
-        if {$ssl} { tls::import $sock }
+        if {$have_tls && $Options(UseJabberSSL)} {
+            tls::import $sock
+        }
     } else {
         error "proxy connect failed: $block"
     }

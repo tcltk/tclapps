@@ -1,3 +1,19 @@
+2005-02-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added /afk, /away and /back commands to set the
+	presence. Each can take a string to use for an additional display
+	string. 
+	Added support for handling subscription requests.
+	Fixed a bug in the color handling to cope with invalid colors.
+
+2005-01-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed overly aggressive reconnection when user has
+	logged out manually. Implemented STARTTLS and SASL authentication.
+	Fixed a problem with the userinfo dialog raising an error.
+	Added a -connect option to the app to facilitate connection via an
+	alternate server (eg: tkchat -connect localhost:5222)
+
 2004-12-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::logonScreen): Tidied up the key navigation
