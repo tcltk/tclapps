@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.83 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.84 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.83 2003/03/07 05:25:10 dgp Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.84 2003/03/08 10:59:23 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1090,7 +1090,11 @@ proc addMessage {clr nick str} {
 	    # with the right color info.
 	    set nick $truenick
 	    set str  $msg
-	    $w insert end "<$nick>\t" [list NICK NICK-$nick]
+	    if { [regexp {ACTION (.+)} $str -> action] } {
+		addAction $clr "<$nick>" [string range $action 0 end-1]
+	    } else {
+		$w insert end "<$nick>\t" [list NICK NICK-$nick]
+	    }
 	} else {
 	    $w insert end "$nick\t" [list NICK NICK-$nick]
 	}
@@ -1868,8 +1872,10 @@ proc ::tkchat::userPost {} {
 	upvar #0 ::tkchat::eHIST hist ::tkchat::eCURR cur
 	if {[info exists hist] && [string compare $msg [lindex $hist end]]} {
 	    # append new different msg, but constrain to max of 50 last msgs
-	    set hist [lrange [lappend hist $msg] 0 50]
+	    set hist [lrange [lappend hist $msg] end-50 end]
 	    # set current event to last
+	    set cur [llength $hist]
+	} elseif { [info exists hist] } {
 	    set cur [llength $hist]
 	}
     }

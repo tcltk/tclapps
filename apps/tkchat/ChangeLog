@@ -1,3 +1,13 @@
+2003-03-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied two patched from Pascal Scheffers - one for
+	actions from the ircbridge and another to fix the sent message
+	history.
+
+2003-03-07  Don Porter  <dgp@users.sf.net>
+
+	* tkchat.tcl: reverted to the previous revision. Last patch broken.
+	
 2003-03-06  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Enable default key bindings for logon screen.
