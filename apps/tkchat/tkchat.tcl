@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.117 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.118 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.117 2003/09/17 21:50:56 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.118 2003/09/19 22:06:49 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -384,6 +384,7 @@ proc ::tkchat::LoadHistoryLines {} {
         incr count 2
         if {$count > 100} { break }
     }
+    .txt see end
     set Options(FinalList) [lrange $Options(FinalList) $count end]
 
     # Restore the alerts
@@ -1787,6 +1788,8 @@ proc ::tkchat::CreateGUI {} {
 	    -command tkchat::EditMacros
     $m add command -label "Font" -underline 0 \
 	    -command "::tkchat::ChooseFont"
+    $m add command -label "User details ..." -underline 0 \
+	    -command tkchat::UserInfoDialog
     
     $m add separator
 
@@ -4242,3 +4245,156 @@ proc ::tkchat::traceVar {varname -> action} {
         }
     } msg]} { log::log warning "TRACE ERROR: $msg" }
 }
+
+# -------------------------------------------------------------------------
+
+proc ::tkchat::UserInfoDialog {} {
+    variable UserInfo
+    variable UserInfoBtn
+    
+    if {![info exists UserInfo]} {
+        UserInfoFetch
+        tkwait variable [namespace current]::UserInfo
+    }
+
+    set dlg [toplevel .userinfo]
+    set f [frame $dlg.f -bd 0]
+
+    foreach {key text} {realname "Real name" email Email country Country \
+                            city City age Age url "Homepage URL" \
+                            photo_url "Picture URL" icq_uin "ICQ uin"} {
+        set l [label $f.l$key -text $text -anchor nw]
+        set e [entry $f.e$key \
+                   -textvariable [namespace current]::UserInfo($key) -bd 1]
+        grid configure $l $e -sticky news -padx 1 -pady 1
+    }    
+    set l [label $f.lstuff -text "Anything else" -anchor nw]
+    set e [frame $f.estuff -bd 0]
+    set et [text $e.text -height 6 -bd 1]
+    set es [scrollbar $e.scroll -bd 1 -command [list $et yview]]
+    $et configure -yscrollcommand [list $es set]
+    $et insert 0.0 $UserInfo(stuff)
+    grid configure $et $es -sticky news
+    grid rowconfigure $e 0 -weight 1
+    grid columnconfigure $e 0 -weight 1
+
+    grid configure $l $e -sticky news -padx 1 -pady 1
+    grid columnconfigure $f 1 -weight 1
+    grid rowconfigure $f 8 -weight 1
+
+    set btns [frame $dlg.buttons -bd 1]
+    button $btns.ok -text Save -width 10 \
+        -command [list set [namespace current]::UserInfoBtn 1]
+    button $btns.cancel -text Cancel -width 10 \
+        -command [list set [namespace current]::UserInfoBtn 0]
+    pack $btns.cancel $btns.ok -side right
+
+    pack $btns -fill x -side bottom
+    pack $f -fill both -expand 1 -side top
+
+    set UserInfoBtn -1
+    tkwait variable [namespace current]::UserInfoBtn
+
+    if {$UserInfoBtn == 1} {
+        set UserInfo(stuff) [$et get 0.0 end]
+        UserInfoSend
+    }
+    destroy $dlg
+    unset UserInfoBtn
+    unset UserInfo
+}
+
+proc ::tkchat::UserInfoFetch {} {
+    global Options
+    variable UserInfo
+    if {![info exists UserInfo]} {
+        set qry [http::formatQuery \
+                     action    changeuserinfo \
+                     name      $Options(Username) \
+                     password  $Options(Password) \
+                     color     $Options(MyColor) \
+                     updatefrequency 600 \
+                     new_msg_on_top 0 \
+                     ls        ""]        
+        set tok [::http::geturl $Options(URL2) \
+                     -query [string map {%5f _} $qry] \
+                     -headers [buildProxyHeaders] \
+                     -command [namespace origin UserInfoDone]]
+    }
+}
+
+proc ::tkchat::UserInfoDone {tok} {
+    variable UserInfo
+    log::log debug "UserInfoDone [http::status $tok] ($tok)"
+    switch -exact -- [http::status $tok] {
+        ok {
+            htmlparse::parse -cmd [namespace origin UserInfoParseCallback] \
+                [http::data $tok]
+        }
+        default {
+            
+        }
+    }
+    http::cleanup $tok
+}
+
+proc ::tkchat::UserInfoParseCallback {tag slash param text} {
+    variable UserInfo
+    set tag [string toupper $tag]
+    switch -exact -- $tag {
+        INPUT {
+            array set params {}
+            foreach pair [eval list [UserInfoFix $param]] {
+                set p [split $pair =]
+                set params([string toupper [lindex $p 0]]) [lindex $p 1]
+            }
+            if {[info exists params(NAME)]} {
+                set UserInfo([string trim $params(NAME) "\""]) \
+                    [string trim $params(VALUE) "\""]
+            }
+        }
+        TEXTAREA {
+            if {$slash == {}} {
+                set UserInfo(stuff) $text
+            }
+        }
+    }
+}
+
+proc ::tkchat::UserInfoFix {s} {
+    set r ""
+    set slash 0
+    set quote 0
+    for {set n 0} {$n < [string length $s]} {incr n} {
+        set c [string index $s $n]
+        switch -exact -- $c {
+            "\"" { set quote [expr {$quote ? 0 : 1}] }
+            " "  { if {$quote} {append r "\\"} }
+        }
+        append r $c
+    }
+    return $r
+}
+
+proc ::tkchat::UserInfoSend {} {
+    global Options
+    variable UserInfo
+    set qry [eval [linsert [array get UserInfo] 0 http::formatQuery]]
+    set tok [::http::geturl $Options(URL2) \
+                 -query [string map {%5f _} $qry] \
+                 -headers [buildProxyHeaders] \
+                 -command [namespace origin UserInfoSendDone]]
+}
+
+proc ::tkchat::UserInfoSendDone {tok} {
+    log::log debug "UserInfoSend [http::status $tok] ($tok)"
+    if {[http::status $tok] == "ok" && [http::ncode $tok] == 200} {
+        #
+    } else {
+        tk_messageBox -icon warning -title "Warning" \
+            -message "Failed to update information on the server."
+    }
+    http::cleanup $tok    
+}
+
+# -------------------------------------------------------------------------

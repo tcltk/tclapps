@@ -1,3 +1,8 @@
+2003-09-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added a dialog for editing the user details stored
+	by the chat server.
+
 2003-09-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Namespaced pretty much everything into tkchat::*
