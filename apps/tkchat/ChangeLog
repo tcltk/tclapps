@@ -1,3 +1,8 @@
+2002-07-25  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::Smile): Added icons for coffee (LP), and
+	food (|O|).
+
 2002-07-19  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Added bindings to the text window for scrolling with
