@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.90 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.91 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.90 2003/03/10 21:01:08 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.91 2003/03/12 16:22:23 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1447,6 +1447,53 @@ proc ::tkchat::displayUsers {} {
     if {$::Options(DisplayUsers)} { grid .names } else { grid remove .names }
 }
 
+proc ::tkchat::nickComplete {} {
+    #Bound to <Key-Tab> in the message entry widgets .eMsg and .tMsg
+    #It will do nickname completion a'la bash command completion
+    #nicknames are taken from the complete, stored nick list
+    #not the users' online one. Which is too unreliable IMO. 
+    global Options
+
+    set nicks [list]
+    foreach key [array names Options "Visibility,NICK-*"] {
+	lappend nicks [string range $key \
+			   [string length "Visibility,NICK-"] end]
+	
+    }
+    set nicks [lsort -dictionary $nicks]
+
+    if {[winfo ismapped .eMsg]} {
+	#the entry is on screen
+	#This fails to find the correct word when the $cursor != end
+	set str [.eMsg get]
+	set cursor [.eMsg index insert]
+	set partial [string range $str [string wordstart $str $cursor] \
+			 [string wordend $str $cursor]]
+
+    } else {	
+	set partial [.tMsg get "insert-1c wordstart" "insert-1c wordend"]
+    }
+
+    set match [lsearch -glob $nicks "$partial*"]
+
+    if { $match == -1 } {
+	bell
+	return	
+    }
+
+    if {[winfo ismapped .eMsg]} {
+	.eMsg delete [string wordstart $str $cursor] \
+	    [string wordend $str $cursor]
+
+	.eMsg insert [string wordstart $str $cursor] [lindex $nicks $match]
+
+    } else {
+	.tMsg delete "insert-1c wordstart" "insert-1c wordend"
+	.tMsg insert insert [lindex $nicks $match]
+    }
+
+}
+
 proc ::tkchat::CreateGUI {} {
     global Options
     
@@ -1707,7 +1754,9 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <KP_Enter> ::tkchat::userPost
     bind .eMsg <Key-Up>   ::tkchat::entryUp
     bind .eMsg <Key-Down> ::tkchat::entryDown
+    bind .eMsg <Key-Tab>  {::tkchat::nickComplete ; break}
     text .tMsg -height 6 -font FNT
+    bind .tMsg <Key-Tab> {::tkchat::nickComplete ; break}
     button .post -text "Post" -command ::tkchat::userPost
     #button .refresh -text "Refresh" -command {pause off}
     menubutton .mb -indicator on -relief raised -bd 2 -pady 4 \
