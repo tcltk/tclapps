@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.124 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.125 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.124 2003/09/25 11:21:23 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.125 2003/09/25 12:39:04 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4493,7 +4493,12 @@ proc ::tkchat::BookmarkInit {} {
         -command ::tkchat::BookmarkPrev
     .mbar.mm add command -label "Clear Bookmarks" \
         -command ::tkchat::BookmarkClear
+    .mbar.mm add command -label "Google Selection" -accelerator Ctrl-G \
+        -command ::tkchat::GoogleSelection
+
     .mbar.mm add cascade -label "Translate" -menu .mbar.help.tr
+
+    .mbar.mm add command -label "Cancel" 
     
     bind .txt <Button-1> {focus %W ; %W mark set insert @%x,%y}
     bind .txt <Button-3> {
@@ -4504,6 +4509,9 @@ proc ::tkchat::BookmarkInit {} {
     bind . <F2> ::tkchat::BookmarkNext
     bind . <Shift-F2> ::tkchat::BookmarkPrev
     bind . <Control-F2> ::tkchat::BookmarkAdd
+    bind . <Control-G> ::tkchat::GoogleSelection
+    bind . <Control-g> ::tkchat::GoogleSelection
+
 }
 
 proc ::tkchat::BookmarkAdd {} {
@@ -4577,6 +4585,12 @@ proc ::tkchat::BookmarkRemove {mark} {
         .txt mark unset $mark
         .txt configure -state disabled
     }
+}
+
+proc ::tkchat::GoogleSelection {} {
+    set sel [.txt tag ranges sel]
+    set t [.txt get [lindex $sel 0] [lindex $sel 1]]
+    gotoURL http://www.google.com/search?ie=UTF-8&oe=UTF-8&[::http::formatQuery q $t]
 }
 
 # -------------------------------------------------------------------------

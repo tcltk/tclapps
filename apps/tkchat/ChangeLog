@@ -1,5 +1,10 @@
 2003-09-25  Pascal Scheffers  <pascal@scheffers.net>
 	
+	* tkchat.tcl: Added 'google this' and 'cancel' to the bookmarks
+	context menu.
+
+2003-09-25  Pascal Scheffers  <pascal@scheffers.net>
+	
 	* tkchat.tcl: Added loading of $HOME/.tkchatrc.tcl (if it exists)
 	to allow users change GUI settings add proc, etc. (David Zolli aka
 	kroc wants to do this for XFce) 
