@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.142 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.143 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.142 2004/02/20 11:58:12 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.143 2004/02/27 09:33:33 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -120,6 +120,14 @@ proc ::tkchat::LogLevelSet {args} {
     log::lvSuppressLE emergency 0         ;# unsuppress all
     log::lvSuppressLE $Options(LogLevel)  ;# suppress all below selected
     log::lvSuppress $Options(LogLevel) 0  ;# unsupress selected
+}
+
+#  Pop the nth element off a list. Used in options processing.
+proc ::tkchat::Pop {varname {nth 0}} {
+    upvar $varname args
+    set r [lindex $args $nth]
+    set args [lreplace $args $nth $nth]
+    return $r
 }
 
 # If Proxy Authentication was specified then each HTTP request
@@ -358,6 +366,7 @@ proc ::tkchat::LoadHistory {} {
 	    catch {::tk::PlaceWindow $t widget .}
 	    wm deiconify $t
 	    tkwait visibility $t
+            focus $t.ok
 	    grab $t
 	    tkwait window $t
 	    foreach log [lrange $loglist $HistQueryNum end] {
@@ -585,6 +594,7 @@ proc ::tkchat::pause {pause {notify 1}} {
 	    }
 	    catch {::tk::PlaceWindow .pause widget .}
 	    wm deiconify .pause
+            focus .pause.r
 	    raise .pause
 	}
     } else {
@@ -1690,6 +1700,7 @@ proc ::tkchat::showInfo {title str} {
     $t.txt insert end "\n"
     $t.txt config -state disabled
     button $t.close -text Close -command [list destroy $t]
+    focus $t.close
     pack $t.close -side right
 }
 
@@ -2922,28 +2933,40 @@ proc ::tkchat::logonScreen {} {
 	wm withdraw .logon
 	wm transient .logon .
 	wm title .logon "Logon to the Tcl'ers Chat"
-	checkbutton .logon.prx -text "Use Proxy" -var Options(UseProxy) -underline 0
-        bind .logon <Alt-u> {focus .logon.prx}
-	label .logon.lph -text "Proxy Host"
-	label .logon.lpp -text "Proxy Port"
+	checkbutton .logon.prx -text "Use Proxy" -var Options(UseProxy) \
+            -underline 7
+	label .logon.lph -text "Proxy Host" -underline 6
+	label .logon.lpp -text "Proxy Port" -underline 6
 	entry .logon.eph -textvar Options(ProxyHost)
 	entry .logon.epp -textvar Options(ProxyPort)
-	label .logon.lpan -text "Proxy Auth Username"
-	label .logon.lpap -text "Proxy Auth Password"
+	label .logon.lpan -text "Proxy Auth Username" -underline 11
+	label .logon.lpap -text "Proxy Auth Password" -underline 13
 	entry .logon.epan -textvar Options(ProxyUsername)
 	entry .logon.epap -textvar Options(ProxyPassword) -show {*}
-	label .logon.lnm -text "Chat Username"
-	label .logon.lpw -text "Chat Password"
+	label .logon.lnm -text "Chat Username" -underline 9
+	label .logon.lpw -text "Chat Password" -underline 6
 	entry .logon.enm -textvar Options(Username)
 	entry .logon.epw -textvar Options(Password) -show *
 	checkbutton .logon.rpw -text "Remember Chat Password" \
-              -var Options(SavePW)
-	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect)
+              -var Options(SavePW) -underline 0
+	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect) \
+            -underline 5
 	button .logon.ok -text "Logon" -command "set LOGON 1" -width 8 -underline 0
-        bind .logon <Alt-l> {focus .logon.ok}
 	button .logon.cn -text "Quit" -width 8 -underline 0 \
             -command [namespace origin quit]
-        bind .logon <Alt-q> {focus .logon.cn}
+
+        bind .logon <Alt-x> {.logon.prx invoke}
+        bind .logon <Alt-l> {.logon.ok invoke}
+        bind .logon <Alt-q> {.logon.cn invoke}
+        bind .logon <Alt-h> {focus .logon.eph}
+        bind .logon <Alt-p> {focus .logon.epp}
+        bind .logon <Alt-u> {focus .logon.epan}
+        bind .logon <Alt-s> {focus .logon.epap}
+        bind .logon <Alt-n> {focus .logon.enm}
+        bind .logon <Alt-a> {focus .logon.epw}
+        bind .logon <Alt-r> {.logon.rpw invoke}
+        bind .logon <Alt-c> {.logon.atc invoke}
+
 	trace variable Options(UseProxy) w [namespace origin optSet]
 	trace variable Options(SavePW) w [namespace origin optSet]
 	grid .logon.prx - - -sticky w -pady 3
@@ -2957,6 +2980,7 @@ proc ::tkchat::logonScreen {} {
 	grid x .logon.atc  - -sticky w -pady 3
 	grid .logon.ok - .logon.cn -pady 10
 	wm resizable .logon 0 0
+        raise .logon
         bind .logon <Return> [list .logon.ok invoke]
         bind .logon <Escape> [list .logon.cn invoke]
     }
@@ -3917,7 +3941,7 @@ proc ::tkchat::ShowSmiles {} {
         pack $txt -expand 1 -fill both
     }
 }
-proc ::tkchat::Init {} {
+proc ::tkchat::Init {args} {
     global Options env
     catch {set Options(BROWSER) $env(BROWSER)}
     catch {set Options(NETSCAPE) $env(NETSCAPE)}
@@ -4004,6 +4028,22 @@ proc ::tkchat::Init {} {
     set Options(History) {}
     set Options(OnLineUsers) {}
     
+    # Process command line args
+    set nologin 0
+    while {[string match -* [set option [lindex $args 0]]]} {
+        switch -exact -- $option {
+            -nologin  { set nologin 1 }
+            -loglevel { LogLevelSet [Pop args 1] }
+            -- { Pop args ; break }
+            default {
+                return -code error "bad option \"$option\":\
+                    must be one of -nologin, -loglevel or --."
+            }
+        }
+        Pop args
+    }
+
+
     # Open the error log to file if specified. Default is stderr.
     if {[string length $Options(LogFile)] > 0} {
 	set Options(errLog) [open $Options(LogFile) a]
@@ -4057,10 +4097,12 @@ proc ::tkchat::Init {} {
     tkchatrcPostload
 
     # connect
-    if {$Options(AutoConnect)} {
-	logonChat
-    } else {
-	logonScreen
+    if {! $nologin} {
+        if {$Options(AutoConnect)} {
+            logonChat
+        } else {
+            logonScreen
+        }
     }
 }
 
@@ -5197,8 +5239,9 @@ proc ::tkchat::EditOptions {} {
     }
 
     set dlg [toplevel .options]
+    wm withdraw $dlg
     wm title $dlg "Tkchat Options"
-    
+
     set bf [labelframe $dlg.bf -text "Preferred browser" -padx 1 -pady 1]
     message $bf.m -aspect 600 -text {
         Provide the command used to launch your web browser. For
@@ -5227,6 +5270,14 @@ proc ::tkchat::EditOptions {} {
     grid $dlg.ok $dlg.cancel -sticky e
     grid rowconfigure $dlg 0 -weight 1
     grid columnconfigure $dlg 0 -weight 1
+
+    bind $dlg <Return> [list $dlg.ok invoke]
+    bind $dlg <Escape> [list $dlg.cancel invoke]
+    focus $bf.e
+
+    catch {::tk::PlaceWindow $dlg widget .}
+    wm deiconify $dlg
+    wm resizable $dlg 0 0
 
     tkwait variable ::tkchat::EditOptions(Result)
 
@@ -5257,6 +5308,10 @@ if {[tk windowingsystem] == "x11"} {
     option add *selectBorderWidth 1 widgetDefault
     option add *font -adobe-helvetica-medium-r-normal-*-12-*-*-*-*-*-*
 
+    option add *Button.highlightThickness 1
+    option add *Checkbutton.highlightThickness 1
+    option add *Radiobutton.highlightThickness 1
+    
     option add *Listbox.background white
     option add *Listbox.selectBorderWidth 0
     option add *Listbox.selectForeground $activeFG
@@ -5276,7 +5331,7 @@ if {[tk windowingsystem] == "x11"} {
     option add *Menu.activeBackground $activeBG
     option add *Menu.activeForeground $activeFG
     option add *Menu.activeBorderWidth 0
-    option add *Menu.highlightThickness 0
+    option add *Menu.highlightThickness 1
     option add *Menu.borderWidth 2
 
     option add *Menubutton.activeBackground $activeBG
@@ -5292,6 +5347,6 @@ if {[tk windowingsystem] == "x11"} {
 # -------------------------------------------------------------------------
 
 if {![info exists ::URLID]} {
-    ::tkchat::Init
+    eval [linsert $argv 0 ::tkchat::Init]
 }
 

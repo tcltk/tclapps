@@ -1,3 +1,8 @@
+2004-02-27  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+
+	* tkchat.tcl: Tweaks to the unix look. Added mnemonic bindings to
+	the login dialog.
+
 2004-02-20  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
 
 	* tkchat.tcl:  Incorporated the options from the wiki gtklook page
