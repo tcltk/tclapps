@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.133 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.134 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -51,10 +51,10 @@ package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.133 $}]
 proc tkchatrcPostload {} {}
 if {[info exists ::env(HOME)] && \
 	[file readable [set rctclfile \
-			    [file join $::env(HOME) .tkchatrc.tcl]]]} {    
-    if {[catch {uplevel \#0 source $rctclfile}]} {	
+			    [file join $::env(HOME) .tkchatrc.tcl]]]} {
+    if {[catch {uplevel \#0 source $rctclfile}]} {
 	puts stderr $::errorInfo
-	exit	
+	exit
     }
 }
 
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.133 2004/01/15 22:11:54 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.134 2004/02/04 00:25:55 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3870,7 +3870,7 @@ proc ::tkchat::Init {} {
 	MaxLines	500
 	ChatLogFile	""
 	LogFile		""
-	LogLevel	info
+	LogLevel	notice
 	errLog		stderr
 	emoticons	1
 	hideTraffic	0

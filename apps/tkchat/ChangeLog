@@ -1,3 +1,7 @@
+2004-02-03  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (::tkchat::Init): change default LogLevel to 'notice'
+
 2004-01-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fixed (hopefully) a bug in the online-users
