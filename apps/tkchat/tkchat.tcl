@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.34 2002/02/15 22:37:39 dgp Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.35 2002/02/18 22:52:43 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1776,7 +1776,7 @@ proc saveRC {} {
         set Options(Geometry) [wm geometry .]
 	array set tmp [array get Options]
 	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken\
-                          ProxyPassword URL URL2 errLog ChatLogChannel}
+                ProxyPassword URL URL2 URLlogs errLog ChatLogChannel}
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password
 	}

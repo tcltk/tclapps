@@ -1,3 +1,7 @@
+2002-02-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: do not save value of Options(URLlogs)
+
 2002-02-15  Don Porter <dgp@users.sf.net>
 
 	* tkchat.tcl: added check for required Tk 8.3.2 or better.
