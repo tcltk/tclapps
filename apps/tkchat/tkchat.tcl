@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.28 2001/12/06 18:45:02 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.29 2002/01/11 11:15:24 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -176,16 +176,17 @@ proc tkchat::GetHistLogIdx {szary} {
     array set ary {}
     set loglist {}
     # get list of available logs
-    set tok [::http::geturl $Options(URLlogs) \
+    set url "$Options(URLlogs)/?M=D"
+    set tok [::http::geturl $url  \
                    -headers [buildProxyHeaders]]
     if { [checkForRedirection $tok URLlogs] } {
         ::http::cleanup $tok
-        set loglist [::tkchat::GetLogIdx ary]
+        set loglist [::tkchat::GetHistLogIdx ary]
     } elseif {[string equal [::http::status $tok] "ok"]} {
         set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
         foreach line [split  [::http::data $tok] \n] {
             if { [regexp  -- $RE $line -> logname size] } {
-                lappend loglist $logname
+                set loglist [linsert $loglist 0 $logname]
                 set ary($logname) $size
             }
         }
