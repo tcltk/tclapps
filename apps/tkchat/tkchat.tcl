@@ -68,7 +68,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.199 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.200 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.199 2004/11/05 23:46:26 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.200 2004/11/05 23:57:32 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4405,6 +4405,35 @@ proc ::tkchat::Smile {} {
         R0lGODlhDwAPAKEAANnZ2QAAAP//AP///yH5BAEAAAMALAAAAAAPAA8AAAIz
         nB2Zx5MC4WIhWnlqVDagDYSa4I2BKG4jGQLr08HqRUvaumH3dX82h/HVPBTc
         pOFQEA8FADs=
+    }
+
+    SmileId donuts "donuts"
+    image create photo ::tkchat::img::donuts -format GIF -data {
+        R0lGODlhKAAPALIBAAAAAP//AGNjY0JC/0JCQjExMQAAAAAAACH/C05FVFND
+        QVBFMi4wAwEAAAAh+QQJCgAGACwAAAAAKAAPAAADfmiq0L0wyklbuPfRKboX
+        E4CN2RYNAqGuICSSJGAu6Gq3DBxY+6zUNlZOx+vNgEFV56UbyRjPUyrJYjZL
+        hqgESRVYMd+nQ/ubdr1Nq2xN4d4WX7AjS9dA3ErXNcM2fT4ScWAMPgseG0V8
+        cwoFjY6NEEEmY2SMAgWXmQUKVCoLCQAh+QQJCgAGACwAAAAAKAAPAAADf2iq
+        0L0wyklbuPfRKboXE4CN2RYNAqGuICSSJGAu6Gq3DBxY+6zUNlZOx+vNgEFV
+        56UbyRjPUyrJYjZLhqgESRVYMd+nY8INLptWmVoDKQuHMIeaQXETcNlrRpzV
+        Lj4fEl9OC34bHhtFe3IKBY6PjhBBJnKGBgUCmJqZClQqCwkAIfkECQoABgAs
+        AAAAACgADwAAA3xoqtC9MMpJW7j30Sm6FxOAjdkWDQKhriAkkiRgLuhqtwwc
+        WPus1DZWTsfrzYBBVeelG8kYz1MqyWI2S4aoBEkVWDHfp2PCDS6bVpl2O03i
+        vuCxWAMpK13XzHzz+UjgYAtiMx4bRXoOTwWLjIsQQSaJawoFApWXlgpUKgsJ
+        ACH5BAkKAAYALAAAAAAoAA8AAAN9aKrQvTDKSVu499EpuhcTgI3ZFg0Coa4g
+        JJIkYC7oarcMHFj7rNQ2Vk7H682AQVXnpRvJjqkki9ksMZ6nqJQgoGK8T6wE
+        mVw2qbK0mKYN4rxfhyG8/rWFC3gsbPp8JHpWc3N1ER4bRRkOGgWNjo0QQSaL
+        hQUClpiXClsECwkAIfkECQoABgAsAAAAACgADwAAA35oqtC9MMpJW7j30Sm6
+        FxOAjdkWDQKhriAkkiRgLuhqtwwcWPus1DZWTsfrzYBBVeelG8mOqSSL2Swx
+        nqeolCCgYrxPrASZXDapYcdYG8R5v2qDTAwhCxfv2GNOV3w+EnlWcj5+HRtF
+        GQ4aBY2OjRBBJot9BgUCl5mYClsECwkAIfkECQoABgAsAAAAACgADwAAA31o
+        qtC9MMpJW7j30Sm6FxOAjdkWDQKhriAkkiRgLuhqtwwcWPus1DZWTsfrzYBB
+        VeelG8lcT1oqyWI2S4soBEkVWDFfreM07Xqb1qh2Ww7ivuAxwyCXdl3XjKMe
+        +XwkcGBzDBocHRtFenUFjI2MEEEme2sKBQKWmJcKVCoLCQAh+QQFCgAGACwA
+        AAAAKAAPAAADfWiq0L0wyklbuPfRKboXE4CN2RYNAqGuICSSJGAu6Gq3DBxY
+        +6zUNlZOx+vNgEFV56UbyRjPUyrJYjZLhqgESRVYMd+nY8INLptWmXY7TeK+
+        4HFUAykrXdfMfPP5SOBgLllrER4bRXoODwWMjYwQQSaKhAYFApaYlwpUKgsJ
+        ADs=
     }
 }
 
