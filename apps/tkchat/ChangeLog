@@ -1,5 +1,11 @@
 2001-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl (updateNames): Fixed the missing All Users item for
+	the whisper option menu.
+	* tkchat.tcl: Fixed logging the chat to a file, frink checked
+
+2001-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
 	* tkchat.tcl: implemented feature request 466094 to allow
 	logging to a user specified file using tcllib log package.
 

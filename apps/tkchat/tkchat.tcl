@@ -36,7 +36,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.13 2001/10/17 11:50:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.14 2001/10/17 15:41:38 patthoyts Exp $}
 }
 
 set ::DEBUG 1
@@ -172,9 +172,26 @@ proc msgSend {str {user ""}} {
 proc msgDone {tok} {
     errLog "Post: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
-	ok { 
-            checkForRedirection $tok URL
-            if {[catch {fetchPage} err]} { errLog $err }
+	ok {
+            if {[::http::ncode] == 500} {
+                if {[info exists Options(msgSend_Retry)]} {
+                    set msg "Posting error: retry failed: [::http::code $tok]"
+                    tk_messageBox -message $msg
+                    log::log error $msg
+                    unset Options(msgSend_Retry)
+                } else {
+                    log::log error "Post error: [::http::code $tok] - need to retry"
+                    set Options(msgSend_Retry) 1
+                    ::http::geturl $Options(URL) \
+                        -query [subst $tok](-query) \
+                        -headers [buildProxyHeaders] \
+                        -command msgDone
+                }
+               
+            } else {
+                checkForRedirection $tok URL
+                if {[catch {fetchPage} err]} { errLog $err }
+            }
         }
 	reset { errLog "User reset post operation" }
 	timeout { tk_messageBox -message "Message Post timed out" }
@@ -206,7 +223,8 @@ proc logonDone {tok} {
 	ok {
             if {[checkForRedirection $tok URL2]} {
                 ::http::cleanup $tok
-                return [logonChat]
+                logonChat
+                return
             }
             if {[catch {pause off} err]} { errLog $err }
         }
@@ -307,7 +325,8 @@ proc fetchDone {tok} {
 	ok - OK - Ok {
             if {[checkForRedirection $tok URL]} {
                 ::http::cleanup $tok
-                return [fetchPage]
+                fetchPage
+                return
             }
 	    if {[catch {parseData [::http::data $tok]} err]} { errLog $err }
 	}
@@ -366,7 +385,8 @@ proc onlineDone {tok} {
 	ok {
             if {[checkForRedirection $tok URL]} {
                 ::http::cleanup $tok
-                return [onlinePage]
+                onlinePage
+                return
             }
 	    if {[catch {updateNames [::http::data $tok]} err]} { errLog $err }
 	}
@@ -388,7 +408,9 @@ proc updateNames {rawHTML} {
     .names config -state normal
     .names delete 1.0 end
     set exp {<A HREF="(.+?)".*?>(.+?)</A>}
-    .mb.mnu delete 1 end
+    .mb.mnu delete 0 end
+    .mb.mnu add command -label "All Users" \
+	    -command [list set Options(MsgTo) "All Users"]
     foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
 	# NOTE : the URL's don't work because of the & in them
 	# doesn't work well when we exec the call to browsers
@@ -528,6 +550,12 @@ proc addNewLines {input} {
 		lappend msgLines [string trimright $line]
 	    }
 	} else {
+            # optionally log the chat.
+            log::log debug $line
+            if {[info exists Options(ChatLogChannel)]} {
+                puts $Options(ChatLogChannel) $line
+            }
+
 	    if {[regexp -nocase -- $RE(HelpStart) $line -> clr name str]} {
 		set inHelp 1
 		set helpColor $clr
@@ -560,7 +588,7 @@ proc addNewLines {input} {
 }
 
 proc stripStr {str} {
-    # remove any remaing tags
+    # remove any remaining tags
     regsub -all -nocase "<.*?>" $str {} tmp
     # replace html escapes with real chars
     return [::htmlparse::mapEscapes $tmp]
@@ -635,16 +663,21 @@ proc addMessage {clr nick str} {
 
 proc ::tkchat::hook {do type cmd} {
     switch -glob -- $type {
-	msg - mes* { set var MessageHooks }
+	msg - mes* { set var [namespace current]::MessageHooks }
 	default {
 	    return -code error "unknown hook type \"$type\": must be\
 		    message"
 	}
     }
-    variable $var
     switch -exact -- $do {
-	add	{ set ${var}($cmd) {} }
-	remove	{ catch {unset -- ${var}($cmd)} }
+	add	{
+            # FRINK: nocheck
+            set ${var}($cmd) {}
+        }
+	remove	{
+            # FRINK: nocheck
+            catch {unset -- ${var}($cmd)}
+        }
 	default	{
 	    return -code error "unknown hook action \"$type\": must be\
 		    add or remove"
@@ -1140,9 +1173,11 @@ proc changeSettings {} {
     label $t.l2 -text "Maximum Saved Lines"
     entry $t.e2 -textvar DlgData(MaxLines) -validate all \
 	    -vcmd {string is integer %P} -invcmd bell
-    label $t.l2a -text "Log Filename"
+    label $t.l2a -text "Error Log Filename"
     entry $t.e2a ; $t.e2a insert 0 $Options(LogFile)
     eval tk_optionMenu $t.m2a Options(LogLevel) [lsort -command ::log::lvCompare $::log::levels]
+    label $t.l2b -text "Chat Log Filename"
+    entry $t.e2b ; $t.e2b insert 0 $Options(ChatLogFile)
     label $t.l3 -text "Color Selections"
     foreach {idx str} {MainBG Background MainFG Foreground} { 
 	label $t.nm$idx -text "$str" -anchor e
@@ -1217,12 +1252,13 @@ proc changeSettings {} {
     grid $t.l1           $t.e1         -           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l2           $t.e2         -           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l2a          $t.e2a        -         $t.m2a     -     -   -padx 1 -pady 3 -sticky ew
+    grid $t.l2b          $t.e2b        -           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l3             -           -           -        -     -   -padx 5 -pady 5
     grid $t.nmMainBG $t.defMainBG $t.ovrMainBG $t.clrMainBG x     x   -padx 2 -pady 2 -sticky news
     grid $t.nmMainFG $t.defMainFG $t.ovrMainFG $t.clrMainFG x     x   -padx 2 -pady 2 -sticky news
     grid $t.f              -           -           -        -  $t.scr -padx 1 -pady 5 -sticky news
     grid $t.f2             -           -           -        -     -   -padx 1 -pady 10 -sticky news
-    grid rowconfigure $t 6 -weight 1
+    grid rowconfigure $t 7 -weight 1
     grid columnconfigure $t 4 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
@@ -1259,26 +1295,71 @@ proc changeSettings {} {
             # Update the logfile (if changed). Close the old filehandle
             set newname [$t.e2a get]
             if {![string match $Options(LogFile) $newname]} {
-                if {[catch {
-                    set f [open $newname a]
-                    fconfigure $f -buffering line
-                    set Options(LogFile) $newname
-                    set oldlog $Options(errLog)
-                    set Options(errLog) $f
-                    if {![string match stderr $oldlog]} {
-                        close $oldlog
-                    }
-                    log::lvChannelForall $Options(errLog)
-                } err]} {
-                    # Handle file access problems.
-                    log::log error $msg
-                    bgerror $err
-                }
+                tkchat::OpenErrorLog $newname
+            }
+
+            # Update the ChatLog file if changed.
+            set newname [$t.e2b get]
+            if {![string match $Options(ChatLogFile) $newname]} {
+                tkchat::OpenChatLog $newname
             }
 	}
     }
     grab release $t
     destroy $t
+}
+
+# Point the Chat log to a new file.
+proc tkchat::OpenChatLog {newFileName} {
+    global Options
+    if {$newFileName == {}} {
+        set Options(ChatLogFile) {}
+        if {[info exists Options(ChatLogChannel)]} {
+            close $Options(ChatLogChannel)
+        }
+        unset Options(ChatLogChannel)
+        return
+    }
+    if {[catch {
+        set f [open $newFileName a]
+        fconfigure $f -buffering line
+        set Options(ChatLogFile) $newFileName
+        if {[info exists Options(ChatLogChannel)]} {
+            close $Options(ChatLogChannel)
+        }
+        set Options(ChatLogChannel) $f
+    } err]} {
+        # Handle file access problems.
+        log::log error $msg
+        bgerror $err
+    }
+}
+
+# Point the Error Log to a new file
+proc tkchat::OpenErrorLog {newFileName} {
+    global Options
+    if {$newFileName == {}} {
+        set Options(LogFile) {}
+        if {![string match stderr $Options(errLog)]} {
+            close $Options(errLog)
+        }
+        set Options(errLog) stderr
+    }
+    if {[catch {
+        set f [open $newFileName a]
+        fconfigure $f -buffering line
+        set Options(LogFile) $newFileName
+        set oldchannel $Options(errLog)
+        set Options(errLog) $f
+        if {![string match stderr $oldchannel]} {
+            close $oldchannel
+        }
+        log::lvChannelForall $Options(errLog)
+    } err]} {
+        # Handle file access problems.
+        log::log error $msg
+        bgerror $err
+    }
 }
 
 proc quit {} {
@@ -1296,7 +1377,7 @@ proc saveRC {} {
 	set rcfile [file join $::env(HOME) .tkchatrc]
 	array set tmp [array get Options]
 	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken\
-                        ProxyPassword URL URL2 errLog}
+                        ProxyPassword URL URL2 errLog ChatLogChannel}
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password
 	}
@@ -1412,8 +1493,9 @@ proc ::tkchat::Init {} {
 	Font,-family	Helvetica
 	Font,-size	-12
 	MaxLines	500
+        ChatLogFile     ""
         LogFile		""
-        LogLevel        debug
+        LogLevel        info
         errLog		stderr
     }
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
@@ -1451,6 +1533,12 @@ proc ::tkchat::Init {} {
         fconfigure $Options(errLog) -buffering line
     }
     log::lvChannelForall $Options(errLog)
+
+    # Open the ChatLog file for appending.
+    if {[string length $Options(ChatLogFile)] > 0} {
+        set Options(ChatLogChannel) [open $Options(ChatLogFile) a]
+        fconfigure $Options(ChatLogChannel) -buffering line
+    }
 
     # build screen
     createGUI
