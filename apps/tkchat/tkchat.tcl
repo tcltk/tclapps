@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.73 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.74 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.73 2003/01/15 19:26:01 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.74 2003/01/15 19:38:37 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1310,7 +1310,11 @@ proc addTraffic {who action} {
 
     variable ::tkchat::MSGS
     .txt config -state normal
-    if {[info exists MSGS($action)]} {
+    if {[string equal $who$action "ircbridgeentered"]} {
+        set msg "$who was erected"
+    } elseif {[string equal $who$action "ircbridgeleft"]} {
+        set msg "$who fell down"
+    } elseif {[info exists MSGS($action)]} {
         set msg [string map -nocase [list %user% $who] \
                        [lindex $MSGS($action) \
                               [expr {int(rand()*[llength $MSGS($action)])}]]]
