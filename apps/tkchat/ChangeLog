@@ -1,6 +1,7 @@
 2004-11-23  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Added /jest for /nolog/me; /memo catcher
+	* tkchat.tcl: Small fixes for reload script
 
 2004-11-22  Reinhard Max  <max@suse.de>
 
