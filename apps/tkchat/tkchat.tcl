@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.179 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.180 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.179 2004/09/18 20:00:58 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.180 2004/09/18 22:52:14 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2451,7 +2451,12 @@ proc ::tkchat::CreateGUI {} {
     bind .txt <Button-5>   {.txt yview scroll	1 units}
     bind .txt <Button-3>   {.mbar.help.tr post \
 				[winfo pointerx %W] [winfo pointery %W]}
+
     bind . <FocusIn> [list [namespace origin ResetMessageCounter]]
+    if {[lsearch [wm attributes .] -alpha] != -1} {
+        bind Tkchat <FocusIn>  [list [namespace origin FocusInHandler] %W]
+        bind Tkchat <FocusOut> [list [namespace origin FocusOutHandler] %W]
+    }
 
     # using explicit rows for restart
     set Options(NamesWin) [MakeScrolledWidget .names]
@@ -4245,6 +4250,8 @@ proc ::tkchat::Init {args} {
 	AnimEmoticons	0
         Style           {any}
         Theme           {}
+        Transparency    1.0
+        AutoFade        0
 	Popup,USERINFO	1
 	Popup,WELCOME	0
 	Popup,MEMO	1
@@ -5316,7 +5323,7 @@ proc ::tkchat::WinicoInit {} {
                 -pos 0 \
                 -text [wm title .] \
                 -callback [list [namespace origin WinicoCallback] %m %i]
-            bind [. cget -class] <Destroy> [namespace origin WinicoCleanup]
+            bind . <Destroy> [namespace origin WinicoCleanup]
             Hook add chat [namespace origin WinicoChatHook]
         }
     }
@@ -5571,8 +5578,41 @@ proc ::tkchat::SetAlpha {n} {
         wm attributes . -alpha [expr {$n / 100.0}]
         # Work around a but when transitioning from opaque to
         # any transparent value the toplevel becomes topmost.
-        raise .options
+        #if {[winfo exists .options]} {raise .options}
     }
+}
+
+proc ::tkchat::FadeAlpha {} {
+    global Options
+    if {$Options(AutoFade)} {
+        variable FadeId
+        set alpha [wm attributes . -alpha]
+        if {$alpha > 0.5} {
+            wm attributes . -alpha [expr {$alpha - 0.01}]
+            set FadeId [after 200 [namespace origin FadeAlpha]]
+        }
+    }
+}
+
+proc ::tkchat::FadeCancel {} {
+    global Options
+    if {$Options(AutoFade)} {
+        variable FadeId
+        catch {after cancel $FadeId}
+        catch {unset FadeId}
+        catch {wm attributes . -alpha 0.999}
+    } else {
+        catch {wm attributes . -alpha $Options(Transparency)}
+    }
+}
+
+proc ::tkchat::FocusInHandler {w args} {
+    log::log debug "FocusInHandler $w $args"
+    FadeCancel
+}
+proc ::tkchat::FocusOutHandler {w args} {
+    log::log debug "FocusOuthandler $w $args"
+    FadeAlpha
 }
 
 proc ::tkchat::EditOptions {} {
@@ -5586,9 +5626,11 @@ proc ::tkchat::EditOptions {} {
     }
 
     set EditOptions(Style) $Options(Style)
+    set EditOptions(AutoFade) $Options(AutoFade)
+    set EditOptions(Transparency) $Options(Transparency)
 
     if {[winfo exists .options]} {destroy .options}
-    set dlg [toplevel .options]
+    set dlg [toplevel .options -class dialog]
     wm withdraw $dlg
     wm title $dlg "Tkchat Options"
 
@@ -5651,10 +5693,13 @@ proc ::tkchat::EditOptions {} {
         if {[info command tscale] != {}} {
             set scale tscale
         }
+        checkbutton $gf.fade -text "Fade when not active" -underline 2 \
+            -variable ::tkchat::EditOptions(AutoFade)
         label $gf.alabel -text Transparency
         $scale $gf.alpha -from 1 -to 100 -orient horizontal
         $gf.alpha set [expr {int([wm attributes . -alpha] * 100)}]
         $gf.alpha configure -command [namespace origin SetAlpha]
+        pack $gf.fade -side top -fill x -anchor w
         pack $gf.alabel -side left
         pack $gf.alpha -side left -fill x -expand 1 -pady {0 16} -padx 2
     }
@@ -5688,6 +5733,12 @@ proc ::tkchat::EditOptions {} {
 
         if {![string equal $Options(Style) $EditOptions(Style)]} {
             set Options(Style)   $EditOptions(Style)
+        }
+        if {![string equal $Options(AutoFade) $EditOptions(AutoFade)]} {
+            set Options(AutoFade)   $EditOptions(AutoFade)
+        }
+        if {![string equal $Options(Transparency) $EditOptions(Transparency)]} {
+            set Options(Transparency)   $EditOptions(Transparency)
         }
     }
 

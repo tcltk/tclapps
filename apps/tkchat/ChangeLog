@@ -1,8 +1,14 @@
 2004-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Added another gimmick. You can select a fade
+	checkbox on the options dialog and when tkchat looses focus it
+	will fade to 50% transparency. On recieving focus again it'll
+	switch back to opaque.
+
 	* tkchat.tcl (::tkchat::Retrieve): Bug #1030051. Be more careful
 	not to overwrite the current script if we fail to get something
 	sensible from the web request.
+
 	* tkchat.tcl (::tkchat::EditOptions): Added support for toplevel
 	alpha transparency (supported in the most recent Tk on Win2k/XP).
 
