@@ -1,3 +1,7 @@
+2002-10-29  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (addMessage): Recognize "tick" as a clock bot name.
+
 2002-09-26  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: Added entry widget "history" (up/down arrows,
