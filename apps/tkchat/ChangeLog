@@ -1,3 +1,8 @@
+2003-07-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed the pane resizing so that the chat window is
+	given the new space and the users window remains constant size.
+
 2003-07-28  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added paned window support for the Online users

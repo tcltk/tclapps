@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.104 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.105 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.104 2003/07/28 19:59:27 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.105 2003/07/31 23:16:54 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1964,11 +1964,31 @@ proc ::tkchat::CreateGUI {} {
             set coord [.pane sash coord 0]
             .pane sash place 0 $w [lindex $coord 1]
         }
+        set Options(PaneUsersWidth) \
+            [expr {[winfo width .pane] - [lindex [.pane sash coord 0] 0]}]
+        bind .pane <Configure> [list [namespace origin PaneConfigure] %W %w]
+        bind .pane <Leave> [list [namespace origin PaneLeave] %W]
     }
-
+    
     # call this to activate the option on whether the users should be shown
     displayUsers
 }
+
+# On window resizing, we need to adjust the sash location to keep
+# proportions the same for each pane.
+proc ::tkchat::PaneConfigure {pane width} {
+    global Options
+    if {[info exists Options(PaneUsersWidth)]} {
+        set pos [expr {$width - $Options(PaneUsersWidth)}]
+        $pane sash place 0 $pos 2
+    }
+}
+
+proc ::tkchat::PaneLeave {pane} {
+    global Options
+    set Options(PaneUsersWidth) \
+        [expr {[winfo width .pane] - [lindex [.pane sash coord 0] 0]}]
+}                  
 
 proc ::tkchat::DoVis {tag} {
     .txt tag config $tag -elide $::Options(Visibility,$tag)
@@ -2754,7 +2774,7 @@ proc saveRC {} {
 	set ignore {
             History FetchTimerID OnlineTimerID
             FetchToken OnlineToken ProxyPassword
-            URL URL2 URLlogs errLog ChatLogChannel 
+            URL URL2 URLlogs errLog ChatLogChannel PaneUsersWidth
         }
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password
