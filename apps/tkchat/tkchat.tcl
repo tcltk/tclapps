@@ -59,7 +59,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.162 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.163 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -86,7 +86,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.162 2004/05/25 19:58:05 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.163 2004/05/25 22:15:48 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -862,7 +862,7 @@ proc ::tkchat::translate {from to text} {
 
 proc ::tkchat::translateDone {tok} {
     set ::tkchat::translate [http::data $tok]
-    set r [regexp {<Div.*?>(.*)</div>} \
+    set r [regexp {<td.*?class=s><div.*?>(.*)</div>} \
             [::http::data $tok] -> text]
     set text [string trim $text]
     log::log debug "Translate: \"$text\""
@@ -883,7 +883,7 @@ proc ::tkchat::babelfishInit {{url http://babelfish.altavista.com/babelfish/}} {
 
 proc ::tkchat::babelfishInitDone {tok} {
     set ::tkchat::babelfish [http::data $tok]
-    if {[regexp {<select name="lp">(.*?)</select>} [::http::data $tok] -> r]} {
+    if {[regexp {<select name="lp"[^>]*?>(.*?)</select>} [::http::data $tok] -> r]} {
         .mbar.help.tr delete 0 end
         set lst [split [string trim $r] \n]
         foreach option $lst {
