@@ -30,6 +30,9 @@ namespace eval ::tkchat {
     # Everything will eventually be namespaced
     variable MessageHooks
     array set MessageHooks {}
+
+    # this is http://mini.net - but that recently had a dns problem
+    variable HOST http://216.110.35.177
 }
 
 set ::DEBUG 1
@@ -588,12 +591,12 @@ proc gotoURL {url} {
 	set url $trueUrl
     } elseif {[regexp -nocase -- {^chat} $url]} {
 	# this is a relative url
-	set url "http://mini.net/cgi-bin/$url"
+	set url "$::tkchat::HOST/cgi-bin/$url"
     } else {
 	# assume a raw url
     }
     global tcl_platform Options
-    # this code from  http://mini.net/tcl/557.html
+    # this code from $::tkchat::HOST/tcl/557.html
     switch $tcl_platform(platform) {
 	"unix" {
 	    expr {
@@ -1263,8 +1266,8 @@ proc ::tkchat::Init {} {
     # set intial defaults
     set ::tkchat::pause 0
     array set Options {
-	URL		http://mini.net/cgi-bin/chat.cgi
-	URL2		http://mini.net/cgi-bin/chat2.cgi
+	URL		$::tkchat::HOST/cgi-bin/chat.cgi
+	URL2		$::tkchat::HOST/cgi-bin/chat2.cgi
 	UseProxy	0
 	ProxyHost	""
 	ProxyPort	""
@@ -1290,10 +1293,16 @@ proc ::tkchat::Init {} {
     }
 
     # load RC file if it exists
-    if {[info exists ::env(HOME)]} {
-	if {[file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
-	    catch {source $rcfile}
-	}
+    if {[info exists ::env(HOME)] && \
+	    [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
+	catch {source $rcfile}
+	##
+	## TEMPORARY WORK-AROUND FOR MINI.NET DNS PROBLEMS
+	##
+	regsub -- {^http://mini.net} $Options(URL) \
+		$::tkchat::HOST Options(URL)
+	regsub -- {^http://mini.net} $Options(URL2) \
+		$::tkchat::HOST Options(URL2)
     }
     set Options(Offset) 50
     catch {unset Options(FetchToken)}

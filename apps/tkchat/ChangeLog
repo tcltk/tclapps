@@ -1,3 +1,7 @@
+2001-10-10  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: used direct IP of mini.net to combat dns problems.
+
 2001-09-28  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: corrected minor warnings and height of info box
