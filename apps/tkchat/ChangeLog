@@ -1,5 +1,8 @@
 2004-03-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Add ijbridge as a synonym for ijchain to trap
+	messages from the Jabber - IRC bridge and tidy them up.
+
 	* tkchat.tcl: Don't list the IRC users in the menubutton list. If
 	we ever fix it such that we can /msg to IRC then this can be
 	enabled but at the moment it's just noise.
