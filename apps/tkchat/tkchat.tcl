@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.46 2002/03/21 14:21:01 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.47 2002/03/21 16:59:35 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1241,9 +1241,9 @@ proc ::tkchat::CreateGUI {} {
 
     createFonts
 
-    menu .mbar -type menubar
+    menu .mbar
     . config -menu .mbar
-
+    
     .mbar add cascade -label File -underline 0 \
           -menu [menu .mbar.file -tearoff 0]
     .mbar add cascade -label Preferences \
@@ -1299,27 +1299,35 @@ proc ::tkchat::CreateGUI {} {
     }
     $m add separator
     
-    $m add cascade -label "Refresh Frequency" -menu [menu $m.refresh -tearoff 0]
+    $m add cascade -label "Refresh Frequency" \
+          -menu [menu $m.refresh -tearoff 0] \
+          -underline 0
     foreach s {15 30 45 60} {
         $m.refresh add radiobutton -label "$s seconds" -val $s \
               -var Options(Refresh)
     }        
-    $m add cascade -label "Max Window Buffer" -menu [menu $m.buffer -tearoff 0]
+    $m add cascade -label "Max Window Buffer" \
+          -menu [menu $m.buffer -tearoff 0] \
+          -underline 3
     foreach l {500 1000 1500 2500 5000 10000} {
         $m.buffer add radiobutton -label "$l lines" -val $l \
-              -var Options(MaxLines)
+              -var Options(MaxLines) -underline 0
     }
     $m add separator
-    $m add cascade -label "Local Chat Logging" -menu [menu $m.chatLog -tearoff 0]
+    $m add cascade -label "Local Chat Logging" \
+          -menu [menu $m.chatLog -tearoff 0] \
+          -underline 0
     $m.chatLog add radiobutton -label Disabled -var ::Options(ChatLogOff) \
-          -val 1 -command {tkchat::OpenChatLog close}
+          -val 1 -command {tkchat::OpenChatLog close} -underline 0
     $m.chatLog add command -label "To File..." \
-          -command {tkchat::OpenChatLog open}
-    $m add cascade -label "Loading Server History" -menu [menu $m.hist -tearoff 0]
+          -command {tkchat::OpenChatLog open} -underline 0
+    $m add cascade -label "Loading Server History" \
+          -menu [menu $m.hist -tearoff 0] \
+          -underline 15
     $m.hist add radiobutton -label "Do NOT load any history" -val 0 \
-          -var Options(HistoryLines)
+          -var Options(HistoryLines) -underline 3
     $m.hist add radiobutton -label "Ask me which logs to load" -val -1 \
-          -var Options(HistoryLines)
+          -var Options(HistoryLines) -underline 0
     foreach l {50 100 200 500 1000 2500 10000} {
         $m.hist add radiobutton -label "Load at least $l lines" -val $l \
               -var Options(HistoryLines)
@@ -1328,13 +1336,16 @@ proc ::tkchat::CreateGUI {} {
     ## Emoticon Menu
     ##
     set m .mbar.emot
-    $m add command -label "Show Emoticons" -command ::tkchat::ShowSmiles
+    $m add command -label "Show Emoticons" \
+          -command ::tkchat::ShowSmiles -underline 0
     $m add checkbutton -label "Use Emoticons" \
-          -onval 1 -offval 0 -var Options(emoticons)
+          -onval 1 -offval 0 -var Options(emoticons) \
+          -underline 0
     $m add checkbutton -label "Animate Emoticons" \
           -onval 1 -offval 0 -var Options(AnimEmoticons) \
-          -command ::tkchat::DoAnim
-    $m add cascade -label Insert -menu [menu $m.mnu -title Insert]
+          -command ::tkchat::DoAnim -underline 0
+    $m add cascade -label Insert -underline 0 \
+          -menu [menu $m.mnu -title Insert] 
     variable IMG
     foreach {i e} [array get IMG] {
         set tmp($e) $i
@@ -1358,7 +1369,8 @@ proc ::tkchat::CreateGUI {} {
         $m add checkbutton -label "Hide $text Messages" \
               -onval 1 -offval 0 \
               -var Options(Visibility,$tag) \
-              -command "::tkchat::DoVis $tag"
+              -command "::tkchat::DoVis $tag" \
+              -underline 5
     }
     $m add separator
     $m add command -label "Hide All Users" -command  "::tkchat::NickVis 1"
@@ -1374,7 +1386,8 @@ proc ::tkchat::CreateGUI {} {
     } {
         $m add checkbutton -label "Pop-up $text Messages" \
               -onval 1 -offval 0 \
-              -var Options(Popup,$tag)
+              -var Options(Popup,$tag) \
+              -underline 10
     }
     
     ## Debug Menu
@@ -1588,20 +1601,21 @@ proc ::tkchat::userPost {} {
             set macro [lindex $words 0]
             if {[info exists Options(Macro,$macro)]} {
                 # invoke macro instead of raw string
-                # build subst map
-                set i 1
-                set map [list %% % %@ [string map [list "$macro " ""] $msg]]
-                foreach w [lrange $words 1 end] {
-                    lappend map "%$i" $w
-                    incr i
+                # build subst map - build it from higher number
+                # down so that %10 matches before %1
+                set i [llength $words]
+                set map [list %% %]
+                while {$i >0} {
+                    incr i -1
+                    lappend map %$i@ [join [lrange $words $i end]]
+                    lappend map %$i [lindex $words $i]
                 }
-                msgSend [string map $map $Options(Macro,$macro)]
+                set msg [string map $map $Options(Macro,$macro)]
+            }
+            if {[string equal $Options(MsgTo) "All Users"]} {
+                msgSend $msg
             } else {
-                if {[string equal $Options(MsgTo) "All Users"]} {
-                    msgSend $msg
-                } else {
-                    msgSend $msg $Options(MsgTo)
-                }
+                msgSend $msg $Options(MsgTo)
             }
         }
     }
@@ -1751,13 +1765,34 @@ proc ::tkchat::EditMacros {} {
     bind $t.lst <Double-1> "::tkchat::MacroSel %W @%x,%y"
     button $t.sav -text Save -command "::tkchat::MacroSave $t"
     button $t.del -text Delete -command "::tkchat::MacroKill $t.lst"
-
+    set    help "Macros are invoked whenever the first word in the posted\n"
+    append help "message matches a defined macro name. Instead of the\n"
+    append help "original message being sent, the Text from the macro\n"
+    append help "definition is sent instead. You can substitue words from\n"
+    append help "the post into the replacement text by using placeholders\n"
+    append help "like %N. where N is which word to be inserted, where 1 is\n"
+    append help "the first word after the macro name (%0 is the macro name itself)\n"
+    append help "%N@ will substitute the Nth word to end of all input words.\n"
+    append help "To get a litereal % char (if followed by a number) use %%\n"
+    append help "Extra words are ignored, and if too few words passed the escape\n"
+    append help "sequence will be shown\n"
+    append help "\n"
+    append help "Example: Macro foo defined as \n"
+    append help "             '/me needs to %1 his %2 at the %3 because %4@'\n"
+    append help "         User enters \n"
+    append help "              'foo wash monkey zoo he is so dirty'\n"
+    append help "         Result is everyone else seeing:\n"
+    append help "    *user needs to wash his monkey at the zoo because he is so dirty\n"
+    append help "\n"
+    label $t.hlp -text $help -font FNT -justify left
+    
     grid $t.lst - $t.scr -sticky news
-    grid $t.del - - -sticky {}
-    grid $t.lbl1 $t.mac - -sticky news
+    grid $t.del - - -sticky {} -pady 3
+    grid $t.lbl1 $t.mac - -sticky nws
     grid $t.lbl2 $t.txt - -sticky news
-    grid $t.sav - - -sticky {}
-
+    grid $t.sav - - -sticky {} -pady 3
+    grid $t.hlp - - -sticky news -padx 10
+    
     grid rowconfigure $t 0 -weight 10
     grid columnconfigure $t 1 -weight 10
     
