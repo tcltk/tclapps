@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.39 2002/03/15 02:57:26 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.40 2002/03/15 03:05:54 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -877,7 +877,7 @@ proc checkNick {nick clr} {
     if {$wid > $Options(Offset)} {
         set Options(Offset) $wid
         .txt config -tabs [list $wid l]
-        .txt tag configure MSG -lmargin2 [incr wid 20]
+        .txt tag configure MSG -lmargin2 $wid
     }
     if {"$clr" == ""} {
         set clr [getColor $nick]
