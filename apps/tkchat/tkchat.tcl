@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.107 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.108 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.107 2003/08/19 19:01:51 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.108 2003/08/19 19:05:01 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1981,9 +1981,12 @@ proc ::tkchat::CreateGUI {} {
 # proportions the same for each pane.
 proc ::tkchat::PaneConfigure {pane width} {
     global Options
-    if {[info exists Options(PaneUsersWidth)]} {
-        set pos [expr {$width - $Options(PaneUsersWidth)}]
-        $pane sash place 0 $pos 2
+
+    if {$::Options(DisplayUsers)} {
+        if {[info exists Options(PaneUsersWidth)]} {
+            set pos [expr {$width - $Options(PaneUsersWidth)}]
+            $pane sash place 0 $pos 2
+        }
     }
 }
 
