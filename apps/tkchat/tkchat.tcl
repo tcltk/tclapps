@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.86 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.87 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.86 2003/03/08 17:10:26 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.87 2003/03/10 13:20:06 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1685,15 +1685,15 @@ proc ::tkchat::CreateGUI {} {
 
     # bottom frame for entry
     frame .btm
-    button .ml -text "More >>>" -command showExtra -width 11
+    button .ml -text ">>" -command showExtra 
     entry .eMsg
     bind .eMsg <Return>   ::tkchat::userPost
     bind .eMsg <KP_Enter> ::tkchat::userPost
     bind .eMsg <Key-Up>   ::tkchat::entryUp
     bind .eMsg <Key-Down> ::tkchat::entryDown
     text .tMsg -height 6 -font FNT
-    button .post -text "Post" -width 8 -command ::tkchat::userPost
-    button .refresh -text "Refresh" -command {pause off}
+    button .post -text "Post" -command ::tkchat::userPost
+    #button .refresh -text "Refresh" -command {pause off}
     menubutton .mb -indicator on -relief raised -bd 2 -pady 4 \
           -menu .mb.mnu -textvar Options(MsgTo)
     set Options(MsgTo) "All Users"
@@ -1914,14 +1914,15 @@ proc ::tkchat::entryDown {} {
 proc hideExtra {} {
     grid remove .tMsg
     grid config .eMsg -in .btm -row 0 -column 1 -sticky ew
-    .ml config -text "More >>>" -command showExtra
+    .ml config -text ">>" -command showExtra
     .eMsg delete 0 end
     .eMsg insert end [string trim [.tMsg get 1.0 end]]
 }
 proc showExtra {} {
+    global Options
     grid remove .eMsg
     grid config .tMsg -in .btm -row 0 -column 1 -sticky ew
-    .ml config -text "Less <<<" -command hideExtra
+    .ml config -text "<<" -command hideExtra
     .tMsg delete 1.0 end
     .tMsg insert end [.eMsg get]
 }
