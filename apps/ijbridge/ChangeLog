@@ -1,3 +1,12 @@
-2004-11-15  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+2004-11-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Added lots of comments to all the Jabber
+	section. Implemented support for reconnecting if the network
+	connection goes down. Added some bot commands to the bridge - HELP
+	might one day be helpful and "/msg ijchain /msg ircuser message"
+	will send a private message to an irc user. They cannot sent one
+	back though.
+
+2004-11-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* all: Initial checkin.

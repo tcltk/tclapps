@@ -24,8 +24,14 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.1 2004/11/15 15:44:28 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.2 2004/11/16 00:51:58 patthoyts Exp $}
 
+    # This array MUST be set up by reading the configuration file. The
+    # member names given here define the settings permitted in the 
+    # config file.
+    # This script will not work by default - you MUST provide suitable 
+    # connection details.
+    #
     variable Options
     if {![info exists Options]} {
         array set Options {
@@ -44,55 +50,90 @@ namespace eval ::ijbridge {
         }
     }
 
+    # State variable used in rate-limiting communications with IRC.
     variable Limit
     if {![info exists Limit]} {
         array set Limit {}
     }
 
+    # Used to maintain a view of the users currently connected to IRC.
     variable IrcUserList
     if {![info exists IrcUserList]} {
         set IrcUserList [list]
     }
 }
 
+# -------------------------------------------------------------------------
+
+# ijbridge::connect --
+#
+#	Connect to the jabber server. The server details are help in the
+#	Options array. However, it is possible to create the socket through
+#	a proxy too, so the connection server and port may be given here
+#	too. For example, if you set up sockspy to forward localhost:5222
+#	to your jabber server, then you would give 'connect localhost 5222'
+#	to set up this connection.
+#
 proc ::ijbridge::connect {{server {}} {port {}}} {
     variable Options
     variable conn
+    array set conn {}
     
-    catch {unset conn}
+    # If roster is unset this is a new connection.
+    if {![info exists conn(roster)]} {
+        log::log debug "Creating new jabber client instance"
+        set conn(roster) [roster::roster [namespace origin OnRoster]]
+        set conn(jabber) [jlib::new $conn(roster) \
+                              [namespace origin OnClient] \
+                              -iqcommand       [namespace origin OnIq] \
+                              -messagecommand  [namespace origin OnMessage] \
+                              -presencecommand [namespace origin OnPresence]]
 
-    # Now connect the IRC side of things.
-    client::create $Options(IrcServer) $Options(IrcPort) \
-        $Options(IrcUser) $Options(IrcChannel)
-
-
-    set conn(roster) [roster::roster [namespace origin OnRoster]]
-    set conn(jabber) [jlib::new $conn(roster) [namespace origin OnClient] \
-                          -iqcommand          [namespace origin OnIq] \
-                          -messagecommand     [namespace origin OnMessage] \
-                          -presencecommand    [namespace origin OnPresence]]
-
-    if {$server == {}} {
-        set server $Options(JabberServer)
+        if {$server == {}} { set server $Options(JabberServer) }
+        if {$port == {}} { set port $Options(JabberPort) }
+        set conn(server) $server
+        set conn(port) $port
     }
-    if {$port == {}} {
-        set port $Options(JabberPort)
-    }
-    
-    set conn(sock) [socket $server $port]
+
+    set conn(sock) [socket $conn(server) $conn(port)]
     $conn(jabber) setsockettransport $conn(sock)    
     $conn(jabber) openstream $Options(JabberServer) \
-        -socket $conn(sock) -cmd [namespace origin OnConnect]
+        -cmd [namespace current]::OnConnect -socket $conn(sock)
 
-    return conn
+    return
 }
 
+# ijbridge::disconnect --
+#
+#	Close the jabber stream and remove the socket from our state array.
+#
 proc ::ijbridge::disconnect {} {
     variable conn
     $conn(jabber) closestream
     unset conn(sock)
 }
 
+# ijbridge::reconnect --
+#
+#	Handle reconnection to the jabber server. This maintains the current
+#	Jabber session details, but reconnects the underlying transport.
+#	We try in increments of 5 seconds up to a maximum of 50 seconds
+#	delay until we get connected.
+#
+proc ::ijbridge::reconnect {} {
+    variable conn
+    set retry [incr conn(retry)]
+    if {$retry > 10} {set conn(retry) 10}
+    set delay [expr {5000 * $conn(retry)}]
+    log::log warning "jabber client disconnected. retry in ${delay}ms"
+    after $delay {if {[catch {::ijbridge::connect}]} {::ijbridge::reconnect}}
+}
+
+# ijbridge::OnConnect --
+#
+#	Called when the Jabber stream is initialised. Here we authenticate
+#	with the Jabber server.
+#
 proc ::ijbridge::OnConnect {token args} {
     variable Options
     variable conn
@@ -104,10 +145,16 @@ proc ::ijbridge::OnConnect {token args} {
                       $Options(JabberUser) $Options(JabberResource) \
                       [namespace origin OnLogin] \
                       -password $Options(JabberPassword)]
-    #-digest [sha1::sha1 $info(id)$JabberPassword]
+    #-digest [sha1::sha1 $info(id)$JabberPassword]]
 }
 
-proc ijbridge::OnLogin {token type query} {
+# ijbridge::OnLogin --
+#
+#	This is called once we have sent our authentication details.
+#	If we succeeded then we set our default presence to invisible and 
+#	then join the conference.
+#
+proc ::ijbridge::OnLogin {token type query} {
     variable Options
     variable conn
     switch -exact -- $type {
@@ -117,28 +164,47 @@ proc ijbridge::OnLogin {token type query} {
             $conn(muc) enter $Options(Conference) $Options(ConferenceNick) \
                 -command [namespace origin OnMucEnter]
         }
-        error -
+        error {
+            log::log error "Failed to login! \"$query\""
+            return -code error "Failed to login! \"$query\""
+        }
         default {
             log::log debug "OnLogin: $token $type $query"
         }
     }
 }
 
-proc ijbridge::OnMucEnter {muc type args} {
+# ijbridge::OnMucEnter --
+#
+#	Called when we enter the conference.
+#
+proc ::ijbridge::OnMucEnter {muc type args} {
     variable Options
     log::log debug "OnMucEnter $muc $type $args"
 }
 
+# ijbridge::OnClient --
+#
+#	This callback is registered when we create the Jabber client stream
+#	and is called whenever anything occurs to affect the client.
+#	This covers network faults or hiccups and errors in the stream.
+#	Some of these may be recoverable by reconnecting.
+#
 proc ::ijbridge::OnClient {token cmd args} {
-    log::log debug "OnClient $token $cmd $args"
+    variable conn
     switch -exact -- $cmd {
         connect {
+            log::log debug "jabber client connected"
+            set conn(retry) 0
         }
         disconnect {
-            log::log warning "disconnect!"
+            catch {disconnect}
+            reconnect
         }
         networkerror {
-            log::log error "error $args"
+            log::log error "network error $args"
+            catch {disconnect}
+            reconnect
         }
         streamerror {
             if {[catch {
@@ -147,13 +213,19 @@ proc ::ijbridge::OnClient {token cmd args} {
             }]} {
                 log::log error $args 
             }
-            log::log warning disconnected
+            catch {disconnect}
+            reconnect
         }
         default {
+            log::log debug "OnClient $token $cmd $args"
         }
     }
 }
 
+# ijbridge::OnRoster --
+#
+#	Roster management callback.
+#
 proc ::ijbridge::OnRoster {roster type {jid {}} args} {
     variable conn
     log::log debug "OnRoster: $roster $type $jid $args"
@@ -165,6 +237,10 @@ proc ::ijbridge::OnRoster {roster type {jid {}} args} {
     }
 }
 
+# ijbridge::OnIq --
+#
+#	This is called to handle Jabber querys.
+#
 proc ::ijbridge::OnIq {token type args} {
     log::log debug "iq: $token $type $args"
     switch -exact -- $type {
@@ -173,13 +249,25 @@ proc ::ijbridge::OnIq {token type args} {
     }
 }
 
+# ijbridge::OnMessage --
+#
+#	This is the core procedure. This is called when Jabber messages are
+#	recieved. 'groupchat messages are from the conference and these we 
+#	re-transmit to IRC using the 'xmit' procedure.
+#	Some processing occurs here. IRC doesn't accept multi-line posts
+#	so we break those up. We also avoid re-sending messages that we
+#	have sent from IRC.
+#	
+#	'chat' messages are messages sent to ijbridge specifically. These
+#	are used as commands to the bridge.
+# 
 proc ::ijbridge::OnMessage {token type args} {
     variable Options
     variable conn
     switch -exact -- $type {
         groupchat {
             # xmit to irc
-            log::log debug "---> $args"
+            log::log debug "groupchat --> $args"
             array set a $args
             set mynick [$conn(muc) mynick $Options(Conference)]
             set myid $Options(Conference)/$mynick
@@ -213,7 +301,28 @@ proc ::ijbridge::OnMessage {token type args} {
                 }
             }
         }
-        chat -
+        chat {
+            array set a $args
+            log::log debug "chat --> $args"
+            switch -glob -- $a(-body) {
+                HELP* {
+                    send -user $a(-from) \
+                        -id $Options(Conference)/$Options(JabberUser) \
+                        "No help yet"
+                }
+                /msg* {
+                    if {[regexp {^/msg (\w+) (.*)$} $a(-body) -> who msg]} {
+                        set nickndx [string first / $a(-from)]
+                        set nick [string range $a(-from) [incr nickndx] end]
+                        xmit "PRIVMSG $who :$nick whispers $msg"
+                    } else {
+                        send -user $a(-from) \
+                            -id $Options(Conference)/$Options(JabberUser) \
+                            "Try: /msg nick message"
+                    }
+                }
+            }
+        }
         normal -
         error -
         default {
@@ -221,24 +330,30 @@ proc ::ijbridge::OnMessage {token type args} {
         }
     }
 }
+
+# ijbridge::OnPresence --
+#
+#	Called when we recieve a Jabber presence notification.
+#
 proc ::ijbridge::OnPresence {token type args} {
     log::log debug "prs: $token $type $args"
 }
 
-# send from irc -> jabber
+# ijbridge::IrcToJabber --
 #
-# If who eq azbridge then body is "<azbridge> *** arjen left"
-# or                              "<azbridge> <arjen> blha blah"
-#
-# Trim the azbridge's and replace with the user.
+#	This procedure is called to copy messages from the IRC channel
+#	to the Jabber conference. Currently the Tcl channel is also
+#	bridging to a webcht with something called 'ircbridge' and
+#	this is using the nick 'azbridge'. To avoid having excessive
+#	nick prefixes, we trim this one here.
 #
 proc ::ijbridge::IrcToJabber {who msg emote} {
     variable Options
     if {[string equal $who "azbridge"]} {
         regexp {^<(.*?)> (.*)$}  $msg -> who msg
-        set emote [regexp {^\* (\w+) (.*)$} $msg -> who msg]
+        set emote [regexp {^\*{1,3} (\w+) (.*)$} $msg -> who msg]
     }
-            
+    
     if {$emote} {
         ijbridge::send -id "$Options(Conference)/$who" "* $who $msg"
     } else {
@@ -246,6 +361,12 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     }
 }
 
+# ijbridge::send --
+#
+#	This procedure sends a message to the Jabber conference.
+#	-user is the jid of the recipient or if not specified then the
+#	message is sent to the conference.
+#
 proc ::ijbridge::send {args} {
     variable Options
     variable conn
@@ -269,17 +390,18 @@ proc ::ijbridge::send {args} {
     if {[string length $opts(user)] < 1} {
         set opts(user) $Options(Conference)
         set opts(-type) groupchat
-    } else {
-        return -code error "Not done"
     }
 
     eval [linsert [array get opts -*] 0 $conn(jabber) \
               send_message $opts(user) -body [lindex $args 0]]
-    
-    #$conn(jabber) send_message $opts(-user) -id $opts(-id) \
-    #    -body [lindex $args 0] -type $opts(-type)
 }
 
+# ijbridge::xmit --
+#
+#	This is where we send messages to the IRC channel. IRC requires 
+#	rate limiting. A client can be kicked for sending too much in
+#	too short a period so here we deal with this.
+#
 proc ::ijbridge::xmit {str} {
     variable Options
     variable Limit
@@ -308,8 +430,11 @@ proc ::ijbridge::xmit {str} {
     $client::cn send $str
 }
 
-# Processes the queue created when we try to addMessage too fast
-
+# ijbridge::XmitFromQueue --
+#
+#	If we had to limit messages sent from 'xmit' then we handle the
+#	queued messages from here on a timer.
+#
 proc ::ijbridge::XmitFromQueue {} {
     variable Options
     variable Limit
@@ -326,7 +451,10 @@ proc ::ijbridge::XmitFromQueue {} {
     after 1000 [namespace origin XmitFromQueue]
 }
 
-
+# ijbridge::Pop --
+#
+#	Utility function used in option processing.
+#
 proc ::ijbridge::Pop {varname {nth 0}} {
     upvar $varname args
     set r [lindex $args $nth]
@@ -334,6 +462,13 @@ proc ::ijbridge::Pop {varname {nth 0}} {
     return $r
 }
 
+# ijbridge::LoadConfig --
+#
+#	This procedure reads a text file and updates the Options array
+#	from the contents. Comments and blank lines are ignored. All 
+#	other lines must be a list of two elements, the first element 
+#	must be an item in the Options array.
+#
 proc ::ijbridge::LoadConfig {} {
     variable Options
     set conf [file normalize [info script]]
@@ -401,18 +536,18 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent defaultcmd {
-	::log::log debug "[action] [msg]"
+	::log::log debug "[action]:[msg]"
     }
 
     $cn registerevent defaultnumeric {
-	::log::log debug "[action] X-X [target] XXX [msg]"
+	::log::log debug "[action]:[target]:[msg]"
     }
 
     $cn registerevent defaultevent {
-	::log::log debug "[action] X|X [who] XXX [target] XXX [msg]"
+        if {[action] ne "PONG"} {
+            ::log::log debug "[action]:[who]:[target]:[msg]"
+        }
     }
-
-    $cn registerevent PONG {}
 
     $cn registerevent PART {
 	if { [target] == $client::channel && [who] != $client::nick } {
@@ -518,12 +653,25 @@ log::lvSuppressLE emerg 0
 ::ijbridge::LoadConfig
 
 if {!$tcl_interactive} {
+    
+    # Connect to IRC
+    client::create $ijbridge::Options(IrcServer) \
+        $ijbridge::Options(IrcPort) \
+        $ijbridge::Options(IrcUser) \
+        $ijbridge::Options(IrcChannel)
+    
+    # Connect to Jabber.
+    eval [linsert $argv 0 ::ijbridge::connect]
+    
+    # Loop forever, dealing with Wish or Tclsh
     if {[info exists tk_version]} {
         if {[tk windowingsystem] eq "win32"} { console show }
         wm withdraw .
-        tkwait window .
+        tkwait variable ::forever
     } else {
-        eval [linsert $argv 0 ::ijbridge::connect]
-        vwait ::forever
+        # Permit running as a Windows service.
+        if {![info exists tcl_service]} {
+            vwait ::forever
+        }
     }
 }
