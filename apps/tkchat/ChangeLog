@@ -2,6 +2,7 @@
 
 	* tkchat.tcl (::tkchat::parseStr): add recognition of any 6 or
 	7-digit sequence as a SF bug id, make it a URL that jumps to it.
+	(::tkchat::checkNick): correct margin initialization
 
 2004-06-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

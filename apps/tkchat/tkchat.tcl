@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.168 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.169 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.168 2004/06/29 20:49:59 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.169 2004/06/29 22:05:41 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1297,7 +1297,7 @@ proc ::tkchat::parseStr {str} {
 	lappend sList [stripStr $str] ""
     }
     set out {}
-    # Assume any 6-digit sequence is a SF bug id and make URLs for them
+    # Assume any 6 or 7-digit sequence is a SF bug id and make URLs for them
     foreach {str url} $sList {
 	if {[string length $url]} {
 	    lappend out $str $url
@@ -1322,19 +1322,11 @@ proc ::tkchat::parseStr {str} {
 proc ::tkchat::checkNick {nick clr} {
     global Options
 
-    if { $::Options(Visibility,STAMP) } {
-	# Invisible
-	set wid_tstamp 0
-    } else {
-	# Stamps visible
-	set wid_tstamp [expr {[font measure NAME "\[88:88\]"] + 5}]
-    }
     set wid [expr {[font measure NAME $nick] + 10}]
     if {$wid > $Options(Offset)} {
-	#log::log debug "Offset: $wid_tstamp, $wid > $Options(Offset)"
         set Options(Offset) $wid
-        .txt config -tabs [list $wid_tstamp l [expr {$wid+$wid_tstamp}] l]
-	.txt tag configure MSG -lmargin2 [expr {$wid+$wid_tstamp}]
+	# Set tabs appropriate for STAMP visibility
+	StampVis
     }
     if {$clr == ""} {
         set clr [getColor $nick]
