@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.261 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.262 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.261 2005/02/12 23:34:42 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.262 2005/02/12 23:48:34 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6348,10 +6348,13 @@ proc tkjabber::ClientCB {jlibName cmd args} {
     }
     update idletasks
 }
+
 proc tkjabber::IqCB {jlibName type args} {
+    # These callbacks don't work. You should register an iq handler instead
+    # - see the setup for on_iq_version.
     log::log debug "|| MyIqCB > type=$type, args=$args"
-    tkchat::addSystem "|| MyIqCB > type=$type, args=$args"
 }
+
 proc tkjabber::MsgCB {jlibName type args} {
     variable conference
     variable muc
