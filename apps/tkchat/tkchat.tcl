@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.53 2002/04/19 16:08:09 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.54 2002/05/20 19:45:27 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1079,23 +1079,24 @@ proc ::tkchat::Hook {do type cmd} {
     }
 }
 
-if {[string length [auto_execok festival]]} {
-    ::tkchat::Hook add message say
-
-    proc say { message args } {
-	# I've added a few lines to make this speak new messages via the
-	# festival synthesiser. It doesn't do it robustly as yet (you'll need
-	# festival installed) but as a quick (1min) hack it's got heaps of
-	# cool points...  -- Steve Cassidy
-	global festival
-	if {![info exists festival]} {
-	    set festival [open "|festival --pipe" w]
-	}
-
-	puts [string map [list "\"" ""] $message]
-	puts $festival "(SayText \"$message\")"
-	flush $festival
+proc say { message args } {
+    # I've added a few lines to make this speak new messages via the
+    # festival synthesiser. It doesn't do it robustly as yet (you'll need
+    # festival installed) but as a quick (1min) hack it's got heaps of
+    # cool points...  -- Steve Cassidy
+    global festival
+    if {![info exists festival]} {
+	set festival [open "|festival --pipe" w]
     }
+
+    puts [string map [list "\"" ""] $message]
+    puts $festival "(SayText \"$message\")"
+    flush $festival
+}
+
+if {0 && [string length [auto_execok festival]]} {
+    ## Don't add this by default ...
+    ::tkchat::Hook add message say
 }
 
 proc findExecutable {progname varname} {
