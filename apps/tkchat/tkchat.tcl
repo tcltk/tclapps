@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.228 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.229 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.228 2004/11/18 13:04:45 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.229 2004/11/22 07:17:41 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -289,13 +289,7 @@ proc ::tkchat::GetHistLogIdx {szary} {
     array set ary {}
     set loglist {}
     # get list of available logs
-    if { $Options(UseJabber) } {
-	# Jabber logs
-	set url "$Options(JabberLogs)/?pattern=*.tcl"
-    } else {
-	# Webchat logs
-	set url "$Options(URLlogs)/?M=D"
-    }
+    set url "$Options(JabberLogs)/?pattern=*.tcl"
     set tok [::http::geturl $url \
 		 -headers [buildProxyHeaders]]
     errLog "History Fetch: status was\
@@ -312,21 +306,13 @@ proc ::tkchat::GetHistLogIdx {szary} {
 		    regsub {/\?M=D} $Options(URLlogs) {} Options(URLlogs)
 		    set loglist [::tkchat::GetHistLogIdx ary]
 		} else {
-		    if { $Options(UseJabber) } {
-			set RE {<A HREF="([0-9\-%d]+\.tcl)">.*\s([0-9]+) bytes}
-		    } else {
-			set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
-		    }
+		    set RE {<A HREF="([0-9\-%d]+\.tcl)">.*\s([0-9]+) bytes}
 		    foreach line [split [::http::data $tok] \n] {
 			# puts "$RE $line"
 			if { [regexp  -- $RE $line -> logname size] } {
-			    if { $Options(UseJabber) } {
-				set logname [string map {"%2d" -} $logname]
-				set size [expr { $size / 1024 }]k
-				lappend loglist $logname
-			    } else {
-				set loglist [linsert $loglist 0 $logname]
-			    }
+			    set logname [string map {"%2d" -} $logname]
+			    set size [expr { $size / 1024 }]k
+			    lappend loglist $logname
 			    set ary($logname) $size
 			}
 		    }
@@ -346,13 +332,7 @@ proc ::tkchat::GetHistLogIdx {szary} {
 proc ::tkchat::ParseHistLog {log {reverse 0}} {
     global Options
 
-    if { $Options(UseJabber) } {
-	# Jabber logs
-	set url "$Options(JabberLogs)/$log"
-    } else {
-        set url "$Options(URLlogs)/$log"
-    }
-
+    set url "$Options(JabberLogs)/$log"
     set retList {}    
     set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[([^\]]+)\]\s+([^:]+):?\s*(.*)$}
     set ircRE {ircbridge: \*\*\* (.+) (.+)$}
@@ -367,61 +347,19 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
     errLog "History: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
         ok {
-	    if { $Options(UseJabber) } {
-		# Jabber logs
-		set I [interp create -safe]
-		interp alias $I m {} ::tkjabber::ParseLogMsg
-		if { $reverse } {
-		    set histTmp $::tkjabber::HistoryLines
-		    set ::tkjabber::HistoryLines {}
-		}
-		$I eval [::http::data $tok]
-		if { $reverse } {		    
-		    set ::tkjabber::HistoryLines [concat $::tkjabber::HistoryLines $histTmp]
-		}
-		#set retList [tkjabber::LogMsgLines]
-	    } else {
-		set logdata [split  [::http::data $tok] \n]
-		set lastnick ""
-		set lastdata ""
-		foreach line $logdata {
-		    #log::log debug "History Parse: $line"
-		    if { [regexp -- $TimeRE $line -> weekday month day time year] } {
-			# the regexp makes sure the format is correct and
-			# lets us insert the server timezone (CEST)
-			set logTime [clock scan "$weekday $month $day $time CEST $year"]
-		    } else {		    
-			set logTime 0
-		    }
-		    
-		    if {[regexp -- $MsgRE $line -> type nick data]} {
-			if {[string length $lastnick]>0} {
-			    lappend retList $logTime $lastnick $lastdata
-			}
-			# only show messages - don't care about enter/exit/new user
-			# crap
-			if {[string equal $type MSG]} {
-			    #but we _do_ care about ircbridge joins/leaves:
-			    if {[regexp -nocase -- $ircRE $line -> inick iaction]} {
-				updateIrcUsers $inick $iaction
-				set lastnick ""
-				set lastdata ""
-			    } else {
-				set lastnick $nick
-				set lastdata $data
-			    }
-			} else {
-			    set lastnick ""
-			    set lastdata ""
-			}
-		    } else {
-			append lastdata "\n$line"
-		    }
-		}
-		if {[string length $lastnick]>0} {
-		    lappend retList $logTime $lastnick $lastdata
-		}
+	    # Jabber logs
+	    set I [interp create -safe]
+	    interp alias $I m {} ::tkjabber::ParseLogMsg
+	    if { $reverse } {
+		set histTmp $::tkjabber::HistoryLines
+		set ::tkjabber::HistoryLines {}
 	    }
+	    $I eval [::http::data $tok]
+	    if { $reverse } {		    
+		set ::tkjabber::HistoryLines [concat $::tkjabber::HistoryLines $histTmp]
+	    }
+	    #set retList [tkjabber::LogMsgLines]
+	    
         }
         reset {
             errLog "History fetch was reset."
@@ -503,14 +441,8 @@ proc ::tkchat::LoadHistory {} {
 	    } else {
 		set FinalList [concat $new $FinalList]
 	    }
-	    if { $Options(UseJabber) } {
-		if { [::tkjabber::HistoryLines] >= $Options(HistoryLines) } {
-		    break
-		}
-	    } else {
-		if {[expr {[llength $FinalList]/2}] >= $Options(HistoryLines)} {
-		    break
-		}
+	    if { [::tkjabber::HistoryLines] >= $Options(HistoryLines) } {
+		break
 	    }
 	}
     }
@@ -529,11 +461,7 @@ proc ::tkchat::LoadHistory {} {
     .txt config -state disabled
     .txt see end
     
-    if { $Options(UseJabber) } {
-	::tkjabber::LoadHistoryLines
-    } else {
-	LoadHistoryLines
-    }    
+    ::tkjabber::LoadHistoryLines
 }
 
 
@@ -578,78 +506,10 @@ proc ::tkchat::LoadHistoryLines {} {
 
 
 proc ::tkchat::msgSend {str {user ""}} {
-  
     
-    global Options
-    if { $::Options(UseJabber) } {
-	::tkjabber::msgSend $str -user $user	
-    } else {
-	errLog "Send to $Options(URL)"
-	if {![package vsatisfies [package provide http] 2.4.6]} {
-	    # The w3c says that strings should be utf-8 encoded when passed in
-	    # x-url-encoding: http://www.w3.org/International/O-URL-code.html
-	    # The http package only does this in 2.4.6+.
-	    # We only worry about the user input string.
-	    set str [encoding convertto utf-8 $str]
-	}
-	set qry [::http::formatQuery \
-		       action	postmsg \
-		       name	$Options(Username) \
-		       password	$Options(Password) \
-		       color	$Options(MyColor) \
-		       updatefrequency 600 \
-		       new_msg_on_top 0 \
-		       ls		"" \
-		       msg_to	$user \
-		       msg		$str \
-		      ]
-	if {[catch {
-	    ::http::geturl $Options(URL) \
-		  -query [string map {%5f _} $qry] \
-		  -headers [buildProxyHeaders] \
-		  -command ::tkchat::msgDone
-	} msg]} {
-	    set delay [expr {$Options(Refresh) * 1000 / 2}]
-	    errLog "Retrying msgSend after $delay: \"$msg\""
-	    after $delay [list ::tkchat::msgSend $str $user]
-	}
-    }
+    ::tkjabber::msgSend $str -user $user	
 }
 
-proc ::tkchat::msgDone {tok} {
-    global Options
-    errLog "Post: status was [::http::status $tok] [::http::code $tok]"
-    switch -- [::http::status $tok] {
-	ok {
-            if {[::http::ncode $tok] == 500} {
-                if {[info exists Options(msgSend_Retry)]} {
-                    set msg "Posting error: retry failed: [::http::code $tok]"
-                    tk_messageBox -message $msg
-                    log::log error $msg
-                    unset Options(msgSend_Retry)
-                } else {
-                    log::log error "Post error: [::http::code $tok] - need to retry"
-                    set Options(msgSend_Retry) 1
-                    # FRINK: nocheck
-                    after idle [list ::http::geturl $Options(URL) \
-                                      -query [set ${tok}(-query)] \
-                                      -headers [buildProxyHeaders] \
-                                      -command ::tkchat::msgDone]
-                }
-            } else {
-                checkForRedirection $tok URL
-                if {[catch {fetchPage} err]} { errLog $err }
-            }
-        }
-	reset { errLog "User reset post operation" }
-	timeout { errLog "Message Post timed out" }
-	error {
-	    tk_messageBox -message \
-                  "Message Post Errored: [::http::error $tok]"
-	}
-    }
-    ::http::cleanup $tok
-}
 
 proc ::tkchat::logonChat {{retry 0}} {
     global Options
@@ -659,364 +519,17 @@ proc ::tkchat::logonChat {{retry 0}} {
         return
     }
     
-    if { $::Options(UseJabber) } {
-	# These package requires should be moved to the top of the script
-	# when jabber support matures.
-	lappend ::auto_path [file join [file dirname [info script]] lib]
-	package require sha1	        ; # tcllib
-	package require jlib            ; # jlib
-	package require browse          ; # jlib
-	package require muc             ; # jlib	
-	#package require jlibhttp        ; # jlib
-	
-	# Logon to the jabber server.
-	tkjabber::connect	
-    } else {
-	# Logon to the CGI based chat.
+    # These package requires should be moved to the top of the script
+    # when jabber support matures.
+    lappend ::auto_path [file join [file dirname [info script]] lib]
+    package require sha1	        ; # tcllib
+    package require jlib            ; # jlib
+    package require browse          ; # jlib
+    package require muc             ; # jlib	
+    #package require jlibhttp        ; # jlib
     
-	errLog "Logon to $Options(URL2)"
-	set qry [::http::formatQuery \
-		       action       login \
-		       name         $Options(Username) \
-		       password     $Options(Password) \
-		      ]
-	::http::geturl $Options(URL2) \
-	      -query $qry \
-	      -headers [buildProxyHeaders] \
-	      -command [namespace origin logonDone]
-    }
-    
-}
-
-proc ::tkchat::logonDone {tok} {
-    errLog "Logon: status was [::http::status $tok] [::http::code $tok]"
-    switch -- [::http::status $tok] {
-	ok {
-	    if {[checkForRedirection $tok URL2]} {
-		::http::cleanup $tok
-		logonChat 0
-		return
-	    }
-
-	    if {[::http::ncode $tok] >= 500} {
-		tk_messageBox -message "Logon failure: [::http::code $tok]"
-		pause 1 0
-            } elseif {[::http::ncode $tok] >= 400} {
-                AuthenticationError $tok
-	    } else {
-		if {[catch {pause off} err]} { errLog $err }
-		::tkchat::DoAnim
-		::tkchat::msgSend "/msg ircbridge onlineusers"
-                
-                if {[catch {LoadHistory} err]} { errLog $err }
-	    }
-	}
-	reset	{ errLog "User reset logon operation" }
-	timeout	{ tk_messageBox -message "Logon timed out" ; pause 1 0}
-	error	{ tk_messageBox -message "Logon Error: [::http::error $tok]" }
-    }
-    ::http::cleanup $tok
-}
-proc ::tkchat::logoffChat {} {
-    global Options
-    set qry [::http::formatQuery action gotourl url chat.cgi]
-    ::http::geturl $Options(URL2) \
-	-query $qry \
-	-headers [buildProxyHeaders] \
-	-command [namespace origin logoffDone]
-    logonScreen
-}
-
-proc ::tkchat::logoffDone {tok} {
-    errLog "Logoff: status was [::http::status $tok][::http::code $tok]"
-    # don't really care if this works or not
-    ::http::cleanup $tok
-}
-
-proc ::tkchat::pause {pause {notify 1}} {
-    global Options
-    set ::tkchat::pause [string is true -strict $pause]
-    if {$pause} {
-	after cancel $Options(FetchTimerID)
-	after cancel $Options(OnlineTimerID)
-	catch {::http::reset $Options(FetchToken)}
-	catch {::http::reset $Options(OnlineToken)}
-	if {$notify} {
-	    if {![winfo exists .pause]} {
-		toplevel .pause -class dialog
-		wm withdraw .pause
-		wm transient .pause .
-		pack [label .pause.m -text \
-                            "The session is paused,\nno updates will occur."]
-		button .pause.r -text "Resume" \
-                      -command { ::tkchat::pause off ; wm withdraw .pause }
-		pack .pause.r -padx 5 -pady 10
-		bind .pause <Destroy> [list ::tkchat::pause off]
-	    }
-	    catch {::tk::PlaceWindow .pause widget .}
-	    wm deiconify .pause
-            focus .pause.r
-	    raise .pause
-	}
-    } else {
-        # Always do a fetchPage here - not checkPage.
-	::tkchat::fetchPage
-	::tkchat::onlinePage
-    }
-}
-
-proc ::tkchat::checkPage {} {
-    global Options
-
-    if { [catch {
-
-	set tok [http::geturl $Options(URLchk) \
-		     -headers [buildProxyHeaders] \
-		     -command [list ::tkchat::checkDone [clock seconds]]]
-	errLog "checkPage token $tok"
-	set Options(retryFailedCheckPage) 5
-
-    } ] } {
-
-	if { ![info exists Options(retryFailedCheckPage)] } {
-	    set Options(retryFailedCheckPage) 5
-	}
-	addSystem "checkPage failed: [lindex [split $::errorInfo "\n"] 0]"
-	errLog "error ::tkchat::checkPage: $::errorInfo"
-        if {!$::tkchat::pause} {
-            after [expr {$Options(retryFailedCheckPage)*1000}] ::tkchat::checkPage
-	    addSystem "Trying again in $Options(retryFailedCheckPage) seconds."        
-	    set Options(retryFailedCheckPage) [expr {$Options(retryFailedCheckPage)*2}]
-	    if { $Options(retryFailedCheckPage) > 15*60 } {
-		# Max out at 15 minutes intervals:
-		set Options(retryFailedCheckPage) [expr {15*60}]
-	    }
-	}
-
-    }
-
-}
-
-proc ::tkchat::checkDone {start tok} {
-    set elapsed [expr {[clock seconds] - $start}]
-    errLog "checkDone in $elapsed secs status [::http::status $tok]\
-            [string length [http::data $tok]] bytes."
-    switch -- [::http::status $tok] {
-	ok - OK - Ok {
-            if {[checkForRedirection $tok URL]} {
-                ::http::cleanup $tok
-                checkPage
-                return
-            }
-
-            if {[::http::ncode $tok] >= 500} {
-                errLog "Error calling check script. [http::error $tok]"
-            }
-	}
-	reset - Reset - RESET {
-	    errLog "Reset called while updating the chat page."
-	}
-	timeout - Timeout - TIMEOUT {
-	    errLog "Timeout occurred while updating the chat page."
-	}
-	error - Error - ERROR {
-	    errLog "Error occurred while checking for udpdates: \
-                [::http::error $tok]"
-	}
-    }
-    ::http::cleanup $tok
-    fetchPage
-    onlinePage
-}
-
-proc ::tkchat::fetchPage {} {
-    global Options
-
-    if {[info exists Options(FetchToken)]} {
-	# already fetching page, don't start again
-	return
-    }
-
-    errLog "fetchPage from $Options(URL)"
-
-    after cancel $Options(FetchTimerID)
-    set Options(FetchTimerID) -1
-    set qry [::http::formatQuery \
-                   action	chat \
-                   name	$Options(Username) \
-                   password	$Options(Password) \
-                   color	$Options(MyColor) \
-                   updatefrequency 600 \
-                   new_msg_on_top 0 \
-                   ls		"" \
-                  ]
-    if {[catch {
-        set Options(FetchToken) [::http::geturl $Options(URL) \
-                                       -query $qry \
-                                       -headers [buildProxyHeaders] \
-                                       -command ::tkchat::fetchDone]
-    } msg]} {
-        # If the http connection failed and we caught it then we probably
-        # are not connected to the network. Keep trying - maybe we are moving
-        # our laptop or something :)
-        errLog "Fetch error: $msg"
-        if {!$::tkchat::pause} {
-            #set Options(FetchTimerID) \
-            #  [after [expr {$Options(Refresh) * 1000}] ::tkchat::fetchPage]
-            after 1000 ::tkchat::checkPage
-        }
-    }
-}
-
-proc ::tkchat::fetchDone {tok} {
-    global Options
-    # If we timed out while still tying to connect this variable may not
-    # be set.
-    if {[info exists Options(FetchToken)]} {
-        if {[string equal $tok $Options(FetchToken)]} {
-            unset Options(FetchToken)
-        } else {
-            errLog "Fetch Command finished with token $tok" \
-                  "expected $Options(FetchToken)"
-            unset Options(FetchToken)
-        }
-    }
-    if {!$::tkchat::pause} {
-	#set Options(FetchTimerID) \
-        #      [after [expr {$Options(Refresh) * 1000}] ::tkchat::fetchPage]
-        after 1000 ::tkchat::checkPage
-    }
-    errLog "Fetch: status was [::http::status $tok] [::http::code $tok]"
-    switch -- [::http::status $tok] {
-	ok - OK - Ok {
-            if {[checkForRedirection $tok URL]} {
-                ::http::cleanup $tok
-                ::tkchat::fetchPage
-                return
-            }
-            if {[::http::ncode $tok] >= 500} {
-                # server failed: don't try to parse anything
-                # we could toggle some connected icon here.
-            } else {
-                if {[catch {parseData [::http::data $tok]} err]} {
-                    errLog $err
-                }
-            }
-	}
-	reset - Reset - RESET {
-	    errLog "Reset called while updating the chat page."
-	}
-	timeout - Timeout - TIMEOUT {
-	    errLog "Timeout occurred while updating the chat page."
-	}
-	error - Error - ERROR {
-	    tk_messageBox -message "fetchPage error: [::http::error $tok]"
-	}
-    }
-    ::http::cleanup $tok
-}
-
-proc ::tkchat::onlinePage {} {
-    global Options
-    if {[info exists Options(OnlineToken)]} {
-	# already fetching page, don't start again
-	return
-    }
-
-    after cancel $Options(OnlineTimerID)
-    set Option(OnlineTimerID) -1
-    set qry [::http::formatQuery \
-                   action	stillalive \
-                   name	$Options(Username) \
-                   password	$Options(Password) \
-                   color	$Options(MyColor) \
-                   updatefrequency 600 \
-                   new_msg_on_top 0 \
-                   ls		"" \
-                  ]
-    if {[catch {
-        set Options(OnlineToken) [::http::geturl $Options(URL) \
-                                        -query $qry \
-                                        -headers [buildProxyHeaders] \
-                                        -command ::tkchat::onlineDone]
-    } msg]} {
-        errLog "Fetch error: $msg"
-    }
-}
-
-proc ::tkchat::onlineDone {tok} {
-    global Options
-    if {[info exists Options(OnlineToken)]} {
-        if {[string equal $tok $Options(OnlineToken)]} {
-            unset Options(OnlineToken)
-        } else {
-            errLog "Online Command finished with token $tok" \
-                  "expected $Options(OnlineToken)"
-            unset Options(OnlineToken)
-        }
-    }
-    errLog "Online: status was [::http::status $tok] [::http::code $tok]"
-    switch -- [::http::status $tok] {
-	ok {
-            if {[checkForRedirection $tok URL]} {
-                ::http::cleanup $tok
-                ::tkchat::onlinePage
-                return
-            }
-	    if {[catch {updateNames [::http::data $tok]} err]} { errLog $err }
-	}
-	reset {
-	    errLog "Reset called while retrieving the online page."
-	}
-	timeout {
-	    errLog "Retrieval of the online users information timed out."
-	}
-	error {
-	    tk_messageBox -message "onlinePage error: [::http::error $tok]"
-	}
-    }
-    ::http::cleanup $tok
-}
-
-# Display the error message returned when an HTTP request results
-# in an authentication error.
-# Do NOT clean up this token - that's the callers job.
-#
-proc ::tkchat::AuthenticationError {token {prefix ""}} {
-    log::log error "$prefix error: [http::code $token]"
-    variable msgtext ""
-    htmlparse::parse \
-        -cmd [list ::tkchat::ErrorMessageParse ::tkchat::msgtext] \
-        [http::data $token]
-    set msgtext [regsub -all -line "\n{1,}" $msgtext "\n"]
-    tk_messageBox \
-        -title [http::code $token] \
-        -icon warning \
-        -message $msgtext
-    unset msgtext
-}
-
-proc ::tkchat::ErrorMessageParse {varname tag end attr text} {
-    upvar #0 $varname v
-    set tag [string tolower $tag]
-    set end [string length $end]
-    if {[string equal $tag "hmstart"] && $end == 0} {
-        set v ""
-    } elseif {[string match "h*" $tag] && $end == 0} {
-        append v "\n$text"
-    } elseif {[string equal "p" $tag] && $end == 0} {
-        append v "\n$text"
-    } elseif {[string equal "pre" $tag] && $end == 0} {
-        append v "\n$text"
-    } elseif {[string equal "a" $tag]} {
-        append v "$text"
-    }
-}
-
-proc ::tkchat::HttpServerError {token {prefix ""}} {
-    set msg "$prefix error: [::http::code $tok]"
-    log::log error $msg
-    tk_messageBox -message $msg
+    # Logon to the jabber server.
+    tkjabber::connect
 }
 
 # -------------------------------------------------------------------------
@@ -1195,67 +708,6 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
     set Options(MsgTo) $user
 }
 
-proc ::tkchat::updateNames {rawHTML} {
-    global Options
-    variable ircOnlineUsers
-
-    set scrollcmd [.names cget -yscrollcommand]
-    .names configure -yscrollcommand {}
-
-    # Delete all URL-* tags to prevent a huge memory leak
-    foreach tagname [.names tag names] {
-        if {[string match URL-* $tagname]} {
-	    .names tag delete $tagname
-	}
-    }
-
-    set i 0
-    .names config -state normal
-    .names delete 1.0 end
-    set exp {<A HREF="(.+?)".*?>(.+?)</A>}
-    .mb.mnu delete 0 end
-    .mb.mnu add command -label "All Users" \
-	-command [list ::tkchat::MsgTo "All Users"]
-    set Options(OnLineUsers) {}
-    foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
-	lappend tmp [list $full $url $name]
-    }
-    foreach person [lsort -dictionary -index 2 $tmp] {
-	foreach {full url name} $person break
-	lappend Options(OnLineUsers) $name
-	# NOTE : the URL's don't work because of the & in them
-	# doesn't work well when we exec the call to browsers
-	# and if we follow spec and escape them with %26 then
-	# the cgi script on the other end pukes so we will
-	# just do an inline /userinfo when they are clicked
-	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
-	.names tag bind URL-$::URLID <1> \
-	    "set ::tkchat::UserClicked 1;\
-               [list ::tkchat::msgSend "/userinfo $name"]"
-	incr i
-	.mb.mnu add command -label $name \
-	    -command [list ::tkchat::MsgTo $name]
-    }
-
-    # If we ever fix ircbridge to be able to pass whispers to IRC users
-    # from the web chat then we can uncomment this and the .mb.mnu add
-    # below. [PT]
-    #
-    #.mb.mnu add separator
-
-    foreach name [lsort -dictionary $ircOnlineUsers] {
-        lappend Options(OnLineUsers) $name
-	.names insert end "$name" [list NICK] "\n"
-	incr i
-	#.mb.mnu add command -label $name \
-        #      -command [list set Options(MsgTo) $name]
-    }
-
-    .names insert 1.0 "$i Users Online\n\n" TITLE
-    .names configure -yscrollcommand $scrollcmd
-    .names config -state disabled
-}
-
 proc ::tkchat::invClr {clr {grays 0}} {
     # generally this is used to get a color that shows
     # up on a dark BG if it was originally a white BG
@@ -1296,57 +748,6 @@ proc ::tkchat::fadeColor {color} {
     return $color
 }
 
-proc ::tkchat::parseData {rawHTML} {
-    global Options
-    # get body of data
-    set clr ""
-    if {[regexp -nocase -- \
-               {<BODY.*?(?:BGColor=.([[:xdigit:]]{6}?))?>(.*?)<A\s+NAME="end">.*?</BODY>} \
-               $rawHTML -> clr body]} {
-	if {[string length $clr] && \
-                  [string compare $Options(Color,MainBG,Web) $clr]} {
-	    set iclr [::tkchat::invClr $clr]
-	    set Options(Color,MainBG,Web) $clr
-	    set Options(Color,MainFG,Web) $iclr
-	    .txt config -background "#[getColor MainBG]" \
-                  -foreground "#[getColor MainFG]"
-	}
-	# split into "lines"
-	set dataList {}
-	foreach item [::textutil::splitx [string trim $body] \
-                            {[\s\n]*<BR>\n*}] {
-	    set item [string trimright $item]
-	    if {[string length $item]} {
-		lappend dataList $item
-	    }
-	}
-	set newList [getRecentLines $dataList]
-	addNewLines $newList
-    } else {
-	errLog "No BODY found in HTML page"
-    }
-}
-
-proc ::tkchat::getRecentLines {input} {
-    global Options
-    set Found 0
-    set mark 0
-    set end [lindex $Options(History) end]
-    set len [llength $Options(History)]
-    while {[set idx [lsearch -exact [lrange $input $mark end] $end]] >= 0} {
-	set num [expr {$mark + $idx}]
-	set back [expr {$len - $num - 1}]
-	set l1 [join [lrange $input 0 $num] +]
-	set l2 [join [lrange $Options(History) $back end] +]
-	set mark [incr num]
-	if {[string equal $l1 $l2]} {
-	    set Found $mark
-	}
-	update idletasks
-    }
-    return [lrange $input $Found end]
-}
-
 namespace eval ::tkchat {
     variable UserClicked 0
     variable RE
@@ -1366,181 +767,31 @@ namespace eval ::tkchat {
     }
 }
 
-proc ::tkchat::addNewLines {input} {
-    global Options
-    variable RE
-    variable UserClicked
-
-    # Add the input to the history.  It's OK to do this before processing.
-    eval [list lappend Options(History)] $input
-
-    # Restrict the History size as specified
-    if {[llength $Options(History)] > 500} {
-        # Unless someone does a HUGE amount
-        # of /help & /userinfo stuff this should
-        # be plenty long to match against an entire
-        # page worth of data
-        set Options(History) [lrange $Options(History) end-499 end]
-    }
-
-    set inHelp 0
-    set inMsg 0
-    set inAction 0
-    set UserInfoCmd [list]
-
-    foreach line $input {
-	# see if color is defined & strip it off
-	if {[regexp -nocase -- $RE(Color) $line -> clr text]} {
-	    set line $text
-	    set color $clr
-	} else {
-	    set color ""
-	}
-	# check what kind of line it is
-	if {$inHelp} {
-	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
-		lappend helpLines $text
-		set inHelp 0
-		if {$helpName == "USERINFO"} {
-                    if {$UserClicked} {
-                        set UserInfoCmd \
-                            [list addHelp $helpColor $helpName \
-                                 [join $helpLines \n]]
-                    }
-		} else {
-                    addHelp $helpColor $helpName [join $helpLines \n]
-		}
-	    } else {
-		lappend helpLines [string trimright $line]
-	    }
-	} elseif {$inMsg} {
-	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
-		lappend msgLines [string trimright $text]
-		set inMsg 0
-		addMessage $nickColor $nick [join $msgLines \n]
-	    } else {
-		lappend msgLines [string trimright $line]
-	    }
-	} elseif {$inAction} {
-	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
-		lappend msgLines [string trimright $text]
-		set inAction 0
-		addAction $nickColor $nick [join $msgLines \n]
-	    } else {
-		lappend msgLines [string trimright $line]
-	    }
-	} else {
-            # optionally log the chat.
-            log::log debug $line
-            if {[info exists Options(ChatLogChannel)]} {
-                puts $Options(ChatLogChannel) $line
-            }
-
-	    if {[regexp -nocase -- $RE(HelpStart) $line -> clr name str]} {
-		set inHelp 1
-		set helpColor $clr
-		set helpName $name
-		set helpLines [list $str]
-	    } elseif {[regexp -nocase -- $RE(MultiStart) $line \
-                             -> clr name str]} {
-		set inMsg 1
-		set nickColor $clr
-		set nick $name
-		set msgLines [list [string trimright $str]]
-	    } elseif {[regexp -nocase -- $RE(ActionStart) $line \
-                             -> clr name str]} {
-		set inAction 1
-		set nickColor $clr
-		set nick $name
-		set msgLines [list [string trimright $str]]
-	    } elseif {[regexp -nocase -- $RE(IrcUsers) $line -> nick str]} {
-		log::log debug "IrcUsers RE"
-		switch $str {
-		    joins  { addTraffic <$nick> entered }
-		    leaves { addTraffic <$nick> left    }
-		}
-		::tkchat::updateIrcUsers $nick $str
-	    } elseif {[regexp -nocase -- $RE(IrcUserRename) $line -> \
-			   nick newnick]} {
-		log::log debug "IrcUserRename RE"
-		::tkchat::updateIrcUsers $nick leaves
-		::tkchat::updateIrcUsers $newnick joins
-
-		addSystem "In a fit of schizophrenia, <$nick> would really like to be <$newnick>" 
-
-	    } elseif {[regexp -nocase -- $RE(Message) $line -> nick str]} {
-		log::log debug "Message RE"
-		addMessage $color $nick [string trim $str]
-	    } elseif {[regexp -nocase -- $RE(Help) $line -> name str]} {
-		addHelp $color $name [string trim $str]
-	    } elseif {[regexp -nocase -- $RE(Action) $line -> nick str]} {
-		addAction $color $nick $str
-	    } elseif {[regexp -nocase -- $RE(System) $line -> str]} {
-                if {[regexp -nocase -- $RE(Traffic) $line -> who action]} {
-                    addTraffic $who $action
-                } else {
-                    addSystem $str
-                }
-	    } else {
-		errLog "Didn't recognize - '$line' - assume help"
-		addHelp $color "" [string trim $line]
-	    }
-	}
-    }
-
-    eval $UserInfoCmd
-    set UserClicked 0
-
-    if { [.txt index end] > $Options(MaxLines) } {
-	.txt config -state normal
-	.txt delete 1.0 "end - $Options(MaxLines) lines"
-	.txt config -state disabled
-    }
-}
-
 proc ::tkchat::stripStr {str} {
-    if { $::Options(UseJabber) } {
-	return $str
-    } else {
-	# remove any remaining tags
-        regsub -all -nocase "<.*?>" $str {} tmp
-        # replace html escapes with real chars
-        return [::htmlparse::mapEscapes $tmp]
-    }
-    
+    return $str
 }
 
 proc ::tkchat::parseStr {str} {
     global Options
     # get href info return list of str link pairs
     set sList {}
-    if { $Options(UseJabber) } {
-	set HTTPRE {https?://(((([A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]|[A-Za-z0-9])\.)*([a-zA-Z][A-Za-z0-9-]*[A-Za-z0-9]|[a-zA-Z]))|([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+))(:[0-9]+)?(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(\?([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?}
-	while {[regexp -nocase -- $HTTPRE $str url]} {
-	    set pre ""
-	    set post ""
-	    set pos [string first $url $str]
-	    if { $pos > 0 } {
-		set pre [string range $str 0 [expr {$pos-1}]]			 
-	    }
-	    set post [string range $str [expr {$pos+[string length $url]}] end]
-	    
-	    if {[string length $pre]} {
-		lappend sList [stripStr $pre] ""
-	    }
-	    lappend sList [stripStr $url] $url
-	    set str $post
-	}    	
-    } else {
-	while {[regexp -nocase -- {^(.*?)<A.*?HREF="(.+?)".*?>(.*?)</A>(.*?)$} \
-		      $str -> pre url link post]} {
-	    if {[string length $pre]} {
-		lappend sList [stripStr $pre] ""
-	    }
-	    lappend sList [stripStr $link] $url
-	    set str $post
-	}    
-    }
+    set HTTPRE {https?://(((([A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]|[A-Za-z0-9])\.)*([a-zA-Z][A-Za-z0-9-]*[A-Za-z0-9]|[a-zA-Z]))|([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+))(:[0-9]+)?(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*(/([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(\?([a-zA-Z0-9$_.+!*'(,);:@&=~-]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?}
+    while {[regexp -nocase -- $HTTPRE $str url]} {
+	set pre ""
+	set post ""
+	set pos [string first $url $str]
+	if { $pos > 0 } {
+	    set pre [string range $str 0 [expr {$pos-1}]]			 
+	}
+	set post [string range $str [expr {$pos+[string length $url]}] end]
+	
+	if {[string length $pre]} {
+	    lappend sList [stripStr $pre] ""
+	}
+	lappend sList [stripStr $url] $url
+	set str $post
+    }    	
+    
     if {[string length $str]} {
 	lappend sList [stripStr $str] ""
     }
@@ -2388,7 +1639,7 @@ proc ::tkchat::CreateGUI {} {
     ## File Menu
     ##
     set m .mbar.file
-    $m add checkbutton -label "Pause" \
+    #$m add checkbutton -label "Pause" \
 	-variable ::tkchat::pause \
 	-underline 0 \
 	-command { ::tkchat::pause $::tkchat::pause }
@@ -2460,17 +1711,15 @@ proc ::tkchat::CreateGUI {} {
     $m.chatLog add command -label "To File..." \
 	-command {tkchat::OpenChatLog open} -underline 0
     
-    if { $Options(UseJabber) } {
-	$m add cascade -label "Server Chat Logging" \
-	    -menu [menu $m.chatServLog -tearoff 0] \
-	    -underline 0
-	$m.chatServLog add radiobutton -label "Log my messages, do not log my actions (old style)" -val oldStyle \
-	    -var Options(ServerLogging) -underline 1
-	$m.chatServLog add radiobutton -label "Log my messages and actions" -val all \
-	    -var Options(ServerLogging) -underline 0
-	$m.chatServLog add radiobutton -label "Do not log my messages and actions" -val none \
-	    -var Options(ServerLogging) -underline 3	
-    }
+    $m add cascade -label "Server Chat Logging" \
+	-menu [menu $m.chatServLog -tearoff 0] \
+	-underline 0
+    $m.chatServLog add radiobutton -label "Log my messages, do not log my actions (old style)" -val oldStyle \
+	-var Options(ServerLogging) -underline 1
+    $m.chatServLog add radiobutton -label "Log my messages and actions" -val all \
+	-var Options(ServerLogging) -underline 0
+    $m.chatServLog add radiobutton -label "Do not log my messages and actions" -val none \
+	-var Options(ServerLogging) -underline 3	
     
     $m add cascade -label "Loading Server History" \
 	-menu [menu $m.hist -tearoff 0] \
@@ -3381,53 +2630,37 @@ proc ::tkchat::userPost {} {
 		    }
 		}	
 		{^/nick\s?} {
-		    if { $Options(UseJabber) } {
-			tkjabber::setNick [string range $msg 6 end]
-		    }
+		    tkjabber::setNick [string range $msg 6 end]
 		}
 		{^/topic\s?} {
-		    if { $Options(UseJabber) } {
-			tkjabber::setTopic [string range $msg 7 end]
-		    }
+		    tkjabber::setTopic [string range $msg 7 end]
 		}
 		{^/me\s?} {
-		    if { $Options(UseJabber) } {
-			switch $Options(ServerLogging) {
-			    oldStyle -
-			    none {
-				tkjabber::msgSend "/nolog$msg" -attrs [list nolog 1]
-			    }
-			    default {
-				tkjabber::msgSend $msg
-			    }			    
+		    switch $Options(ServerLogging) {
+			oldStyle -
+			none {
+			    tkjabber::msgSend "/nolog$msg" -attrs [list nolog 1]
 			}
-		    } else {
-			msgSend $msg
+			default {
+			    tkjabber::msgSend $msg
+			}			    
 		    }
 		}
 		{^/msg\s} {
-		    if { $Options(UseJabber) } {
-			if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
-			    tkjabber::msgSend $privMsg -user $toNick
-			}
-		    } else {
-			msgSend $msg
+		    if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
+			tkjabber::msgSend $privMsg -user $toNick
 		    }
 		}
 		default	 {
 		    if {![checkAlias $msg]} then {
 			# might be server command - pass it on			
-			if { $Options(UseJabber) } {
-			    switch $Options(ServerLogging) {
-				none {
-				    tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
-				}				
-				default {
-				    tkjabber::msgSend $msg
-				}			    
-			    }
-			} else {
-			    msgSend $msg
+			switch $Options(ServerLogging) {
+			    none {
+				tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
+			    }				
+			    default {
+				tkjabber::msgSend $msg
+			    }			    
 			}
 		    }
 		}
@@ -3451,17 +2684,13 @@ proc ::tkchat::userPost {} {
 		set msg [string map $map $Options(Macro,$macro)]
 	    }
 	    if {[string equal $Options(MsgTo) "All Users"]} {
-		if { $Options(UseJabber) } {
-		    switch $Options(ServerLogging) {
-			none {
-			    tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
-			}				
-			default {
-			    tkjabber::msgSend $msg 
-			}			    
-		    }
-		} else {
-		    msgSend $msg
+		switch $Options(ServerLogging) {
+		    none {
+			tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
+		    }				
+		    default {
+			tkjabber::msgSend $msg 
+		    }			    
 		}
 	    } else {
 		msgSend $msg $Options(MsgTo)
@@ -3532,7 +2761,6 @@ proc ::tkchat::showExtra {} {
 proc ::tkchat::logonScreen {} {
     global Options LOGON
     set have_tls [expr {[package provide tls] != {}}]
-    pause on 0
     tkjabber::disconnect    
     if {![winfo exists .logon]} {
 	toplevel .logon -class dialog
@@ -3557,8 +2785,6 @@ proc ::tkchat::logonScreen {} {
 	entry .logon.epw -textvar Options(Password) -show *
 	checkbutton .logon.rpw -text "Remember Chat Password" \
               -var Options(SavePW) -underline 0
-	checkbutton .logon.rjabber -text "Use Jabber Server (experimental)" \
-              -var Options(UseJabber) 
         frame .logon.fjsrv
 	label .logon.ljsrv -text "Jabber server:port" 
 	entry .logon.ejsrv -textvar Options(JabberServer)
@@ -3594,7 +2820,6 @@ proc ::tkchat::logonScreen {} {
 
 	trace variable Options(UseProxy)  w [namespace origin optSet]
 	trace variable Options(SavePW)    w [namespace origin optSet]
-	trace variable Options(UseJabber) w [namespace origin joptSet]
 
         pack .logon.ejprt -in .logon.fjsrv -side right -fill y
         pack .logon.ejsrv -in .logon.fjsrv -side right -fill both -expand 1
@@ -3607,7 +2832,6 @@ proc ::tkchat::logonScreen {} {
 	grid .logon.lnm .logon.enm  -           -in $lf -sticky ew -pady 5
 	grid .logon.lpw .logon.epw  -           -in $lf -sticky ew
 	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
-	grid x          .logon.rjabber -        -in $lf -sticky w -pady 3
 	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
         if {$have_tls} {
             grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
@@ -3623,7 +2847,6 @@ proc ::tkchat::logonScreen {} {
         bind .logon <Escape> [list .logon.cn invoke]
     }
     optSet
-    joptSet
     catch {::tk::PlaceWindow .logon widget .}
     wm deiconify .logon
     tkwait visibility .logon
@@ -3661,23 +2884,10 @@ proc ::tkchat::optSet {args} {
     }
 }
 
-proc ::tkchat::joptSet {args} {
-    global Options
-    set state [expr {$Options(UseJabber) ? "normal" : "disabled"}]
-    set jwidgets {
-        .logon.rjabberssl .logon.rjabberpoll
-        .logon.ljsrv .logon.ejsrv .logon.ejprt
-    }
-    foreach w $jwidgets {
-        if {[winfo exists $w]} {$w configure -state $state}
-    }
-}
-
 proc ::tkchat::registerScreen {} {
     global Options
     
     set ::PasswordCheck ""
-    pause on 0
     set ::REGISTER ""
     set r .register
     
@@ -4241,7 +3451,6 @@ proc ::tkchat::Debug {cmd args } {
             }
 	}
 	restart {
-	    pause on 0
 	    saveRC
 	    eval destroy [winfo children .]
 	    eval font delete {FNT ACT NAME SYS STAMP}
@@ -4252,13 +3461,11 @@ proc ::tkchat::Debug {cmd args } {
 	    Retrieve
 	}
 	purge {
-	    pause on 0
 	    .txt config -state normal
 	    .txt delete 1.0 end
 	    set ::Options(History) {}
             .txt config -state normal
             catch {::tkchat::LoadHistory}
-	    pause off
 	}
         server {
             # Permit remote control using either DDE or the tcllib comm package
@@ -4723,7 +3930,6 @@ proc ::tkchat::Init {args} {
     global Options env
     set ::URLID 0
     # set intial defaults
-    set ::tkchat::pause 0
     set ::tkchat::eCURR 0
     set ::tkchat::eHIST ""
     array set Options {
@@ -4734,7 +3940,6 @@ proc ::tkchat::Init {args} {
 	Password	""
 	SavePW		0
 	Nickname	""
-	UseJabber	0
 	UseJabberPoll	0
 	UseJabberSSL	0
 	ServerLogging all
@@ -5794,81 +4999,6 @@ proc ::tkchat::UserInfoDialog {} {
     unset UserInfo
 }
 
-proc ::tkchat::UserInfoFetch {} {
-    global Options
-    variable UserInfo
-    if {![info exists UserInfo]} {
-        set qry [http::formatQuery \
-                     action    changeuserinfo \
-                     name      $Options(Username) \
-                     password  $Options(Password) \
-                     color     $Options(MyColor) \
-                     updatefrequency 600 \
-                     new_msg_on_top 0 \
-                     ls        ""]
-        set tok [::http::geturl $Options(URL2) \
-                     -query [string map {%5f _} $qry] \
-                     -headers [buildProxyHeaders] \
-                     -command [namespace origin UserInfoDone]]
-    }
-}
-
-proc ::tkchat::UserInfoDone {tok} {
-    variable UserInfo
-    log::log debug "UserInfoDone [http::status $tok] ($tok)"
-    switch -exact -- [http::status $tok] {
-        ok {
-            htmlparse::parse -cmd [namespace origin UserInfoParseCallback] \
-                [http::data $tok]
-        }
-        default { }
-    }
-    http::cleanup $tok
-}
-
-proc ::tkchat::UserInfoParseCallback {tag slash param text} {
-    variable UserInfo
-    set tag [string toupper $tag]
-    switch -exact -- $tag {
-        INPUT {
-            array set params {}
-	    foreach {- key value} [regexp -all -inline \
-		    {([A-Z]+)="([^""]*)"} $param] {
-		set params([string toupper $key]) $value
-            }
-            if {[info exists params(NAME)]} {
-                set UserInfo($params(NAME)) \
-			[::htmlparse::mapEscapes $params(VALUE)]
-            }
-        }
-        TEXTAREA {
-            if {$slash == {}} {
-                set UserInfo(stuff) $text
-            }
-        }
-    }
-}
-
-proc ::tkchat::UserInfoSend {} {
-    global Options
-    variable UserInfo
-    set qry [eval [linsert [array get UserInfo] 0 http::formatQuery]]
-    set tok [::http::geturl $Options(URL2) \
-                 -query [string map {%5f _} $qry] \
-                 -headers [buildProxyHeaders] \
-                 -command [namespace origin UserInfoSendDone]]
-}
-
-proc ::tkchat::UserInfoSendDone {tok} {
-    log::log debug "UserInfoSend [http::status $tok] ($tok)"
-    if {[http::status $tok] == "ok" && [http::ncode $tok] == 200} {
-        #
-    } else {
-        tk_messageBox -icon warning -title "Warning" \
-            -message "Failed to update information on the server."
-    }
-    http::cleanup $tok
-}
 # -------------------------------------------------------------------------
 
 # Windows taskbar support.
@@ -6429,11 +5559,6 @@ proc tkchat::whiteboard_clear { } {
 }
  
 proc tkchat::whiteboard_open {} {
-    
-    if { !$::Options(UseJabber) } {
-	tk_messageBox -message "The whiteboard only works in jabber mode. Sorry"
-	return
-    }
     
     if { ![winfo exists .wb] } {
 	set wb [toplevel .wb]

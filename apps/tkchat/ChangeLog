@@ -1,3 +1,8 @@
+2004-11-22  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Started removing the web scraper code to complete
+	the transition to jabber and make further improvements easier.
+
 2004-11-18  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Completed color fading on nolog messages.
