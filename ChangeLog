@@ -1,3 +1,7 @@
+2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* apps/asteroids/*: added to CVS.  Original author Jeff Godfrey.
+
 2004-11-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* apps/ijbridge/*: Added Jabber-IRC bridge code.

@@ -1,0 +1,5 @@
+2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* beat1.wav, beat2.wav, explosion.wav, shot.wav, thrust.wav:
+	* asteroids.tcl: Initial import of asteroids by Jeff Godfrey from
+	wiki page http://wiki.tcl.tk/13601
