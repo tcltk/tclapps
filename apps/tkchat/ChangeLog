@@ -1,3 +1,8 @@
+2003-09-25  Pascal Scheffers for Joe Mistachkin <joe@mistachkin.com>
+		
+	* tkchat.tcl: Added dynamic command aliasses with /alias and
+	/unalias and help to the about dialog.
+
 2003-09-25  Pascal Scheffers  <pascal@scheffers.net>
 	
 	* tkchat.tcl: Added 'google this' and 'cancel' to the bookmarks

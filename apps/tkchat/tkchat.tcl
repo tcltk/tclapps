@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.125 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.126 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -66,8 +66,8 @@ namespace eval ::tkchat {
     # this is http://mini.net - but that recently had a dns problem
     variable HOST http://mini.net
 
-    variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.125 2003/09/25 12:39:04 pascalscheffers Exp $}
+    variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
+    variable rcsid   {$Id: tkchat.tcl,v 1.126 2003/09/25 14:53:00 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -96,6 +96,10 @@ namespace eval ::tkchat {
     variable lastCompletion "" 
 
     variable ircOnlineUsers [list]
+
+    # used for dynamically created command aliases (added by JJM 25/Sep/2003)
+    variable commandAliases
+    array set commandAliases [list names [list] types [list] bodies [list]]
 }
 
 proc ::tkchat::errLog {args} {
@@ -2237,7 +2241,7 @@ proc ::tkchat::About {} {
     wm transient $w .
     wm title $w "About TkChat $rcsVersion"
     button $w.b -text Dismiss -command [list wm withdraw $w]
-    text $w.text -height 18 -bd 1 -width 100
+    text $w.text -height 25 -bd 1 -width 100
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
     $w.text tag config center -justify center
@@ -2256,12 +2260,307 @@ proc ::tkchat::About {} {
         "/?<text>\t\t\tsearch the chat buffer for matching text.\
          Repeating the command will progress\n\t\t\tto the previous match\n" {} \
         "/!\t\t\tclear the previous search result\n" {} \
-        "/see <mark>\t\tgoto named mark or index (eg: bookmark1 end 0.0)\n" {}
+        "/see <mark>\t\tgoto named mark or index (eg: bookmark1 end 0.0)\n" {} \
+	"/alias <name> <type> <body>\t\ttype is 'proc' or 'script', type proc\n" {} \
+	"\t\ttakes exactly one argument.\n\t\t/alias foo script addSystem \"test!\"\n" {} \
+	"\t\t/alias foo proc thisProc\n" {} \
+	"\t\tproc thisProc { arguments } { addSystem \$arguments }\n" {} \
+	"/unalias <pattern>\t\t/unalias f*" {}
 
 
     $w.text config -state disabled
     catch {::tk::PlaceWindow $w widget .}
     wm deiconify $w
+}
+
+proc ::tkchat::parseString { variable_name string separators maximum } {
+    # added by JJM 25/Sep/2003
+    #
+    # this routine makes parsing easier WHILE preserving
+    # the "exactness" of the string by NOT treating it as a list...
+    # parse string without using list commands... for targeted eval, etc
+    #
+    # get ahold of an array to put results into
+    upvar 1 $variable_name local_array
+  
+    # get a list of separators...
+    set separator_list [split $separators ""]
+  
+    # get length in characters
+    set count [string length $string]
+  
+    # start at first index (maybe make this variable later?)
+    set index 0
+  
+    # always start counting in result array from 1 (should this really be zero?)
+    set found_index 1
+  
+    # how many "matches" did we find?
+    # NOTE: this will NOT be more than the parameter maximum, if specified
+    set found_count 0
+  
+    # current string that needs to be added when next separator is found...
+    set found_string ""
+  
+    #
+    # keep going until the end of the string is reached
+    #
+    while {$index < $count} {
+        #
+        # go through string on a character-by-character basis
+        #
+        set character [string index $string $index]
+        #
+        # if the character is in the separator list,
+        # then we need to add to the array...
+        #
+        if {[lsearch -exact $separator_list $character] != -1} then {
+            if {$maximum > 0} then {
+                #
+                # we are limiting the number of "matches" to a certain amount
+                # to allow for rather flexible argument parsing for callers...
+                # (they can treat the first X arguments as separate, and the rest as one long argument)
+                #
+                if {$found_count == ($maximum - 1)} then {
+                    # stop adding new after X matches... (last one is taken care of after loop)
+                    set do_add 0
+                } else {
+                    # we haven't reached the maximum yet
+                    set do_add 1
+                }
+            } else {
+                # there is no maximum
+                set do_add 1
+            }
+        } else {
+            # we didn't find a separator yet
+            set do_add 0
+        }
+    
+        if {$do_add != 0} then {
+            #
+            # add string to found array...
+            #
+            set local_array($found_index) $found_string
+            # next index in result array
+            set found_index [expr {$found_index + 1}]
+            # increase count of found arguments
+            set found_count [expr {$found_count + 1}]
+            # reset current string
+            set found_string ""
+        } else {
+            #
+            # otherwise, just keep appending to current string
+            #
+            if {$found_string != ""} then {
+                # tack on the current character (this is not a separator)
+                append found_string $character
+            } else {
+                # since no other characters in the current string yet, just set it
+                set found_string $character
+            }
+        }
+    
+        incr index
+    }
+  
+    #
+    # don't forget last one... in case there is one...
+    # (this should always happen if the string doesn't end in space...)
+    #
+    if {$found_string != ""} then {
+        # add FINAL string to found array...
+        set local_array($found_index) $found_string
+        # next index in result array
+        set found_index [expr {$found_index + 1}]
+        # increase count to FINAL count of found arguments
+        set found_count [expr {$found_count + 1}]
+        # reset current string
+        set found_string ""
+    }
+  
+    #
+    # pass back count always, even if no matches...
+    #
+    set local_array(count) $found_count
+  
+    if {$found_count > 0} then {
+        # if we found anything, return non-zero
+        set result 1
+    } else {
+        # otherwise return zero
+        set result 0
+    }
+  
+    return $result
+}
+
+proc ::tkchat::processAliasCommand { msg } {
+    # added by JJM 25/Sep/2003
+    # quickly gimme a list of arguments...
+    set msg_list [split $msg " "]
+
+    # extract just the command name...
+    set command_name [string range [lindex $msg_list 0] 1 end]
+
+    # process the command...
+    switch -exact $command_name {
+        "alias" {
+            array set msg_array {}
+            # did we succeed in parsing into the array?
+            if {[parseString msg_array $msg " " 4]} then {
+                # did we get exactly 4 arguments?
+                if {$msg_array(count) == 4} then {
+                    # skip over "/alias" in array...
+                    set result [addAlias $msg_array(2) $msg_array(3) $msg_array(4)]
+                } else {
+    	              addSystem "wrong # args: must be /alias name type body"
+                    set result 0
+                }        
+            }
+        }
+        "unalias" {
+            array set msg_array {}
+            # did we succeed in parsing into the array?
+            if {[parseString msg_array $msg " " 2]} then {
+                # did we get exactly 2 arguments?
+                if {$msg_array(count) == 2} then {
+                    # skip over "/unalias" in array...
+                    set result [removeAliases $msg_array(2)]
+                } else {
+    	              addSystem "wrong # args: must be /unalias name"
+                    set result 0
+                }
+            }
+        }
+        default {
+	          addSystem "unknown alias processing directive"
+            set result 0
+        }
+    }
+
+    return $result
+}
+
+proc ::tkchat::addAlias { name type body } {
+    # added by JJM 25/Sep/2003
+    variable commandAliases
+
+    set index [findAlias $name]
+
+    if {$index != -1} then {
+        # replace existing alias...
+        set commandAliases(types) [lreplace $commandAliases(types) $index $index $type]
+        set commandAliases(bodies) [lreplace $commandAliases(bodies) $index $index $body]
+
+        # show that we modified it.
+    	  addSystem "alias \"$name\" modified"
+    } else {
+        # add new alias...
+        lappend commandAliases(names) $name
+        lappend commandAliases(types) $type
+        lappend commandAliases(bodies) $body
+
+        # show that we added it.
+    	  addSystem "alias \"$name\" added"
+    }
+
+    # we always either add or replace, so return success.
+    return 1
+}
+
+proc ::tkchat::removeAliases { name } {
+    # added by JJM 25/Sep/2003
+    variable commandAliases
+    
+    set result 0; # we haven't removed any yet.
+    for {set index 0} {$index < [llength $commandAliases(names)]} {incr index} {
+        set alias [lindex $commandAliases(names) $index]
+
+        if {[string match $name $alias]} then {
+            # remove matching command alias...
+            set commandAliases(names) [lreplace $commandAliases(names) $index $index]
+            set commandAliases(types) [lreplace $commandAliases(types) $index $index]
+            set commandAliases(bodies) [lreplace $commandAliases(bodies) $index $index]
+
+            # show that we removed it.
+    	      addSystem "alias \"$alias\" matching \"$name\" removed"            
+
+            set result 1; # yes, we matched at least one.
+        }
+    }
+
+    return $result
+}
+
+proc ::tkchat::findAlias { name } {
+    # added by JJM 25/Sep/2003
+    variable commandAliases
+    # find the alias by name...
+    return [lsearch -exact $commandAliases(names) $name]
+}
+
+proc ::tkchat::checkAlias { msg } {
+    # added by JJM 25/Sep/2003
+    variable commandAliases
+  
+    set msg_list [split $msg " "]
+    set command_name [string range [lindex $msg_list 0] 1 end]
+
+    # try to find the command alias...
+    set index [findAlias $command_name]
+  
+    if {$index != -1} then {
+        # get alias type and body.
+        set command_type [lindex $commandAliases(types) $index]
+        set command_body [lindex $commandAliases(bodies) $index]
+
+        # set initial error info (none).
+        set error 0
+        set alias_error ""  
+
+        switch -exact $command_type {
+            "proc"  {                
+                array set msg_array {}
+                # did we succeed in parsing into the array?
+                if {[parseString msg_array $msg " " 2]} then {
+                    # did we get exactly 2 arguments?
+                    if {$msg_array(count) == 2} then {
+                        set result 0; # default to "not handled". this MAY be changed by the [catch] below.
+                        #
+                        # NOTE: This proc should return zero to indicate 
+                        #       "not handled" and non-zero to indicate "handled".
+                        #
+                        set error [catch {set result [expr {[namespace eval [namespace \
+                             current] [list $command_body $msg_array(2)]] != 0}]} alias_error]
+                    } else {
+                        addSystem "did not get exactly 2 arguments for alias \"$command_name\" ($command_type)"
+                    }
+                } else {
+                    addSystem "could not parse arguments for alias \"$command_name\" ($command_type)"
+                }
+            }
+            "script" -
+            default  {
+                # attempt to eval the command body in this namespace...
+                set error [catch {namespace eval [namespace current] $command_body} \
+                     alias_error]
+                #
+                # NOTE: If there is an error, we consider that to be "not handled".
+                #
+                set result [expr {!$error}]  
+            }
+        }
+
+        # check for and show errors...
+        if {$error} then {
+            addSystem "alias \"$command_name\" ($command_type) error: $alias_error"
+        }
+    } else {
+        set result 0
+    }
+  
+    return $result
 }
 
 proc ::tkchat::userPost {} {
@@ -2329,9 +2628,17 @@ proc ::tkchat::userPost {} {
                 {^/see\s} {
                     .txt see [lindex $msg 1]
                 }
+                {^/alias\s} {
+                    processAliasCommand $msg              
+                }
+                {^/unalias\s} {
+                    processAliasCommand $msg              
+                }
                 default  {
-                    # might be server command - pass it on
-                    msgSend $msg
+                    if {![checkAlias $msg]} then {
+                        # might be server command - pass it on
+                        msgSend $msg
+                    }
                 }
             }
         }
@@ -3495,7 +3802,6 @@ proc ::tkchat::Init {} {
 	      [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
 	catch {source $rcfile}
     }
-
     set Options(Offset) 50
     catch {unset Options(FetchToken)}
     catch {unset Options(OnlineToken)}
