@@ -1,3 +1,8 @@
+2003-05-13  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
+
+	* lib/app-assemble/assemble.tcl (help text): Fixed two spelling
+	  errors. SF Tcllib Bug [737171].
+
 2003-03-29  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
 
 	* WRAPPING.txt: Added a description of the new one-step process

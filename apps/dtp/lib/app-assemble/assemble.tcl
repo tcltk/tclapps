@@ -23,7 +23,7 @@ set ::app-assemble::help(cmdline) {
 [call [cmd {@appname@}] [method assemble] [arg tcllibdir] [opt [arg appfile]]]
 
 Takes the relevant files from the textutil and doctools modules found
-in the directory [file tcllibdir] and copies them into the appropiate
+in the directory [file tcllibdir] and copies them into the appropriate
 places of the directory hierarchy this application is under. Note that
 [arg tcllibdir] has to refer to the sources of tcllib. An installation
 of tcllib does not have all the required files (documentation) in its
@@ -32,7 +32,7 @@ hierarchy.
 [nl]
 
 If, and only if the argument [arg appfile] is present the method will
-not only assemble the sources, but also wrap the copleted directory
+not only assemble the sources, but also wrap the completed directory
 hierarchy and write the generated starkit to the named file, creating
 all directories as necessary.
 
