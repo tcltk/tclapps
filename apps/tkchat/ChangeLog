@@ -1,6 +1,8 @@
 2003-07-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (addMessage): Fix for the Jabber bridge nick handling.
+	* tkchat.tcl (gotoURL): Try to use DDE to open URLs (avoid quoting
+	problems). Also copy the URL into the CLIPBOARD selection.
 
 2003-07-17  Jeff Hobbs  <jeffh@ActiveState.com>
 
