@@ -59,7 +59,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.163 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.164 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -86,7 +86,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.163 2004/05/25 22:15:48 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.164 2004/06/04 07:52:41 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -283,9 +283,11 @@ proc ::tkchat::GetHistLogIdx {szary} {
 proc ::tkchat::ParseHistLog {log} {
     global Options
 
-    set retList {}
+    set retList {}    
     set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[([^\]]+)\]\s+([^:]+):?\s*(.*)$}
     set ircRE {ircbridge: \*\*\* (.+) (.+)$}
+    set TimeRE {^(.+)\s+(.+)\s+(\d{1,2})\s+(\d\d:\d\d:\d\d)\s+(\d{4})}
+    set logTime 0
     # fetch log
     set url "$Options(URLlogs)/$log"
     log::log info "History: Fetch log \"$url\""
@@ -300,9 +302,17 @@ proc ::tkchat::ParseHistLog {log} {
             set lastdata ""
             foreach line $logdata {
                 #log::log debug "History Parse: $line"
+		if { [regexp -- $TimeRE $line -> weekday month day time year] } {
+		    # the regexp makes sure the format is correct and
+		    # lets us insert the server timezone (CEST)
+		    set logTime [clock scan "$weekday $month $day $time CEST $year"]
+		} else {		    
+		    set logTime 0
+		}
+		
                 if {[regexp -- $MsgRE $line -> type nick data]} {
                     if {[string length $lastnick]>0} {
-                        lappend retList $lastnick $lastdata
+                        lappend retList $logTime $lastnick $lastdata
                     }
                     # only show messages - don't care about enter/exit/new user
                     # crap
@@ -325,7 +335,7 @@ proc ::tkchat::ParseHistLog {log} {
                 }
             }
             if {[string length $lastnick]>0} {
-                lappend retList $lastnick $lastdata
+                lappend retList $logTime $lastnick $lastdata
             }
         }
         reset {
@@ -442,9 +452,9 @@ proc ::tkchat::LoadHistoryLines {} {
     if {![info exists Options(FinalList)]} {set Options(FinalList) {}}
 
     set count 0
-    foreach {nick msg} $Options(FinalList) {
-        addMessage "" $nick $msg HISTORY
-        incr count 2
+    foreach {time nick msg} $Options(FinalList) {
+        addMessage "" $nick $msg HISTORY $time
+        incr count 3
         if {$count > 100} { break }
     }
     .txt see end
@@ -1275,11 +1285,20 @@ proc ::tkchat::parseStr {str} {
 
 proc ::tkchat::checkNick {nick clr} {
     global Options
-    set wid [expr {[font measure NAME $nick] + 10}]
+
+    if { $::Options(Visibility,STAMP) } {
+	# Invisible
+	set wid_tstamp 0
+    } else {
+	# Stamps visible
+	set wid_tstamp [expr {[font measure NAME "\[88:88\]"] + 5}]
+    }
+    set wid [expr {[font measure NAME $nick] + 10}]    
     if {$wid > $Options(Offset)} {
+	#log::log debug "Offset: $wid_tstamp, $wid > $Options(Offset)"
         set Options(Offset) $wid
-        .txt config -tabs [list $wid l]
-        .txt tag configure MSG -lmargin2 $wid
+        .txt config -tabs [list $wid_tstamp l [expr {$wid+$wid_tstamp}] l]
+	.txt tag configure MSG -lmargin2 [expr {$wid+$wid_tstamp}]
     }
     if {$clr == ""} {
         set clr [getColor $nick]
@@ -1371,7 +1390,7 @@ proc ::tkchat::checkAlert {msgtype nick str} {
     }
 }
 
-proc ::tkchat::addMessage {clr nick str {mark end}} {
+proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0}} {
     global Options
     variable map
     set w .txt
@@ -1418,9 +1437,11 @@ proc ::tkchat::addMessage {clr nick str {mark end}} {
     checkAlert NORMAL $nick $str
     $w config -state normal
     if {[string equal $nick "clock"] || [string equal $nick "tick"]} {
+	$w insert $mark "\t" [list STAMP]
 	$w insert $mark "$nick\t" [list NICK NICK-$nick]
         $w insert $mark "[formatClock $str] " [list NICK-$nick MSG]
     } else {
+	::tkchat::InsertTimestamp $w $nick $mark $timestamp	
 	$w insert $mark "$nick\t" [list NICK NICK-$nick]
         foreach {str url} [parseStr $str] {
             foreach cmd [array names ::tkchat::MessageHooks] {
@@ -1431,7 +1452,21 @@ proc ::tkchat::addMessage {clr nick str {mark end}} {
                 lappend tags URL URL-[incr ::URLID]
                 $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
             }
-            tkchat::Insert $w $str $tags $url $mark
+
+	    # Split into lines, so we can insert the proper tabs for
+	    # timestamps:
+	    set lines [split $str \n]
+	    for { set i 0 } { $i < [llength $lines] } { incr i } {
+		set line [lindex $lines $i]
+		if { $i > 0 } { 
+		    # The first line has the timestamp, only
+		    # subsequent lines need an extra tab char
+		    log::log debug "More than one line, add tabs"
+		    $w insert $mark "\n\t" [list STAMP]		    
+		    set line "\t$line"
+		}
+		tkchat::Insert $w $line $tags $url $mark
+	    }
         }
         # Call chat activity hooks
         foreach cmd [array names ::tkchat::ChatActivityHooks] {
@@ -1462,6 +1497,16 @@ proc ::tkchat::ResetMessageCounter {} {
     set title "Tcl'ers Chat"
     wm title . $title
     wm iconname . $title
+}
+
+proc ::tkchat::InsertTimestamp {w nick {mark end} {seconds 0} } { 
+    
+    # The nick argument is here, so we can display the local time for
+    # each nick.
+
+    if { $seconds == 0 } { set seconds [clock seconds] }
+
+    $w insert $mark "\[[clock format $seconds -format "%H:%M"]\]\t" [list STAMP]
 }
 
 proc ::tkchat::Insert {w str tags {url ""} {mark end}} {
@@ -1668,7 +1713,8 @@ proc ::tkchat::addAction {clr nick str {mark end}} {
     checkNick $nick $clr
     checkAlert ACTION $nick $str
     .txt config -state normal
-    .txt insert $mark "    * $nick " [list NICK NICK-$nick]
+    ::tkchat::InsertTimestamp .txt $nick $mark
+    .txt insert $mark "   * $nick " [list NICK NICK-$nick]
     if {[string equal $nick clock]} {
         .txt insert $mark "[formatClock $str] " [list NICK-$nick ACTION]
     } else {
@@ -1698,6 +1744,7 @@ proc ::tkchat::addAction {clr nick str {mark end}} {
 proc ::tkchat::addSystem {str {mark end}} {
     global Options
     .txt config -state normal
+    ::tkchat::InsertTimestamp .txt "" $mark
     .txt insert $mark "\t$str\n" [list MSG SYSTEM]
     .txt config -state disabled
     if {$Options(AutoScroll)} { .txt see $mark }
@@ -1723,6 +1770,7 @@ proc ::tkchat::addTraffic {who action {mark end}} {
     } else {
         set msg "$who has $action the chat!!"
     }
+    ::tkchat::InsertTimestamp .txt "" $mark
     .txt insert $mark "\t$msg\n" [list MSG SYSTEM TRAFFIC]
     .txt config -state disabled
     if {$Options(AutoScroll)} { .txt see $mark }
@@ -1858,6 +1906,7 @@ proc ::tkchat::createFonts {} {
     font create ACT  -family helvetica -size -12 -weight normal -slant italic
     font create NAME -family helvetica -size -12 -weight bold	-slant roman
     font create SYS  -family helvetica -size -12 -weight bold	-slant italic
+    font create STAMP -family helvetica -size -12 -weight bold	-slant roman
 }
 
 proc ::tkchat::displayUsers {} {
@@ -2132,7 +2181,7 @@ proc ::tkchat::CreateGUI {} {
 	WELCOME	 "Welcome"
 	HELP	 "Help"
 	USERINFO "User Info"
-	MEMO	 "Memo"
+	MEMO	 "Memo"	
     } {
 	$m add checkbutton -label "Hide $text Messages" \
 	    -onval 1 -offval 0 \
@@ -2143,6 +2192,9 @@ proc ::tkchat::CreateGUI {} {
     $m add checkbutton -label "Hide single dot actions" \
 	-onval 1 -offval 0 -var Options(Visibility,SINGLEDOT) \
 	-command [list ::tkchat::DoVis SINGLEDOT] -underline 12
+    $m add checkbutton -label "Hide Timestamps" \
+	-onval 1 -offval 0 -var Options(Visibility,STAMP) \
+	-command [list ::tkchat::StampVis] -underline 5
     $m add separator
     $m add command -label "Hide All Users" -command  "::tkchat::NickVis 1"
     $m add command -label "Show All Users" -command  "::tkchat::NickVis 0"
@@ -2298,6 +2350,7 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure NICK -font NAME
     .txt tag configure ACTION -font ACT
     .txt tag configure SYSTEM -font SYS
+    .txt tag configure STAMP -font STAMP
     .txt tag configure URL -underline 1
     .txt tag configure SINGLEDOT -font ACT
     .txt tag bind URL <Enter> [list .txt config -cursor hand2]
@@ -2407,6 +2460,27 @@ proc ::tkchat::NickVis {val} {
 	    DoVis [lindex [split $t ,] end]
 	}
     }
+}
+
+proc ::tkchat::StampVis {} {
+    global Options
+    set tag STAMP
+
+    .txt tag config $tag -elide $::Options(Visibility,$tag)
+
+    set wid $Options(Offset) 
+
+    if { $::Options(Visibility,$tag) } {
+	# Invisible
+	.txt config -tabs [list $wid l]
+	.txt tag configure MSG -lmargin2 $wid
+    } else {
+	# Stamps visible
+	set wid_tstamp [expr {[font measure NAME "\[88:88\]"] + 5}]
+	.txt config -tabs [list $wid_tstamp l [expr {$wid+$wid_tstamp}] l]
+	.txt tag configure MSG -lmargin2 [expr {$wid+$wid_tstamp}]
+    }
+
 }
 
 proc ::tkchat::NickVisMenu {} {
@@ -3594,8 +3668,8 @@ proc ::tkchat::scroll_set {sbar f1 f2} {
         }
     }
     set Options(AutoScroll) [expr {(1.0 - $f2) < 1.0e-6 }]
-    log::log debug "scroll_set: $sbar set $f1 $f2 (AutoScroll:\
-       $Options(AutoScroll))"
+    #log::log debug "scroll_set: $sbar set $f1 $f2 (AutoScroll:\
+    #   $Options(AutoScroll))"
 }
 
 
@@ -4092,6 +4166,7 @@ proc ::tkchat::Init {args} {
 	Visibility,MEMO	     1
 	Visibility,HELP	     1
 	Visibility,SINGLEDOT 0
+	Visibility,STAMP     1
 	Alert,SOUND	     0
 	Alert,RAISE	     1
 	Alert,ALL	     0

@@ -1,3 +1,8 @@
+2004-06-04  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Added message timestamps and a visibility for them
+	option in the Visibility menu for them.
+	* ChangeLog: Fixed a few 2004 entries incorrectly set to 2003
+
 2004-05-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Updated babelfish web scraping for translate menu.
@@ -28,7 +33,7 @@
 	when the window isn't focused and with winico support for windows.
 	* tkchat.ico: Icons for use with windows.
 
-2003-02-09  Pascal Scheffers  <pascal@scheffers.net>
+2004-02-09  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Updated the way messages from ircbridge and ijchain
 	are handled. The new code path rewrites the messages before the
 	messages are is set to 'normal' so you can just call addAction and
@@ -89,7 +94,7 @@
 	Try /googlefight word1 word2.  Changed the app-tkchat package
 	regexp for Joe Mistachkin to support low version numbers.
 
-2003-02-09  Pascal Scheffers  <pascal@scheffers.net>
+2004-02-09  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Removed the system messages that were displayed
 	when asking for onlineusers to the ircbridge
 	* tkchat.tcl: Added the local /noisy command to temporarily
