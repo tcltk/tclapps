@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.232 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.233 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.232 2004/11/23 21:16:49 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.233 2004/11/23 21:39:09 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3462,12 +3462,11 @@ proc ::tkchat::Debug {cmd args } {
 	}
 	restart {
 	    tkjabber::disconnect
-	    update
 	    saveRC
 	    eval destroy [winfo children .]
 	    eval font delete [font names]
 	    unset ::Options
-	    after idle [linsert $::argv 0 ::tkchat::Init]
+	    after 2000 [linsert $::argv 0 ::tkchat::Init]
 	}
 	retrieve {
 	    Retrieve
@@ -5600,28 +5599,40 @@ proc tkchat::whiteboard_open {} {
 # Jabber handling
 
 namespace eval tkjabber {
-    variable jabber ; if {![info exists jabber]} {set jabber ""}
-    variable topic
-    variable jhttp ""
-    variable muc
-    variable nickTries 0 ;# The number of times I tried to solve a nick conflict
-    variable baseNick "" ;# used when trying to solve a nick conflict.
-    variable roster ""
-    variable browser ""
-    variable socket ""
-    variable conn
-    variable myId ""
-    variable RunRegistration 0
-    variable reconnect 0 ;# set to 1 after a succesful connect.
+    proc Variable {args} {
+	if {[llength $args] % 2} {
+	    variable [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	}
+	foreach {var val} $args {
+	    variable $var
+	    if {![info exists $var]} {
+		set $var $val
+	    }
+	}
+    }
+    Variable jabber ; if {![info exists jabber]} {set jabber ""}
+    Variable topic
+    Variable jhttp ""
+    Variable muc
+    Variable nickTries 0 ;# The number of times I tried to solve a nick conflict
+    Variable baseNick "" ;# used when trying to solve a nick conflict.
+    Variable roster ""
+    Variable browser ""
+    Variable socket ""
+    Variable conn
+    Variable myId ""
+    Variable RunRegistration 0
+    Variable reconnect 0 ;# set to 1 after a succesful connect.
     
-    variable HistoryLines {}
-    variable HaveHistory 0
+    Variable HistoryLines {}
+    Variable HaveHistory 0
     
-    variable conference tcl@tach.tclers.tk
+    Variable conference tcl@tach.tclers.tk
 
-    variable muc_jid_map ;# array with conference-id to user-jid map.  
-    variable users ;# 
-    variable user_alias
+    Variable muc_jid_map ;# array with conference-id to user-jid map.  
+    Variable users ;# 
+    Variable user_alias
 
 }
 
@@ -5683,6 +5694,7 @@ proc tkjabber::connect { } {
 }
 
 proc tkjabber::disconnect { } {
+
     variable jhttp
     variable jabber
     variable roster
