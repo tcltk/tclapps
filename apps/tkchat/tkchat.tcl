@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.252 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.253 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.252 2004/12/13 11:00:49 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.253 2004/12/13 11:35:22 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5111,14 +5111,18 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     upvar #0 $uivar UI
     if {![info exists UI]} {
         set UI(after) [after 5000 [list array set $uivar {timeout 1}]]
-	addSystem "Requesting user info for $jid..."
+	#addSystem "Requesting user info for $jid..."
         UserInfoFetch $jid
         tkwait variable $uivar
         after cancel $UI(after)
         unset UI(after)
     } else {
-	addSystem "Still waiting for a vcard from the server..."
-	# Reentry during timeout period.
+	if { [info exists UI(id)] } {
+	    raise .$UI(id)	    
+	} else {
+	    addSystem "Still waiting for a vcard from the server..."
+	    # Reentry during timeout period.
+	}
 	return	
     }
     if {[info exists UI(timeout)] && ![string equal [::tkjabber::jid !resource $jid] \
@@ -5133,6 +5137,8 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     if {![info exists UserInfoWin]} {set UserInfoWin 0}
 
     set id userinfo[incr UserInfoWin]
+    set UI(id) $id
+    
     set [namespace current]::$id -1
     set dlg [toplevel .$id -class Dialog]
     wm title $dlg "User info for $jid"
@@ -5166,7 +5172,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     set btns [frame $dlg.buttons -bd 1]
     button $btns.ok -text Save -width 10 -state disabled \
         -command [list set [namespace current]::$id 1]
-    button $btns.cancel -text Cancel -width 10 \
+    button $btns.cancel -text Close -width 10 \
         -command [list set [namespace current]::$id 0]
     pack $btns.cancel $btns.ok -side right
     
@@ -5178,7 +5184,10 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
         $btns.ok configure -state normal
     }
     
+    bind .$id <Key-Escape> [list set [namespace current]::$id 0]
+    
     set UserInfoBtn -1
+    
     tkwait variable [namespace current]::$id
     
     if {[set [namespace current]::$id] == 1} {
