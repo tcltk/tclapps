@@ -1,3 +1,11 @@
+2002-02-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added HTTP error checking to the history fetching
+	code and handle the redirection case where /?M=D gets appended to
+	the log file root URL.
+	Also added some timeouts to the geturl calls to help deal with
+	my rubbish HTTP proxy.
+
 2001-12-06  Bruce Hartweg  <brhartweg@bigfoot.com>
 
 	* tkchat.tcl: Move most stuff out of dialog onto menus - cleaned up dialog (now just colors), a few other minor cleanups (also missed from davidw checking in v25 for me was the ability to grab the history logs at startup)

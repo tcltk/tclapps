@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.29 2002/01/11 11:15:24 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.30 2002/02/01 19:47:49 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -177,21 +177,37 @@ proc tkchat::GetHistLogIdx {szary} {
     set loglist {}
     # get list of available logs
     set url "$Options(URLlogs)/?M=D"
-    set tok [::http::geturl $url  \
-                   -headers [buildProxyHeaders]]
-    if { [checkForRedirection $tok URLlogs] } {
-        ::http::cleanup $tok
-        set loglist [::tkchat::GetHistLogIdx ary]
-    } elseif {[string equal [::http::status $tok] "ok"]} {
-        set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
-        foreach line [split  [::http::data $tok] \n] {
-            if { [regexp  -- $RE $line -> logname size] } {
-                set loglist [linsert $loglist 0 $logname]
-                set ary($logname) $size
+    set tok [::http::geturl $url \
+                 -headers [buildProxyHeaders] \
+                 -timeout $Options(timeout)]
+    errLog "History Fetch: status was [::http::status $tok] [::http::code $tok]"
+    switch -- [::http::status $tok] {
+        ok {
+            if {[::http::ncode $tok] == 500} {
+                set msg "History Fetch error: [::http::code $tok]"
+                log::log error $msg
+                tk_messageBox -message $msg
+            } else {
+                if { [checkForRedirection $tok URLlogs] } {
+                    # trim off the /?M=D part
+                    regsub {/\?M=D} $Options(URLlogs) {} Options(URLlogs)
+                    set loglist [::tkchat::GetHistLogIdx ary]
+                } else {
+                    set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
+                    foreach line [split [::http::data $tok] \n] {
+                        if { [regexp  -- $RE $line -> logname size] } {
+                            set loglist [linsert $loglist 0 $logname]
+                            set ary($logname) $size
+                        }
+                    }
+                }
             }
         }
-        ::http::cleanup $tok
+        reset { errLog "User reset post operation" }
+        timeout { tk_messageBox -message "History Fetch timed out." }
+        error {  tk_messageBox -message "History Fetch error: [:http::error $tok]" }
     }
+    ::http::cleanup $tok
     return $loglist
 }
 proc tkchat::ParseHistLog {log} {
@@ -201,34 +217,50 @@ proc tkchat::ParseHistLog {log} {
     set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[(\S+)\]\s+([^:]+):?\s*(.*)$}
     # fetch log
     set url "$Options(URLlogs)/$log"
-    set tok [::http::geturl  $url \
-                   -headers [buildProxyHeaders]]
-    if {[string equal [::http::status $tok] "ok"]} {
-        set logdata [split  [::http::data $tok] \n]
-        ::http::cleanup $tok
-        set lastnick ""
-        set lastdata ""
-        foreach line $logdata {
-            if {[regexp -- $MsgRE $line -> type nick data]} {
-                if {[string length $lastnick]>0} {
-                    lappend retList $lastnick $lastdata
-                }
-                # only show messages - don't care about enter/exit/new user crap
-                if {[string equal $type MSG]} {
-                    set lastnick $nick
-                    set lastdata $data
+    log::log info "History: Fetch log \"$url\""
+    set tok [::http::geturl $url \
+                 -headers [buildProxyHeaders] \
+                 -timeout $Options(timeout)]
+             
+    errLog "History: status was [::http::status $tok] [::http::code $tok]"
+    switch -- [::http::status $tok] {
+        ok {
+            set logdata [split  [::http::data $tok] \n]
+            set lastnick ""
+            set lastdata ""
+            foreach line $logdata {
+                log::log debug "History Parse: $line"
+                if {[regexp -- $MsgRE $line -> type nick data]} {
+                    if {[string length $lastnick]>0} {
+                        lappend retList $lastnick $lastdata
+                    }
+                    # only show messages - don't care about enter/exit/new user crap
+                    if {[string equal $type MSG]} {
+                        set lastnick $nick
+                        set lastdata $data
+                    } else {
+                        set lastnick ""
+                        set lastdata ""
+                    }
                 } else {
-                    set lastnick ""
-                    set lastdata ""
+                    append lastdata $line 
                 }
-            } else {
-                append lastdata $line 
+            }
+            if {[string length $lastnick]>0} {
+                lappend retList $lastnick $lastdata
             }
         }
-        if {[string length $lastnick]>0} {
-            lappend retList $lastnick $lastdata
+        reset {
+            errLog "User reset post operation" 
+        }
+        timeout {
+            tk_messageBox -message "History fetch timed out" 
+        }
+        error {
+            tk_messageBox -message "History fetch error: [::http::error $tok]"
         }
     }
+    ::http::cleanup $tok
     return $retList
 }
 
@@ -320,10 +352,12 @@ proc msgSend {str {user ""}} {
     ::http::geturl $Options(URL) \
           -query [string map {%5f _} $qry] \
           -headers [buildProxyHeaders] \
+          -timeout $Options(timeout) \
           -command msgDone
 }
 
 proc msgDone {tok} {
+    global Options
     errLog "Post: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
@@ -339,6 +373,7 @@ proc msgDone {tok} {
                     after idle [list ::http::geturl $Options(URL) \
                                       -query [set ${tok}(-query)] \
                                       -headers [buildProxyHeaders] \
+                                      -timeout $Options(timeout) \
                                       -command msgDone]
                 }
             } else {
@@ -373,6 +408,7 @@ proc logonChat {} {
     ::http::geturl $Options(URL2) \
           -query $qry \
           -headers [buildProxyHeaders] \
+          -timeout $Options(timeout) \
           -command logonDone
 }
 
@@ -401,6 +437,7 @@ proc logoffChat {} {
     ::http::geturl $Options(URL2) \
           -query $qry \
           -headers [buildProxyHeaders] \
+          -timeout $Options(timeout) \
           -command logoffDone
     logonScreen
 }
@@ -465,6 +502,7 @@ proc fetchPage {} {
     set Options(FetchToken) [::http::geturl $Options(URL) \
                                    -query $qry \
                                    -headers [buildProxyHeaders] \
+                                   -timeout $Options(timeout) \
                                    -command fetchDone]
 }
 
@@ -525,6 +563,7 @@ proc onlinePage {} {
     set Options(OnlineToken) [::http::geturl $Options(URL) \
                                     -query $qry \
                                     -headers [buildProxyHeaders] \
+                                    -timeout $Options(timeout) \
                                     -command onlineDone]
 }
 
@@ -1814,6 +1853,7 @@ proc tkchat::Init {} {
         TimeFormat      "At the tone, the time is %H:%M on %A %d %b %Y"
         TimeGMT         0
         HistoryLines    -1
+        timeout         15000
     }
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
