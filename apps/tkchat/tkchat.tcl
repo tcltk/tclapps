@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.94 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.95 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.94 2003/04/04 08:29:04 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.95 2003/04/29 20:56:28 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1984,6 +1984,11 @@ proc ::tkchat::userPost {} {
                 }
                 "^/!" {
                     resetSearch
+                }
+                "^/(urn:)?tip:\\d+" {
+                    if {[regexp {(?:urn:)?tip:(\d+)} $msg -> tip]} {
+                        gotoURL http://purl.org/tcl/tip/$tip
+                    }
                 }
                 default  {
                     # might be server command - pass it on
