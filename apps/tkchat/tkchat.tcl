@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.48 2002/03/21 23:36:57 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.49 2002/03/22 14:11:54 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -768,8 +768,14 @@ proc addNewLines {input} {
     eval [list lappend Options(History)] $input
 
     # Restrict the History size as specified
-    set Options(History) [lrange $Options(History) end-$Options(HistoryLines) end]
-
+    if {[llength $Options(History)] > 500} {
+        # Unless someone does a HUGE amount
+        # of /help & /userinfo stuff this should
+        # be plenty long to match against an entire
+        # page worth of data
+        set Options(History) [lrange $Options(History) end-499 end]
+    }
+    
     set inHelp 0
     set inMsg 0
     set UserInfoCmd [list]
