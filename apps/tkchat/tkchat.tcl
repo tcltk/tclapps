@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.60 2002/07/25 21:33:11 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.61 2002/07/26 14:32:18 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2709,8 +2709,14 @@ proc ::tkchat::Init {} {
     }
     
     if {$Options(UseProxy)} {
-        ::http::config -proxyhost $Options(ProxyHost) \
-              -proxyport $Options(ProxyPort)
+	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
+	    ::http::config -proxyhost $Options(ProxyHost) \
+		-proxyport $Options(ProxyPort)
+	} elseif {[info exists ::env(http_proxy)]} {
+	    regexp {([[:alnum:].-]+):(\d+)} \
+		$::env(http_proxy) -> proxyHost proxyPort
+	    http::config -proxyhost $proxyHost -proxyport $proxyPort
+	}
     }
     ChangeFont -family $Options(Font,-family)
     ChangeFont -size $Options(Font,-size)
@@ -2752,10 +2758,6 @@ namespace forget ::dict.leo.org
 
 namespace eval ::dict.leo.org {
     namespace export query askLEO askLEOforSelection
-    if {[info exists ::env(http_proxy)]} {
-	foreach {host port} [split $env(http_proxy) :] break
-	http::config -proxyhost $host -proxyport $port
-    }
     variable table ""
     variable last  ""
     variable Query ""
