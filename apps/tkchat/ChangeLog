@@ -2,6 +2,8 @@
 
 	* tkchat.tcl: Added support for placing bookmarks and cycling
 	between marks. See the context menu (Button-3).
+	* tkchat.tcl: Added a /see command to move the text window to the
+	given mark or index. eg: /see end, /see 0.0 or /see bookmark1
 
 2003-09-20  Donal K. Fellows  <dkf@users.sf.net>
 

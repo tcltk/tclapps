@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.121 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.122 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.121 2003/09/21 22:47:49 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.122 2003/09/21 22:51:49 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2171,7 +2171,8 @@ proc ::tkchat::About {} {
         "/?<text>\t\t\tsearch the chat buffer for matching text.\
          Repeating the command will progress\n\t\t\tto the previous match\n" {} \
         "/!\t\t\tclear the previous search result\n" {} \
-        "/see <mark>\tgoto named mark or index (eg: bookmark1 end 0.0)" {}
+        "/see <mark>\t\tgoto named mark or index (eg: bookmark1 end 0.0)\n" {}
+
 
     $w.text config -state disabled
     catch {::tk::PlaceWindow $w widget .}
