@@ -1,4 +1,4 @@
-#!/bin/wish
+#!/bin/sh
 #
 # Tk front end to the Tcl'ers chat
 #
@@ -14,6 +14,8 @@
 # this and make a ton of money - good for you, how
 # about sending me some?
 ############################################################
+# \
+exec wish "$0" ${1+"$@"}
 
 if {[info exists scripdoc::self]} {
     # Enable functionality as a scripted document
@@ -36,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.14 2001/10/17 15:41:38 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.15 2001/10/26 13:44:04 patthoyts Exp $}
 }
 
 set ::DEBUG 1
@@ -512,6 +514,7 @@ array set RE {
     Message {^<B>(\S+?)</B>:(.+?)$}
     Help {^<B>\[(.+?)\]</B>(.*)$}
     Action {^<B>\*\s+(\S+)\s+(.+)</B>$}
+    Traffic {^<B>\s*(\S+)\s+has (entered|left) the chat</B>$}
     System {^<B>(.*)</B>$}
 }
 proc addNewLines {input} {
@@ -574,7 +577,11 @@ proc addNewLines {input} {
 	    } elseif {[regexp -nocase -- $RE(Action) $line -> nick str]} {
 		addAction $color $nick $str
 	    } elseif {[regexp -nocase -- $RE(System) $line -> str]} {
-		addSystem $str
+                if {[regexp -nocase -- $RE(Traffic) $line -> who action]} {
+                    addTraffic $who $action
+                } else {
+                    addSystem $str
+                }
 	    } else {
 		errLog "Didn't recognize - '$line' - assume help"
 		addHelp $color "" [string trim $line]
@@ -809,6 +816,18 @@ proc addSystem {str} {
     if {$Options(AutoScroll)} { .txt see end }
 }
 
+# Add notification of user entering or leaving. We can hide these notifications
+# by setting Options(hideTraffic)
+proc addTraffic {who action} {
+    global Options
+    if {! $Options(hideTraffic)} {
+        .txt config -state normal
+        .txt insert end "\t$who has $action the chat!!\n" [list MSG SYSTEM]
+        .txt config -state disabled
+        if {$Options(AutoScroll)} { .txt see end }
+    }
+}
+
 proc addUnknown {str} {
     global Options
 }
@@ -907,6 +926,7 @@ proc createGUI {} {
     .mbar add cascade -label File -menu [menu .mbar.file -tearoff 0]
     .mbar add cascade -label Edit -menu [menu .mbar.edit -tearoff 0]
     .mbar add cascade -label Debug -menu [menu .mbar.dbg -tearoff 0]
+    .mbar add cascade -label Help -menu [menu .mbar.help -tearoff 0]
 
     ## File Menu
     ##
@@ -968,6 +988,11 @@ proc createGUI {} {
 	}
     }
 
+    ## Help Menu
+    ##
+    set m .mbar.help
+    $m add command -label About... -command tkchat::About
+
     ## Font Menus
     ##
     set m [menu .mbar.edit.fontName -tearoff 0]
@@ -1028,8 +1053,36 @@ proc createGUI {} {
     grid .ml .eMsg    -   .post  .mb -padx 2 -pady 3 -sticky ew -row 1
     grid columnconfigure . 1 -weight 1
     grid rowconfigure . 0 -weight 1
-    wm geometry . 600x500
+    wm geometry . $Options(Geometry)
     wm deiconify .
+}
+
+proc tkchat::About {} {
+    variable rcsid
+    global Options
+    
+    regexp {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
+
+    if {[winfo exists .about]} {
+        wm deiconify .about
+    } else {
+	set w [toplevel .about -class dialog]
+	wm withdraw $w
+	wm transient $w .
+	wm title $w "About TkChat $rcsVersion"
+        button $w.b -text Dismiss -command [list wm withdraw $w]
+        text $w.text -height 9 -bd 1 -width 60
+        pack $w.b -fill x -side bottom
+        pack $w.text -fill both -side left -expand 1
+        $w.text tag config center -justify center
+        $w.text tag config title -justify center -font {Courier -18 bold}
+        $w.text insert 1.0 "About TkChat v$rcsVersion" title \
+            "\n\nCopyright (C) 2001 Bruce B Hartweg <brhartweg@bigfoot.com>" \
+            center \
+            "\n$rcsid"
+        $w.text config -state disabled
+        wm deiconify $w
+    }
 }
 
 proc userPost {} {
@@ -1178,6 +1231,7 @@ proc changeSettings {} {
     eval tk_optionMenu $t.m2a Options(LogLevel) [lsort -command ::log::lvCompare $::log::levels]
     label $t.l2b -text "Chat Log Filename"
     entry $t.e2b ; $t.e2b insert 0 $Options(ChatLogFile)
+    checkbutton $t.c2c -text "Hide Entry/Exit Messages" -variable Options(hideTraffic)
     label $t.l3 -text "Color Selections"
     foreach {idx str} {MainBG Background MainFG Foreground} { 
 	label $t.nm$idx -text "$str" -anchor e
@@ -1253,12 +1307,13 @@ proc changeSettings {} {
     grid $t.l2           $t.e2         -           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l2a          $t.e2a        -         $t.m2a     -     -   -padx 1 -pady 3 -sticky ew
     grid $t.l2b          $t.e2b        -           x        x   -padx 1 -pady 3 -sticky ew
+    grid $t.c2c            -           x           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l3             -           -           -        -     -   -padx 5 -pady 5
     grid $t.nmMainBG $t.defMainBG $t.ovrMainBG $t.clrMainBG x     x   -padx 2 -pady 2 -sticky news
     grid $t.nmMainFG $t.defMainFG $t.ovrMainFG $t.clrMainFG x     x   -padx 2 -pady 2 -sticky news
     grid $t.f              -           -           -        -  $t.scr -padx 1 -pady 5 -sticky news
     grid $t.f2             -           -           -        -     -   -padx 1 -pady 10 -sticky news
-    grid rowconfigure $t 7 -weight 1
+    grid rowconfigure $t 8 -weight 1
     grid columnconfigure $t 4 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
@@ -1375,6 +1430,7 @@ proc saveRC {} {
     global Options
     if {[info exists ::env(HOME)]} {
 	set rcfile [file join $::env(HOME) .tkchatrc]
+        set Options(Geometry) [wm geometry .]
 	array set tmp [array get Options]
 	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken\
                         ProxyPassword URL URL2 errLog ChatLogChannel}
@@ -1384,7 +1440,7 @@ proc saveRC {} {
 	foreach idx $ignore {
 	    catch {unset tmp($idx)}
 	}
-	if {![catch {open $rcfile w} fd]} {
+	if {![catch {open $rcfile w 0600} fd]} {
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	    puts $fd [list array set Options [array get tmp]]
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
@@ -1490,6 +1546,7 @@ proc ::tkchat::Init {} {
 	NickList	{}
 	History		{}
 	AutoScroll	0
+        Geometry        600x500+0+0
 	Font,-family	Helvetica
 	Font,-size	-12
 	MaxLines	500
@@ -1497,6 +1554,7 @@ proc ::tkchat::Init {} {
         LogFile		""
         LogLevel        info
         errLog		stderr
+        hideTraffic     1
     }
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
