@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.153 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.154 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.153 2004/03/18 16:13:03 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.154 2004/03/27 12:48:24 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1354,6 +1354,41 @@ proc ::tkchat::addMessage {clr nick str {mark end}} {
     variable map
     set w .txt
 
+    if {[string equal $nick "ircbridge"]} {
+	if {[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
+	    # Use their true nick, but display bridge users as <$nick>
+	    # This allows people registered in both systems to appear
+	    # with the right color info.
+	    set nick <$truenick>
+	    set str  $msg
+
+	    if { [nickIsNoisy $nick] } {
+		return
+	    }
+
+	    if {$truenick eq "ijchain" || $truenick eq "ijbridge"} {
+		# ijchain is a Jabber to IRC link.
+		if {[regexp {&lt;(.*?)&gt; (.*)$} $str -> truenick msg]} {
+		    set nick "<$truenick>"
+		    set str $msg
+		    if { [regexp {^/me (.+)$} $msg -> action] } {
+			addAction $clr "$nick" $action $mark
+			return
+		    }		    
+		}
+	    }	    
+	    #Probably obsolete regexp now ircbridge parses CTCPs:
+	    if { [regexp {^ACTION (.+)} $str -> action] } {
+		addAction $clr "<$nick>" [string range $action 0 end-1] $mark
+		return
+	    } 
+	} elseif {[regexp {^\* ([^ ]+) (.*)$} $str -> truenick msg] } {
+	    addAction $clr "<$truenick>" $msg $mark
+	    return
+	}
+    } 
+
+
     if { [nickIsNoisy $nick] } {
 	return
     }
@@ -1365,38 +1400,7 @@ proc ::tkchat::addMessage {clr nick str {mark end}} {
 	$w insert $mark "$nick\t" [list NICK NICK-$nick]
         $w insert $mark "[formatClock $str] " [list NICK-$nick MSG]
     } else {
-	if {[string equal $nick "ircbridge"]} {
-	    if {[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
-		# Use their true nick, but display bridge users as <$nick>
-		# This allows people registered in both systems to appear
-		# with the right color info.
-		set nick $truenick
-		set str  $msg
-
-		if { [nickIsNoisy $nick] } {
-		    return
-		}
-
-                if {$nick == "ijchain" || $nick == "ijbridge"} {
-                    # ijchain is a Jabber to IRC link.
-                    if {[regexp {&lt;(.*?)&gt; (.*)$} $str -> truenick msg]} {
-                        set nick $truenick
-                        set str $msg
-                    }
-                }
-		
-		#Probably obsolete regexp now ircbridge parses CTCPs:
-		if { [regexp {^ACTION (.+)} $str -> action] } {
-		    addAction $clr "<$nick>" [string range $action 0 end-1] $mark
-		} else {
-		    $w insert $mark "<$nick>\t" [list NICK NICK-$nick]
-		}
-	    } elseif {[regexp {^\* ([^ ]+) (.*)$} $str -> truenick msg] } {
-		addAction $clr "<$truenick>" $msg $mark
-	    }
-	} else {
-	    $w insert $mark "$nick\t" [list NICK NICK-$nick]
-	}
+	$w insert $mark "$nick\t" [list NICK NICK-$nick]
         foreach {str url} [parseStr $str] {
             foreach cmd [array names ::tkchat::MessageHooks] {
                 eval $cmd [list $str $url]

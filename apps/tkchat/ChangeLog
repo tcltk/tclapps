@@ -1,3 +1,9 @@
+2003-02-09  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Updated the way messages from ircbridge and ijchain
+	are handled. The new code path rewrites the messages before the
+	messages are is set to 'normal' so you can just call addAction and
+	return. 
+
 2004-03-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Add ijbridge as a synonym for ijchain to trap
