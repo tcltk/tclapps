@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.26 2001/12/05 16:49:29 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.27 2001/12/06 18:23:22 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -168,7 +168,7 @@ proc checkForRedirection {tok optionName} {
     return 0
 }
 
-proc ::tkchat::getHistLogIdx {szary} {
+proc tkchat::GetHistLogIdx {szary} {
     global Options
     upvar $szary ary
 
@@ -180,7 +180,7 @@ proc ::tkchat::getHistLogIdx {szary} {
                    -headers [buildProxyHeaders]]
     if { [checkForRedirection $tok URLlogs] } {
         ::http::cleanup $tok
-        set loglist [::tkchat::getLogIdx ary]
+        set loglist [::tkchat::GetLogIdx ary]
     } elseif {[string equal [::http::status $tok] "ok"]} {
         set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
         foreach line [split  [::http::data $tok] \n] {
@@ -193,7 +193,7 @@ proc ::tkchat::getHistLogIdx {szary} {
     }
     return $loglist
 }
-proc ::tkchat::parseHistLog {log} {
+proc tkchat::ParseHistLog {log} {
     global Options
     
     set retList {}
@@ -233,14 +233,14 @@ proc ::tkchat::parseHistLog {log} {
 
 # this called on first logon and after a purge
 # so not bothering to backgound it
-proc ::tkchat::loadHistory {} {
+proc tkchat::LoadHistory {} {
     global Options
 
     set FinalList {}
     if {$Options(HistoryLines) == 0} {
         # don't even bother
     } elseif {$Options(HistoryLines) < 0} {
-        set loglist [getHistLogIdx logsize]
+        set loglist [GetHistLogIdx logsize]
         if {[llength $loglist]>0} {
             # ask user
             set t [toplevel .histQ -class dialog]
@@ -269,7 +269,7 @@ proc ::tkchat::loadHistory {} {
             grab $t
             tkwait window $t
             foreach log [lrange $loglist $HistQueryNum end] {
-                if [catch {parseHistLog $log} new] {
+                if [catch {ParseHistLog $log} new] {
                     puts "ERROR: $new"
                 } else {
                     set FinalList [concat $FinalList $new]
@@ -277,12 +277,12 @@ proc ::tkchat::loadHistory {} {
             }
         }
     } else {
-        set loglist [getHistLogIdx logsize]
+        set loglist [GetHistLogIdx logsize]
         # go thru logs in reverse until N lines loaded
         for {set idx [expr {[llength $loglist] - 1}]} {$idx >= 0} {incr idx -1} {
             # fetch log
             set log [lindex $loglist $idx]
-            if [catch {parseHistLog $log} new] {
+            if [catch {ParseHistLog $log} new] {
                 puts "ERROR: $new"
             } else {
                 set FinalList [concat $new $FinalList]
@@ -356,6 +356,12 @@ proc msgDone {tok} {
 }
 
 proc logonChat {} {
+    if 0 {
+        # use when testing only - allows restarts without actually logging in again
+        catch {pause off}
+        return
+    }
+    
     global Options
     errLog "Logon to $Options(URL2)"
     set qry [::http::formatQuery \
@@ -379,7 +385,7 @@ proc logonDone {tok} {
                 return
             }
             
-            if {[catch {::tkchat::loadHistory} err]} { errLog $err }
+            if {[catch {::tkchat::LoadHistory} err]} { errLog $err }
             if {[catch {pause off} err]} { errLog $err }
         }
 	reset	{ errLog "User reset logon operation" }
@@ -558,6 +564,7 @@ proc onlineDone {tok} {
 }
 
 proc updateNames {rawHTML} {
+    global Options
     set i 0
     .names config -state normal
     .names delete 1.0 end
@@ -565,7 +572,9 @@ proc updateNames {rawHTML} {
     .mb.mnu delete 0 end
     .mb.mnu add command -label "All Users" \
           -command [list set Options(MsgTo) "All Users"]
+    set Options(OnLineUsers) {}
     foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
+        lappend Options(OnLineUsers) $name
 	# NOTE : the URL's don't work because of the & in them
 	# doesn't work well when we exec the call to browsers
 	# and if we follow spec and escape them with %26 then
@@ -581,12 +590,16 @@ proc updateNames {rawHTML} {
     .names config -state disabled
 }
 
-proc invClr {clr {grays 1}} {
-    # A little extra magic to avoid near shades of grey
+proc invClr {clr {grays 0}} {
+    # generally this is used to get a color that shows
+    # up on a dark BG if it was originally a white BG
+    # so even the color is grey & the inv color is also
+    # grey that is OK
     scan $clr %2x%2x%2x r g b
     set R [expr {(~$r)%256}]
     set G [expr {(~$g)%256}]
     set B [expr {(~$b)%256}]
+    # A little extra magic to avoid near shades of grey
     if {$grays && abs($R-$r) < 32 && abs($G-$g) < 32 && abs($B-$b) < 32} {
 	set R [expr {($r+128)%256}]
 	set G [expr {($g+128)%256}]
@@ -838,7 +851,7 @@ proc addMessage {clr nick str} {
     if {$Options(AutoScroll)} { .txt see end }
 }
 
-proc ::tkchat::hook {do type cmd} {
+proc tkchat::Hook {do type cmd} {
     switch -glob -- $type {
 	msg - mes* { set var [namespace current]::MessageHooks }
 	default {
@@ -863,7 +876,7 @@ proc ::tkchat::hook {do type cmd} {
 }
 
 if {[string length [auto_execok festival]]} {
-    ::tkchat::hook add message say
+    ::tkchat::Hook add message say
 
     proc say { message args } {
 	# I've added a few lines to make this speak new messages via the
@@ -1005,23 +1018,23 @@ proc addSystem {str} {
 
 # Add notification of user entering or leaving. We can hide these notifications
 # by setting Options(hideTraffic)
-
+# Always add tehse to text - just tag them so we can elide them at will
+# this way, the hide option can affect the past as well as the future
 proc addTraffic {who action} {
     global Options
-    if {! $Options(hideTraffic)} {
-	variable ::tkchat::MSGS
-        .txt config -state normal
-	if {[info exists MSGS($action)]} {
-	    set msg [string map -nocase [list %user% $who] \
-                           [lindex $MSGS($action) \
-                                  [expr {int(rand()*[llength $MSGS($action)])}]]]
-	} else {
-	    set msg "$who has $action the chat!!"
-	}
-	.txt insert end "\t$msg\n" [list MSG SYSTEM]
-        .txt config -state disabled
-        if {$Options(AutoScroll)} { .txt see end }
+
+    variable ::tkchat::MSGS
+    .txt config -state normal
+    if {[info exists MSGS($action)]} {
+        set msg [string map -nocase [list %user% $who] \
+                       [lindex $MSGS($action) \
+                              [expr {int(rand()*[llength $MSGS($action)])}]]]
+    } else {
+        set msg "$who has $action the chat!!"
     }
+    .txt insert end "\t$msg\n" [list MSG SYSTEM TRAFFIC]
+    .txt config -state disabled
+    if {$Options(AutoScroll)} { .txt see end }
 }
 
 proc addUnknown {str} {
@@ -1109,7 +1122,7 @@ proc createFonts {} {
     font create SYS  -family helvetica -size -12 -weight bold	-slant italic
 }
 
-proc ::tkchat::createGUI {} {
+proc tkchat::CreateGUI {} {
     global Options
 
     wm title . "Tcl'ers Chat"
@@ -1122,7 +1135,7 @@ proc ::tkchat::createGUI {} {
     . config -menu .mbar
 
     .mbar add cascade -label File -menu [menu .mbar.file -tearoff 0]
-    .mbar add cascade -label Edit -menu [menu .mbar.edit -tearoff 0]
+    .mbar add cascade -label Preferences -menu [menu .mbar.edit -tearoff 0]
     .mbar add cascade -label Debug -menu [menu .mbar.dbg -tearoff 0]
     .mbar add cascade -label Help -menu [menu .mbar.help -tearoff 0]
 
@@ -1140,30 +1153,86 @@ proc ::tkchat::createGUI {} {
     ## Edit Menu
     ##
     set m .mbar.edit
-    $m add command -label Options... \
-          -command changeSettings
-    $m add command -label "My Color" \
-          -command ::tkchat::ChooseColor
-    $m add cascade -label "Font Name" -menu $m.fontName
-    $m add cascade -label "Font Size" -menu $m.fontSize
-
+    $m add command -label Colors... \
+          -command tkchat::ChangeColors
+    $m add cascade -label "Font Name" -menu [menu $m.fontName -tearoff 0]
+    set num 0
+    foreach name [lsort [font families]] {
+	$m.fontName add radiobutton -label $name \
+              -var Options(Font,-family) \
+              -val $name \
+              -command [list ::tkchat::ChangeFont -family $name]
+        incr num
+        if {($num%30)==1 && $num>1} {
+            $m.fontName entryconfig end -columnbreak 1
+        }
+    }
+    $m add cascade -label "Font Size" -menu [ menu $m.fontSize -tearoff 0]
+    foreach sz {8 10 12 14 16 18 24 28 36} {
+	$m.fontSize add radiobutton -label $sz \
+              -var Options(Font,-size) \
+              -val $sz \
+              -command [list ::tkchat::ChangeFont -size $sz]
+    }
+    $m add separator
+    $m add checkbutton -label "Hide Entry/Exit Messages" \
+          -onval 1 -offval 0 -var Options(hideTraffic) -command {
+              .txt tag config TRAFFIC -elide $Options(hideTraffic)
+          }
+    $m add cascade -label "Refresh Frequency" -menu [menu $m.refresh -tearoff 0]
+    foreach s {15 30 45 60} {
+        $m.refresh add radiobutton -label "$s seconds" -val $s \
+              -var Options(Refresh)
+    }        
+    $m add cascade -label "Max Window Buffer" -menu [menu $m.buffer -tearoff 0]
+    foreach l {500 1000 1500 2500 5000 10000} {
+        $m.buffer add radiobutton -label "$l lines" -val $l \
+              -var Options(MaxLines)
+    }
+    $m add separator
+    $m add cascade -label "Local Chat Logging" -menu [menu $m.chatLog -tearoff 0]
+    $m.chatLog add radiobutton -label Disabled -var ::Options(ChatLogOff) \
+          -val 1 -command {tkchat::OpenChatLog close}
+    $m.chatLog add command -label "To File..." \
+          -command {tkchat::OpenChatLog open}
+    $m add cascade -label "Loading Server History" -menu [menu $m.hist -tearoff 0]
+    $m.hist add radiobutton -label "Do NOT load any history" -val 0 \
+          -var Options(HistoryLines)
+    $m.hist add radiobutton -label "Ask me which logs to load" -val -1 \
+          -var Options(HistoryLines)
+    foreach l {50 100 200 500 1000 2500 10000} {
+        $m.hist add radiobutton -label "Load at least $l lines" -val $l \
+              -var Options(HistoryLines)
+    }
+    
     ## Debug Menu
     ##
     set m .mbar.dbg
     $m add comman -label "Reload Script" \
-          -command [list ::tkchat::debug reload]
+          -command [list ::tkchat::Debug reload]
     $m add comman -label "Restart Script" \
-          -command [list ::tkchat::debug restart]
+          -command [list ::tkchat::Debug restart]
     $m add comman -label "Retrieve Script" \
-          -command [list ::tkchat::debug retrieve]
+          -command [list ::tkchat::Debug retrieve]
     $m add comman -label "Evaluate Selection" \
-          -command [list ::tkchat::debug evalSel]
+          -command [list ::tkchat::Debug evalSel]
     $m add comman -label "Purge Chat Window" \
-          -command [list ::tkchat::debug purge]
+          -command [list ::tkchat::Debug purge]
+    $m add separator
+    $m add cascade -label "Error Logging" -menu [menu $m.err -tearoff 0]
+    $m.err add cascade -label "Log Level" -menu [menu $m.err.lvl -tearoff 0]
+    $m.err add radiobutton -label "To Stderr" -var ::Options(LogStderr) -val 1 \
+          -command {tkchat::OpenErrorLog stderr}
+    $m.err add command -label "To File..." \
+          -command {tkchat::OpenErrorLog pick}
+    foreach lvl [lsort -command ::log::lvCompare $::log::levels] {
+        $m.err.lvl add radiobutton -label $lvl -val $lvl \
+              -var Options(LogLevel)
+    }
     $m add separator
     $m add checkbutton -label "Console" \
           -variable ::tkchat::_console \
-          -command [list ::tkchat::debug console] \
+          -command [list ::tkchat::Debug console] \
           -state disabled
     set ::tkchat::_console 0
     if {[llength [info commands tkcon]]} {
@@ -1192,22 +1261,6 @@ proc ::tkchat::createGUI {} {
     set m .mbar.help
     $m add command -label About... -command tkchat::About
 
-    ## Font Menus
-    ##
-    set m [menu .mbar.edit.fontName -tearoff 0]
-    foreach name [lsort [font families]] {
-	$m add radiobutton -label $name \
-              -var ::tkchat::_font \
-              -val $name \
-              -command [list ::tkchat::ChangeFont -family $name]
-    }
-    set m [menu .mbar.edit.fontSize -tearoff 0]
-    foreach sz {8 10 12 14 16 18 24 28 36} {
-	$m add radiobutton -label $sz \
-              -var ::tkchat::_fontsize \
-              -val $sz \
-              -command [list ::tkchat::ChangeFont -size $sz]
-    }
 
     text .txt -background "#[getColor MainBG]" \
           -foreground "#[getColor MainFG]" \
@@ -1262,26 +1315,27 @@ proc tkchat::About {} {
     
     regexp {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
 
-    if {[winfo exists .about]} {
-        wm deiconify .about
-    } else {
-	set w [toplevel .about -class dialog]
-	wm withdraw $w
-	wm transient $w .
-	wm title $w "About TkChat $rcsVersion"
-        button $w.b -text Dismiss -command [list wm withdraw $w]
-        text $w.text -height 9 -bd 1 -width 60
-        pack $w.b -fill x -side bottom
-        pack $w.text -fill both -side left -expand 1
-        $w.text tag config center -justify center
-        $w.text tag config title -justify center -font {Courier -18 bold}
-        $w.text insert 1.0 "About TkChat v$rcsVersion" title \
-              "\n\nCopyright (C) 2001 Bruce B Hartweg <brhartweg@bigfoot.com>" \
-              center \
-              "\n$rcsid"
-        $w.text config -state disabled
-        wm deiconify $w
-    }
+    # don't cache this window - of user reloads on the fly
+    # we want to make sure it displays latest greates info!
+    catch {destroy .about}
+
+    set w [toplevel .about -class dialog]
+    wm withdraw $w
+    wm transient $w .
+    wm title $w "About TkChat $rcsVersion"
+    button $w.b -text Dismiss -command [list wm withdraw $w]
+    text $w.text -height 9 -bd 1 -width 60
+    pack $w.b -fill x -side bottom
+    pack $w.text -fill both -side left -expand 1
+    $w.text tag config center -justify center
+    $w.text tag config title -justify center -font {Courier -18 bold}
+    $w.text insert 1.0 "About TkChat v$rcsVersion" title \
+          "\n\nCopyright (C) 2001 Bruce B Hartweg <brhartweg@bigfoot.com>" \
+          center \
+          "\n$rcsid"
+    $w.text config -state disabled
+    wm deiconify $w
+    
 }
 
 proc userPost {} {
@@ -1389,6 +1443,7 @@ proc optSet {args} {
     }
 }
 
+# a couple of little helper funcs
 proc newColor {w idx} {
     set init "#$::DlgData(Color,$idx,Mine)"
     set tmp [tk_chooseColor \
@@ -1399,27 +1454,38 @@ proc newColor {w idx} {
 	$w config -fg $tmp -selectcolor $tmp
     }
 }
+proc buildRow {f idx disp} {
+    global DlgData
+    label $f.nm$idx -text "$disp" -anchor w -font NAME -padx 0 -pady 0
+    radiobutton $f.def$idx -text "default" \
+          -var DlgData(Color,$idx,Which) \
+          -val Web -fg "#$DlgData(Color,$idx,Web)" \
+          -selectcolor "#$DlgData(Color,$idx,Web)" \
+          -indicatoron 0 -padx 0 -pady 0 -font FNT
+    radiobutton $f.inv$idx -text "inverted" \
+          -var DlgData(Color,$idx,Which) \
+          -val Inv -fg "#$DlgData(Color,$idx,Inv)" \
+          -selectcolor "#$DlgData(Color,$idx,Inv)" \
+          -indicatoron 0 -padx 0 -pady 0 -font FNT
+    radiobutton $f.ovr$idx -text "custom" \
+          -var DlgData(Color,$idx,Which) \
+          -val Mine -fg "#$DlgData(Color,$idx,Mine)"\
+          -selectcolor  "#$DlgData(Color,$idx,Mine)" \
+          -indicatoron 0  -padx 0 -pady 0 -font FNT
+    button $f.clr$idx -text "..." -padx 0 -pady 0  -font FNT \
+          -command [list newColor $f.ovr$idx $idx]
+    grid $f.nm$idx $f.def$idx $f.inv$idx $f.ovr$idx $f.clr$idx \
+          -padx 2 -pady 2 -sticky ew
+}
 
-proc changeSettings {} {
+proc tkchat::ChangeColors {} {
     global Options DlgData
 
     # clear old data
     catch {unset DlgData}
     # make copy of current settings
     array set DlgData [array get Options Color,*]
-    foreach item {MaxLines Refresh TimeFormat TimeGMT} {
-	set DlgData($item) $Options($item)
-    }
-    if {$Options(HistoryLines) < 0} {
-        set DlgData(HistType) Query
-        set DlgData(HistNum) 100
-    } elseif {$Options(HistoryLines) > 0} {
-        set DlgData(HistType) Lines
-        set DlgData(HistNum) $Options(HistoryLines)
-    } else {
-        set DlgData(HistType) None
-        set DlgData(HistNum) 100
-    }
+    set DlgData(MyColor) $Options(MyColor)
     
     #Build screen
     set t .opts
@@ -1428,131 +1494,71 @@ proc changeSettings {} {
     wm transient $t .
     wm protocol $t WM_DELETE_WINDOW {set DlgDone cancel}
     wm withdraw $t
-    wm title $t "Option Settings"
-    label $t.l1 -text "Refresh Frequency"
-    entry $t.e1 -textvar DlgData(Refresh) -validate all \
-          -vcmd {string is integer %P} -invcmd bell
-    label $t.l2 -text "Maximum Saved Lines"
-    entry $t.e2 -textvar DlgData(MaxLines) -validate all \
-          -vcmd {string is integer %P} -invcmd bell
-    label $t.l2a -text "Error Log Filename"
-    entry $t.e2a ; $t.e2a insert 0 $Options(LogFile)
-    eval tk_optionMenu $t.m2a Options(LogLevel) \
-          [lsort -command ::log::lvCompare $::log::levels]
-    label $t.l2b -text "Chat Log Filename"
-    entry $t.e2b ; $t.e2b insert 0 $Options(ChatLogFile)
-    checkbutton $t.c2c -text "Hide Entry/Exit Messages" \
-          -variable Options(hideTraffic)
-    label $t.l2c -text "Time Format String"
-    entry $t.e2c -textvar DlgData(TimeFormat)
-    checkbutton $t.cb2c -text "GMT" -var DlgData(TimeGMT)
+    wm title $t "Color Settings"
 
-    label $t.hist -text "History Loading from Public Chat Logs:" -font NAME
-    set f [frame $t.histF -relief flat -bd 0 -highlightthickness 0]
-    radiobutton $f.histQ -text "Ask Me" \
-          -var DlgData(HistType) -val Query
-    radiobutton $f.histD -text "None" \
-          -var DlgData(HistType) -val None
-    radiobutton $f.histN -text "Load" \
-          -var DlgData(HistType) -val Lines
-    entry $f.histE -width 8 -validate all -vcmd {string is integer %P} \
-          -textvar DlgData(HistNum)
-    label $f.histL -text "lines"
-    eval pack [winfo children $f] -side left -pady 0 -padx 2
-    
-    label $t.l3 -text "Color Selections" -font NAME
-    foreach {idx str} {MainBG Background MainFG Foreground} { 
-	label $t.nm$idx -text "$str" -anchor e
-	radiobutton $t.def$idx -text "default" \
-              -var DlgData(Color,$idx,Which) \
-              -val Web -fg "#$DlgData(Color,$idx,Web)" \
-              -selectcolor "#$DlgData(Color,$idx,Web)" \
-              -indicatoron 0 -padx 0 -pady 0
-	radiobutton $t.ovr$idx -text "custom" \
-              -var DlgData(Color,$idx,Which) \
-              -val Mine -fg "#$DlgData(Color,$idx,Mine)" \
-              -selectcolor  "#$DlgData(Color,$idx,Mine)" \
-              -indicatoron 0 -padx 0 -pady 0
-	button $t.clr$idx -text "..." -padx 0 -pady 0 \
-              -command [list newColor $t.ovr$idx $idx]
+    label $t.l1 -text "Posting Color" -font NAME
+    label $t.l2 -text "Example Text" -background white -foreground \#$DlgData(MyColor) -font ACT
+    button $t.myclr -text "Change..." -font FNT -command {
+        set tmp [tk_chooseColor \
+                       -title "Select Your User Color" \
+                       -initialcolor \#$::DlgData(MyColor)]
+        if {$tmp != ""} {
+            .opts.l2 config -foreground $tmp
+            set ::DlgData(MyColor) [string range $tmp 1 end]
+        }
     }
-    frame $t.f -relief sunken -bd 2
+
+    label $t.l3 -text "Display Color Overrides" -font NAME
+    frame $t.f -relief sunken -bd 2 -height 300
     canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
-	-width 10 -height 100 -highlightthickness 0 -bd 0
+	-width 10 -height 300 -highlightthickness 0 -bd 0
     scrollbar $t.f.scr -command [list $t.f.cvs yview]
     pack $t.f.cvs -side left -expand 1 -fill both
     pack $t.f.scr -side left -fill y
     set f [frame $t.f.cvs.frm]
     $t.f.cvs create window 0 0 -anchor nw -window $f
     bind $f <Configure> {
-	bind %W <Configure> {}
-	[winfo parent %W] config -scrollregion [list 0 0 %w %h]
+	[winfo parent %W] config -width [expr {%w+5}] -scrollregion [list 0 0 %w %h]
     }
-    label $f.nknm -text "NickName"
-    button $f.alldef -text "All Default" -padx 0 -pady 0 -command {
-	foreach nk $Options(NickList) {
-	    set DlgData(Color,$nk,Which) Web
-	}
+    foreach {key str} {Web "All\nDefault" Inv "All\nInverted" Mine "All\nCustom"} {
+        button $f.all$key -text $str -padx 0 -pady 0 -font SYS -command \
+              [string map [list %val% $key] {
+                  foreach idx [array names DlgData *,Which] {
+                      set DlgData($idx) %val%
+                  }
+              }]
     }
-    button $f.allinv -text "All Inverted" -padx 0 -pady 0 -command {
-	foreach nk $Options(NickList) {
-	    set DlgData(Color,$nk,Which) Inv
-	}
+    grid x $f.allWeb $f.allInv $f.allMine x -padx 1 -pady 1
+    foreach {idx str} {MainBG Background MainFG Foreground} {
+        buildRow $f $idx $str
     }
-    button $f.allovr -text "All Custom" -padx 0 -pady 0 -command {
-	foreach nk $Options(NickList) {
-	    set DlgData(Color,$nk,Which) Mine
-	}
+    grid [label $f.online -text "Online Users" -font SYS] - - -
+    foreach nick [lsort -dict $Options(OnLineUsers)] {
+        if {[info exists DlgData(Color,$nick,Which)]} {
+            buildRow $f $nick $nick
+        }
     }
-    grid $f.nknm $f.alldef $f.allinv $f.allovr x -padx 1 -pady 1
+    grid [label $f.offline -text "Offline Users" -font SYS] - - -
     foreach nick [lsort -dict $Options(NickList)] {
-	label $f.nm$nick -text "$nick" -anchor w
-	radiobutton $f.def$nick -text "default" \
-              -var DlgData(Color,$nick,Which) \
-              -val Web -fg "#$DlgData(Color,$nick,Web)" \
-              -selectcolor "#$DlgData(Color,$nick,Web)" \
-              -indicatoron 0 -padx 0 -pady 0
-	radiobutton $f.inv$nick -text "inverted" \
-              -var DlgData(Color,$nick,Which) \
-              -val Inv -fg "#$DlgData(Color,$nick,Inv)" \
-              -selectcolor "#$DlgData(Color,$nick,Inv)" \
-              -indicatoron 0 -padx 0 -pady 0
-	radiobutton $f.ovr$nick -text "custom" \
-              -var DlgData(Color,$nick,Which) \
-              -val Mine -fg "#$DlgData(Color,$nick,Mine)"\
-              -selectcolor  "#$DlgData(Color,$nick,Mine)" \
-              -indicatoron 0  -padx 0 -pady 0
-	button $f.clr$nick -text "..." -padx 0 -pady 0 \
-              -command [list newColor $f.ovr$nick $nick]
-	grid $f.nm$nick $f.def$nick $f.inv$nick $f.ovr$nick $f.clr$nick \
-              -padx 2 -pady 2 -sticky news
+        if {[lsearch $Options(OnLineUsers) $nick] < 0} {
+            buildRow $f $nick $nick
+        }
     }
     frame $t.f2
-    button $t.f2.ok -width 8 -text "OK" -command {set DlgDone ok}
-    button $t.f2.app -width 8 -text "Apply" -command {set DlgDone apply}
-    button $t.f2.can -width 8 -text "Cancel" -command {set DlgDone cancel}
+    button $t.f2.ok -width 8 -text "OK" -command {set DlgDone ok} -font SYS
+    button $t.f2.app -width 8 -text "Apply" -command {set DlgDone apply} -font SYS
+    button $t.f2.can -width 8 -text "Cancel" -command {set DlgDone cancel} -font SYS
     pack $t.f2.ok $t.f2.app $t.f2.can -side left -expand 1 -fill none
     
-    grid $t.l1           $t.e1         -           x        x   -padx 1 -pady 3 -sticky ew
-    grid $t.l2           $t.e2         -           x        x   -padx 1 -pady 3 -sticky ew
-    grid $t.l2a          $t.e2a        -         $t.m2a     -     -     -padx 1 -pady 3 -sticky ew
-    grid $t.l2b          $t.e2b        -           x        x   -padx 1 -pady 3 -sticky ew
-    grid $t.l2c          $t.e2c        -           -        -  $t.cb2c  -padx 1 -pady 3 -sticky ew
-    grid $t.c2c            -           x           x        x     x     -padx 1 -pady 3 -sticky ew
-    grid $t.hist           -           -           -        -     -     -padx 5 -pady 5
-    grid $t.histF          -           -           -        -     -     -padx 5 -pady 5
-    grid $t.l3             -           -           -        -     -     -padx 5 -pady 5
-    grid $t.nmMainBG $t.defMainBG $t.ovrMainBG $t.clrMainBG x     x     -padx 2 -pady 2 -sticky news
-    grid $t.nmMainFG $t.defMainFG $t.ovrMainFG $t.clrMainFG x     x     -padx 2 -pady 2 -sticky news
-    grid $t.f              -           -           -        -     -     -padx 1 -pady 5 -sticky news
-    grid $t.f2             -           -           -        -     -     -padx 1 -pady 10 -sticky news
-    grid rowconfigure $t 11 -weight 1
-    grid columnconfigure $t 4 -weight 1
+    grid $t.l1  $t.l2 $t.myclr x -padx 1 -pady 3 -sticky {}
+    grid $t.l3    -       -    - -padx 1 -pady 3 -sticky ew
+    grid $t.f     -       -    - -padx 1 -pady 5 -sticky news
+    grid $t.f2    -       -    - -padx 1 -pady 10 -sticky news
+    grid rowconfigure $t 3 -weight 1
+    grid columnconfigure $t 3 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
     wm deiconify $t
-    tkwait visibility $t
-    #grab $t
     set working 1
     while {$working} {
 	vwait ::DlgDone
@@ -1573,39 +1579,10 @@ proc changeSettings {} {
 	if {$change} {
 	    # propagate changes to main data
 	    array set Options [array get DlgData]
-            switch -exact -- $DlgData(HistType) {
-                Query {
-                    set Options(HistoryLines) -1
-                }
-                None {
-                    set Options(HistoryLines) 0
-                }
-                Lines {
-                    if {[string is integer -strict $DlgData(HistNum)]} {
-                        set Options(HistoryLines) $DlgData(HistNum)
-                    } else {
-                        set Options(HistoryLines) 0
-                    }
-                }
-            }
-            
 	    # update colors
             applyColors
-
-            # Update the logfile (if changed). Close the old filehandle
-            set newname [$t.e2a get]
-            if {![string match $Options(LogFile) $newname]} {
-                tkchat::OpenErrorLog $newname
-            }
-
-            # Update the ChatLog file if changed.
-            set newname [$t.e2b get]
-            if {![string match $Options(ChatLogFile) $newname]} {
-                tkchat::OpenChatLog $newname
-            }
 	}
     }
-    #grab release $t
     destroy $t
 }
 
@@ -1620,55 +1597,78 @@ proc applyColors {} {
 }
 
 # Point the Chat log to a new file.
-proc tkchat::OpenChatLog {newFileName} {
+proc tkchat::OpenChatLog {opt} {
     global Options
-    if {$newFileName == {}} {
-        set Options(ChatLogFile) {}
-        if {[info exists Options(ChatLogChannel)]} {
-            close $Options(ChatLogChannel)
+    switch -exact -- $opt {
+        close {
+            set Options(ChatLogFile) ""
+            set Options(ChatLogOff) 1
+            if {[info exists Options(ChatLogChannel)]} {
+                close $Options(ChatLogChannel)
+                unset Options(ChatLogChannel)
+            }
         }
-        unset Options(ChatLogChannel)
-        return
-    }
-    if {[catch {
-        set f [open $newFileName a]
-        fconfigure $f -buffering line
-        set Options(ChatLogFile) $newFileName
-        if {[info exists Options(ChatLogChannel)]} {
-            close $Options(ChatLogChannel)
+        open {
+            set newFileName [tk_getSaveFile -initialfile $Options(ChatLogFile)]
+            if {[string length $newFileName]>0} {
+                if {[catch {
+                    set f [open $newFileName a]
+                    fconfigure $f -buffering line
+                    set Options(ChatLogFile) $newFileName
+                    if {[info exists Options(ChatLogChannel)]} {
+                        close $Options(ChatLogChannel)
+                    }
+                    set Options(ChatLogChannel) $f
+                    set Options(ChatLogOff) 0
+                } err]} {
+                    # Handle file access problems.
+                    log::log error $err
+                    bgerror $err
+                }
+            }
         }
-        set Options(ChatLogChannel) $f
-    } err]} {
-        # Handle file access problems.
-        log::log error $msg
-        bgerror $err
     }
 }
 
+
 # Point the Error Log to a new file
-proc tkchat::OpenErrorLog {newFileName} {
+proc tkchat::OpenErrorLog {opt} {
     global Options
-    if {$newFileName == {}} {
-        set Options(LogFile) {}
-        if {![string match stderr $Options(errLog)]} {
-            close $Options(errLog)
+    switch -exact -- $opt {
+        stderr {
+            set Options(LogFile) {}
+            set Options(LogStderr) 1
+            if {![string match stderr $Options(errLog)]} {
+                close $Options(errLog)
+            }
+            set Options(errLog) stderr
+            log::lvChannelForall $Options(errLog)
         }
-        set Options(errLog) stderr
-    }
-    if {[catch {
-        set f [open $newFileName a]
-        fconfigure $f -buffering line
-        set Options(LogFile) $newFileName
-        set oldchannel $Options(errLog)
-        set Options(errLog) $f
-        if {![string match stderr $oldchannel]} {
-            close $oldchannel
+        pick {
+            set newFileName [tk_getSaveFile -initialfile $Options(LogFile)]
+            if {[string length $newFileName]>0} {
+                if {[catch {
+                    set f [open $newFileName a]
+                    fconfigure $f -buffering line
+                    set Options(LogFile) $newFileName
+                    set oldchannel $Options(errLog)
+                    set Options(errLog) $f
+                    if {![string match stderr $oldchannel]} {
+                        close $oldchannel
+                    }
+                    set Options(LogStderr) 0
+                    log::lvChannelForall $Options(errLog)
+                } err]} {
+                    # Handle file access problems.
+                    set Options(LogFile) {}
+                    set Options(LogStderr) 1
+                    set Options(errLog) stderr
+                    log::lvChannelForall $Options(errLog)
+                    log::log error $err
+                    bgerror $err
+                }
+            }
         }
-        log::lvChannelForall $Options(errLog)
-    } err]} {
-        # Handle file access problems.
-        log::log error $msg
-        bgerror $err
     }
 }
 
@@ -1722,7 +1722,7 @@ proc scroll_set {sbar f1 f2} {
 }
 
 
-proc ::tkchat::debug {cmd args } {
+proc tkchat::Debug {cmd args } {
     switch -- $cmd {
 	console {
 	    if {$::tkchat::_console} {
@@ -1752,7 +1752,7 @@ proc ::tkchat::debug {cmd args } {
 	    .txt delete 1.0 end
 	    set ::Options(History) {}
             .txt config -state normal
-            catch {::tkchat::loadHistory}
+            catch {::tkchat::LoadHistory}
 	    pause off
 	}
 	evalSel {
@@ -1771,23 +1771,15 @@ proc ::tkchat::debug {cmd args } {
     }
 }
 
-proc ::tkchat::ChooseColor {} {
-    set tmp [tk_chooseColor \
-                   -title "Select Your User Color" \
-                   -initialcolor \#$::Options(MyColor)]
-    if {$tmp != ""} {
-        set ::Options(MyColor) [string range $tmp 1 end]
-    }
-}
 
-proc ::tkchat::ChangeFont {opt val} {
+proc tkchat::ChangeFont {opt val} {
     set ::Options(Font,$opt) $val
     foreach font [font names] {
 	font configure $font $opt $val
     }
 }
 
-proc ::tkchat::Init {} {
+proc tkchat::Init {} {
     global Options env
     catch {set Options(BROWSER) $env(BROWSER)}
     catch {set Options(NETSCAPE) $env(NETSCAPE)}
@@ -1827,6 +1819,7 @@ proc ::tkchat::Init {} {
     set Options(URLlogs) $::tkchat::HOST/tchat/logs
     foreach {name clr} { MainBG FFFFFF MainFG 000000 } {
 	set Options(Color,$name,Web)   $clr
+	set Options(Color,$name,Inv)   [invClr $clr]
 	set Options(Color,$name,Mine)  $clr
 	set Options(Color,$name,Which) Web
     }
@@ -1844,11 +1837,15 @@ proc ::tkchat::Init {} {
     catch {unset Options(FetchToken)}
     catch {unset Options(OnlineToken)}
     set Options(History) {}
-
+    set Options(OnLineUsers) {}
+    
     # Open the error log to file if specified. Default is stderr.
     if {[string length $Options(LogFile)] > 0} {
         set Options(errLog) [open $Options(LogFile) a]
         fconfigure $Options(errLog) -buffering line
+        set Options(LogStderr) 0
+    } else {
+        set Options(LogStderr) 1
     }
     log::lvChannelForall $Options(errLog)
 
@@ -1856,11 +1853,15 @@ proc ::tkchat::Init {} {
     if {[string length $Options(ChatLogFile)] > 0} {
         set Options(ChatLogChannel) [open $Options(ChatLogFile) a]
         fconfigure $Options(ChatLogChannel) -buffering line
+        set Options(ChatLogOff) 0
+    } else {
+        set Options(ChatLogOff) 1
     }
 
     # build screen
-    createGUI
-
+    CreateGUI
+    .txt tag config TRAFFIC -elide $Options(hideTraffic)
+    
     if {$Options(UseProxy)} {
 	::http::config -proxyhost $Options(ProxyHost) \
               -proxyport $Options(ProxyPort)
@@ -1880,3 +1881,4 @@ proc ::tkchat::Init {} {
 if {![info exists ::URLID]} {
     ::tkchat::Init
 }
+
