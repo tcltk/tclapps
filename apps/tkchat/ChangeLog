@@ -1,3 +1,8 @@
+2002-12-09  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (alertCallback): check for focus, not grab, in the
+	current toplevel window before doing wm deiconify/raise.
+
 2002-10-29  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (addMessage): Recognize "tick" as a clock bot name.

@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.71 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.72 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.71 2002/10/29 15:36:07 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.72 2002/12/10 03:31:24 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1021,7 +1021,8 @@ proc alertCallback {} {
     variable alert_pending
     global Options
     catch {unset alert_pending}
-    if {$Options(Alert,RAISE) && [llength [grab current]]==0} {
+    if {$Options(Alert,RAISE) && [llength [focus -displayof .]]==0} {
+	# Only call this if the window doesn't already have focus
         wm deiconify .
         raise .
     }
