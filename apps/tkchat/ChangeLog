@@ -1,3 +1,10 @@
+2005-02-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed encoding of the channel after starttls
+	negotiation. Also encoding of the .tkchatrc file.
+	Added a 'No SSL' option and an entry field for the conference to
+	join to the login dialog.
+
 2005-02-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added some additional roster support. Put images

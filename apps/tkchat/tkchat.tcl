@@ -22,8 +22,8 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
-package require Tcl 8.3         ; # core Tcl
-package require Tk 8.3		; # core Tk
+package require Tcl 8.4         ; # core Tcl
+package require Tk  8.4		; # core Tk
 package require http 2		; # core Tcl
 package require msgcat		; # core Tcl
 package require textutil	; # tcllib 1.0
@@ -33,15 +33,6 @@ package require base64		; # tcllib
 
 catch {
     package require tls     ; # tls (optional)
-}
-
-
-
-# We need Tk 8.3.2 to get -state options for [label]s
-if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
-    if {![package vsatisfies $tk_patchLevel 8.3.2]} {
-	return -code error "Tk version 8.3.2 or better is required."
-    }
 }
 
 # Deal with 'tile' support.
@@ -66,7 +57,7 @@ if {[llength [info command ::tk::label]] < 1} {
 }
 
 # Under windows, we can use DDE to open urls
-if {$tcl_platform(platform) == "windows"
+if {$tcl_platform(platform) eq "windows"
     && $tcl_platform(os) ne "Windows CE"} {
     package require dde
 }
@@ -74,7 +65,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.259 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.260 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.259 2005/02/08 01:12:12 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.260 2005/02/12 22:21:37 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2873,10 +2864,10 @@ proc ::tkchat::logonScreen {} {
         set lf [frame .logon.frame]
 	checkbutton .logon.prx -text "Use Proxy" -var Options(UseProxy) \
             -underline 7
-	label .logon.lph -text "Proxy Host" -underline 6
-	label .logon.lpp -text "Proxy Port" -underline 6
+	label .logon.lph -text "Proxy host:port" -underline 0
+        frame .logon.fpx
 	entry .logon.eph -textvar Options(ProxyHost)
-	entry .logon.epp -textvar Options(ProxyPort)
+	entry .logon.epp -textvar Options(ProxyPort) -width 5
 	label .logon.lpan -text "Proxy Auth Username" -underline 11
 	label .logon.lpap -text "Proxy Auth Password" -underline 13
 	entry .logon.epan -textvar Options(ProxyUsername)
@@ -2893,14 +2884,20 @@ proc ::tkchat::logonScreen {} {
 	entry .logon.ejprt -textvar Options(JabberPort) -width 5
 	label .logon.ljres -text "Jabber resource" -underline 3
 	entry .logon.ejres -textvar Options(JabberResource)
+        label .logon.lconf -text "Jabber conference" -underline 10
+        entry .logon.econf -textvar Options(JabberConference)
 	#checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
         #      -var Options(UseJabberPoll)
         if {$have_tls} {
-            radiobutton .logon.rjabberssl -text "Use Jabber SSL" \
-                -var Options(UseJabberSSL) -value 1 -underline 2 \
+            frame .logon.sslopt -borderwidth 0
+            radiobutton .logon.nossl -text "No SSL" \
+                -var Options(UseJabberSSL) -value no -underline 1 \
                 -command ::tkjabber::TwiddlePort
-            radiobutton .logon.rstarttls -text "Use STARTTLS" \
-                -var Options(UseJabberSSL) -value 0 \
+            radiobutton .logon.rjabberssl -text "Jabber SSL" \
+                -var Options(UseJabberSSL) -value ssl \
+                -command ::tkjabber::TwiddlePort
+            radiobutton .logon.rstarttls -text "STARTTLS" \
+                -var Options(UseJabberSSL) -value starttls \
                 -command ::tkjabber::TwiddlePort
 
             bind .logon <Alt-e> {.logon.rjabberssl invoke}
@@ -2918,16 +2915,18 @@ proc ::tkchat::logonScreen {} {
         bind .logon <Alt-x> {.logon.prx invoke}
         bind .logon <Alt-l> {.logon.ok invoke}
         bind .logon <Alt-q> {.logon.qu invoke}
-        bind .logon <Alt-h> {focus .logon.eph}
-        bind .logon <Alt-p> {focus .logon.epp}
+        bind .logon <Alt-c> {.logon.cn invoke}
+        bind .logon <Alt-p> {focus .logon.eph}
         bind .logon <Alt-u> {focus .logon.epan}
         bind .logon <Alt-s> {focus .logon.epap}
         bind .logon <Alt-n> {focus .logon.enm}
         bind .logon <Alt-a> {focus .logon.epw}
         bind .logon <Alt-r> {.logon.rpw invoke}
-        bind .logon <Alt-c> {.logon.atc invoke}
+        bind .logon <Alt-t> {.logon.atc invoke}
         bind .logon <Alt-j> {focus .logon.ejsrv}
         bind .logon <Alt-b> {focus .logon.ejres}
+        bind .logon <Alt-o> {focus .logon.nossl}
+        bind .logon <Alt-f> {focus .logon.econf}
 
 	trace variable Options(UseProxy)  w [namespace origin optSet]
 	trace variable Options(SavePW)    w [namespace origin optSet]
@@ -2935,9 +2934,11 @@ proc ::tkchat::logonScreen {} {
         pack .logon.ejprt -in .logon.fjsrv -side right -fill y
         pack .logon.ejsrv -in .logon.fjsrv -side right -fill both -expand 1
 
+        pack .logon.epp -in .logon.fpx -side right -fill y
+        pack .logon.eph -in .logon.fpx -side right -fill both -expand 1
+
 	grid .logon.prx -           -           -in $lf -sticky w -pady 3
-	grid  x         .logon.lph  .logon.eph  -in $lf -sticky w -pady 3
-	grid  x         .logon.lpp  .logon.epp  -in $lf -sticky w -pady 3
+        grid  x         .logon.lph  .logon.fpx  -in $lf -sticky w -pady 3
 	grid  x         .logon.lpan .logon.epan -in $lf -sticky w -pady 3
 	grid  x         .logon.lpap .logon.epap -in $lf -sticky w -pady 3
 	grid .logon.lnm .logon.enm  -           -in $lf -sticky ew -pady 5
@@ -2945,8 +2946,11 @@ proc ::tkchat::logonScreen {} {
 	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
 	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
 	grid x        .logon.ljres .logon.ejres -in $lf -sticky w -pady 3
+	grid x        .logon.lconf .logon.econf -in $lf -sticky w -pady 3
         if {$have_tls} {
-            grid x .logon.rjabberssl .logon.rstarttls -in $lf -sticky w -pady 3
+            pack .logon.nossl .logon.rjabberssl .logon.rstarttls \
+                -in .logon.sslopt -side left 
+            grid x .logon.sslopt - -in $lf -sticky w -pady 3
         }
 	#grid x          .logon.rjabberpoll -    -in $lf -sticky w -pady 3
 	grid x          .logon.atc         -    -in $lf -sticky w -pady 3
@@ -2985,7 +2989,7 @@ proc ::tkchat::optSet {args} {
     } else {
 	set s disabled
     }
-    foreach w {lph lpp eph epp lpan epan lpap epap} {
+    foreach w {lph eph epp lpan epan lpap epap} {
 	.logon.$w config -state $s
     }
     if {$Options(SavePW)} {
@@ -3517,6 +3521,7 @@ proc ::tkchat::saveRC {} {
 	    lappend oplist [list $option $tmp($option)]
 	}
 	if {![catch {open $rcfile w 0600} fd]} {
+            fconfigure $fd -encoding utf-8
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	    puts $fd "array set Options \{"
 	    puts $fd [join $oplist "\n"]
@@ -4054,8 +4059,11 @@ proc ::tkchat::Init {args} {
 	SavePW		0
 	Nickname	""
 	UseJabberPoll	0
-	UseJabberSSL	0
-	ServerLogging all
+	UseJabberSSL	no
+        JabberServer    all.tclers.tk	
+        JabberPort      5222
+        JabberConference tcl@tach.tclers.tk
+	ServerLogging   all
 	MyColor		000000
 	FetchTimerID	-1
 	OnlineTimerID	-1
@@ -4111,13 +4119,6 @@ proc ::tkchat::Init {args} {
 	JabberResource       tkchat	
     }
     catch {set Options(BROWSER) $env(BROWSER)}
-    set Options(URL)	 $::tkchat::HOST/cgi-bin/chat.cgi
-    set Options(URL2)	 $::tkchat::HOST/cgi-bin/chat2.cgi
-    set Options(URLchk)	 $::tkchat::HOST/cgi-bin/chatter.cgi
-    set Options(URLlogs) $::tkchat::HOST/tchat/logs
-
-    set Options(JabberServer) all.tclers.tk	
-    set Options(JabberPort) 5222
 
     foreach {name clr} { MainBG FFFFFF MainFG 000000 SearchBG FF8C44} {
 	set Options(Color,$name,Web)   $clr
@@ -4132,12 +4133,22 @@ proc ::tkchat::Init {args} {
     # load RC file if it exists
     if {[info exists ::env(HOME)] && \
 	    [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
-	catch {source $rcfile}
+	catch {
+            set f [open $rcfile r]
+            fconfigure $f -encoding utf-8
+            set d [read $f]
+            close $f
+            eval $d
+        }
+    }
+
+    # Compatability issues...
+    if {[string is integer $Options(UseJabberSSL)]} {
+        set Options(UseJabberSSL) [lindex {no ssl} $Options(UseJabberSSL)]
     }
 
     # Set the 'Hardcoded' Options:
     set Options(JabberLogs) "http://tclers.tk/conferences/tcl"
-    set Options(JabberConference) tcl@tach.tclers.tk
     array set Options {
 	EntryMessageColor    #002500
 	ExitMessageColor     #250000
@@ -4164,6 +4175,7 @@ proc ::tkchat::Init {args} {
             -loglevel  { LogLevelSet [Pop args 1] }
             -useragent { set Options(UserAgent) [Pop args 1] }
             -debug     { set Options(JabberDebug) 1 }
+            -nick - -nickname { set Options(Nickname) [Pop args 1] }
 	    -conference { set Options(JabberConference) [Pop args 1] }
             -connect   { set Options(JabberConnect) [Pop args 1] }
             -jabberserver {
@@ -5987,7 +5999,7 @@ proc tkjabber::connect { } {
 	    if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
 		set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
 				$Options(JabberServer) $Options(JabberPort)]
-	    } elseif {$have_tls && $Options(UseJabberSSL)} {
+	    } elseif {$have_tls && $Options(UseJabberSSL) eq "ssl"} {
 		set socket [tls::socket $Options(JabberServer) $Options(JabberPort)]
 	    } else {
 		if {$Options(JabberPort) == 5223} {incr Options(JabberPort) -1}
@@ -6007,6 +6019,7 @@ proc tkjabber::connect { } {
 		scheduleReconnect
 	    }
 	} else {
+            #fconfigure $socket -encoding utf-8
 	    $jabber setsockettransport $socket
 	    openStream
 	}
@@ -6074,7 +6087,8 @@ proc tkjabber::openStream {} {
     variable socket
     variable jabber
     global Options
-    log::log debug "OPENSTREAM"
+    log::log debug "OPENSTREAM to $Options(JabberServer) on $socket"
+
     $jabber openstream $Options(JabberServer) \
         -cmd [namespace current]::ConnectProc \
         -socket $socket \
@@ -6094,7 +6108,7 @@ proc tkjabber::ConnectProc {jlibName args} {
     update idletasks
 
     # Now send authentication details:
-    if {$have_tls && !$Options(UseJabberSSL)} {
+    if {$have_tls && $Options(UseJabberSSL) eq "starttls"} {
         jlib::starttls $jabber [namespace origin OnStartTlsFinish]
     } else {
         SendAuth
@@ -6110,9 +6124,11 @@ proc tkjabber::SendAuth { } {
     # This proc is called by ConnectProc after openstream succeeded.
 
     global Options
-    variable conn
     variable jabber
     variable myId
+    variable socket
+
+    fconfigure $socket -encoding utf-8; # this is quite important.
 
     set user $Options(Username)
     set pass $Options(Password)
@@ -6520,7 +6536,6 @@ proc tkjabber::httpCB { status message } {
 
 proc tkjabber::RegisterCB {jlibName type theQuery} {
     log::log debug "RegisterCB: type=$type, theQuery='$theQuery'"
-
     switch -- $type {
 	result {
 	    tkchat::addSystem "Registered."
@@ -7112,9 +7127,9 @@ proc ::tkjabber::LoadHistoryLines {} {
 
 proc ::tkjabber::TwiddlePort {} {
     global Options
-    if {$Options(UseJabberSSL) && $Options(JabberPort) == 5222} {
+    if {$Options(UseJabberSSL) eq "ssl" && $Options(JabberPort) == 5222} {
         incr Options(JabberPort)
-    } elseif {!$Options(UseJabberSSL) && $Options(JabberPort) == 5223} {
+    } elseif {$Options(UseJabberSSL) ne "ssl" && $Options(JabberPort) == 5223} {
         incr Options(JabberPort) -1
     }
 }
@@ -7224,7 +7239,7 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
     fconfigure $sock -blocking 1 -translation binary -buffering none
 
     if {$code >= 200 && $code < 300} {
-        if {$have_tls && $Options(UseJabberSSL)} {
+        if {$have_tls && $Options(UseJabberSSL) eq "ssl"} {
             tls::import $sock
         }
     } else {
