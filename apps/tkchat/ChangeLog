@@ -1,3 +1,7 @@
+2004-11-24  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Removed /jest in favor of /ot/?me for /nolog shorthand.
+
 2004-11-23  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Reload/Restart should work again now.
