@@ -69,7 +69,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.208 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.209 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -101,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.208 2004/11/08 19:31:36 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.209 2004/11/08 21:49:17 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1750,7 +1750,7 @@ proc ::tkchat::InsertTimestamp {w nick {mark end} {seconds 0} } {
 
     if { $seconds == 0 } { set seconds [clock seconds] }
 
-    $w insert $mark "\[[clock format $seconds -format "%H:%M"]\]\t" [list STAMP]
+    $w insert $mark "\[[clock format $seconds -format %H:%M]\]\t" [list STAMP]
 }
 
 proc ::tkchat::Insert {w str tags {url ""} {mark end}} {
@@ -4597,6 +4597,12 @@ proc ::tkchat::Smile {} {
         +6zUNlZOx+vNgEFV56UbyRjPUyrJYjZLhqgESRVYMd+nY8INLptWmXY7TeK+
         4HFUAykrXdfMfPP5SOBgLllrER4bRXoODwWMjYwQQSaKhAYFApaYlwpUKgsJ
         ADs=
+    }
+
+    SmileId bug "bug #" "bug#"
+    image create photo ::tkchat::img::bug -format GIF -data {
+        R0lGODlhEAAQAKEAAAAAAP///////////yH5BAEAAAIALAAAAAAQABAAAAIr
+        lA94y5kMhYsL2Psg3tGGAHxWg4EgZjwbKlXr6L6sKqfxSsqXneI8BQweCgA7
     }
 }
 

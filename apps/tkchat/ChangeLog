@@ -1,3 +1,7 @@
+2004-11-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added bug image.
+
 2004-11-08  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Support for nick colors in jabber mode. Fixes timestamp
 	bug in MsgCB
