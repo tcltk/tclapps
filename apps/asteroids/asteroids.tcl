@@ -8,7 +8,7 @@
 
 package require Tk 8.4
 
-set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.8 2005/02/28 04:01:02 jgodfrey Exp $"}
+set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.9 2005/03/03 00:54:17 jgodfrey Exp $"}
 set ::DIR [file dirname [info script]]
 
 proc main {} {
@@ -70,7 +70,8 @@ proc initVars {} {
     set ::globals(pause)         0
 
     set ::globals(sndThrust)     0
-    set ::globals(beatDelay)     750
+    set ::globals(beatDelayOrg)  750
+    set ::globals(beatDelay)     $::globals(beatDelayOrg)
     set ::globals(sndOK)         0
 
     set ::globals(shipCoords)   [list 0 -11 -7 11 -3 7 3 7 7 11 0 -11]
@@ -161,6 +162,7 @@ proc appExit {} {
 
 proc gameOver {} {
     heartBeatOff
+    set ::globals(beatDelay) $::globals(beatDelayOrg)
     checkHighScore
 }
 
