@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.75 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.76 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.75 2003/01/17 18:13:41 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.76 2003/01/29 20:41:17 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -683,7 +683,7 @@ proc tkchat::translateSel {from to} {
 }
 
 proc tkchat::translate {from to text} {
-    set url {http://world.altavista.com/sites/gben/pos/babelfish/tr}
+    set url {http://babelfish.altavista.com/babelfish/tr}
     append op $from _ $to
     set query [http::formatQuery tt urltext urltext $text lp $op]
     set tok [http::geturl $url \
@@ -694,7 +694,7 @@ proc tkchat::translate {from to text} {
 
 proc tkchat::translateDone {tok} {
     set ::tkchat::translate [http::data $tok]
-    set r [regexp {<TEXTAREA NAME="q".*?>(.*?)</TEXTAREA>} \
+    set r [regexp {<Div.*?>(.*)</div>} \
             [::http::data $tok] -> text]
     set text [string trim $text]
     log::log debug "Translate: \"$text\""
@@ -705,8 +705,7 @@ proc tkchat::translateDone {tok} {
     }
 }
 
-proc tkchat::babelfishInit {} {
-    set url {http://world.altavista.com/sites/gben/pos/babelfish/trns}
+proc tkchat::babelfishInit {{url http://babelfish.altavista.com/babelfish/}} {
     set tok [http::geturl $url \
              -headers [buildProxyHeaders] \
              -command [list ::tkchat::fetchurldone \
@@ -1834,6 +1833,10 @@ proc ::tkchat::userPost {} {
                 }
                 "^/macros?$" {
                     tkchat::EditMacros
+                }
+                "^/userinfo" {
+                    set ::UserClicked 1
+                    msgSend $msg
                 }
                 default  {
                     # might be server command - pass it on
@@ -3096,3 +3099,20 @@ set ::dict.leo.org::LEOlogo {
 ::dict.leo.org::init
 
 bind . <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
+
+# -------------------------------------------------------------------------
+# Tracing variables
+# -------------------------------------------------------------------------
+#trace add variable ::UserClicked write ::tkchat::traceVar
+
+proc ::tkchat::traceVar {varname -> action} {
+    if {[catch {
+        if {[string compare $action write] == 0} {
+            upvar $varname v
+            if {[catch {lindex [info level -1] 0} proc]} {
+                set proc <unknown>
+            }
+            ::log::log debug "TRACE: $varname set to $v in $proc"
+        }
+    } msg]} { log::log warning "TRACE ERROR: $msg" }
+}
