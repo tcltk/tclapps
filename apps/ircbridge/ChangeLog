@@ -1,3 +1,8 @@
+2003-02-28  David N. Welton  <davidw@dedasys.com>
+
+	* bridge.tcl: Add changes from Kristoffer Lawson
+	<setok@fishpool.com>.
+
 2003-01-30  David N. Welton  <davidw@dedasys.com>
 
 	* bridge.tcl: This file is the one that starts everything up.

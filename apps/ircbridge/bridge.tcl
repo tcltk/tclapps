@@ -6,7 +6,7 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.2 2003/01/31 02:21:36 davidw Exp $
+# $Id: bridge.tcl,v 1.3 2003/02/28 23:59:48 davidw Exp $
 
 # There's a lot that could be added here.
 
@@ -20,17 +20,25 @@ proc chat::addHelp {clr name str} {
     puts "HELP: $clr $name $str"
 }
 
+
+# Called when someone does something like leave or join.
+
 proc chat::addTraffic {who action} {
     variable Options
     if { $who != $Options(Username) } {
-	$client::cn privmsg \#tcl "<$who [::htmlparse::mapEscapes $action]>"
+	$client::cn privmsg "#tcl" "*** $who [::htmlparse::mapEscapes $action]"
     }
 }
 
+
+# Called when a new message from Tcler's Chat is to be handled. 
+
 proc chat::addMessage {nick str} {
     variable Options
-    if { $nick != $Options(Username) } {
-	$client::cn privmsg \#tcl "<$nick> [::htmlparse::mapEscapes $str]"
+    if { ($nick != $Options(Username)) && ($nick != "tick") } {
+	foreach line [split [::htmlparse::mapEscapes $str] "\n"] {
+	    $client::cn privmsg \#tcl "<$nick> $line"
+	}
     }
 }
 
@@ -63,8 +71,28 @@ proc client::connect { nk } {
 	puts "[action] XXX [who] XXX [target] XXX [msg]"
     }
 
-    $cn registerevent PRIVMSG {
+    $cn registerevent PART {
 	if { [target] == $client::channel && [who] != $client::nick } {
+	    chat::msgSend "*** [who] leaves"
+	}
+    }
+
+    $cn registerevent JOIN {
+	puts "JOIN [who] [target]"
+	if { [who] != $client::nick } {
+	    chat::msgSend "*** [who] joins"
+	}
+    }
+
+    $cn registerevent QUIT {
+	if { [who] != $client::nick } {
+	    chat::msgSend "*** [who] leaves"
+	}
+    }
+
+    $cn registerevent PRIVMSG {
+#	puts "PRIVMSG [who] [action] [target] [msg]"
+	if { [target] == $client::channel && [who] != $client::nick} {
 	    chat::msgSend "[who] says: [msg]"
 	}
     }

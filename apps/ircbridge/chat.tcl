@@ -19,7 +19,7 @@ package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 
-package provide chat
+package provide chat 0.1
 
 namespace eval ::chat {
     variable MessageHooks
