@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.43 2002/03/15 18:13:22 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.44 2002/03/15 20:59:42 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -916,17 +916,18 @@ proc addMessage {clr nick str} {
 	    lappend tags URL URL-[incr ::URLID]
 	    $w tag bind URL-$::URLID <1> [list gotoURL $url]
 	}
-	tkchat::Insert $w $str $tags
+	tkchat::Insert $w $str $tags $url
     }
     $w insert end "\n"
     $w config -state disabled
     if {$Options(AutoScroll)} { $w see end }
 }
 
-proc ::tkchat::Insert {w str tags} {
+proc ::tkchat::Insert {w str tags {url ""}} {
     global Options
     set str [string map {"\n" "\n\t"} $str]
-    if {$Options(emoticons)} {
+    # Don't do emoticons on URLs
+    if {($url == "") && $Options(emoticons)} {
 	variable ::tkchat::img
 	variable ::tkchat::img::re
 	set i 0
@@ -1098,7 +1099,7 @@ proc addAction {clr nick str} {
 		lappend tags URL URL-[incr ::URLID]
 		.txt tag bind URL-$::URLID <1> [list gotoURL $url]
 	    }
-	    tkchat::Insert .txt $str $tags
+	    tkchat::Insert .txt $str $tags $url
 	}
     }
     .txt insert end "\n"
@@ -2009,11 +2010,27 @@ proc ::tkchat::ChangeFont {opt val} {
     }
 }
 
-namespace eval ::tkchat::img {} ; # create img namespace
+proc ::tkchat::anim {img {idx 0}} {
+    namespace eval ::tkchat::img {} ; # create img namespace
+    set this [lindex [info level 0] 0]
+    if {[catch {$img configure -format "GIF -index $idx"}]} {
+	if {$idx == 1} {
+	    # stop animating, only base image exists
+	    return
+	}
+	set ::tkchat::img::id [after $::tkchat::img::delay [list $this $img]]
+    } else {
+	set ::tkchat::img::id [after $::tkchat::img::delay \
+		[list $this $img [expr {$idx + 1}]]]
+    }
+}
+
 proc ::tkchat::Smile {} {
+    namespace eval ::tkchat::img {} ; # create img namespace
     catch {unset img}
     catch {unset imgre}
     variable ::tkchat::img
+    set ::tkchat::img::delay 400
     array set imgre { :[-^]?\\( cry }
     array set img { :-( cry :^( cry :( cry }
     image create photo ::tkchat::img::cry -format GIF -data {
