@@ -1,3 +1,7 @@
+2001-12-05  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Cleaned up things in the "Options Settings" dialog.
+
 2001-11-19  Ryan Casey <scfiead@hotmail.com>
 
 	* tkchat.tcl: Fixed bug of lines being rewritten to the cha

@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.25 2001/12/05 12:16:24 davidw Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.26 2001/12/05 16:49:29 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1477,16 +1477,16 @@ proc changeSettings {} {
               -command [list newColor $t.ovr$idx $idx]
     }
     frame $t.f -relief sunken -bd 2
-    canvas $t.f.cvs -yscrollcommand [list scroll_set $t.scr] \
-          -width 10 -height 100 -highlightthickness 0 -bd 0
-    pack $t.f.cvs -expand 1 -fill both
-    scrollbar $t.scr -command [list $t.f.cvs yview]
+    canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
+	-width 10 -height 100 -highlightthickness 0 -bd 0
+    scrollbar $t.f.scr -command [list $t.f.cvs yview]
+    pack $t.f.cvs -side left -expand 1 -fill both
+    pack $t.f.scr -side left -fill y
     set f [frame $t.f.cvs.frm]
     $t.f.cvs create window 0 0 -anchor nw -window $f
     bind $f <Configure> {
-	wm geometry [winfo toplevel %W] [expr {%w + 30}]x600
+	bind %W <Configure> {}
 	[winfo parent %W] config -scrollregion [list 0 0 %w %h]
-        bind %W <Configure> {}
     }
     label $f.nknm -text "NickName"
     button $f.alldef -text "All Default" -padx 0 -pady 0 -command {
@@ -1544,7 +1544,7 @@ proc changeSettings {} {
     grid $t.l3             -           -           -        -     -     -padx 5 -pady 5
     grid $t.nmMainBG $t.defMainBG $t.ovrMainBG $t.clrMainBG x     x     -padx 2 -pady 2 -sticky news
     grid $t.nmMainFG $t.defMainFG $t.ovrMainFG $t.clrMainFG x     x     -padx 2 -pady 2 -sticky news
-    grid $t.f              -           -           -        -  - $t.scr -padx 1 -pady 5 -sticky news
+    grid $t.f              -           -           -        -     -     -padx 1 -pady 5 -sticky news
     grid $t.f2             -           -           -        -     -     -padx 1 -pady 10 -sticky news
     grid rowconfigure $t 11 -weight 1
     grid columnconfigure $t 4 -weight 1
