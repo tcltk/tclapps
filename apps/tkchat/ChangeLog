@@ -1,3 +1,7 @@
+2004-11-09  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Auto reenter conference and reconnect to server.
+
 2004-11-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added bug image.

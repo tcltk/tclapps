@@ -69,7 +69,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.209 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.210 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -101,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.209 2004/11/08 21:49:17 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.210 2004/11/09 19:23:28 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3327,10 +3327,10 @@ proc ::tkchat::userPost {} {
 			switch $Options(ServerLogging) {
 			    oldStyle -
 			    none {
-				msgSend "/nolog$msg" -attrs [list nolog 1]
+				tkjabber::msgSend "/nolog$msg" -attrs [list nolog 1]
 			    }
 			    default {
-				msgSend $msg
+				tkjabber::msgSend $msg
 			    }			    
 			}
 		    } else {
@@ -3340,7 +3340,7 @@ proc ::tkchat::userPost {} {
 		{^/msg\s} {
 		    if { $Options(UseJabber) } {
 			if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
-			    msgSend $privMsg $toNick
+			    tkjabber::msgSend $privMsg -user $toNick
 			}
 		    } else {
 			msgSend $msg
@@ -6305,6 +6305,7 @@ namespace eval tkjabber {
     variable conn
     variable myId ""
     variable RunRegistration 0
+    variable reconnect 0 ;# set to 1 after a succesful connect.
     
     variable HistoryLines {}
 
@@ -6324,18 +6325,21 @@ proc tkjabber::connect { } {
     variable browser    
     variable socket 
     variable conn
+    variable reconnect 
     global Options
     
-        
-    if { $roster eq "" } {
-	set roster [roster::roster [namespace current]::RosterCB]
-    }
-    set jabber [jlib::new $roster [namespace current]::ClientCB  \
-		    -iqcommand          [namespace current]::IqCB  \
-		    -messagecommand     [namespace current]::MsgCB \
-		    -presencecommand    [namespace current]::PresCB]
     
-    set browser [browse::new $jabber -command [namespace current]::BrowseCB]
+    if { !$reconnect } {     
+	if { $roster eq "" } {
+	    set roster [roster::roster [namespace current]::RosterCB]
+	}	
+	set jabber [jlib::new $roster [namespace current]::ClientCB  \
+			-iqcommand          [namespace current]::IqCB  \
+			-messagecommand     [namespace current]::MsgCB \
+			-presencecommand    [namespace current]::PresCB]
+	
+	set browser [browse::new $jabber -command [namespace current]::BrowseCB]
+    }   
     
     if { $Options(UseJabberPoll) } {
 	set socket [jlib::http::new $jabber "http://scheffers.net:5280/http-poll" \
@@ -6446,13 +6450,19 @@ proc tkjabber::BrowseErrorCB {browseName what jid errlist} {
 
 # The jabberlib stuff...
 proc tkjabber::ClientCB {jlibName cmd args} {
-    log::log debug "MyClientProc: jlibName=$jlibName, cmd=$cmd, args='$args'"
+    log::log debug "ClientCB: jlibName=$jlibName, cmd=$cmd, args='$args'"
     switch -- $cmd {
 	connect {
-	    tkchat::addSystem "Connection to Jabber Server Established"
+	    tkchat::addSystem "Connection to Jabber Server Established"	    
 	}
 	disconnect {
 	    tkchat::addSystem "Disconnected from server"
+	    after 1000 tkjabber::connect
+	}
+	networkerror {
+	    array set x $args
+	    tkchat::addSystem "Network error $x(-body)"
+	    after 1000 tkjabber::connect
 	}
 	default {
 	    tkchat::addSystem "MyClientProc: jlibName=$jlibName, cmd=$cmd, args='$args'"
@@ -6576,6 +6586,20 @@ proc tkjabber::MsgCB {jlibName type args} {
 	    }	    
 	    #tkchat::addMessage ""  "Subject: $m(-subject)\n$m(-body)" end $ts
 	}
+	error {
+	    array set m $args
+	    if { [info exists m(-error)] } {
+		switch -- [lindex $m(-error) 0] {
+		    405 {
+			tkchat::addSystem "$m(-from): [lindex $m(-error) 1]. Trying to get in again..."
+			$::tkjabber::muc enter $::tkjabber::conference $::Options(Nickname) -command [namespace current]::MucEnterCB
+		    }
+		    default {
+			tkchat::addSystem  "MsgCB (error) args='$args'"
+		    }
+		}
+	    }	    
+	}
 	default {
 	    tkchat::addSystem "|| MsgCB > type=$type, args=$args"
 	}
@@ -6649,6 +6673,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	}
 	result {
 	    tkchat::addSystem "Logged in."
+	    set tkjabber::reconnect 1
 	    $jabber send_presence -type available    
 	    set muc [jlib::muc::new $jabber]
 	    if { $::Options(Nickname) eq "" } {
@@ -6736,7 +6761,11 @@ proc tkjabber::MucEnterCB {mucName type args} {
 	}
 	available {
 	    #tkchat::addSystem  "MucEnter: type=$type, args='$args'"
-	    tkchat::LoadHistory
+	    #only load history when it is not loaded already.
+	    if { ![llength [.txt tag ranges HISTORY]] } {
+	    # Force history loading to the background
+		after 10 tkchat::LoadHistory
+	    }
 	}
 	default {
 	    tkchat::addSystem  "MucEnter: type=$type, args='$args'"
@@ -6747,6 +6776,7 @@ proc tkjabber::MucEnterCB {mucName type args} {
 
 proc tkjabber::msgSend { msg args } {
     variable jabber
+    variable roster
     variable conference
 
     array set opts {
@@ -6778,7 +6808,19 @@ proc tkjabber::msgSend { msg args } {
 		break
 	    }
 	}
-	if { !$found } {
+	if {!$found } {	    
+	    log::log debug "Seaching roster. '$roster' [$roster getname $user] / [$roster getrosteritem $user/tkabber]"
+	    foreach user [$roster getusers -type available] {
+		log::log debug "Roster user: $user"
+		regexp {(.+?)@([^/])/(.+)} $person -> username host resource
+		if { $name eq $user } {
+		    set found 1
+		    break
+		}
+	    }
+	    
+	}
+	if { !$found } {	    
 	    ::tkchat::addSystem "Unknown nick name '$user'"
 	    return
 	}
