@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.135 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.136 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.135 2004/02/05 14:22:37 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.136 2004/02/05 16:17:01 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1585,6 +1585,15 @@ proc ::tkchat::addAction {clr nick str {mark end}} {
 	}
     }
     .txt insert $mark "\n" [list NICK-$nick ACTION]
+
+    # Special handling for single dot action message
+    if {[string trim $str] == "." && $Options(Username) != $nick} {
+        set inspt [.txt index "$mark - 2 line"]
+        set endpt [.txt index "$mark - 1 line"]
+        .txt tag add SINGLEDOT $inspt $endpt
+        .txt raise SINGLEDOT NICK-$nick
+    }
+
     .txt config -state disabled
     if {$Options(AutoScroll)} { .txt see $mark }
 }
@@ -2008,6 +2017,9 @@ proc ::tkchat::CreateGUI {} {
               -command "::tkchat::DoVis $tag" \
               -underline 5
     }
+    $m add checkbutton -label "Hide single dot actions" \
+        -onval 1 -offval 0 -var Options(Visibility,SINGLEDOT) \
+        -command [list ::tkchat::DoVis SINGLEDOT] -underline 12
     $m add separator
     $m add command -label "Hide All Users" -command  "::tkchat::NickVis 1"
     $m add command -label "Show All Users" -command  "::tkchat::NickVis 0"
@@ -2164,6 +2176,7 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure ACTION -font ACT
     .txt tag configure SYSTEM -font SYS
     .txt tag configure URL -underline 1
+    .txt tag configure SINGLEDOT -font ACT
     .txt tag bind URL <Enter> [list .txt config -cursor hand2]
     .txt tag bind URL <Leave> [list .txt config -cursor {}]
     .names tag config NICK -font NAME
@@ -3902,6 +3915,7 @@ proc ::tkchat::Init {} {
 	Visibility,WELCOME   1
 	Visibility,MEMO	     1
 	Visibility,HELP	     1
+	Visibility,SINGLEDOT 0
 	Alert,SOUND	     0
 	Alert,RAISE	     1
 	Alert,ALL	     0

@@ -2,6 +2,8 @@
 
 	* tkchat.tcl: Some fixes and catches in the color handling to deal 
 	with tcllib bug #891024.
+	* tkchat.tcl: Added a visibility option to enable hiding actions
+	that consist of a single dot by another user.
 
 2004-02-03  Jeff Hobbs  <jeffh@ActiveState.com>
 
