@@ -35,7 +35,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
     }
 }
 
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.68 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.69 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -46,7 +46,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.68 2002/09/26 23:41:56 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.69 2002/09/26 23:58:36 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1712,7 +1712,7 @@ proc ::tkchat::CreateGUI {} {
     grid .txt .sbar .names -sticky news -padx 1 -pady 2
     grid configure .sbar -sticky ns
     grid .btm              -sticky news -columnspan 3
-    grid .ml .eMsg .post .mb -in .btm -sticky news -padx 2 -pady 2
+    grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
 
     grid rowconfigure    . 0 -weight 1
     grid columnconfigure . 0 -weight 1
@@ -1893,14 +1893,14 @@ proc ::tkchat::entryDown {} {
 
 proc hideExtra {} {
     grid remove .tMsg
-    grid config .eMsg -row 1 -column 1 -columnspan 2 -sticky ew
+    grid config .eMsg -in .btm -row 0 -column 1 -sticky ew
     .ml config -text "More >>>" -command showExtra
     .eMsg delete 0 end
     .eMsg insert end [string trim [.tMsg get 1.0 end]]
 }
 proc showExtra {} {
     grid remove .eMsg
-    grid config .tMsg -row 1 -column 1 -columnspan 2 -sticky ew
+    grid config .tMsg -in .btm -row 0 -column 1 -sticky ew
     .ml config -text "Less <<<" -command hideExtra
     .tMsg delete 1.0 end
     .tMsg insert end [.eMsg get]
