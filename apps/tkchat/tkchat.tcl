@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.62 2002/07/31 08:49:30 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.63 2002/08/08 09:05:36 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -369,7 +369,7 @@ proc msgSend {str {user ""}} {
     } msg]} {
         set delay [expr {$Options(Refresh) * 1000 / 2}]
         errLog "Retrying msgSend after $delay: $msg"
-        after $delay [msgSend $str $user]
+        after $delay [list msgSend $str $user]
     }
 }
 
