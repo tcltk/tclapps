@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.240 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.241 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.240 2004/12/03 07:45:27 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.241 2004/12/03 08:49:01 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -116,6 +116,10 @@ namespace eval ::tkchat {
 			   "%user% wanders in." \
 			   "%user% checks into the chat." \
 			   "%user% is feeling chatty!" \
+			   "%user% valt door een gat in het plafond naar binnen." \
+			   "%user% wandeld luid schreeuwend binnen." \
+			   "%user% \u8FDB\u95E8" \
+			   "%user% \u9032\u9580" \
 			  ]
     set MSGS(left) [list \
 			"%user% has left the chat!" \
@@ -124,7 +128,9 @@ namespace eval ::tkchat {
 			"%user% doesn't want to talk to you anymore!" \
 			"%user% looks at the clock and dashes out the door" \
 			"%user% macht wie eine Banane ..." \
-			"%user% possibly hasn't really left." \
+			"Ladies and Gentlemen, %user% has left the building!" \
+			"%user% zakt door de vloer en is weg." \
+			"%user% vertrekt stilletjes." \
 		       ]
 
     # Variables to control the search function.
@@ -1050,14 +1056,14 @@ proc ::tkchat::ResetMessageCounter {} {
     wm iconname . $title
 }
 
-proc ::tkchat::InsertTimestamp {w nick {mark end} {seconds 0} } { 
+proc ::tkchat::InsertTimestamp {w nick {mark end} {seconds 0} {tags ""}} { 
     
     # The nick argument is here, so we can display the local time for
     # each nick.
 
     if { $seconds == 0 } { set seconds [clock seconds] }
 
-    $w insert $mark "\[[clock format $seconds -format %H:%M]\]\t" [list STAMP]
+    $w insert $mark "\[[clock format $seconds -format %H:%M]\]\t" [concat [list STAMP] $tags]
 }
 
 proc ::tkchat::Insert {w str tags {url ""} {mark end}} {
@@ -1315,6 +1321,7 @@ proc ::tkchat::addSystem {str {mark end}} {
 # Always add tehse to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
 proc ::tkchat::addTraffic {who action {mark end} {timestamp 0} } {
+    # Action should be entered or left
     global Options
 
     variable ::tkchat::MSGS
@@ -1330,8 +1337,8 @@ proc ::tkchat::addTraffic {who action {mark end} {timestamp 0} } {
     } else {
         set msg "$who has $action the chat!!"
     }
-    ::tkchat::InsertTimestamp .txt "" $mark $timestamp
-    .txt insert $mark "\t$msg\n" [list MSG SYSTEM TRAFFIC]
+    ::tkchat::InsertTimestamp .txt "" $mark $timestamp TRAFFIC
+    .txt insert $mark "\t$msg\n" [list MSG SYSTEM TRAFFIC [string toupper $action]]
     .txt config -state disabled
     if {$Options(AutoScroll)} { .txt see $mark }
 }
@@ -1944,6 +1951,8 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure ACTION -font ACT
     .txt tag configure NOLOG -font NOLOG
     .txt tag configure SYSTEM -font SYS
+    .txt tag configure ENTERED -foreground $Options(EntryMessageColor)
+    .txt tag configure LEFT -foreground $Options(ExitMessageColor)
     .txt tag configure STAMP -font STAMP
     .txt tag configure URL -underline 1
     .txt tag configure SINGLEDOT -font ACT
@@ -4019,6 +4028,8 @@ proc ::tkchat::Init {args} {
 	Alert,NORMAL	     1
 	Alert,ACTION	     1
         WhisperIndicatorColor #ffe0e0
+	EntryMessageColor    #005500
+	ExitMessageColor     #550000
         UseBabelfish         0
 	JabberResource       tkchat	
     }
@@ -5974,12 +5985,23 @@ proc tkjabber::MsgCB {jlibName type args} {
 			set from [string trim [string range $m(-body) 0 $pos]]
 			incr pos
 			set m(-body) [string range $m(-body) $pos end]
+			if { $from eq "***" && [regexp {([^ ]+) (leaves|joins)} $m(-body) -> who action] } {
+			    set action [string map {joins entered leaves left} $action]
+			    tkchat::addTraffic <$who> $action end $ts
+			    return
+			}
 			if { $from eq "<azbridge>" } {
 			    set pos [string first " " $m(-body)]
 			    set from "[string trim [string range $m(-body) 0 $pos]]"
 			    incr pos
 			    set m(-body) [string range $m(-body) $pos end]
 			}
+			if { $from eq "*" && [regexp {([^ ]+) (entered|left)} $m(-body) -> who action] } {
+			    set action [string map {joins entered leaves left} $action]
+			    # Double <> to show webchat users.
+			    tkchat::addTraffic <<$who>> $action end $ts
+			    return
+			}		
 			if { $from eq "*" } {
 			    set pos [string first " " $m(-body)]
 			    set from "<[string trim [string range $m(-body) 0 $pos]]>"
