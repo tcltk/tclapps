@@ -14,9 +14,10 @@ set ::app-map::help(cmdline) {
 
 [call [cmd {@appname@}] [method map] [opt [arg options...]] [arg file]...]
 
-This command returns on [const stdout] an array mapping the paths of
-the given input files to the names and locations of the output files
-as specified and modifed per the accepted options, listed below.
+This command returns on [const stdout], or to the file specified with
+[option -out], if that option is present, an array mapping the paths
+of the given input files to the names and locations of the output
+files as specified and modifed per the accepted options, listed below.
 
 [nl]
 
@@ -35,7 +36,7 @@ Remove an existing extension from the name of the input file and add
 the extension specified via option [option -ext].
 
 [enum]
-If option [option -out] is specified, then make the path coming out of
+If option [option -outdir] is specified, then make the path coming out of
 step 1 a relative path and then prepend the output directory provided
 by the option.
 
@@ -49,12 +50,17 @@ ensure that the output file is different from the input file.
 
 [list_begin definitions]
 
+[lst_item "[option -out] [arg outputfile]"]
+
+If present the generated output is diverted into the specified file
+instead of written to [const stdout].
+
 [lst_item "[option -ext] [arg newextension]"]
 
 This option has to be specified; and provides the new extension to
 give to the output files.
 
-[lst_item "[option -out] [arg directory]"]
+[lst_item "[option -outdir] [arg directory]"]
 
 If this option is specified all output files will be placed into the
 given [arg directory].
@@ -81,10 +87,11 @@ proc ::app-map::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-map::run {argv} {
-    set errstring "wrong#args: map -ext newextension ?-out directory? ?-trail n? file..."
+    set errstring "wrong#args: map -ext newextension ?-out outputfile? ?-outdir directory? ?-trail n? file..."
 
     if {[llength $argv] < 3} {tools::usage $errstring}
 
+    set outfile ""
     set outdir ""
     set newext ""
     set hasext 0
@@ -92,6 +99,13 @@ proc ::app-map::run {argv} {
 
     while {[string match -* [lindex $argv 0]]} {
 	if {[string equal [lindex $argv 0] -out]} {
+	    if {[llength $argv] < 3} {tools::usage $errstring}
+
+	    set outfile [lindex $argv 1]
+	    set argv    [lrange $argv 2 end]
+	    continue
+	}
+	if {[string equal [lindex $argv 0] -outdir]} {
 	    if {[llength $argv] < 3} {tools::usage $errstring}
 
 	    ::optcheck::outdir [set outdir [lindex $argv 1]] "Output directory"
@@ -120,10 +134,17 @@ proc ::app-map::run {argv} {
 
     if {([llength $argv] < 1) || !$hasext} {tools::usage $errstring}
 
+    if {$outfile != {}} {
+	optcheck::outfile $outfile "Output file"
+	set outfile [open $outfile w]
+    } else {
+	set outfile stdout
+    }
+
     # Perform the requested operation.
 
     foreach file $argv {
-	puts stdout [list $file [MapAFile $outdir $newext $file $trail]]
+	puts $outfile [list $file [MapAFile $outdir $newext $file $trail]]
     }
     return
 }

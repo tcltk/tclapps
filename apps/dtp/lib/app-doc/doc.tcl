@@ -24,16 +24,24 @@ sets efficient.
 
 It processes one file ([arg docfile]) and converts it into the
 requested output [arg format]. The result of the conversion is written
-to [const stdout]. If the [arg metafile] is present it is used for the
-creation of cross-references, assuming that this is supported by the
-chosen format. Providing a [arg metafile] to a format not supporting
-cross-references is an error.
+to [const stdout], or to the file specified with [option -out], if
+that option is present. If the [arg metafile] is present it is used
+for the creation of cross-references, assuming that this is supported
+by the chosen format. Providing a [arg metafile] to a format not
+supporting cross-references is an error.
 
 [nl]
 
 The conversion can be influenced by the options listed below.
 
 [list_begin definitions]
+
+[lst_item "[option -out] [arg outputfile]"]
+
+If present the generated output is diverted into the specified file
+instead of written to [const stdout].
+
+
 [lst_item "[option -varstring] [arg varname] [arg string]"]
 
 This option is used to set format/engine specific parameters to some
@@ -67,15 +75,23 @@ proc ::app-doc::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-doc::run {argv} {
-    set errstring "wrong#args: doc ?-varstring var string? ?-varfile var file? format docfile ?metafile?"
+    set errstring "wrong#args: doc ?-out outputfile? ?-varstring var string? ?-varfile var file? format docfile ?metafile?"
 
     if {[llength $argv] < 2} {tools::usage $errstring}
 
     set docfile ""
     set mapfile ""
+    set outfile ""
     array set para {}
 
     while {[string match -* [lindex $argv 0]]} {
+	if {[string equal [lindex $argv 0] -out]} {
+	    if {[llength $argv] < 4} {tools::usage $errstring}
+
+	    set outfile [lindex $argv 1]
+	    set argv    [lrange $argv 2 end]
+	    continue
+	}
 	if {[string equal [lindex $argv 0] -varstring]} {
 	    if {[llength $argv] < 5} {tools::usage $errstring}
 
@@ -106,6 +122,10 @@ proc ::app-doc::run {argv} {
     set                   format  [lindex $argv 0]
     optcheck::infile [set docfile [lindex $argv 1]] "Document file"
 
+    if {$outfile != {}} {
+	optcheck::outfile $outfile "Output file"
+    }
+
     set iomap {}
 
     if {[llength $argv] == 3} {
@@ -123,7 +143,13 @@ proc ::app-doc::run {argv} {
 	set para(xref) [::meta::2xref [::meta::read $metafile] {}]
     }
 
-    puts [dtglue::cvtonefile $format $docfile [array get para]]
+    if {$outfile == {}} {
+	set outfile stdout
+    } else {
+	set outfile [open $outfile w]
+    }
+
+    puts $outfile [dtglue::cvtonefile $format $docfile [array get para]]
     return
 }
 

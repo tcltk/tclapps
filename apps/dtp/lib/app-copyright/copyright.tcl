@@ -3,6 +3,7 @@
 # ------------------------------------------------------
 
 package require tools
+package require optchecker
 
 namespace eval app-copyright {}
 
@@ -10,11 +11,13 @@ namespace eval app-copyright {}
 # Acceptable syntax for cmdline functionality
 
 set ::app-copyright::help(cmdline) {
-[call [cmd {@appname@}] [method copyright] [opt "[option -label] [arg text]"] [opt "[option -logo] [arg path]"] [opt "[option -link] [arg url]"]]
+[call [cmd {@appname@}] [method copyright] [opt "[option -out] [arg outputfile]"] [opt "[option -label] [arg text]"] [opt "[option -logo] [arg path]"] [opt "[option -link] [arg url]"]]
 
 Creates a piece of HTML containing a copyright clause. Note that while
-any two of the options are allowed to be missing at least one option
-has to be present. The result is written to [const stdout].
+any two of the label, logo, and link options are allowed to be missing
+at least one option from that set has to be present. The result is
+written to [const stdout], or to the file specified with [option -out],
+if that option is present.
 
 [nl]
 
@@ -30,6 +33,12 @@ file to insert.
 
 If a [option -link] is present both label and logo will be hyperlinks
 to its argument.
+
+[nl]
+
+If option [option -out] is present the generated output is diverted
+into the specified file instead of written to [const stdout].
+
 }
 
 proc ::app-copyright::help {topic} {
@@ -42,14 +51,20 @@ proc ::app-copyright::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-copyright::run {argv} {
-    set errstring "wrong#args: copyright ?-label text? ?-logo path? ?-link url?"
+    set errstring "wrong#args: copyright ?-out outputfile? ?-label text? ?-logo path? ?-link url?"
     if {[llength $argv] < 2} {tools::usage $errstring}
 
     set label "" ; set haslabel 0
     set logo  "" ; set haslogo  0
     set link  "" ; set haslink  0
+    set outfile ""
 
     while {[string match -* [lindex $argv 0]]} {
+	if {[string equal [lindex $argv 0] -out]} {
+	    set outfile [lindex $argv 1]
+	    set argv    [lrange $argv 2 end]
+	    continue
+	}
 	if {[string equal [lindex $argv 0] -label]} {
 	    set label [lindex $argv 1]
 	    set argv  [lrange $argv 2 end]
@@ -75,7 +90,14 @@ proc ::app-copyright::run {argv} {
 	tools::usage $errstring
     }
 
-    puts stdout [generate $label $logo $link]
+    if {$outfile != {}} {
+	optcheck::outfile $outfile "Output file"
+	set outfile [open $outfile w]
+    } else {
+	set outfile stdout
+    }
+
+    puts $outfile [generate $label $logo $link]
     return
 }
 

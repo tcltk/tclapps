@@ -17,7 +17,9 @@ set ::app-idx::help(cmdline) {
 
 This method converts the information given to us via file [arg meta]
 into an index. The output of this subcommand is written to
-[const stdout] and will be in the [syscmd docidx] format.
+
+[const stdout], or to the file specified with [option -out], if that
+option is present, and will be in the [syscmd docidx] format.
 
 [nl]
 
@@ -31,6 +33,12 @@ The generation of the index can be influenced by the options listed
 below.
 
 [list_begin definitions]
+
+[lst_item "[option -out] [arg outputfile]"]
+
+If present the generated output is diverted into the specified file
+instead of written to [const stdout].
+
 [lst_item "[option -title] [arg text]"]
 
 Provides the [arg text] used as the label of [cmd index_begin].
@@ -55,15 +63,22 @@ proc ::app-idx::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-idx::run {argv} {
-    set errstring "wrong#args: idx ?-title text? ?-desc text? metafile"
+    set errstring "wrong#args: idx ?-out outputfile? ?-title text? ?-desc text? metafile"
 
     if {[llength $argv] < 1} {tools::usage $errstring}
 
     set outfile ""
     set title   ""
     set desc    "Keyword index"
+    set outfile ""
 
     while {[string match -* [lindex $argv 0]]} {
+	if {[string equal [lindex $argv 0] -out]} {
+	    if {[llength $argv] < 3} {tools::usage $errstring}
+	    set outfile [lindex $argv 1]
+	    set argv    [lrange $argv 2 end]
+	    continue
+	}
 	if {[string equal [lindex $argv 0] -title]} {
 	    if {[llength $argv] < 3} {tools::usage $errstring}
 	    set title [lindex $argv 1]
@@ -83,7 +98,14 @@ proc ::app-idx::run {argv} {
 
     optcheck::infile [set metafile [lindex $argv 0]] "Meta information file"
 
-    puts stdout [::meta::2docidx [::meta::read $metafile] $title $desc]
+    if {$outfile != {}} {
+	optcheck::outfile $outfile "Output file"
+	set outfile [open $outfile w]
+    } else {
+	set outfile stdout
+    }
+
+    puts $outfile [::meta::2docidx [::meta::read $metafile] $title $desc]
     return    
 }
 

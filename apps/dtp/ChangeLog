@@ -1,3 +1,17 @@
+2003-11-20  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
+
+	* lib/tools/tools.tcl: Changed to understand the option '-out'.
+	* lib/app-toc/toc.tcl: The pre-existing option -out for 'meta'
+	* lib/app-map/map.tcl: was renamed to '-outdir'. Now when -out
+	* lib/app-idx/idx.tcl: is present for these sub-commands output
+	* lib/app-script/script.tcl: is written to the file specified
+	* lib/app-copyright/copyright.tcl: through the option instead of
+	* lib/app-subst/subst.tcl: stdout.
+	* lib/app-navbar/navbar.tcl:
+	* lib/app-meta/meta.tcl:
+	* lib/app-doc/doc.tcl:
+	* lib/app-changelog/changelog.tcl:
+
 2003-05-13  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
 
 	* lib/app-assemble/assemble.tcl (help text): Fixed two spelling

@@ -63,9 +63,9 @@ proc ::tools::putfile {path data} {
     return
 }
 
-proc ::tools::copyout {path} {
+proc ::tools::copyout {path {chan stdout}} {
     set    fh [open $path r]
-    fcopy $fh stdout
+    fcopy $fh $chan
     close $fh
     return
 }

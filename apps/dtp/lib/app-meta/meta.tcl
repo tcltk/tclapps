@@ -12,10 +12,11 @@ namespace eval app-meta {}
 
 set ::app-meta::help(cmdline) {
 
-[call [cmd {@appname@}] [method meta] [arg iomap]]
+[call [cmd {@appname@}] [method meta] [opt "[option -out] [arg outputfile]"] [arg iomap]]
 
 Extracts the meta information from all input files provided through
-the mapping file [arg iomap] and returns it on [const stdout]. The
+the mapping file [arg iomap] and returns it on [const stdout], or to
+the file specified with [option -out], if that option is present. The
 input files have to be in [syscmd doctools] format.
 
 [nl]
@@ -34,6 +35,21 @@ the option [option -meta] of the subcommands
 [method doc], [method idx], and [method toc],
 
 if stored in a file.
+
+[nl]
+
+The conversion can be influenced by the options listed below.
+
+[list_begin definitions]
+
+[lst_item "[option -out] [arg outputfile]"]
+
+If present the generated output is diverted into the specified file
+instead of written to [const stdout].
+
+[list_end]
+
+
 }
 
 proc ::app-meta::help {topic} {
@@ -46,12 +62,27 @@ proc ::app-meta::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-meta::run {argv} {
-    set errstring "wrong#args: meta iomap"
+    set errstring "wrong#args: meta ?-out outputfile? iomap"
+
+    set outfile ""
+    while {[string match -* [lindex $argv 0]]} {
+	if {[string equal [lindex $argv 0] -out]} {
+	    if {[llength $argv] < 3} {tools::usage $errstring}
+
+	    set outfile [lindex $argv 1]
+	    set argv    [lrange $argv 2 end]
+	    continue
+	}
+    }
 
     if {[llength $argv] < 1} {tools::usage $errstring}
 
     set               mapfile [lindex $argv 0]
     optcheck::infile $mapfile "Mapping file"
+
+    if {$outfile != {}} {
+	optcheck::outfile $outfile "Output file"
+    }
 
     set files [list]
     foreach {in out} [tools::readmap $mapfile] {lappend files $in}
@@ -59,7 +90,13 @@ proc ::app-meta::run {argv} {
     package require dtglue
     package require meta
 
-    puts stdout [::meta::pretty [dtglue::getmeta $files]]
+    if {$outfile == {}} {
+	set outfile stdout
+    } else {
+	set outfile [open $outfile w]
+    }
+
+    puts $outfile [::meta::pretty [dtglue::getmeta $files]]
     return
 }
 

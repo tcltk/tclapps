@@ -12,9 +12,11 @@ namespace eval app-navbar {}
 
 set ::app-navbar::help(cmdline) {
 
-[call [cmd {@appname@}] [method navbar] [arg iomap] [arg base] ([arg infile] [arg label] [const /on]|[const /off]|[const /pass])...]
+[call [cmd {@appname@}] [method navbar] [opt "[option -out] [arg outputfile]"] [arg iomap] [arg base] ([arg infile] [arg label] [const /on]|[const /off]|[const /pass])...]
 
-Creates a piece of HTML containing a navigation bar. All
+Creates a piece of HTML containing a navigation bar and writes it to
+[const stdout], or to the file specified with [option -out], if that
+option is present. All
 
 [arg infile]'s are mapped to their proper output file via the contents
 of the mapping file [arg iomap]. It is assumed that the navigation bar
@@ -31,6 +33,20 @@ marked with [const /pass] the system will assume that the string
 [arg infile] is a fixed url and inserts it unchanged into the
 generated output.
 
+
+[nl]
+
+The generation can be influenced by the options listed below.
+
+[list_begin definitions]
+
+[lst_item "[option -out] [arg outputfile]"]
+
+If present the generated output is diverted into the specified file
+instead of written to [const stdout].
+
+[list_end]
+
 }
 
 proc ::app-navbar::help {topic} {
@@ -43,17 +59,37 @@ proc ::app-navbar::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-navbar::run {argv} {
-    set errstring "wrong#args: navbar iomap base (in label /on|/off|/pass)..."
+    set errstring "wrong#args: navbar ?-out output? map base (in label /on|/off|/pass)..."
+
+    set outfile ""
+    while {[string match -* [lindex $argv 0]]} {
+	if {[string equal [lindex $argv 0] -out]} {
+	    if {[llength $argv] < 4} {tools::usage $errstring}
+
+	    set outfile [lindex $argv 1]
+	    set argv    [lrange $argv 2 end]
+	    continue
+	}
+    }
 
     if {[llength $argv] % 3 != 2} {tools::usage $errstring}
 
     optcheck::infile [set mapfile [lindex $argv 0]] "Mapping file"
-    set basefile     [lindex $argv 1]
+    if {$outfile != {}} {
+	optcheck::outfile $outfile "Output file"
+    }
 
+    set basefile     [lindex $argv 1]
     array set iomap  [tools::readmap $mapfile]
     set basefile     $iomap($basefile)
 
-    puts stdout [generate [array get iomap] $basefile [lrange $argv 2 end]]
+    if {$outfile == {}} {
+	set outfile stdout
+    } else {
+	set outfile [open $outfile w]
+    }
+
+    puts $outfile [generate [array get iomap] $basefile [lrange $argv 2 end]]
     return
 }
 
