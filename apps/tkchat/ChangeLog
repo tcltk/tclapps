@@ -1,3 +1,7 @@
+2001-11-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (msgDone): fixed typo in the ncode check.
+
 2001-10-30  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: added smiley detection for Windows/Mac.

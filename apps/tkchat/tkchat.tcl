@@ -38,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.16 2001/10/30 20:39:18 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.17 2001/11/01 21:56:44 patthoyts Exp $}
 }
 
 set ::DEBUG 1
@@ -175,7 +175,7 @@ proc msgDone {tok} {
     errLog "Post: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
-            if {[::http::ncode] == 500} {
+            if {[::http::ncode $tok] == 500} {
                 if {[info exists Options(msgSend_Retry)]} {
                     set msg "Posting error: retry failed: [::http::code $tok]"
                     tk_messageBox -message $msg
