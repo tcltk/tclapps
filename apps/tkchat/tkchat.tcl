@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.268 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.269 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.268 2005/03/22 01:14:12 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.269 2005/03/22 01:42:45 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2727,11 +2727,15 @@ proc ::tkchat::userPost {} {
 			tkjabber::msgSend $privMsg -user $toNick
 		    }
 		}
-                {^/away} -
-                {^/afk} {
+                {^/away} - {^/afk} {
                     set status ""
                     regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
                     tkjabber::away $status
+                }
+                {^/dnd} - {^/busy} {
+                    set status ""
+                    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
+                    tkjabber::away $status dnd
                 }
                 {^/back} {
                     set status [string range $msg 5 end]
@@ -6220,6 +6224,9 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
                                      "http://jabber.org/protocol/muc#user"]} {
                                 set item [wrapper::getchildswithtag $child item]
                                 if {[llength $item] > 0} {
+                                    if {[info exists members($p(-resource),jid)]} {
+                                        set action changedstatus
+                                    }
                                     set usrjid [wrapper::getattribute \
                                                     [lindex $item 0] jid]
                                     set members($p(-resource),jid) $usrjid
@@ -6294,6 +6301,10 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
             if { $action eq "nickchange" } {
                 tkchat::addSystem "In a fit of schizophrenia, $p(-resource) would like to be known as $newnick."
                 set ignoreNextNick $newnick
+            } elseif {$action eq "changedstatus"} {
+                set s [string map {xa idle chat talking dnd busy} [lindex $status 0]]
+                if {[lindex $status 1] ne ""} {append s " ([lindex $status 1])"}
+                tkchat::addSystem "$p(-resource) is $s"
             } else {
                 if { !($action eq "entered" && $ignoreNextNick eq $p(-resource)) } {
                     # if not the ignore nick:
@@ -7221,13 +7232,13 @@ proc tkjabber::SubscriptionRequest {from status} {
     return
 }
 
-proc tkjabber::away {status} {
+proc tkjabber::away {status {show away}} {
     variable Away
     variable conference
     set Away 1
     set jid $conference/[$tkjabber::muc mynick $conference]
     $tkjabber::jabber send_presence -type available \
-        -from $jid -to $conference -show away -status $status
+        -from $jid -to $conference -show $show -status $status
 }
 
 proc tkjabber::back {status} {
