@@ -31,7 +31,10 @@ package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 package require base64		; # tcllib
 
-catch {package require tls}     ; # tls (optional)
+catch {
+    package require tls     ; # tls (optional)
+}
+
 
 # We need Tk 8.3.2 to get -state options for [label]s
 if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
@@ -69,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.213 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.214 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -101,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.213 2004/11/12 14:03:09 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.214 2004/11/15 08:15:45 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6991,6 +6994,25 @@ proc ::tkjabber::LoadHistoryLines {} {
 	set time [lindex $entry 0]
 	set nick [lindex $entry 1]
 	set msg [lindex $entry 2]
+	
+	if { [string match "ijchain*" $nick] } {
+	    set pos [string first " " $msg]
+	    set nick [string trim [string range $msg 0 $pos]]
+	    incr pos
+	    set msg [string range $msg $pos end]
+	    if { $nick eq "<azbridge>" } {
+		set pos [string first " " $msg]
+		set nick "[string trim [string range $msg 0 $pos]]"
+		incr pos
+		set msg [string range $msg $pos end]
+		if { $nick eq "*" } {
+		    set pos [string first " " $msg]
+		    set nick "<[string trim [string range $msg 0 $pos]]>"
+		    incr pos
+		    set msg "/me [string range $msg $pos end]"				
+		}
+	    }
+	}
 	
 	if { [string equal $nick ""] && [string match "* has left" $msg] } {
 	    tkchat::addTraffic [lindex [split $msg] 0] left HISTORY $time

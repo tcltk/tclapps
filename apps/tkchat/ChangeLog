@@ -1,3 +1,7 @@
+2004-11-15  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Fixed up ijchain messages in jabber history loading.
+
 2004-11-12  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Added nicer display of ijchain messages in jabber mode.
