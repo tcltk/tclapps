@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.54 2002/05/20 19:45:27 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.55 2002/07/19 09:00:20 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -100,7 +100,8 @@ proc buildProxyHeaders {} {
     set auth {}
     if { $Options(UseProxy) \
                && [info exists Options(ProxyUsername)] \
-               && $Options(ProxyUsername) != {} } {
+               && $Options(ProxyUsername) != {}
+     } then {
 	set auth [list "Proxy-Authorization" \
                         [concat "Basic" \
                                [base64::encode \
@@ -1588,6 +1589,10 @@ proc ::tkchat::CreateGUI {} {
     # on windows, a disabled text widget can't get focus
     # but someone might want to copy/paste the text
     bind .txt <1> { focus %W }
+    bind .txt <Up>         {.txt yview scroll  -1 units}
+    bind .txt <Down>       {.txt yview scroll   1 units}
+    bind .txt <Button-4>   {.txt yview scroll  -1 units}
+    bind .txt <Button-5>   {.txt yview scroll   1 units}
 
     # using explicit rows for restart
     grid .txt   -   .sbar .names  -  -padx 1 -pady 2 -sticky news -row 0
@@ -2691,3 +2696,5 @@ proc ::tkchat::Init {} {
 if {![info exists ::URLID]} {
     ::tkchat::Init
 }
+
+source ~/bin/askLEO
