@@ -62,7 +62,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.193 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.194 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -94,7 +94,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.193 2004/10/19 15:22:35 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.194 2004/10/20 22:19:11 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6100,8 +6100,7 @@ proc tkjabber::connect { } {
 	openStream
 	
     } else {
-        set ssl [expr {![catch {package require tls}]}]
-        if {$Options(UseProxy)} {
+        if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
             set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
                             $Options(JabberServer) $Options(JabberPort) \
                             $Options(UseJabberSSL)]
@@ -6145,7 +6144,7 @@ proc tkjabber::SendAuth { } {
 
     update idletasks
 
-    if {$Options(UseProxy)} { 
+    if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
         after 30000 [list jlib::schedule_keepalive $jabber]
     }
 }
