@@ -622,9 +622,12 @@ proc gotoURL {url} {
 	    # lynx can also output formatted text to a variable
 	    # with the -dump option, as a last resort:
 	    # set formatted_text [ exec lynx -dump $url ] - PSE
-	    if {[catch {exec $Options(BROWSER) -remote $url}]} {
-		# -remote argument might need formatting as a command
-	        if {[catch {exec $Options(BROWSER) -remote openURL($url)}]} {
+	    #
+	    # -remote argument might need formatting as a command
+	    # 		Try that first
+	    if {[catch {exec $Options(BROWSER) -remote openURL($url)}]} {
+	        # Try -remote with raw URL argument 
+	        if {[catch {exec $Options(BROWSER) -remote $url}]} {
 		    # perhaps browser doesn't understand -remote flag
 		    if {[catch {exec $Options(BROWSER) $url &} emsg]} {
 		        tk_messageBox -message \
