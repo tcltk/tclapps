@@ -27,6 +27,12 @@ package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 package require base64		; # tcllib
 package require Tk 8.3		; # core Tk
+# We need Tk 8.3.2 to get -state options for [label]s
+if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
+    if {![package vsatisfies $tk_patchLevel 8.3.2]} {
+	return -code error "Tk version 8.3.2 or better is required."
+    }
+}
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -37,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.33 2002/02/14 01:37:47 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.34 2002/02/15 22:37:39 dgp Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
