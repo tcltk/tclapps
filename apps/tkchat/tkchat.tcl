@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.249 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.250 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.249 2004/12/09 08:41:26 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.250 2004/12/11 01:22:04 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4980,25 +4980,135 @@ proc ::tkchat::traceVar {varname -> action} {
 }
 
 # -------------------------------------------------------------------------
+proc ::tkchat::UserInfoFetch {jid} {
+    if {[catch {
+        $::tkjabber::jabber vcard_get $jid \
+            [list [namespace current]::UserInfoFetchDone $jid]
+    } msg]} {
+        log::log notice "error in vcard_get: $msg"
+    }
+}
 
-proc ::tkchat::UserInfoDialog {} {
+proc ::tkchat::UserInfoFetchDone {jid jlib type xmllist} {
+    set ::xmllist $xmllist
+    if {[catch {
+        if {[string equal $type "result"]} {
+            UserInfoParse $jid $xmllist
+        } else {
+            log::log debug "eek"
+        }
+    } err]} { log::log error "ERROR UserInfoFetchDone: $err" }
+}
+
+proc ::tkchat::UserInfoParse {jid xmllist {prefix {}}} {
+    variable ui_$jid
+    upvar #0 [namespace current]::ui_$jid ui
+    foreach child [wrapper::getchildren $xmllist] {
+        set tag $prefix
+        append tag [wrapper::gettag $child]
+        set data [wrapper::getcdata $child]
+        set kids [wrapper::getchildren $child]
+        if {[llength $kids] > 0} {
+            UserInfoParse $jid $child "${tag}_"
+        } else {
+            set ui($tag) $data
+        }
+    }
+}
+
+proc ::tkchat::UserInfoSend {jid} {
+    variable ui_$jid
+    set xmllist [wrapper::createtag vCard -attrlist {xmlns vcard-temp}]
+    foreach {tag value} [array get ui_$jid] {
+        set tags [split $tag _]
+        set tag [lindex $tags end]
+        set item [wrapper::createtag $tag -chdata $value]
+        set xmllist [UserInfoAppendChild $xmllist [lrange $tags 0 end-1] $item]
+        set xmllist [lreplace $xmllist 2 2 0]
+    }
+    
+    $tkjabber::jabber send_iq set $xmllist \
+        -command [namespace current]::UserInfoSent
+}
+
+proc ::tkchat::UserInfoSent {type args} {
+    if {![string equal $type "result"]} {
+        tk_messageBox -icon error -title [string totitle $type] \
+            -message $args
+    }
+}
+
+proc ::tkchat::UserInfoAppendChild {xmllist tags child} {
+    if {[llength $tags] > 0} {
+        set tag [lindex $tags 0]
+        set tags [lrange $tags 1 end]
+        set kids [wrapper::getchildren $xmllist]
+        set new {}
+        set found 0
+        foreach kid $kids {
+            if {[string equal [wrapper::gettag $kid] $tag]} {
+                set found 1
+                lappend new [UserInfoAppendChild $kid $tags $child]
+            } else {
+                lappend new $kid
+            }
+        }
+        if {!$found} {
+            set kid [wrapper::createtag $tag -attrlist {xmlns vcard-temp}]
+            lappend new [UserInfoAppendChild $kid $tags $child]
+        }
+        set xmllist [wrapper::setchildlist $xmllist $new]
+        set xmllist [lreplace $xmllist 2 2 0]
+    } else {
+        set kids [wrapper::getchildren $xmllist]
+        lappend kids $child
+        set xmllist [wrapper::setchildlist $xmllist $kids]
+        set xmllist [lreplace $xmllist 2 2 0]
+    }
+    return $xmllist
+}
+
+proc ::tkchat::UserInfoDialog {{jid {}}} {
     variable UserInfo
     variable UserInfoBtn
+    variable UserInfoWin
 
-    if {![info exists UserInfo]} {
-        UserInfoFetch
-        tkwait variable [namespace current]::UserInfo
+    if {$jid == {}} {
+        set jid [::tkjabber::jid !resource $::tkjabber::myId]
     }
 
-    set dlg [toplevel .userinfo]
+    set uivar [namespace current]::ui_$jid
+    variable $uivar
+    upvar #0 $uivar UI
+    if {![info exists UI]} {
+        set UI(after) [after 5000 [list array set $uivar {timeout 1}]]
+        UserInfoFetch $jid
+        tkwait variable $uivar
+        after cancel $UI(after)
+        unset UI(after)
+    }
+    if {[info exists UI(timeout)]} {
+        log::log debug "cleanup as no UI"
+        unset $uivar
+        return
+    }
+
+    if {![info exists UserInfoWin]} {set UserInfoWin 0}
+
+    set id userinfo[incr UserInfoWin]
+    set [namespace current]::$id -1
+    set dlg [toplevel .$id -class Dialog]
+    wm title $dlg "User info for $jid"
     set f [frame $dlg.f -bd 0]
 
-    foreach {key text} {realname "Real name" email Email country Country \
-                            city City age Age url "Homepage URL" \
-                            photo_url "Picture URL" icq_uin "ICQ uin"} {
+    # country Country city City age Age 
+    # photo_url "Picture URL" icq_uin "ICQ uin"
+    foreach {key text} {FN "Real name" EMAIL_USERID Email URL "Homepage URL" \
+                            ADR_LOCALITY "City" \
+                            ADR_CTRY "Country" BDAY "Birthday"} {
         set l [label $f.l$key -text $text -anchor nw]
         set e [entry $f.e$key \
-                   -textvariable [namespace current]::UserInfo($key) \
+                   -textvariable [set uivar]($key) \
                    -bd 1 -background white]
         grid configure $l $e -sticky news -padx 1 -pady 1
     }
@@ -5007,35 +5117,40 @@ proc ::tkchat::UserInfoDialog {} {
     set et [text $e.text -height 6 -bd 1 -background white]
     set es [scrollbar $e.scroll -bd 1 -command [list $et yview]]
     $et configure -yscrollcommand [list $es set]
-    catch {$et insert 0.0 $UserInfo(stuff)}
+    catch {$et insert 0.0 $UI(DESC)}
     grid configure $et $es -sticky news
     grid rowconfigure $e 0 -weight 1
     grid columnconfigure $e 0 -weight 1
-
+    
     grid configure $l $e -sticky news -padx 1 -pady 1
     grid columnconfigure $f 1 -weight 1
     grid rowconfigure $f 8 -weight 1
-
+    
     set btns [frame $dlg.buttons -bd 1]
-    button $btns.ok -text Save -width 10 \
-        -command [list set [namespace current]::UserInfoBtn 1]
+    button $btns.ok -text Save -width 10 -state disabled \
+        -command [list set [namespace current]::$id 1]
     button $btns.cancel -text Cancel -width 10 \
-        -command [list set [namespace current]::UserInfoBtn 0]
+        -command [list set [namespace current]::$id 0]
     pack $btns.cancel $btns.ok -side right
-
+    
     pack $btns -fill x -side bottom
     pack $f -fill both -expand 1 -side top
-
+    
+    if {[string equal [::tkjabber::jid !resource $jid] \
+             [::tkjabber::jid !resource $::tkjabber::myId]]} {
+        $btns.ok configure -state normal
+    }
+    
     set UserInfoBtn -1
-    tkwait variable [namespace current]::UserInfoBtn
-
-    if {$UserInfoBtn == 1} {
-        set UserInfo(stuff) [$et get 0.0 end]
+    tkwait variable [namespace current]::$id
+    
+    if {[set [namespace current]::$id] == 1} {
+        set UI(DESC) [$et get 0.0 end]
         UserInfoSend
     }
     destroy $dlg
-    unset UserInfoBtn
-    unset UserInfo
+    unset [namespace current]::$id
+    unset UI
 }
 
 # -------------------------------------------------------------------------
@@ -6316,8 +6431,7 @@ proc ::tkjabber::userinfo {nick} {
     if {[string match "/userinfo *" $nick]} {
         set nick [string range $nick 10 end]
     }
-    log::log debug "userinfo for \"$nick\""
-    jlib::vcard_get $jabber $conference/$nick [namespace current]::VCardGetProc
+    ::tkchat::UserInfoDialog $conference/$nick
 }
 
 proc tkjabber::msgSend { msg args } {
@@ -6405,6 +6519,27 @@ proc tkjabber::msgSend { msg args } {
     }
     #-xlist [wrapper::createtag x -attrlist {xmlns http://tcl.tk/tkchat foo bar}]
     
+}
+
+# tkjabber::jid --
+#
+#       A helper function for splitting out parts of Jabber IDs.
+#
+proc ::tkjabber::jid {part jid} {
+    set r {}
+    regexp {^(?:([^@]*)@)?([^/]+)(?:/(.+))?} $jid -> node domain resource
+    switch -exact -- $part {
+        node      { set r $node }
+        domain    { set r $domain }
+        resource  { set r $resource }
+        !resource { set r ${node}@${domain} }
+        jid       { set r $jid }
+        default {
+            return -code error "invalid part \"$part\":\
+                must be one of node, domain, resource or jid."
+        }
+    }
+    return $r
 }
 
 # Send a Jabber message to the full jid of a user. Accept either a full
