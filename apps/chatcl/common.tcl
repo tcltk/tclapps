@@ -229,7 +229,7 @@ proc cat {args} {join $args ""}
 
 proc P {args} {
     set text [uplevel 1 [list subst -nocommands [join $args ""]]]
-    puts -nonewline [regsub -all -line {\n^[ \t]+} $text {}]
+    puts -nonewline [regsub -all -line {\n^[ \t]+} $text "\n"]
 }
 
 proc LOG {level type message} {
