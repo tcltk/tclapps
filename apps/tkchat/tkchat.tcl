@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.165 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.166 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.165 2004/06/23 20:26:31 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.166 2004/06/23 20:33:39 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2590,9 +2590,10 @@ proc ::tkchat::About {} {
 	"/alias <name> <type> <body>\ttype is 'proc' or 'script',\
 	  type proc takes exactly one argument.\n\
 	  \t\t\te.g: /alias foo script addSystem \"test!\"\n" {} \
-	"\t\t\t	    /alias foo proc thisProc\n" {} \
-	"\t\t\t	    proc thisProc { arguments } { addSystem \$arguments }\n" {} \
-	"/unalias <pattern>\t\t/unalias f*\n" {} \
+	"\t\t\t/alias foo proc thisProc\n" {} \
+	"\t\t\tproc thisProc { arguments } { addSystem \$arguments }\n" {} \
+	"/unalias <pattern>\t\tremoves one or more aliases.\n\
+    \t\t\te.g: /unalias f*\n" {} \
 	"Searching\n" h1 \
 	"/?<text>\t\t\tsearch the chat buffer for matching text.\
 	 Repeating the command will progress\n\t\t\tto the previous match\n" {} \

@@ -1,5 +1,8 @@
 2004-06-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Applied patch from bug #977354 for cosmetic fix to
+	the About dialog. (by Joe Mistachkin).
+
 	* tkchat.tcl: Removed a number of 8.4+isms so that tkchat operates
 	with Tk8.3 again. Avoid eq and ne and use tk_windowingsystem.
 
