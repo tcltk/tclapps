@@ -212,6 +212,7 @@ proc ::vnc::PointerEvent {chan state x y {button 0} {press 1}} {
     # button mask  -- eight bit field for each of 8 buttons.  But
     # Tk can't give us that, I think.  It only seems to like individual
     # button down events.
+    # hobbs is adding comments to test cvs
     if {[string equal $state move]} {
 	set buttonmask $CurrentButtonMask
     } elseif {[string equal $state up]} {
