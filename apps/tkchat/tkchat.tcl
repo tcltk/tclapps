@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.98 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.99 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.98 2003/07/01 09:27:05 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.99 2003/07/17 18:53:39 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1283,6 +1283,11 @@ proc gotoURL {url} {
 	    }
 	}
 	"windows" {
+	    # The windows NT shell treats '&' as a special character. Using
+	    # a '^' will escape it. See http://wiki.tcl.tk/557 for more info. 
+	    if {[string compare $tcl_platform(os) "Windows NT"] == 0} { 
+		set url [string map {& ^&} $url] 
+	    } 
 	    if {[catch {eval exec [auto_execok start] [list $url] &} emsg]} {
 		tk_messageBox -message \
                       "Error displaying $url in browser\n$emsg"
@@ -2227,8 +2232,7 @@ proc ::tkchat::doBug {msg} {
     append url "&atid=$atid"
 
     # Until exec works correctly with &, just show the URL for C&P
-    #gotoURL $url
-    addSystem $url
+    gotoURL $url
 }
 
 ## ::tkchat::Find - searches in text widget $w for $str and highlights it

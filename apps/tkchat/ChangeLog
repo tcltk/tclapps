@@ -1,3 +1,8 @@
+2003-07-17  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: correct display of URLs with & in them on Windows.
+	Make the /bug use gotoURL now. [Bug 758596] (theado)
+
 2003-07-01  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Update so /me messages from ircbridge show up
 	correctly again. Changed the old regexp so it matches at the
