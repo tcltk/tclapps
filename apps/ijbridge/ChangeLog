@@ -1,3 +1,10 @@
+2004-12-05  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+
+	* ijbridge.tcl: Added a map to remove all ASCII < 32 except those
+	permitted by XML. Added the stdin reader from version 2. Removed
+	the check for history items - tclers MUC now puts a timestamp on
+	all messages.
+
 2004-11-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Added catch around the message callback and

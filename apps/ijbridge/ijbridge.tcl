@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.3 2004/11/17 10:07:08 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.4 2004/12/05 22:31:00 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -286,6 +286,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 log::log debug "avoid resend"
             } else {
 
+                if {0} {
                 if {[info exists a(-x)]} {
                     foreach chunk $a(-x) {
                         if {[lsearch -exact [wrapper::getattrlist $chunk] \
@@ -296,6 +297,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                         }
                     }
                 }
+                }
 
                 set nickndx [string first / $a(-from)]
                 set nick [string range $a(-from) [incr nickndx] end]
@@ -305,7 +307,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 }
                 foreach line [split $a(-body) \n] {
                     if {$emote} {
-                        xmit "PRIVMSG $::client::channel :$nick $line"
+                        xmit "PRIVMSG $::client::channel :\001ACTION $nick $line\001"
                     } else {
                         xmit "PRIVMSG $::client::channel :<$nick> $line"
                     }
@@ -361,10 +363,21 @@ proc ::ijbridge::OnPresence {token type args} {
 #
 proc ::ijbridge::IrcToJabber {who msg emote} {
     variable Options
+    variable xmlmap
+    if {![info exists xmlmap]} {
+        set xmlmap {}
+        for {set n 0} {$n < 32} {incr n} {
+            if {$n == 9 || $n == 10 || $n == 13} continue
+            lappend xmlmap [format %c $n] [format "&#x%x;" $n]
+        }
+    }
+
     if {[string equal $who "azbridge"]} {
         regexp {^<(.*?)> (.*)$}  $msg -> who msg
         set emote [regexp {^\*{1,3} (\w+) (.*)$} $msg -> who msg]
     }
+
+    set msg [string map $xmlmap $msg]
     
     if {$emote} {
         ijbridge::send -id "$Options(Conference)/$who" "* $who $msg"
@@ -403,7 +416,8 @@ proc ::ijbridge::send {args} {
         set opts(user) $Options(Conference)
         set opts(-type) groupchat
     }
-
+    
+    log::log debug "send: [lindex $args 0]"
     eval [linsert [array get opts -*] 0 $conn(jabber) \
               send_message $opts(user) -body [lindex $args 0]]
 }
@@ -660,12 +674,45 @@ proc bgerror {args} {
 
 # -------------------------------------------------------------------------
 
+# ijbridge::ReadControl --
+#
+#	Reads commands from stdin and evaluates them. This permits
+#	us to issue commands to the server while it is still 
+#	running. Suitable commands are ijbridge::presence and
+#	ijbridge::say or ijbridge::xmit.
+#
+proc ::ijbridge::ReadControl {chan} {
+    variable Control
+    if {![info exists Control]} {set Control {}}
+    if {[eof $chan]} {
+        puts stderr "!! EOF $chan"
+    }
+    append Control [read $chan]
+    if {[info complete $Control]} {
+        set code [catch {uplevel \#0 $Control} res]
+        unset Control
+        if {$code} {set ochan stderr} else {set ochan stdout}
+        puts $ochan $res
+    }
+}
+
+# -------------------------------------------------------------------------
+
 
 log::lvSuppressLE emerg 0
 ::ijbridge::LoadConfig
 
 if {!$tcl_interactive} {
     
+    # Setup control stream.
+    if {$tcl_platform(platform) eq "unix"} {
+        set tcl_interactive 1; # fake it so we can re-source this file
+        puts "Tcl IRC-Jabber bridge $::ijbridge::version started"
+        puts -nonewline "Reading control commands from stdin.\n> "
+        fconfigure stdin -blocking 0 -buffering line
+        fileevent stdin readable [list ::ijbridge::ReadControl stdin]
+    }
+
     # Connect to IRC
     client::create $ijbridge::Options(IrcServer) \
         $ijbridge::Options(IrcPort) \
