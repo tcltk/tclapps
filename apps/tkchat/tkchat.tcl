@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.47 2002/03/21 16:59:35 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.48 2002/03/21 23:36:57 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -767,6 +767,9 @@ proc addNewLines {input} {
     # Add the input to the history.  It's OK to do this before processing.
     eval [list lappend Options(History)] $input
 
+    # Restrict the History size as specified
+    set Options(History) [lrange $Options(History) end-$Options(HistoryLines) end]
+
     set inHelp 0
     set inMsg 0
     set UserInfoCmd [list]
@@ -1401,6 +1404,8 @@ proc ::tkchat::CreateGUI {} {
           -command [list ::tkchat::Debug retrieve]
     $m add comman -label "Evaluate Selection" -underline 1 \
           -command [list ::tkchat::Debug evalSel]
+    $m add comman -label "Allow Remote Control" -underline 0 \
+          -command [list ::tkchat::Debug server]
     $m add comman -label "Purge Chat Window" -underline 0 \
           -command [list ::tkchat::Debug purge]
     $m add separator
@@ -2120,6 +2125,29 @@ proc ::tkchat::Debug {cmd args } {
             catch {::tkchat::LoadHistory}
 	    pause off
 	}
+        server {
+            # Permit remote control using either DDE or the tcllib comm package
+            # We'll fix the title bar so people know which instance we are.
+            #
+            variable ServerID
+            if {![info exists ServerID]} {
+                if {![catch {package require dde}]} {
+                    set ServerID [tk appname]
+                    set count 0
+                    while {[dde services TclEval $ServerID] != {}} {
+                        incr count
+                        set ServerID "[tk appname] #$count"
+                    }
+                    dde servername $ServerID
+                    if {$count != 0} {
+                        wm title . "[wm title .] #$count"
+                    }
+                } elseif {![catch {package require comm}]} {
+                    set ServerID [comm::comm self]
+                    wm title . "[wm title .] $ServerID"
+                }
+            }
+        }
 	evalSel {
 	    if { [catch {selection get} script] } {
 		tk_messageBox -message "Couldn't get selection\n$script"
