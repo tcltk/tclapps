@@ -329,8 +329,7 @@ proc ::vnc::RawEncoding {chan x_start y_start width height} {
 
     set bytes [expr {$width*$BYTES_PER_PIXEL}]
     for {set y 0} {$y < $height} {incr y} {
-	binary scan [read $chan $bytes] \
-	    $BINARY_FORMAT_FOR_PIXELS$bytes rectwords
+	set rectwords [split [read $chan $bytes] {}]
 	set image_info_data {}
 	foreach pixel $rectwords {
 	    lappend image_info_data $PIXELS($pixel)
@@ -349,7 +348,7 @@ proc ::vnc::RawEncoding {chan x y width height} {
 
     set bytes [expr {$width*$height*$BYTES_PER_PIXEL}]
     if {!$bytes} { return }
-    binary scan [read $chan $bytes] $BINARY_FORMAT_FOR_PIXELS$bytes rectwords
+    set rectwords [split [read $chan $bytes] {}]
     set img_data {}
     set w 0
     foreach pixel $rectwords {
@@ -372,7 +371,7 @@ proc ::vnc::RawEncoding {chan x y width height} {
 
     set bytes [expr {$width*$height*$BYTES_PER_PIXEL}]
     if {!$bytes} { return }
-    binary scan [read $chan $bytes] $BINARY_FORMAT_FOR_PIXELS$bytes rectwords
+    set rectwords [split [read $chan $bytes] {}]
     set w 0
     foreach pixel $rectwords {
 	lappend line_data $PIXELS($pixel)
@@ -394,7 +393,7 @@ proc ::vnc::RawEncoding {chan x y width height} {
 
     set bytes [expr {$width*$height*$BYTES_PER_PIXEL}]
     if {!$bytes} { return }
-    binary scan [read $chan $bytes] $BINARY_FORMAT_FOR_PIXELS$bytes rectwords
+    set rectwords [split [read $chan $bytes] {}]
 
     set idx 0
     set endIdx $width
@@ -478,12 +477,23 @@ proc ::vnc::HextileRectEncoding {chan x_start y_start width height} {
     variable fg_colour
     variable bg_colour
     variable SCREEN
-    for {set tile_y 0} {$tile_y < $height} {incr tile_y 16} {
-	set y [expr {$y_start + $tile_y}]
-	set h  [expr {$tile_y + 16 > $height ? ($height - $tile_y) : 16 }]
-	for {set tile_x 0} {$tile_x < $width} {incr tile_x 16} {
-	    set x [expr {$x_start + $tile_x}]
-	    set w [expr {$tile_x + 16 > $width ? ($width - $tile_x) : 16 }]
+
+    set x_end  [expr {$x_start + 16*(($width-1)/16)}]
+    set w_last [expr {($width%16)? ($width%16) : 16}]
+
+    set y_end  [expr {$y_start + 16*(($height-1)/16)}]
+    set h_last [expr {($height%16)? ($height%16) : 16}]
+
+    set h 16
+    for {set y $y_start} {$y <= $y_end} {incr y 16} {
+	if {$y == $y_end} {
+	    set h $h_last
+	}
+	set w 16
+	for {set x $x_start} {$x <= $x_end} {incr x 16} {
+	    if {$x == $x_end} {
+		set w $w_last
+	    }
 	    set subencoding [read_binary $chan c 1]	    
 	    if {$subencoding & 1} {
 		# Raw hextile
@@ -494,35 +504,43 @@ proc ::vnc::HextileRectEncoding {chan x_start y_start width height} {
 		# background color given
 		set bg_colour [ReadSinglePixelColour $chan]
 	    }
+	    $SCREEN put $bg_colour -to $x $y [expr {$x + $w}] [expr {$y + $h}] 
+
 	    if {$subencoding & 4} {
 		# foreground color given
 		set fg_colour [ReadSinglePixelColour $chan]
+		set subrects_coloured 0
+	    } else {
+		set subrects_coloured [expr {$subencoding & 16}]
 	    }
+
 	    if {$subencoding & 8} {
 		# subrects given
 		set subrects_count [read_binary $chan c 1]
 	    } else {
-		set subrects_count 0
+		continue
 	    }
-	    $SCREEN put $bg_colour -to $x $y [expr {$x + $w}] [expr {$y + $h}] 
 
-	    set subrects_coloured [expr {$subencoding & 16}]
 	    set colour $fg_colour
 	    for {set s 0} {$s < $subrects_count} {incr s} {
 		if {$subrects_coloured} {
 		    set colour [ReadSinglePixelColour $chan]
 		}
-		set x_and_y [expr {([read_binary $chan c 1] + 0x100) % 0x100}]
-		set w_and_h [expr {([read_binary $chan c 1] + 0x100) % 0x100}]
-		set subrect_x [expr {$x + ($x_and_y >> 4)}]
-		set subrect_y [expr {$y + ($x_and_y & 15)}]
-		set subrect_w [expr {1 + ($w_and_h >> 4)}]
-		set subrect_h [expr {1 + ($w_and_h & 15)}]
-		$SCREEN put $colour -to $subrect_x $subrect_y \
-			[expr {$subrect_x + $subrect_w}] [expr {$subrect_y + $subrect_h}] 
+		#
+		# Read both x_y and w_h bytes in one go
+		#
+
+		set coords [read_binary $chan S 2]
+		set subrect_x0 [expr {$x + (($coords >> 12) & 15)}]
+		set subrect_y0 [expr {$y + (($coords >>  8) & 15)}]
+		set subrect_x1 [expr {$subrect_x0 + 1 + (($coords >>  4) & 15)}]
+		set subrect_y1 [expr {$subrect_y0 + 1 + (($coords      ) & 15)}]
+
+		$SCREEN put $colour -to $subrect_x0 $subrect_y0 $subrect_x1 $subrect_y1
 	    }
 	}
-    }    
+	update idletasks
+    }
 }
 
 
@@ -534,8 +552,7 @@ proc ::vnc::ReadSinglePixelColour {chan} {
     variable PIXELS
     variable BINARY_FORMAT_FOR_PIXELS
     variable BYTES_PER_PIXEL
-    set x [read_binary $chan $BINARY_FORMAT_FOR_PIXELS $BYTES_PER_PIXEL]
-    return $PIXELS($x)
+    return $PIXELS([read $chan $BYTES_PER_PIXEL])
 }
 
 # 
@@ -551,14 +568,15 @@ proc ::vnc::FillOutPixelCache {} {
     if {$BITS_PER_PIXEL != 8} {
 	return -code error "Have to change the loop parameters here" 
     } 
-    for {set pixel -128} {$pixel < 128} {incr pixel} { 
+    for {set pixel 0} {$pixel < 256} {incr pixel} { 
 	set rcomponent   [expr {($pixel >> $rshift) & $rmax}]
 	set red_to_255   [expr {(255 * $rcomponent) / $rmax}]
 	set gcomponent   [expr {($pixel >> $gshift) & $gmax}]
 	set green_to_255 [expr {(255 * $gcomponent) / $gmax}]
 	set bcomponent   [expr {($pixel >> $bshift) & $bmax}]
 	set blue_to_255  [expr {(255 * $bcomponent) / $bmax}]
-	set PIXELS($pixel) \
+	set index [binary format c $pixel]; # 8-bit specific
+	set PIXELS($index) \
 	    [format "#%02X%02X%02X" $red_to_255 $green_to_255 $blue_to_255]
     }
 }

@@ -1,3 +1,7 @@
+2003-01-17  Miguel Sofer  <msofer@users.sf.net>
+	* tkvnc.tcl: changed PIXELS array so that no conversions are
+	needed at run time;  optimisation of HextileRectEncoding).
+	
 2003-01-16  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkvnc.tcl: Add File -> Disconnect menu and Prefs -> Encoding Order.
