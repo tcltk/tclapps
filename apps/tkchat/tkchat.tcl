@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.58 2002/07/25 08:57:19 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.59 2002/07/25 20:53:48 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2560,6 +2560,13 @@ proc ::tkchat::Smile {} {
 	CRMmRIgwYcKECRMCBIgwYcKECRMCBIgwIUCACBMCBIgQIECAABECBIgQYMKE
 	ARECBAgQYcKECQECDAgQYcKECQECDAgQYcKECQECDAgQYcKECQECDAgQYcKE
 	CQECDIgQYMKEARECDIgQIECAABECDIgwIUCACBMCDIgwYcKECRMGTJgwYcKE
+	CRMmBQA7
+    }
+    SmileId snooze zz zzz zzZ zZZ ZZZ ZZ
+    image create photo ::tkchat::img::snooze -format GIF -data {
+	R0lGODlhEAALAPABAAAAAP///yH5BAEAAAEALAAAAAAQAAsAAAJkTJgwYcKE
+	AAECTJgwYcKEAAECTJgwYcKECRMCTJgwYcKECQMiTJgQIECECQEmTJgwYUCE
+	AREmTJgwIcCEABMmBIgwIMKEAAECTIgQYMKEAAECDJgQIECECRMmBIgwYcKE
 	CRMmBQA7
     }
 }
