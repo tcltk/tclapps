@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.50 2002/04/10 23:58:47 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.51 2002/04/15 09:11:02 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1003,16 +1003,20 @@ proc addMessage {clr nick str} {
     checkNick $nick $clr
     $w config -state normal
     $w insert end "$nick\t" [list NICK NICK-$nick]
-    foreach {str url} [parseStr $str] {
-	foreach cmd [array names ::tkchat::MessageHooks] {
-	    eval $cmd [list $str $url]
-	}
-	set tags [list MSG NICK-$nick]
-	if {$url != ""} {
-	    lappend tags URL URL-[incr ::URLID]
-	    $w tag bind URL-$::URLID <1> [list gotoURL $url]
-	}
-	tkchat::Insert $w $str $tags $url
+    if {[string equal $nick clock]} {
+        .txt insert end "[formatClock $str] " [list NICK-$nick MSG]
+    } else {
+        foreach {str url} [parseStr $str] {
+            foreach cmd [array names ::tkchat::MessageHooks] {
+                eval $cmd [list $str $url]
+            }
+            set tags [list MSG NICK-$nick]
+            if {$url != ""} {
+                lappend tags URL URL-[incr ::URLID]
+                $w tag bind URL-$::URLID <1> [list gotoURL $url]
+            }
+            tkchat::Insert $w $str $tags $url
+        }
     }
     $w insert end "\n" [list NICK NICK-$nick]
     $w config -state disabled
