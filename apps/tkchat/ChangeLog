@@ -1,3 +1,7 @@
+2001-10-30  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added smiley detection for Windows/Mac.
+
 2001-10-26  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added a help dialog. Needs more help in it.
@@ -7,7 +11,6 @@
 	entry/exit messages.
 	- Implemented part of feature request 466091 to remember window
 	geometry.
-
 
 2001-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

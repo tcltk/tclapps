@@ -38,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.15 2001/10/26 13:44:04 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.16 2001/10/30 20:39:18 hobbs Exp $}
 }
 
 set ::DEBUG 1
@@ -184,12 +184,11 @@ proc msgDone {tok} {
                 } else {
                     log::log error "Post error: [::http::code $tok] - need to retry"
                     set Options(msgSend_Retry) 1
-                    ::http::geturl $Options(URL) \
-                        -query [subst $tok](-query) \
-                        -headers [buildProxyHeaders] \
-                        -command msgDone
+                    after idle [list ::http::geturl $Options(URL) \
+			    -query [set ${tok}(-query)] \
+			    -headers [buildProxyHeaders] \
+			    -command msgDone]
                 }
-               
             } else {
                 checkForRedirection $tok URL
                 if {[catch {fetchPage} err]} { errLog $err }
@@ -647,11 +646,15 @@ proc checkNick {nick clr} {
 
 proc addMessage {clr nick str} {
     global Options
+    variable map
     checkNick $nick $clr
     .txt config -state normal
     .txt insert end $nick [list NICK NICK-$nick] "\t"
     foreach {str url} [parseStr $str] {
-	regsub -all "\n" $str "\n\t" str
+	if {[string compare "unix" $::tcl_platform(platform)]} {
+	    regsub -all {:[-^]?\)} $str \u263a str
+	}
+	set str [string map [list "\n" "\n\t"] $str]
 	foreach cmd [array names ::tkchat::MessageHooks] {
 	    eval $cmd [list $str $url]
 	}
@@ -911,7 +914,7 @@ proc createFonts {} {
     font create SYS  -family helvetica -size -12 -weight bold	-slant italic
 }
 
-proc createGUI {} {
+proc ::tkchat::createGUI {} {
     global Options
 
     wm title . "Tcl'ers Chat"
@@ -1037,13 +1040,13 @@ proc createGUI {} {
     .txt tag config ACTION -font ACT
     .txt tag config SYSTEM -font SYS
     .txt tag config URL -underline 1
-    .txt tag bind URL <Enter> ".txt config -cursor hand2"
-    .txt tag bind URL <Leave> ".txt config -cursor {}"
+    .txt tag bind URL <Enter> [list .txt config -cursor hand2]
+    .txt tag bind URL <Leave> [list .txt config -cursor {}]
     .names tag config NICK -font NAME
     .names tag config TITLE -font SYS -justify center
     .names tag config URL -underline 1
-    .names tag bind URL <Enter> ".names config -cursor hand2"
-    .names tag bind URL <Leave> ".names config -cursor {}"
+    .names tag bind URL <Enter> [list .names config -cursor hand2]
+    .names tag bind URL <Leave> [list .names config -cursor {}]
     # on windows, a disabled text widget can't get focus
     # but someone might want to copy/paste the text
     bind .txt <1> { focus %W }
@@ -1319,7 +1322,7 @@ proc changeSettings {} {
     catch {::tk::PlaceWindow $t widget .}
     wm deiconify $t
     tkwait visibility $t
-    grab $t
+    #grab $t
     set working 1
     while {$working} {
 	vwait ::DlgDone
@@ -1360,7 +1363,7 @@ proc changeSettings {} {
             }
 	}
     }
-    grab release $t
+    #grab release $t
     destroy $t
 }
 
