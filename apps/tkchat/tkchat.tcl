@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.101 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.102 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.101 2003/07/27 20:30:30 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.102 2003/07/27 21:10:17 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2036,6 +2036,16 @@ proc ::tkchat::userPost {} {
                 }
                 {^/bug } {
 		    doBug $msg
+                }
+                {^/google\s} {
+                    set msg [string range $msg 8 end]
+                    log::log debug "Google query \"$msg\""
+                    if {[string length $msg] > 0} {
+                        set    q {http://www.google.com/search}
+                        append q {?hl=en&ie=UTF-8&oe=UTF-8&btnG=Google+Search}
+                        append q "&q=$msg"
+                        gotoURL $q
+                    }
                 }
                 default  {
                     # might be server command - pass it on

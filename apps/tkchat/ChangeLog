@@ -1,9 +1,13 @@
 2003-07-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (addMessage): Fix for the Jabber bridge nick handling.
+
 	* tkchat.tcl (gotoURL): Try to use DDE to open URLs (avoid quoting
 	problems). Also copy the URL into the CLIPBOARD selection.
 
+	* tkchat.tcl (::tkchat::userPost): Add a /google command to launch
+	google queries with the remaining text.
+	
 2003-07-17  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: correct display of URLs with & in them on Windows.
