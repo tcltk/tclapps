@@ -69,7 +69,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.210 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.211 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -101,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.210 2004/11/09 19:23:28 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.211 2004/11/10 19:57:43 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2644,6 +2644,7 @@ proc ::tkchat::CreateGUI {} {
     bind .txt <Button-5>   {.txt yview scroll	1 units}
     bind .txt <Button-3>   {.mbar.help.tr post \
 				[winfo pointerx %W] [winfo pointery %W]}
+    bind .txt <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
 
     bind . <FocusIn> [list [namespace origin ResetMessageCounter]]
     if {[lsearch [wm attributes .] -alpha] != -1} {
@@ -4877,34 +4878,57 @@ proc ::tkchat::Init {args} {
 #	 Martin Scherbaum <maddin@scherbaum.org>
 #
 #############################################################
-package require Tk
-package require http
-package require htmlparse
 namespace forget ::dict.leo.org
 
 namespace eval ::dict.leo.org {
+
     namespace export query askLEO askLEOforSelection
+    
+    package require Tk
+    package require http
+    package require htmlparse
+    
     variable table ""
     variable last  ""
     variable Query ""
+    variable td
+    variable tdcounter 0
+    variable leoURL http://pda.leo.org
 }
 
 proc ::dict.leo.org::parse {tag close options body} {
-    variable TD
+    variable td
     variable table
+    variable tdcounter
+
     switch -- $close$tag {
-        TD	   {set TD ""}
-        /TD	   {if {[llength $TD]} {lappend table [string trim $TD]}}
-        default {append TD [string map {&nbsp; { }} $body]}
+
+	/TR - /tr {
+	    if {[info exists td(2)] && [info exists td(3)]} {
+		lappend table [string trim $td(2)] [string trim $td(3)]
+	    }
+	    set tdcounter 0
+	    array unset td
+	}
+
+	td - td { incr tdcounter }
+
+	default {
+	    set item [htmlparse::mapEscapes $body]
+	    if {[string length $item]} {
+		append td($tdcounter) $item
+	    }
+	}
     }
 }
 
 proc ::dict.leo.org::query {query} {
     variable table
-    set url http://dict.leo.org/?[http::formatQuery search $query]
-    set tok [::http::geturl $url]
+    variable leoURL
+    set query [::http::formatQuery search $query]
+    set tok [::http::geturl $leoURL -query $query]
     foreach line [split [::http::data $tok] "\n"] {
-	if {[string match "*search results*" $line]} break
+	if {[string match "*ENGLISCH*DEUTSCH*" $line]} break
     }
     ::http::cleanup $tok
     set table ""
@@ -5030,8 +5054,6 @@ set ::dict.leo.org::LEOlogo {
 }
 
 ::dict.leo.org::init
-
-bind . <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
 
 #######################################################################
 #

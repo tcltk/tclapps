@@ -1,3 +1,9 @@
+2004-11-10  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Updated the dict.leo.org translator to work with the
+	latest version of the web service, and fixed the key binding to
+	invoke it.
+
 2004-11-09  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Auto reenter conference and reconnect to server.
