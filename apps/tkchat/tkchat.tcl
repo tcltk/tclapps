@@ -43,19 +43,21 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 # Deal with 'tile' support.
 # We sometimes need to _really_ use the Tk widgets at the moment...
 #
-foreach cmd {label radiobutton entry} {
-    rename ::$cmd ::tk::$cmd
-}
-if {![catch {package require tile 0.4}]} {
-    if {[namespace exists ::ttk]} {
-        namespace import -force ttk::*
-    } else {
-        namespace import -force tile::*
+if {[llength [info command ::tk::label]] < 1} {
+    foreach cmd {label radiobutton entry} {
+        rename ::$cmd ::tk::$cmd
     }
-}
-foreach cmd {label radiobutton entry} {
-    if {[llength [info command ::$cmd]] < 1} {
-        interp alias {} ::$cmd {} ::tk::$cmd
+    if {![catch {package require tile 0.4}]} {
+        if {[namespace exists ::ttk]} {
+            namespace import -force ttk::*
+        } else {
+            namespace import -force tile::*
+        }
+    }
+    foreach cmd {label radiobutton entry} {
+        if {[llength [info command ::$cmd]] < 1} {
+            interp alias {} ::$cmd {} ::tk::$cmd
+        }
     }
 }
 
@@ -67,7 +69,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.206 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.207 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -99,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.206 2004/11/08 13:23:35 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.207 2004/11/08 15:45:04 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4611,9 +4613,13 @@ proc ::tkchat::ShowSmiles {} {
         catch {::tk::PlaceWindow $t widget .}
         wm title $t "Available Emoticons"
         wm protocol $t WM_DELETE_WINDOW [list wm withdraw $t]
-        set txt [text $t.txt -background black -foreground white \
-                       -font NAME -tabs {1.5i l 2.0i l} \
+        set txt [text $t.txt -font NAME -tabs {1.5i l 2.0i l} \
                        -height [expr {[llength [image names]] + 5}]]
+        if {[string equal [tk windowingsystem] "win32"]} {
+            $txt configure -background SystemButtonFace -foreground SystemButtonText
+        } else {
+            $txt configure -background "#c0c0c0" -foreground black
+        }
         set sb [scrollbar $t.sb -command [list $txt yview]]
         $txt configure -yscrollcommand [list $sb set]
                 
@@ -4626,9 +4632,13 @@ proc ::tkchat::ShowSmiles {} {
             }
             $txt insert end \n
         }
+        $txt configure -state disabled
         grid $txt $sb -sticky news
         grid rowconfigure $t 0 -weight 1
         grid columnconfigure $t 0 -weight 1
+        if {[llength [info command ::tk::PlaceWindow]] > 0} {
+            tk::PlaceWindow $t widget .
+        }
     }
 }
 proc ::tkchat::Init {args} {
