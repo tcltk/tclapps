@@ -38,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.18 2001/11/02 19:14:20 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.19 2001/11/05 20:45:23 hobbs Exp $}
 }
 
 set ::DEBUG 1
@@ -1264,38 +1264,39 @@ proc changeSettings {} {
 		-var DlgData(Color,$idx,Which) \
 		-val Web -fg "#$DlgData(Color,$idx,Web)" \
 		-selectcolor "#$DlgData(Color,$idx,Web)" \
-		-indicatoron 0 
+		-indicatoron 0 -padx 0 -pady 0
 	radiobutton $t.ovr$idx -text "custom" \
 		-var DlgData(Color,$idx,Which) \
 		-val Mine -fg "#$DlgData(Color,$idx,Mine)" \
 		-selectcolor  "#$DlgData(Color,$idx,Mine)" \
-		-indicatoron 0 
-	button $t.clr$idx -text "..." \
+		-indicatoron 0 -padx 0 -pady 0
+	button $t.clr$idx -text "..." -padx 0 -pady 0 \
 		-command [list newColor $t.ovr$idx $idx]
     }
-    frame $t.f -relief sunken -bd 2 -width 10 -height 10
-    canvas $t.f.cvs -yscrollcommand "scroll_set $t.scr" -width 10 -height 10
+    frame $t.f -relief sunken -bd 2
+    canvas $t.f.cvs -yscrollcommand [list scroll_set $t.scr] \
+	    -width 10 -height 100 -highlightthickness 0 -bd 0
     pack $t.f.cvs -expand 1 -fill both
-    scrollbar $t.scr -command "$t.f.cvs yview"
+    scrollbar $t.scr -command [list $t.f.cvs yview]
     set f [frame $t.f.cvs.frm]
-    $t.f.cvs create window 2 2 -anchor nw -window $f
+    $t.f.cvs create window 0 0 -anchor nw -window $f
     bind $f <Configure> {
 	wm geometry [winfo toplevel %W] [expr {%w + 30}]x500
 	[winfo parent %W] config -scrollregion [list 0 0 %w %h]
         bind %W <Configure> {}
     }
     label $f.nknm -text "NickName"
-    button $f.alldef -text "All Default" -command {
+    button $f.alldef -text "All Default" -padx 0 -pady 0 -command {
 	foreach nk $Options(NickList) {
 	    set DlgData(Color,$nk,Which) Web
 	}
     }
-    button $f.allinv -text "All Inverted" -command {
+    button $f.allinv -text "All Inverted" -padx 0 -pady 0 -command {
 	foreach nk $Options(NickList) {
 	    set DlgData(Color,$nk,Which) Inv
 	}
     }
-    button $f.allovr -text "All Custom" -command {
+    button $f.allovr -text "All Custom" -padx 0 -pady 0 -command {
 	foreach nk $Options(NickList) {
 	    set DlgData(Color,$nk,Which) Mine
 	}
@@ -1307,26 +1308,26 @@ proc changeSettings {} {
 		-var DlgData(Color,$nick,Which) \
 		-val Web -fg "#$DlgData(Color,$nick,Web)" \
 		-selectcolor "#$DlgData(Color,$nick,Web)" \
-		-indicatoron 0
+		-indicatoron 0 -padx 0 -pady 0
 	radiobutton $f.inv$nick -text "inverted" \
 		-var DlgData(Color,$nick,Which) \
 		-val Inv -fg "#$DlgData(Color,$nick,Inv)" \
 		-selectcolor "#$DlgData(Color,$nick,Inv)" \
-		-indicatoron 0
+		-indicatoron 0 -padx 0 -pady 0
 	radiobutton $f.ovr$nick -text "custom" \
 		-var DlgData(Color,$nick,Which) \
 		-val Mine -fg "#$DlgData(Color,$nick,Mine)"\
 		-selectcolor  "#$DlgData(Color,$nick,Mine)" \
-		-indicatoron 0 
-	button $f.clr$nick -text "..." \
+		-indicatoron 0  -padx 0 -pady 0
+	button $f.clr$nick -text "..." -padx 0 -pady 0 \
 		-command [list newColor $f.ovr$nick $nick]
 	grid $f.nm$nick $f.def$nick $f.inv$nick $f.ovr$nick $f.clr$nick \
 		-padx 2 -pady 2 -sticky news
     }
     frame $t.f2
-    button $t.f2.ok -text OK -command {set DlgDone ok}
-    button $t.f2.app -text Apply -command {set DlgDone apply}
-    button $t.f2.can -text Cancel -command {set DlgDone cancel}
+    button $t.f2.ok -width 8 -text "OK" -command {set DlgDone ok}
+    button $t.f2.app -width 8 -text "Apply" -command {set DlgDone apply}
+    button $t.f2.can -width 8 -text "Cancel" -command {set DlgDone cancel}
     pack $t.f2.ok $t.f2.app $t.f2.can -side left -expand 1 -fill none
     
     grid $t.l1           $t.e1         -           x        x   -padx 1 -pady 3 -sticky ew
@@ -1338,10 +1339,10 @@ proc changeSettings {} {
     grid $t.l3             -           -           -        -     -   -padx 5 -pady 5
     grid $t.nmMainBG $t.defMainBG $t.ovrMainBG $t.clrMainBG x     x   -padx 2 -pady 2 -sticky news
     grid $t.nmMainFG $t.defMainFG $t.ovrMainFG $t.clrMainFG x     x   -padx 2 -pady 2 -sticky news
-    grid $t.f              -           -           -        -  $t.scr -padx 1 -pady 5 -sticky news
+    grid $t.f              -           -           -        -  - $t.scr -padx 1 -pady 5 -sticky news
     grid $t.f2             -           -           -        -     -   -padx 1 -pady 10 -sticky news
     grid rowconfigure $t 9 -weight 1
-    grid columnconfigure $t 4 -weight 1
+    grid columnconfigure $t 1 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
     wm deiconify $t
