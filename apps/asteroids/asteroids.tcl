@@ -25,7 +25,6 @@ proc main {} {
 }
 
 proc initVars {} {
-
     # This adds a bit of color - all white is traditional
     array set ::CLR {
 	dust        yellow
@@ -37,28 +36,39 @@ proc initVars {} {
 	flame       red
     }
 
-    set ::globals(gameOn) 1
-    set ::globals(level) 0
-    set ::globals(score) 0
-    set ::globals(lives) 3
-    set ::globals(timeStart) [clock clicks -milliseconds]
-    set ::globals(frameCount) 0
-    set ::globals(screenWidth)  800
-    set ::globals(screenHeight) 600
+    set sw [winfo screenwidth .]
+    set sh [winfo screenheight .]
+    set ::SMALL [expr {$sw < 800}]
+    if {$::SMALL} {
+	set ::SCALE [expr {$sw / 800.0}]
+	set ::globals(screenWidth)  $sw
+	set ::globals(screenHeight) $sh
+    } else {
+	set ::SCALE 1
+	set ::globals(screenWidth)  800
+	set ::globals(screenHeight) 600
+    }
+
+    set ::globals(gameOn)        1
+    set ::globals(level)         0
+    set ::globals(score)         0
+    set ::globals(lives)         3
+    set ::globals(timeStart)     [clock clicks -milliseconds]
+    set ::globals(frameCount)    0
     set ::globals(highScoreFile) [file join $::DIR "asteroids_hs.txt"]
 
-    set ::globals(lifeEvery) 10000  ;# new life every 10000 pts
-    set ::globals(nextLife) $::globals(lifeEvery)
-    set ::globals(newMissileOK) 1
-    set ::globals(shipExists) 0
-    set ::globals(hyperOK) 1
+    set ::globals(lifeEvery)     10000  ;# new life every 10000 pts
+    set ::globals(nextLife)      $::globals(lifeEvery)
+    set ::globals(newMissileOK)  1
+    set ::globals(shipExists)    0
+    set ::globals(hyperOK)       1
 
-    set ::globals(sndThrust) 0
-    set ::globals(beatDelay) 750
-    set ::globals(sndOK) 0
+    set ::globals(sndThrust)     0
+    set ::globals(beatDelay)     750
+    set ::globals(sndOK)         0
 
-    set ::globals(shipCoords) [list 0 -11 -7 11 -3 7 3 7 7 11 0 -11]
-    set ::globals(flameCoords) [list -2 7 0 12 2 7 -2 7]
+    set ::globals(shipCoords)   [list 0 -11 -7 11 -3 7 3 7 7 11 0 -11]
+    set ::globals(flameCoords)  [list -2 7 0 12 2 7 -2 7]
     # --- Large rock coords
     set ::globals(rockCoords,1) {-39 -25 -33 -8 -38 21 -23 25 -13 39 24 \
 				     34 38 7 33 -15 38 -31 16 -39 -4 -34 -16 -39}
@@ -100,20 +110,27 @@ proc buildUI {{root .}} {
     $m add cascade -menu .m.help -label "Help" -underline 0
     $m.help add command -label About -under 0 -command About
 
-    set w $::globals(screenWidth)
-    set h $::globals(screenHeight)
-
-    font create largeFont -family Arial -size 20
-    font create smallFont -family Arial -size 10
+    set w   $::globals(screenWidth)
+    set h   $::globals(screenHeight)
+    set off 10
+    if {$::SMALL} {
+	font create largeFont -family Arial -size 10
+	font create smallFont -family Arial -size 7
+	set y 20
+    } else {
+	font create largeFont -family Arial -size 20
+	font create smallFont -family Arial -size 10
+	set y 30
+    }
 
     set c [canvas .c1 -width $w -height $h -bg black \
 	       -highlightthickness 0 -bd 0]
     $c xview moveto 0 ; $c yview moveto 0
-    $c create text 20 30 -tag score -anchor w \
+    $c create text $off $y -tag score -anchor w \
 	-fill $::CLR(text) -font largeFont
-    $c create text 780 30 -tag level -anchor e \
+    $c create text [expr {$w - $off}] $y -tag level -anchor e \
 	-fill $::CLR(text) -font largeFont
-    $c create text 2 2 -fill $::CLR(text) -tag fps -anchor nw \
+    $c create text 2 [expr {$h - 2}] -fill $::CLR(text) -tag fps -anchor sw \
 	-font smallFont
 
     wm title . "Asteroids"
@@ -173,10 +190,9 @@ proc checkHighScore {} {
 	wm resizable $w 0 0
 	set l [label $w.label -text "Name:"]
 	set e [entry  $w.entry -textvar ::_name -width 30]
-	set b [button $w.btnOK -text OK -width 12 \
-		   -command {set _res ""}]
-	grid   $l $e -sticky news -padx 4 -pady 2
-	grid   $b -column 1 -sticky e -padx 4 -pady 2
+	set b [button $w.btnOK -text OK -width 12 -command {set _res ""}]
+	grid $l $e -sticky news -padx 4 -pady 2
+	grid $b -column 1 -sticky e -padx 4 -pady 2
 	bind $w <Return> [list $w.btnOK invoke]
 	bind $w <Destroy> {set _res ""}
 	$e selection range 0 end
@@ -203,24 +219,28 @@ proc displayHighScores {} {
     .c1 delete menu
     set scoreString ""
     set count 0
+    set h  $::globals(screenHeight)
     set fh [expr {[font metrics largeFont -linespace] + 5}]
-    set yLoc [expr {(($::globals(screenHeight) / 2) - \
-			 (([llength $::globals(highScores)] / 2) * $fh))}]
+    set yLoc [expr {($h / 2) - (([llength $::globals(highScores)] / 2) * $fh)}]
     foreach scoreSet $::globals(highScores) {
 	foreach {name score} $scoreSet {
 	    incr count
 	    set score [format %07d $score]
-	    .c1 create text 300 $yLoc -text "${count}." -anchor e \
+	    .c1 create text [expr {300*$::SCALE}] $yLoc \
+		-text "${count}." -anchor e \
 		-font largeFont -fill $::CLR(text) -tag highScore
-	    .c1 create text 320 $yLoc -text $name -anchor w \
+	    .c1 create text [expr {320*$::SCALE}] $yLoc \
+		-text $name -anchor w \
 		-font largeFont -fill $::CLR(text) -tag highScore
-	    .c1 create text 460 $yLoc -text $score -anchor w \
+	    .c1 create text [expr {460*$::SCALE}] $yLoc \
+		-text $score -anchor w \
 		-font largeFont -fill $::CLR(text) -tag highScore
 	    incr yLoc $fh
 	}
     }
 
-    .c1 create text 400 $yLoc -text "Press \[Escape\] to return to Menu" \
+    .c1 create text [expr {400*$::SCALE}] $yLoc \
+	-text "Press \[Escape\] to return to Menu" \
 	-anchor c -font smallFont -fill $::CLR(text) -tag highScore
 }
 
@@ -256,9 +276,9 @@ proc showMenu {} {
     addRock 1 4
     addRock 2 4
     addRock 3 4
-    .c1 create text 400 250 -tags menu -anchor c \
+    .c1 create text [expr {400*$::SCALE}] [expr {250*$::SCALE}] \
 	-text "\[ N \] ew Game\n\n\[ H \] igh Scores\n\n\[ E \] xit" \
-	-fill $::CLR(text) -font largeFont
+	-tags menu -anchor c -font largeFont -fill $::CLR(text)
     bindNavKeys menu
 }
 
@@ -293,6 +313,9 @@ proc updateLives {{incrLives 0}} {
 	set obj [.c1 create polygon $::globals(shipCoords) -tag life \
 		     -outline $::CLR(shiplife) -fill ""]
 	.c1 move $obj [expr {20 + ($i * 18)}] 65
+	if {$::SMALL} {
+	    .c1 scale $obj 0 0 $::SCALE $::SCALE
+	}
     }
 }
 
@@ -325,6 +348,9 @@ proc drawNumber {xloc yloc val tag} {
 	set item [.c1 create line $::numbers($digit) -tags $tag \
 		      -fill $::CLR(text)]
 	.c1 move $item [expr {$xloc - ($count * 19)}] $yloc
+	if {$::SMALL} {
+	    .c1 scale $item 0 0 $::SCALE $::SCALE
+	}
     }
 }
 
@@ -340,7 +366,7 @@ proc updateFPS {} {
     set timeNow [clock clicks -milliseconds]
     set elapsedTime [expr {($timeNow - $::globals(timeStart)) / 1000.0}]
     set fps [expr {$::globals(frameCount) / $elapsedTime}]
-    .c1 itemconfigure fps -text $fps
+    .c1 itemconfigure fps -text [format "%.2f" $fps]
     after 500 updateFPS
 }
 
@@ -659,7 +685,7 @@ proc killRock {rock timeSlice} {
     if {$type == 2} {updateScore 50}
     if {$type == 3} {updateScore 100}
     incr type
-    if { $type <= 3} {
+    if {$type <= 3} {
 	addRock $type 1 $xCen $yCen
 	addRock $type 1 $xCen $yCen
     }
@@ -672,10 +698,12 @@ proc killRock {rock timeSlice} {
 
 proc addDust {xLoc yLoc timeSlice} {
     for {set i 0} {$i <= 8} {incr i} {
-	set dustSpeed [expr {30 + [random 30]}]
+	set speed [expr {30 * $::SCALE}]
+	set dustSpeed [expr {$speed + [random $speed]}]
 	set ang [random 360]
 	set obj [.c1 create rectangle $xLoc $yLoc $xLoc $yLoc -tag dust \
 		     -outline $::CLR(dust) -fill $::CLR(dust)]
+	# no need to scale - this is added at correct location
 	set ::dust($obj,xDelta) \
 	    [expr {$::vector(x,$ang) * $dustSpeed * $timeSlice}]
 	set ::dust($obj,yDelta) \
@@ -687,7 +715,7 @@ proc addDust {xLoc yLoc timeSlice} {
 }
 
 proc addWreckage {timeSlice} {
-    set wreckageSpeed 25
+    set wreckageSpeed [expr {25 * $::SCALE}]
     set coordList [.c1 coords ship]
     for {set i 0} {$i < [llength $coordList] - 2} {incr i} {
 	set ang [random 360]
@@ -697,6 +725,7 @@ proc addWreckage {timeSlice} {
 	set ye [lindex $coordList [expr {$i + 3}]]
 	set obj [.c1 create line $xs $ys $xe $ye -tag wreckage \
 		     -fill $::CLR(ship)]
+	# no need to scale - this is added at correct location
 	set ::wreckage($obj,xDelta) \
 	    [expr {$::vector(x,$ang) * $wreckageSpeed * $timeSlice}]
 	set ::wreckage($obj,yDelta) \
@@ -712,10 +741,10 @@ proc addMissile {timeSlice} {
     if {[llength [.c1 find withtag heroMissile]] >= 4} {return}
     sndPlay sndShot
     set ::globals(newMissileOK) 0
-    set missileSpeed 600  ; # pixels per second
+    set missileSpeed [expr {600 * $::SCALE}] ; # pixels per second
     set ang [expr {int($::ship(direction))}]
-    set xs  [expr {$::ship(xCen) + $::vector(x,$ang) * 16}]
-    set ys  [expr {$::ship(yCen) + $::vector(y,$ang) * 16}]
+    set xs  [expr {$::ship(xCen) + $::vector(x,$ang) * (16 * $::SCALE)}]
+    set ys  [expr {$::ship(yCen) + $::vector(y,$ang) * (16 * $::SCALE)}]
     set obj [.c1 create rectangle $xs $ys $xs $ys -tag heroMissile \
 		 -outline $::CLR(missile) -fill $::CLR(missile)]
     set ::missile($obj,xDelta) \
@@ -735,17 +764,18 @@ proc addShip {} {
 	gameOver
 	return
     }
-    set screenWidth $::globals(screenWidth)
-    set screenHeight $::globals(screenHeight)
-    # --- Create a 150 pixel square "zone" around the ship.  If anything is
-    #     intersecting the zone, don't place the ship yet.  We want to give our
-    #     hero a fighting chance...
-    set screenXCen [expr {$screenWidth / 2}]
-    set screenYCen [expr {$screenHeight / 2}]
-    set xMin [expr {($screenWidth - 100) / 2}]
-    set xMax [expr {($screenWidth + 100) / 2}]
-    set yMin [expr {($screenHeight - 100) / 2}]
-    set yMax [expr {($screenHeight + 100) / 2}]
+    set sw $::globals(screenWidth)
+    set sh $::globals(screenHeight)
+    # --- Create a square safety zone around the ship.  If anything is
+    #     intersecting the zone, don't place the ship yet.  We want to
+    #     give our hero a fighting chance...
+    set screenXCen [expr {$sw / 2}]
+    set screenYCen [expr {$sh / 2}]
+    set offset [expr {100 * $::SCALE}]
+    set xMin [expr {($sw - $offset) / 2}]
+    set xMax [expr {($sw + $offset) / 2}]
+    set yMin [expr {($sh - $offset) / 2}]
+    set yMax [expr {($sh + $offset) / 2}]
     if {[llength [.c1 find overlapping $xMin $yMin $xMax $yMax]] > 0} {
 	# --- Something is *very* close to the ship - wait and try again.
 	after 100 addShip
@@ -754,9 +784,15 @@ proc addShip {} {
 
     set obj [.c1 create polygon $::globals(shipCoords) -tag ship \
 		 -outline $::CLR(ship) -fill ""]
+    if {$::SMALL} {
+	.c1 scale $obj 0 0 $::SCALE $::SCALE
+    }
     .c1 move $obj $screenXCen $screenYCen
     set obj [.c1 create polygon $::globals(flameCoords) -tag flame \
 		 -outline $::CLR(flame) -fill "" -state hidden]
+    if {$::SMALL} {
+	.c1 scale $obj 0 0 $::SCALE $::SCALE
+    }
     .c1 move $obj $screenXCen $screenYCen
     set ::ship(direction)     90
     set ::ship(flameOn)       0
@@ -767,7 +803,7 @@ proc addShip {} {
     set ::ship(yCen)          $screenYCen
     set ::ship(xDelta)        0
     set ::ship(yDelta)        0
-    set ::ship(velocityMax)   250 ; # pixels per second
+    set ::ship(velocityMax)   [expr {250 * $::SCALE}] ; # pixels per second
     set ::ship(velocityDecay) 3   ; # ship takes 3 secs to stop from full speed
     set ::ship(thrust)        .75 ; # ship takes .75 secs to reach full speed
     set ::globals(shipExists) 1
@@ -777,13 +813,14 @@ proc addRock {type {num 1} {xLoc ""} {yLoc ""}} {
     for {set i 1} {$i <= $num} {incr i} {
 	set coordList \
             $::globals(rockCoords,[expr {[random 3] + 1 + (3 * ($type - 1))}])
-	set xVel [expr {10 + [random 40] + \
-			    ($type * ([random 40] + 1)) + \
+	set speed [expr {40 * $::SCALE}]
+	set xVel [expr {10 + [random $speed] + \
+			    ($type * ([random $speed] + 1)) + \
 			    ($::globals(level) * ([random 5] + 1))}]
-	set yVel [expr {10 + [random 40] + \
-			    ($type * ([random 40] + 1)) + \
+	set yVel [expr {10 + [random $speed] + \
+			    ($type * ([random $speed] + 1)) + \
 			    ($::globals(level) * ([random 5] + 1))}]
-	set rotation [expr {20 + [random 40]}]
+	set rotation [expr {20 + [random $speed]}]
 	if {[random 2]} {set xVel -$xVel}
 	if {[random 2]} {set yVel -$yVel}
 	if {[random 2]} {set rotation -$rotation}
@@ -791,21 +828,29 @@ proc addRock {type {num 1} {xLoc ""} {yLoc ""}} {
 	while {1} {
 	    set obj [.c1 create polygon $coordList -tag rock \
 			 -outline $::CLR(rock) -fill ""]
+	    if {$::SMALL} {
+		.c1 scale $obj 0 0 $::SCALE $::SCALE
+	    }
 	    foreach {xmin ymin xmax ymax} [.c1 bbox $obj] {break}
 	    set xCen [expr {($xmax + $xmin) / 2}]
 	    set yCen [expr {($ymax + $ymin) / 2}]
 	    rotateItem .c1 $obj $xCen $yCen [random 360]
-	    if {$xLoc eq "" || $num > 1} {set xLoc [random 600]}
-	    if {$yLoc eq "" || $num > 1} {set yLoc [random 400]}
+	    if {$xLoc eq "" || $num > 1} {
+		set xLoc [random [expr {600 * $::SCALE}]]
+	    }
+	    if {$yLoc eq "" || $num > 1} {
+		set yLoc [random [expr {400 * $::SCALE}]]
+	    }
 	    .c1 move $obj $xLoc $yLoc
 	    if {$type != 1} {break}
 	    if {!$::globals(shipExists)} {break}
 	    set xCen $::ship(xCen)
 	    set yCen $::ship(yCen)
-	    set xMin [expr {$xCen - 75}]
-	    set xMax [expr {$xCen + 75}]
-	    set yMin [expr {$yCen - 75}]
-	    set yMax [expr {$yCen + 75}]
+	    set offset [expr {75 * $::SCALE}]
+	    set xMin [expr {$xCen - $offset}]
+	    set xMax [expr {$xCen + $offset}]
+	    set yMin [expr {$yCen - $offset}]
+	    set yMax [expr {$yCen + $offset}]
 	    set overlap [.c1 find overlapping $xMin $yMin $xMax $yMax]
 	    if {[lsearch $overlap $obj] >= 0} {
 		.c1 delete $obj

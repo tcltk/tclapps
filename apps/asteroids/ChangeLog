@@ -1,5 +1,8 @@
 2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
+	* asteroids.tcl: introduce a sense of scaling, to allow the game
+	to adapt to smaller screens.
+
 	* asteroids.tcl: introduce named fonts, colors for items.
 	Move the FPS label into the canvas, other code cleanup.
 
