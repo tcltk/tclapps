@@ -1,3 +1,7 @@
+2003-06-26  Pascal Scheffers  <pascal@scheffers.net>
+	
+	* pkgIndex.tcl: Added so the bridge runs straight from CVS
+
 2003-06-26  David N. Welton  <davidw@dedasys.com>
 
 	* bridge.tcl: Large reworking by Aaron Faupell.
