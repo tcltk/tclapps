@@ -36,6 +36,19 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
     }
 }
 
+# Deal with 'tile' support.
+# We sometimes need to _really_ use the Tk widgets at the moment...
+#
+rename ::label ::tk::label
+rename ::radiobutton ::tk::radiobutton
+if {![catch {package require tile 0.4}]} {
+    namespace import -force tile::*
+} else {
+    interp alias {} label {} ::tk::label
+    interp alias {} radiobutton {} ::tk::radiobutton
+}
+
+
 # Under windows, we can use DDE to open urls
 if {$tcl_platform(platform) == "windows"} {
     package require dde
@@ -44,7 +57,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.154 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.155 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +82,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.154 2004/03/27 12:48:24 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.155 2004/04/29 10:54:03 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -105,7 +118,6 @@ namespace eval ::tkchat {
 
     #NoisyUsers: temporarily hide users who are blabbering
     variable noisyUsers      
-
 }
 
 proc ::tkchat::errLog {args} {
@@ -132,7 +144,7 @@ proc ::tkchat::Pop {varname {nth 0}} {
 
 # If Proxy Authentication was specified then each HTTP request
 # must have an authentication header. This procedure supports
-# proxys accepting Basic authentication by building the header
+# proxys accepting Basic authentication by builing the header
 # required from the users login and password.
 #  - PT
 proc ::tkchat::buildProxyHeaders {} {
@@ -2009,6 +2021,17 @@ proc ::tkchat::CreateGUI {} {
             -command ::tkchat::EditOptions
     
     $m add separator
+    
+    if {[package provide tile] != {}} {
+        $m add cascade -label "Tk themes" -menu [menu $m.themes -tearoff 0]
+        foreach theme [style theme names] {
+            $m.themes add radiobutton -label [string totitle $theme] \
+                -variable ::Options(Theme) \
+                -value $theme \
+                -command [list [namespace origin SetTheme] $theme]
+        }
+        $m add separator
+    }
 
     $m add cascade -label "Refresh Frequency" \
           -menu [menu $m.refresh -tearoff 0] \
@@ -2307,6 +2330,14 @@ proc ::tkchat::CreateGUI {} {
     # call this to activate the option on whether the users should be shown
     MsgTo "All Users"
     displayUsers
+}
+
+proc ::tkchat::SetTheme {theme} {
+    global Options
+    catch {
+        style theme use $theme
+        set Options(Theme) $theme
+    }
 }
 
 # On window resizing, we need to adjust the sash location to keep
@@ -3151,18 +3182,18 @@ proc ::tkchat::buildRow {f idx disp} {
 	incr buildRow_seq
     }
     set seq $buildRow_seq
-    label $f.nm$seq -text "$disp" -anchor w -font NAME -padx 0 -pady 0
-    radiobutton $f.def$seq -text "default" \
+    ::tk::label $f.nm$seq -text "$disp" -anchor w -font NAME -padx 0 -pady 0
+    ::tk::radiobutton $f.def$seq -text "default" \
           -var DlgData(Color,$idx,Which) \
           -val Web -fg "#$DlgData(Color,$idx,Web)" \
           -selectcolor "#$DlgData(Color,$idx,Web)" \
           -indicatoron 0 -padx 0 -pady 0 -font FNT
-    radiobutton $f.inv$seq -text "inverted" \
+    ::tk::radiobutton $f.inv$seq -text "inverted" \
           -var DlgData(Color,$idx,Which) \
           -val Inv -fg "#$DlgData(Color,$idx,Inv)" \
           -selectcolor "#$DlgData(Color,$idx,Inv)" \
           -indicatoron 0 -padx 0 -pady 0 -font FNT
-    radiobutton $f.ovr$seq -text "custom" \
+    ::tk::radiobutton $f.ovr$seq -text "custom" \
           -var DlgData(Color,$idx,Which) \
           -val Mine -fg "#$DlgData(Color,$idx,Mine)"\
           -selectcolor  "#$DlgData(Color,$idx,Mine)" \
@@ -4061,11 +4092,12 @@ proc ::tkchat::Init {args} {
         switch -exact -- $option {
             -nologin   { set nologin 1 }
             -style     { set Options(Style) [Pop args 1] }
+            -theme     { set Options(Theme) [Pop args 1] }
             -loglevel  { LogLevelSet [Pop args 1] }
             -- { Pop args ; break }
             default {
                 return -code error "bad option \"$option\":\
-                    must be one of -nologin, -style, -loglevel or --."
+                    must be one of -nologin, -style, -theme, -loglevel or --."
             }
         }
         Pop args
@@ -4090,6 +4122,8 @@ proc ::tkchat::Init {args} {
     } else {
 	set Options(ChatLogOff) 1
     }
+
+    SetTheme $Options(Theme)
 
     # do this first so we have images available
     Smile
@@ -4389,7 +4423,7 @@ namespace eval ::dkfFontSel {
 	set gap [option get $w lineGap LineGap]
 	if {[catch {incr gap 0}]} {
 	    # Some cunning font measuring!
-	    label $w._testing
+	    ::tk::label $w._testing
 	    set font [$w._testing cget -font]
 	    set gap [expr {[font metrics $font -linespace]/2+1}]
 	    destroy $w._testing
@@ -4536,7 +4570,10 @@ namespace eval ::dkfFontSel {
 	frame $w.sample
 	grid $w.sample -row 8 -column 1 -columnspan 7 -sticky nsew
 	grid propagate $w.sample 0
-	entry $w.sample.text -background [$w.sample cget -background]
+        entry $w.sample.text
+        catch {
+            $w.sample.text configure -background [$w.sample cget -background]
+        }
 	$w.sample.text insert 0 [option get $w.sample.text text Text]
 	grid $w.sample.text
 
