@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.238 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.239 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.238 2004/12/01 02:22:06 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.239 2004/12/01 12:14:26 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2810,6 +2810,8 @@ proc ::tkchat::logonScreen {} {
 	label .logon.ljsrv -text "Jabber server:port" 
 	entry .logon.ejsrv -textvar Options(JabberServer)
 	entry .logon.ejprt -textvar Options(JabberPort) -width 5
+	label .logon.ljres -text "Jabber resource" 
+	entry .logon.ejres -textvar Options(JabberResource)
 	#checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
         #      -var Options(UseJabberPoll) 
         if {$have_tls} {
@@ -2853,6 +2855,7 @@ proc ::tkchat::logonScreen {} {
 	grid .logon.lnm .logon.enm  -           -in $lf -sticky ew -pady 5
 	grid .logon.lpw .logon.epw  -           -in $lf -sticky ew
 	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
+	grid x        .logon.ljres .logon.ejres -in $lf -sticky w -pady 3
 	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
         if {$have_tls} {
             grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
@@ -4017,6 +4020,7 @@ proc ::tkchat::Init {args} {
 	Alert,ACTION	     1
         WhisperIndicatorColor #ffe0e0
         UseBabelfish         0
+	JabberResource       tkchat	
     }
     catch {set Options(BROWSER) $env(BROWSER)}
     set Options(URL)	 $::tkchat::HOST/cgi-bin/chat.cgi
@@ -4044,7 +4048,6 @@ proc ::tkchat::Init {args} {
     }
 
     # Set the 'Hardcoded' Options:
-    set Options(JabberResource) tkchat
     set Options(JabberLogs) "http://tclers.tk/conferences/tcl"
     set Options(JabberConference) tcl@tach.tclers.tk
     
@@ -5640,9 +5643,13 @@ namespace eval tkjabber {
     Variable myId ""
     Variable RunRegistration 0
     Variable reconnect 0 ;# set to 1 after a succesful connect.
+    # retrytime in seconds, distributed so not everyone tries at the same time.
+    Variable connectionRetryTime [expr {int(5+rand()*5.0)}] 
+    Variable reconnectTimer {}
     
     Variable HistoryLines {}
     Variable HaveHistory 0
+    Variable LastMessage 0 ;# used for reconnects when asking for conference history.
     
     Variable conference
 
@@ -5683,7 +5690,7 @@ proc tkjabber::connect { } {
 			-keepalivesecs	    $keepalive_seconds]
 	
 	set browser [browse::new $jabber -command [namespace current]::BrowseCB]
-    }   
+    }
     
     if { $Options(UseJabberPoll) } {
 	set socket [jlib::http::new $jabber "http://scheffers.net:5280/http-poll" \
@@ -5693,18 +5700,27 @@ proc tkjabber::connect { } {
 	
     } else {
         set have_tls [expr {[package provide tls] != {}}]
-        if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
-            set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
-                            $Options(JabberServer) $Options(JabberPort) \
-                            $Options(UseJabberSSL)]
-        } elseif {$have_tls && $Options(UseJabberSSL)} {
-            set socket [tls::socket $Options(JabberServer) $Options(JabberPort)]
-        } else {
-            if {$Options(JabberPort) == 5223} {incr Options(JabberPort) -1}
-            set socket [socket $Options(JabberServer) $Options(JabberPort)]
-        }
-        $jabber setsockettransport $socket
-	openStream
+	if { [catch {
+	    if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
+		set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
+				$Options(JabberServer) $Options(JabberPort) \
+				$Options(UseJabberSSL)]
+	    } elseif {$have_tls && $Options(UseJabberSSL)} {
+		set socket [tls::socket $Options(JabberServer) $Options(JabberPort)]
+	    } else {
+		if {$Options(JabberPort) == 5223} {incr Options(JabberPort) -1}
+		set socket [socket $Options(JabberServer) $Options(JabberPort)]
+	    }
+	} res] } {
+	    # Connection failed.
+	    tkchat::addSystem "Connecting failed: $res"
+	    if { $reconnect } {
+		scheduleReconnect
+	    }
+	} else {
+	    $jabber setsockettransport $socket
+	    openStream
+	}
     }
     
     # The next thing which will/should happen is the a call to ConnectProc by
@@ -5728,12 +5744,17 @@ proc tkjabber::disconnect { } {
 	return
     }
     
-    catch {close $socket}    
-    if { [catch {$jabber closestream}] } {
-	log::log error "Closestream: $::errorInfo"
-    }
+    catch {close $socket}
+    cleanup
     tkchat::addSystem "Disconnected from jabber server."    
     
+}
+
+proc tkjabber::cleanup {} {
+    variable jabber
+    if { [catch {$jabber closestream}] } {
+	log::log error "Closestream: $::errorInfo"
+    }    
 }
 
 proc tkjabber::openStream {} {
@@ -5766,6 +5787,8 @@ proc tkjabber::SendAuth { } {
     
     # The jabber keep alive packets are a single newline character.    
     after 30000 [list jlib::schedule_keepalive $jabber]
+    
+    # The next callback is the LoginCB
 }
 
 
@@ -5815,8 +5838,7 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 	default {
 	    tkchat::addSystem "--roster-> what=$what, jid=$jid, args='$args'"
 	}
-    }
-    
+    }    
 }
 
 # Browse stuff...
@@ -5829,19 +5851,21 @@ proc tkjabber::BrowseErrorCB {browseName what jid errlist} {
 
 # The jabberlib stuff...
 proc tkjabber::ClientCB {jlibName cmd args} {
+    
     log::log debug "ClientCB: jlibName=$jlibName, cmd=$cmd, args='$args'"
     switch -- $cmd {
 	connect {
 	    tkchat::addSystem "Connection to Jabber Server Established"	    
 	}
 	disconnect {
-	    tkchat::addSystem "Disconnected from server, will try to reconnect in 5 seconds."
-	    after 5000 tkjabber::connect
+	    cleanup
+	    scheduleReconnect
 	}
 	networkerror {
 	    array set x $args
-	    tkchat::addSystem "Network error $x(-body), will try to reconnect in 5 seconds."
-	    after 5000 tkjabber::connect
+	    tkchat::addSystem "Network error $x(-body)"
+	    cleanup
+	    scheduleReconnect
 	}
 	streamerror {
 	    array set x $args
@@ -5870,6 +5894,9 @@ proc tkjabber::IqCB {jlibName type args} {
 proc tkjabber::MsgCB {jlibName type args} {    
     variable conference
     variable topic
+    variable LastMessage
+    
+    set LastMessage [clock seconds]
     
     log::log debug "|| MsgCB > type=$type, args=$args"
     
@@ -6036,6 +6063,7 @@ proc tkjabber::ConnectProc {jlibName args} {
     tkchat::addSystem "Connected to $conn(from), sending credentials."
     update idletasks
 
+    # Now send authentication details:
     SendAuth
     
 }
@@ -6060,6 +6088,7 @@ proc tkjabber::RegisterCB {jlibName type theQuery} {
 }
 
 proc tkjabber::LoginCB {jlibname type theQuery} {
+    # After SendAuth, this is the next Callback.
     variable jabber
     variable roster
     variable conference
@@ -6084,7 +6113,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 		
 		tkchat::addSystem "Registering username."
 		update idletasks
-	
+		# the next step is in RegisterCB
 	    } else {
 		tkchat::addSystem "LoginCB: type=$type, theQuery='$theQuery'"
 	    }
@@ -6093,6 +6122,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	result {
 	    tkchat::addSystem "Logged in."
 	    set tkjabber::reconnect 1
+	    set tkjabber::connectionRetryTime [expr {int(5+rand()*5.0)}] 
 	    $jabber send_presence -type available    
 	    set muc [jlib::muc::new $jabber]
 	    if { $::Options(Nickname) eq "" } {
@@ -6101,6 +6131,8 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	    set baseNick $::Options(Nickname)
 	    set nickTries 0
 	    $muc enter $conference $::Options(Nickname) -command [namespace current]::MucEnterCB
+	    # We are logged in. Now any of the callbacks can be called,
+	    # Likely ones are MsgCB, MucEnterCB, RosterCB for normal traffic.
 	}
 	default {
 	    tkchat::addSystem "LoginCB: type=$type, theQuery='$theQuery'"
@@ -6452,6 +6484,20 @@ proc ::tkjabber::TwiddlePort {} {
         incr Options(JabberPort)
     } elseif {!$Options(UseJabberSSL) && $Options(JabberPort) == 5223} {
         incr Options(JabberPort) -1
+    }
+}
+
+proc ::tkjabber::scheduleReconnect {} {
+    variable reconnectTimer
+    variable connectionRetryTime
+    
+    tkchat::addSystem "Will try to reconnect in $connectionRetryTime seconds."
+    set reconnectTimer [after [expr {$connectionRetryTime*1000}] tkjabber::connect]
+    
+    set connectionRetryTime [expr { int ($connectionRetryTime * 1.5) } ]    
+    # Max out at 3 minutes
+    if { $connectionRetryTime > 180 } {
+	set connectionRetryTime 180
     }
 }
 

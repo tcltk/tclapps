@@ -1,3 +1,8 @@
+2004-11-26  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added jabber resource in the connect dialog. Improved the
+	reconnect code, it now actually tries again. 	
+
 2004-12-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Remove the stupid /nolog prefix from the message
