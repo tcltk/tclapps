@@ -36,6 +36,8 @@ package require Tk 8.3		; # core Tk
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
+    variable MessageHooks
+    array set MessageHooks {}
 }
 
 set ::DEBUG 1
@@ -77,15 +79,15 @@ proc buildProxyHeaders {} {
 proc msgSend {str {user ""}} {
     global Options
     set qry [::http::formatQuery \
-	    action postmsg \
-	    name $Options(Username) \
-	    password $Options(Password) \
-	    color $Options(MyColor) \
+	    action	postmsg \
+	    name	$Options(Username) \
+	    password	$Options(Password) \
+	    color	$Options(MyColor) \
 	    updatefrequency 600 \
 	    new_msg_on_top 0 \
-	    ls  "" \
-	    msg_to $user \
-	    msg	$str \
+	    ls		"" \
+	    msg_to	$user \
+	    msg		$str \
 	    ]
     ::http::geturl $Options(URL) \
 	    -query [string map {%5f _} $qry] \
@@ -110,9 +112,9 @@ proc msgDone {tok} {
 proc logonChat {} {
     global Options
     set qry [::http::formatQuery \
-	    action login \
-	    name $Options(Username) \
-	    password $Options(Password) \
+	    action	login \
+	    name	$Options(Username) \
+	    password	$Options(Password) \
 	    ]
     ::http::geturl $Options(URL2) \
 	    -query $qry \
@@ -123,19 +125,16 @@ proc logonChat {} {
 proc logonDone {tok} {
     errLog "Logon: status was [::http::status $tok]"
     switch [::http::status $tok] {
-	ok { if {[catch {pause off} err]} { errLog $err } }
-	reset { errLog "User reset logon operation" }
-	timeout { tk_messageBox -message "Logon timed out" }
-	error { tk_messageBox -message "Logon Error: [::http::error $tok]" }
+	ok	{ if {[catch {pause off} err]} { errLog $err } }
+	reset	{ errLog "User reset logon operation" }
+	timeout	{ tk_messageBox -message "Logon timed out" }
+	error	{ tk_messageBox -message "Logon Error: [::http::error $tok]" }
     }
     ::http::cleanup $tok
 }
 proc logoffChat {} {
     global Options
-    set qry [::http::formatQuery \
-	    action gotourl \
-	    url	chat.cgi \
-	    ]
+    set qry [::http::formatQuery action gotourl url chat.cgi]
     ::http::geturl $Options(URL2) \
 	    -query $qry \
 	    -headers [buildProxyHeaders] \
@@ -190,13 +189,13 @@ proc fetchPage {} {
     after cancel $Options(FetchTimerID)
     set Options(FetchTimerID) -1
     set qry [::http::formatQuery \
-	    action chat \
-	    name $Options(Username) \
-	    password $Options(Password) \
-	    color $Options(MyColor) \
+	    action	chat \
+	    name	$Options(Username) \
+	    password	$Options(Password) \
+	    color	$Options(MyColor) \
 	    updatefrequency 600 \
 	    new_msg_on_top 0 \
-	    ls  "" \
+	    ls		"" \
 	    ]
     set Options(FetchToken) [::http::geturl $Options(URL) \
 	    -query $qry \
@@ -244,13 +243,13 @@ proc onlinePage {} {
     after cancel $Options(OnlineTimerID)
     set Option(OnlineTimerID) -1
     set qry [::http::formatQuery \
-	    action stillalive \
-	    name $Options(Username) \
-	    password $Options(Password) \
-	    color $Options(MyColor) \
+	    action	stillalive \
+	    name	$Options(Username) \
+	    password	$Options(Password) \
+	    color	$Options(MyColor) \
 	    updatefrequency 600 \
 	    new_msg_on_top 0 \
-	    ls  "" \
+	    ls		"" \
 	    ]
     set Options(OnlineToken) [::http::geturl $Options(URL) \
 	    -query $qry \
@@ -484,7 +483,7 @@ proc parseStr {str} {
 
 proc checkNick {nick clr} {
     global Options
-    if {[string equal $clr ""]} {
+    if {$clr == ""} {
 	set clr [getColor MainFG]
     }
     if {[lsearch $Options(NickList) $nick] < 0} {
@@ -516,6 +515,7 @@ proc checkNick {nick clr} {
 	.txt tag config NICK-$nick -foreground "#[getColor $nick]"
     }
 }
+
 proc addMessage {clr nick str} {
     global Options
     checkNick $nick $clr
@@ -523,6 +523,9 @@ proc addMessage {clr nick str} {
     .txt insert end $nick [list NICK NICK-$nick] "\t"
     foreach {str url} [parseStr $str] {
 	regsub -all "\n" $str "\n\t" str
+	foreach cmd [array names ::tkchat::MessageHooks] {
+	    eval $cmd [list $str $url]
+	}
 	if {$url == ""} {
 	    .txt insert end "$str " [list MSG NICK-$nick]
 	} else {
@@ -536,29 +539,41 @@ proc addMessage {clr nick str} {
     if {$Options(AutoScroll)} { .txt see end }
 }
 
-if {[string length [auto_execok festival]]} {
-    proc addMessage {clr nick str} {
-	# Modified version of addMessage that uses festival
-	# (text to speech converter)
-	global Options
-	checkNick $nick $clr
-	.txt config -state normal
-	.txt insert end $nick [list NICK NICK-$nick] "\t"
-	foreach {str url} [parseStr $str] {
-	    regsub -all "\n" $str "\n\t" str
-	    if {$url == ""} {
-		say "$str"
-		.txt insert end "$str " [list MSG NICK-$nick]
-	    } else {
-		say "$str"
-		.txt insert end "$str " \
-			[list MSG NICK-$nick URL URL-[incr ::URLID]]
-		.txt tag bind URL-$::URLID <1> [list gotoURL $url]
-	    }
+proc ::tkchat::hook {do type cmd} {
+    switch -glob $type {
+	msg - mes* { set var MessageHooks }
+	default {
+	    return -code error "unknown hook type \"$type\": must be\
+		    message"
 	}
-	.txt insert end "\n"
-	.txt config -state disabled
-	if {$Options(AutoScroll)} { .txt see end }
+    }
+    variable $var
+    switch -exact -- $do {
+	add	{ set ${var}($cmd) {} }
+	remove	{ catch {unset ${var}($cmd)} }
+	default	{
+	    return -code error "unknown hook action \"$type\": must be\
+		    add or remove"
+	}
+    }
+}
+
+if {[string length [auto_execok festival]]} {
+    ::tkchat::hook add message say
+
+    proc say { message args } {
+	# I've added a few lines to make this speak new messages via the
+	# festival synthesiser. It doesn't do it robustly as yet (you'll need
+	# festival installed) but as a quick (1min) hack it's got heaps of
+	# cool points...  -- Steve Cassidy
+	global festival
+	if {![info exists festival]} {
+	    set festival [open "|festival --pipe" w]
+	}
+
+	puts [string map "\" {}" $message]
+	puts $festival "(SayText \"$message\")"
+	flush $festival
     }
 }
 
@@ -695,7 +710,8 @@ proc addHelp {clr name str} {
     }
     if {[string match "->*" $name]} {
 	# an outgoing private message
-	addAction $clr $Options(Username) " whispered to [string range $name 2 end]: $str"
+	addAction $clr $Options(Username) \
+		" whispered to [string range $name 2 end]: $str"
 	return
     }
     if {$clr != ""} {
@@ -1063,23 +1079,4 @@ proc ::tkchat::ChangeFont {opt val} {
 
 if {![info exists ::URLID]} {
     init
-}
-
-
-
-proc say { message } {
-    # I've added a few lines to make this speak new messages via the festival
-    # synthesiser. It doesn't do it robustly as yet (you'll need festival
-    # installed) but as a quick (1min) hack it's got heaps of cool points...
-    global festival
-    if {![info exists festival]} {
-	set festival [open "|festival --pipe" w]
-    }
-
-    # remove quotes
-    regsub -all {\"} $message {} message2
-
-    puts $message2
-    puts $festival "(SayText \"$message2\")"
-    flush $festival
 }
