@@ -35,9 +35,14 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
     }
 }
 
+# Under windows, we can use DDE to open urls
+if {$tcl_platform(platform) == "windows"} {
+    package require dde
+}
+
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.100 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.101 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.100 2003/07/27 18:43:21 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.101 2003/07/27 20:30:30 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1262,6 +1267,12 @@ proc gotoURL {url} {
     } else {
 	# assume a raw url
     }
+    
+    # Set the clipboard value to this url in-case the user needs to paste the 
+    # url in (some windows systems).
+    clipboard clear
+    clipboard append $url
+
     global tcl_platform Options
     # this code from  http://purl.org/mini/tcl/557.html
     switch -- $tcl_platform(platform) {
@@ -1291,15 +1302,30 @@ proc gotoURL {url} {
 	    }
 	}
 	"windows" {
+            # See if we can use dde and an existing browser.
+            set handled 0
+            foreach app {{Mozilla Firebird} Mozilla Netscape IExplore} {
+                if {[set srv [dde services $app WWW_OpenURL]] != {}} {
+                    if {[catch {dde execute $app WWW_OpenURL $url} msg]} {
+                        log::log debug "dde exec $app failed: \"$msg\""
+                    } else {
+                        set handled 1
+                        break
+                    }
+                }
+            }
+
 	    # The windows NT shell treats '&' as a special character. Using
 	    # a '^' will escape it. See http://wiki.tcl.tk/557 for more info. 
-	    if {[string compare $tcl_platform(os) "Windows NT"] == 0} { 
-		set url [string map {& ^&} $url] 
-	    } 
-	    if {[catch {eval exec [auto_execok start] [list $url] &} emsg]} {
-		tk_messageBox -message \
-                      "Error displaying $url in browser\n$emsg"
-	    }
+            if {! $handled} {
+                if {[string compare $tcl_platform(os) "Windows NT"] == 0} { 
+                    set url [string map {& ^&} $url] 
+                } 
+                if {[catch {eval exec [auto_execok start] [list $url] &} emsg]} {
+                    tk_messageBox -message \
+                        "Error displaying $url in browser\n$emsg"
+                }
+            }
 	}
 	"macintosh" {
 	    if {![info exists env(BROWSER)]} {
