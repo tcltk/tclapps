@@ -1,3 +1,8 @@
+2005-03-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Bug #1156611 fixed. It seems jabberlib changed to
+	interface for the send_iq command.
+
 2005-03-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: bug #1153603 - fix error reporting on network errors.

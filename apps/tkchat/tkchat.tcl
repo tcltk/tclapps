@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.266 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.267 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.266 2005/03/04 03:19:13 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.267 2005/03/22 00:47:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5100,7 +5100,7 @@ proc ::tkchat::UserInfoFetchDone {jid jlib type xmllist} {
 
     set uivar [namespace current]::ui_$jid
     upvar #0 $uivar UI
-    set ::xmllist $xmllist
+    #set ::xmllist $xmllist
     if {[catch {
 	switch $type {
 	    result {
@@ -5162,7 +5162,7 @@ proc ::tkchat::UserInfoSend {jid} {
         set xmllist [lreplace $xmllist 2 2 0]
     }
 
-    $tkjabber::jabber send_iq set $xmllist \
+    $tkjabber::jabber send_iq set [list $xmllist] \
         -command [namespace current]::UserInfoSent
 }
 
@@ -5224,12 +5224,14 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
         unset UI(after)
     } else {
 	if { [info exists UI(id)] } {
-	    raise .$UI(id)	
+	    if {![catch {raise .$UI(id)}]} {
+                return
+            }
 	} else {
 	    addSystem "Still waiting for a vcard from the server..."
 	    # Reentry during timeout period.
+            return
 	}
-	return	
     }
     if {[info exists UI(timeout)] && ![string equal [::tkjabber::jid !resource $jid] \
              [::tkjabber::jid !resource $::tkjabber::myId]]} {
