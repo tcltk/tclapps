@@ -1,0 +1,6 @@
+2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* ChangeLog,README,license.terms:
+	* apps/: initial import of tclapps into CVS with tkchat and taip
+	applications.
+

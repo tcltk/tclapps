@@ -1,0 +1,1085 @@
+#!/bin/wish
+#
+# Tk front end to the Tcl'ers chat
+#
+###########################################################
+#
+# author: Bruce B Hartweg brhartweg@bigfoot.com
+#
+# This program is free to use, modify, extend
+# at will, the autor provides no warantees, guarantees
+# or any responsibility for the use, re-use, abuse
+# that may or may not happen. If you somehow sell
+# this and make a ton of money - good for you, how
+# about sending me some?
+############################################################
+#
+# Suggestions can be sent to the author - fixes even better!
+# If you update this file on the Wiki PLEASE add to the change
+# log so others can see what has been done so fizxes/changes
+# aren't lost or overwritten
+#
+############################################################
+#
+# Ideas for expansion: 
+# - Query userinfo and display images if registered. - Memo handling
+#
+# I might fix addMessage to add a general new-message-hook callback so that
+# this could be a loadable plugin. Steve Cassidy
+#
+############################################################
+package require http		; # core Tcl
+package require textutil	; # tcllib 1.0
+package require htmlparse 0.2	; # tcllib 1.0
+package require base64		; # tcllib
+package require Tk 8.3		; # core Tk
+
+namespace eval ::tkchat {
+    # Everything will eventually be namespaced
+}
+
+set ::DEBUG 1
+proc vputs {args} {
+    if {$::DEBUG} {
+	set name [lindex [info level -1] 0]
+	if {[llength $args]} {
+	    puts "$name: $args"
+	} else {
+	    puts "CALLED $name"
+	}
+    }
+}
+
+proc errLog {args} {
+    puts stderr [join $args]
+    update idletasks
+}
+
+# If Proxy Authentication was specified then each HTTP request
+# must have an authentication header. This procedure supports
+# proxys accepting Basic authentication by building the header
+# required from the users login and password.
+#  - PT
+proc buildProxyHeaders {} {
+    global Options
+    set auth {}
+    if { $Options(UseProxy) \
+	    && [info exists Options(ProxyUsername)] \
+	    && $Options(ProxyUsername) != {} } {
+	set auth [list "Proxy-Authorization" \
+		[concat "Basic" \
+		[base64::encode \
+		$Options(ProxyUsername):$Options(ProxyPassword)]]]
+    }
+    return $auth
+}
+
+proc msgSend {str {user ""}} {
+    global Options
+    set qry [::http::formatQuery \
+	    action postmsg \
+	    name $Options(Username) \
+	    password $Options(Password) \
+	    color $Options(MyColor) \
+	    updatefrequency 600 \
+	    new_msg_on_top 0 \
+	    ls  "" \
+	    msg_to $user \
+	    msg	$str \
+	    ]
+    ::http::geturl $Options(URL) \
+	    -query [string map {%5f _} $qry] \
+	    -headers [buildProxyHeaders] \
+	    -command msgDone
+}
+
+proc msgDone {tok} {
+    errLog "Post: status was [::http::status $tok]"
+    switch [::http::status $tok] {
+	ok { if {[catch {fetchPage} err]} { errLog $err } }
+	reset { errLog "User reset post operation" }
+	timeout { tk_messageBox -message "Message Post timed out" }
+	error {
+	    tk_messageBox -message \
+		    "Message Post Errored: [::http::error $tok]"
+	}
+    }
+    ::http::cleanup $tok
+}
+
+proc logonChat {} {
+    global Options
+    set qry [::http::formatQuery \
+	    action login \
+	    name $Options(Username) \
+	    password $Options(Password) \
+	    ]
+    ::http::geturl $Options(URL2) \
+	    -query $qry \
+	    -headers [buildProxyHeaders] \
+	    -command logonDone
+}
+
+proc logonDone {tok} {
+    errLog "Logon: status was [::http::status $tok]"
+    switch [::http::status $tok] {
+	ok { if {[catch {pause off} err]} { errLog $err } }
+	reset { errLog "User reset logon operation" }
+	timeout { tk_messageBox -message "Logon timed out" }
+	error { tk_messageBox -message "Logon Error: [::http::error $tok]" }
+    }
+    ::http::cleanup $tok
+}
+proc logoffChat {} {
+    global Options
+    set qry [::http::formatQuery \
+	    action gotourl \
+	    url	chat.cgi \
+	    ]
+    ::http::geturl $Options(URL2) \
+	    -query $qry \
+	    -headers [buildProxyHeaders] \
+	    -command logoffDone
+    logonScreen
+}
+
+proc logoffDone {tok} {
+    errLog "Logoff: status was [::http::status $tok]"
+    # don't really care if this works or not
+    ::http::cleanup $tok
+}
+
+proc pause {pause {notify 1}} {
+    global Options
+    set ::tkchat::pause [string is true -strict $pause]
+    if {$pause} {
+	after cancel $Options(FetchTimerID)
+	after cancel $Options(OnlineTimerID)
+	catch {::http::reset $Options(FetchToken)}
+	catch {::http::reset $Options(OnlineToken)}
+	if {$notify} {
+	    if {![winfo exists .pause]} {
+		toplevel .pause -class dialog
+		wm withdraw .pause
+		wm transient .pause .
+		pack [label .pause.m -text \
+			"The session is paused,\nno updates will occur."]
+		button .pause.r -text "Resume" \
+			-command { pause off ; wm withdraw .pause }
+		pack .pause.r -padx 5 -pady 10
+		bind .pause <Destroy> [list pause off]
+	    }
+	    catch {::tk::PlaceWindow .pause widget .}
+	    wm deiconify .pause
+	    raise .pause
+	}
+    } else {
+	fetchPage
+	onlinePage
+    }
+}
+
+proc fetchPage {} {
+    global Options
+
+    if {[info exists Options(FetchToken)]} {
+	# already fetching page, don't start again
+	return
+    }
+
+    after cancel $Options(FetchTimerID)
+    set Options(FetchTimerID) -1
+    set qry [::http::formatQuery \
+	    action chat \
+	    name $Options(Username) \
+	    password $Options(Password) \
+	    color $Options(MyColor) \
+	    updatefrequency 600 \
+	    new_msg_on_top 0 \
+	    ls  "" \
+	    ]
+    set Options(FetchToken) [::http::geturl $Options(URL) \
+	    -query $qry \
+	    -headers [buildProxyHeaders] \
+	    -command fetchDone]
+}
+
+proc fetchDone {tok} {
+    global Options
+    if {[string equal $tok $Options(FetchToken)]} {
+	unset Options(FetchToken)
+    } else {
+	errLog "Fetch Command finished with token $tok" \
+		"expected $Options(FetchToken)"
+	unset Options(FetchToken)
+    }
+    if {!$::tkchat::pause} {
+	set Options(FetchTimerID) [after $Options(RefreshMS) fetchPage]
+    }
+    errLog "Fetch: status was [::http::status $tok]"
+    switch [::http::status $tok] {
+	ok - OK - Ok {
+	    if {[catch {parseData [::http::data $tok]} err]} { errLog $err }
+	}
+	reset - Reset - RESET {
+	    errLog "User reset post operation"
+	}
+	timeout - Timeout - TIMEOUT {
+	    tk_messageBox -message "Message Post timed out"
+	}
+	error - Error - ERROR {
+	    tk_messageBox -message "Message Post Errored: [::http::error $tok]"
+	}
+    }
+    ::http::cleanup $tok
+}
+
+proc onlinePage {} {
+    global Options
+    if {[info exists Options(OnlineToken)]} {
+	# already fetching page, don't start again
+	return
+    }
+
+    after cancel $Options(OnlineTimerID)
+    set Option(OnlineTimerID) -1
+    set qry [::http::formatQuery \
+	    action stillalive \
+	    name $Options(Username) \
+	    password $Options(Password) \
+	    color $Options(MyColor) \
+	    updatefrequency 600 \
+	    new_msg_on_top 0 \
+	    ls  "" \
+	    ]
+    set Options(OnlineToken) [::http::geturl $Options(URL) \
+	    -query $qry \
+	    -headers [buildProxyHeaders] \
+	    -command onlineDone]
+}
+
+proc onlineDone {tok} {
+    global Options
+    if {[string equal $tok $Options(OnlineToken)]} {
+	unset Options(OnlineToken)
+    } else {
+	errLog "Online Command finished with token $tok" \
+		"expected $Options(OnlineToken)"
+	unset Options(OnlineToken)
+    }
+    if {!$::tkchat::pause} {
+	set Options(OnlineTimerID) [after $Options(RefreshMS) onlinePage]
+    }
+    errLog "Online: status was [::http::status $tok]"
+    switch [::http::status $tok] {
+	ok {
+	    if {[catch {updateNames [::http::data $tok]} err]} { errLog $err }
+	}
+	reset {
+	    errLog "User reset post operation"
+	}
+	timeout {
+	    tk_messageBox -message "Message Post timed out"
+	}
+	error {
+	    tk_messageBox -message "Message Post Errored: [::http::error $tok]"
+	}
+    }
+    ::http::cleanup $tok
+}
+
+proc updateNames {rawHTML} {
+    set i 0
+    .names config -state normal
+    .names delete 1.0 end
+    set exp {<A HREF="(.+?)".*?>(.+?)</A>}
+    foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
+	# NOTE : the URL's don't work because of the & in them
+	# doesn't work well when we exec the call to browsers
+	# and if we follow spec and esacpe them with %26 then
+	# the cgi script on the other end pukes so we will
+	# just do an inline /userinfo when they are clicked
+	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
+	.names tag bind URL-$::URLID <1> [list msgSend "/userinfo $name"]
+	incr i
+    }
+    .names insert 1.0 "$i Users Online\n\n" TITLE
+    .names config -state disabled
+}
+
+proc invClr {clr {grays 1}} {
+    # A little extra magic to avoid near shades of grey
+    scan $clr %2x%2x%2x r g b
+    set R [expr {(~$r)%256}]
+    set G [expr {(~$g)%256}]
+    set B [expr {(~$b)%256}]
+    if {$grays && abs($R-$r) < 32 && abs($G-$g) < 32 && abs($B-$b) < 32} {
+	set R [expr {($r+128)%256}]
+	set G [expr {($g+128)%256}]
+	set B [expr {($b+128)%256}]
+    }
+    return [format "%02x%02x%02x" $R $G $B]
+}
+
+proc getColor {name} {
+    global Options
+    if {[catch {
+	set w $Options(Color,$name,Which)
+	set clr $Options(Color,$name,$w)
+    } err]} {
+	set clr ""
+	errLog "bad color name '$name'"
+    }
+    return $clr
+}
+
+proc parseData {rawHTML} {
+    global Options
+    # get body of data
+    set clr ""
+    if {[regexp -nocase -- \
+	    {<BODY.*?(?:BGColor=.([[:xdigit:]]{6}?))?>(.*?)<A\s+NAME="end">.*?</BODY>} \
+	    $rawHTML -> clr body]} {
+	if {[string length $clr] && \
+		[string compare $Options(Color,MainBG,Web) $clr]} {
+	    set iclr [invClr $clr]
+	    set Options(Color,MainBG,Web) $clr
+	    set Options(Color,MainFG,Web) $iclr
+	    .txt config -background "#[getColor MainBG]" \
+		    -foreground "#[getColor MainFG]"
+	}
+	# split into "lines"
+	set dataList {}
+	foreach item [::textutil::splitx [string trim $body] \
+		{[\s\n]*<BR>\n*}] {
+	    set item [string trimright $item]
+	    if {[string length $item]} {
+		lappend dataList $item
+	    }
+	}
+	set newList [getRecentLines $dataList]
+	addNewLines $newList
+    } else {
+	errLog "No BODY found in HTML page"
+    }
+}
+
+proc getRecentLines {input} {
+    global Options
+    set Found 0
+    set mark 0
+    set end [lindex $Options(History) end]
+    set len [llength $Options(History)]
+    while {[set idx [lsearch -exact [lrange $input $mark end] $end]] >= 0} {
+	set num [expr {$mark + $idx}]
+	set back [expr {$len - $num - 1}]
+	set l1 [join [lrange $input 0 $num] +]
+	set l2 [join [lrange $Options(History) $back end] +]
+	set mark [incr num]
+	if {[string equal $l1 $l2]} {
+	    set Found $mark
+	}
+	update idletasks
+    }
+    return [lrange $input $Found end]
+}
+
+array set RE {
+    HelpStart {^<FONT COLOR="(.+?)"><B>\[(.+?)\]</B>(.*)$}
+    MultiStart {^<FONT COLOR="(.+?)"><B>(\S+?)</B>:(.*?)$}
+    SectEnd {^(.*)</FONT>$}
+    Color {^<FONT COLOR="(.+?)">(.*?)</FONT>$}
+    Message {^<B>(\S+?)</B>:(.+?)$}
+    Help {^<B>\[(.+?)\]</B>(.*)$}
+    Action {^<B>\*\s+(\S+)\s+(.+)</B>$}
+    System {^<B>(.*)</B>$}
+    Memo {^<B>\[MEMO\]</B>(.*)$}
+}
+proc addNewLines {input} {
+    global Options RE
+
+    set inHelp 0
+    set inMsg 0
+    foreach line $input {
+	lappend Options(History) $line
+	# only need enough history for matching new data
+	set Options(History) [lrange $Options(History) end-50 end]
+	# see if color is defined & strip it off
+	if {[regexp -nocase -- $RE(Color) $line -> clr text]} {
+	    set line $text
+	    set color $clr
+	} else {
+	    set color ""
+	}
+	# check what kind of line it is
+	if $inHelp {
+	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
+		lappend helpLines $text
+		set inHelp 0
+		addHelp $helpColor $helpName [join $helpLines \n]
+	    } else {
+		lappend helpLines [string trimright $line]
+	    }
+	} elseif $inMsg {
+	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
+		lappend msgLines [string trimright $text]
+		set inMsg 0
+		addMessage $nickColor $nick [join $msgLines \n]
+	    } else {
+		lappend msgLines [string trimright $line]
+	    }
+	} else {
+	    if {[regexp -nocase -- $RE(HelpStart) $line -> clr name str]} {
+		set inHelp 1
+		set helpColor $clr
+		set helpName $name
+		set helpLines [list $str]
+	    } elseif {[regexp -nocase -- $RE(MultiStart) $line \
+		    -> clr name str]} {
+		set inMsg 1
+		set nickColor $clr
+		set nick $name
+		set msgLines [list [string trimright $str]]
+	    } elseif {[regexp -nocase -- $RE(Memo) $line -> str]} {
+		showMemo $color [string trim $str]
+	    } elseif {[regexp -nocase -- $RE(Message) $line -> nick str]} {
+		addMessage $color $nick [string trim $str]
+	    } elseif {[regexp -nocase -- $RE(Help) $line -> name str]} {
+		addHelp $color $name [string trim $str]
+	    } elseif {[regexp -nocase -- $RE(Action) $line -> nick str]} {
+		addAction $color $nick $str
+	    } elseif {[regexp -nocase -- $RE(System) $line -> str]} {
+		addSystem $str
+	    } else {
+		errLog "Didn't recognize - '$line' - assume help"
+		addHelp $color "" [string trim $line]
+	    }
+	}
+    }
+}
+
+proc stripStr {str} {
+    # remove any remaing tags
+    regsub -all -nocase "<.*?>" $str {} tmp
+    # replace html escapes with real chars
+    return [::htmlparse::mapEscapes $tmp]
+}
+
+proc parseStr {str} {
+    # get href info return list of str link pairs
+    set sList {}
+    while {[regexp -nocase -- {^(.*?)<A.*?HREF="(.+?)".*?>(.*?)</A>(.*?)$} \
+	    $str -> pre url link post]} {
+	if {[string length $pre]} {
+	    lappend sList [stripStr $pre] ""
+	}
+	lappend sList [stripStr $link] $url
+	set str $post
+    }
+    if {[string length $str]} {
+	lappend sList [stripStr $str] ""
+    }
+    return $sList
+}
+
+proc checkNick {nick clr} {
+    global Options
+    if {[string equal $clr ""]} {
+	set clr [getColor MainFG]
+    }
+    if {[lsearch $Options(NickList) $nick] < 0} {
+	lappend Options(NickList) $nick
+	set Options(Color,$nick,Web) $clr
+	set Options(Color,$nick,Inv) [invClr $clr]
+	set Options(Color,$nick,Mine) $clr
+	set Options(Color,$nick,Which) Web
+	.mb.mnu delete 0 end
+	.mb.mnu add command -label "All Users" \
+		-command [list set Options(MsgTo) "All Users"]
+	foreach nk [lsort $Options(NickList)] {
+	    .mb.mnu add command -label $nk \
+		    -command [list set Options(MsgTo) $nk]
+	    .txt tag config NICK-$nk -foreground "#[getColor $nk]"
+	}
+	set wid [expr {[font measure NAME $nick] + 10}]
+	if {$wid > $Options(Offset)} {
+	    set Options(Offset) $wid
+	    .txt config -tabs [list $wid l]
+	    .txt tag config MSG -lmargin2 [incr wid 20]
+	}
+    }
+    set old [getColor $nick]
+    if {[string compare $Options(Color,$nick,Web) $clr]} {
+	# new color
+	set Options(Color,$nick,Web) $clr
+	set Options(Color,$nick,Inv) [invClr $clr]
+	.txt tag config NICK-$nick -foreground "#[getColor $nick]"
+    }
+}
+proc addMessage {clr nick str} {
+    global Options
+    checkNick $nick $clr
+    .txt config -state normal
+    .txt insert end $nick [list NICK NICK-$nick] "\t"
+    foreach {str url} [parseStr $str] {
+	regsub -all "\n" $str "\n\t" str
+	if {$url == ""} {
+	    .txt insert end "$str " [list MSG NICK-$nick]
+	} else {
+	    .txt insert end "$str " \
+		    [list MSG NICK-$nick URL URL-[incr ::URLID]]
+	    .txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	}
+    }
+    .txt insert end "\n"
+    .txt config -state disabled
+    if {$Options(AutoScroll)} { .txt see end }
+}
+
+if {[string length [auto_execok festival]]} {
+    proc addMessage {clr nick str} {
+	# Modified version of addMessage that uses festival
+	# (text to speech converter)
+	global Options
+	checkNick $nick $clr
+	.txt config -state normal
+	.txt insert end $nick [list NICK NICK-$nick] "\t"
+	foreach {str url} [parseStr $str] {
+	    regsub -all "\n" $str "\n\t" str
+	    if {$url == ""} {
+		say "$str"
+		.txt insert end "$str " [list MSG NICK-$nick]
+	    } else {
+		say "$str"
+		.txt insert end "$str " \
+			[list MSG NICK-$nick URL URL-[incr ::URLID]]
+		.txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	    }
+	}
+	.txt insert end "\n"
+	.txt config -state disabled
+	if {$Options(AutoScroll)} { .txt see end }
+    }
+}
+
+proc evalSelection {} {
+    if {![catch {selection get} script] && [info complete $script]} {
+	uplevel #0 $script
+    } else {
+	tk_messageBox -message "The pasted script was not complete or there was nothing selected"
+    }
+}
+
+proc findExecutable {progname varname} {
+    upvar 1 $varname result
+    set progs [auto_execok $progname]
+    if {[llength $progs]} {
+	set result [lindex $progs 0]
+    }
+    return [llength $progs]
+}
+
+proc gotoURL {url} {
+    # this can take a bit
+    . config -cursor watch
+    .txt config -cursor watch
+    update
+    if {[regexp -nocase -- {&url=(.*)} $url -> trueUrl]} {
+	# this was a redirect - just get final destination
+	set url $trueUrl
+    } elseif [regexp -nocase -- {^chat} $url] {
+	# this is a relative url
+	set url "http://mini.net/cgi-bin/$url"
+    } else {
+	# assume a raw url
+    }
+    global tcl_platform env
+    # this code from  http://mini.net/tcl/557.html
+    switch $tcl_platform(platform) {
+	"unix" {
+	    expr {
+		[info exists env(BROWSER)]
+		|| [findExecutable netscape	env(BROWSER)]
+		|| [findExecutable iexplorer	env(BROWSER)]
+		|| [findExecutable $env(NETSCAPE)	env(BROWSER)]
+		|| [findExecutable lynx		env(BROWSER)]
+	    }
+	    # lynx can also output formatted text to a variable
+	    # with the -dump option, as a last resort:
+	    # set formatted_text [ exec lynx -dump $url ] - PSE
+	    if {[catch {exec $env(BROWSER) -remote $url}]} {
+		# perhaps browser doesn't understand -remote flag
+		if {[catch {exec $env(BROWSER) $url &} emsg]} {
+		    tk_messageBox -message \
+			    "Error displaying $url in browser\n$emsg"
+		}
+	    }
+	}
+	"windows" {
+	    if {[catch {eval exec [auto_execok start] [list $url] &} emsg]} {
+		tk_messageBox -message \
+			"Error displaying $url in browser\n$emsg"
+	    }
+	}
+	"macintosh" {
+	    if {![info exists env(BROWSER)]} {
+		set env(BROWSER) "Browse the Internet"
+	    }
+	    if {[catch {
+		AppleScript execute\
+			"tell application \"$env(BROWSER)\"
+		open url \"$url\"
+		end tell
+		"} emsg]
+	    } then {
+		tk_messageBox -message \
+			"Error displaying $url in browser\n$emsg"
+	    }
+	}
+    }
+    . config -cursor {}
+    .txt config -cursor left_ptr
+}
+
+proc addAction {clr nick str} {
+    global Options
+    checkNick $nick $clr
+    .txt config -state normal
+    .txt insert end "\t* $nick " [list NICK NICK-$nick]
+    foreach {str url} [parseStr $str] {
+	regsub -all "\n" $str "\n\t" str
+	if {[string equal $url ""]} {
+	    .txt insert end "$str " [list MSG NICK-$nick ACTION]
+	} else {
+	    .txt insert end "$str " \
+		    [list MSG NICK-$nick ACTION URL URL-[incr ::URLID]]
+	    .txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	}
+    }
+    .txt insert end "\n"
+    .txt config -state disabled
+    if {$Options(AutoScroll)} { .txt see end }
+}
+
+proc addSystem {str} {
+    global Options
+    .txt config -state normal
+    .txt insert end "\t$str\n" [list MSG SYSTEM]
+    .txt config -state disabled
+    if {$Options(AutoScroll)} { .txt see end }
+}
+
+proc addUnknown {str} {
+    global Options
+}
+
+proc showMemo {clr str} {
+    set memo [stripStr $str]
+    if {[regexp -nocase -- {(Memo from \S+? \(.+?\)):(.*?)$} \
+	    $memo -> who what]} {
+	tk_messageBox -title $who -message $what
+    } elseif {[regexp -nocase -- {Memo for} $memo]} {
+	# no pop-=up
+    } else {
+	tk_messageBox -title Memo -message $mem
+    }
+    addHelp $clr MEMO $str
+}
+
+proc addHelp {clr name str} {
+    global Options
+    if {[lsearch -exact $Options(NickList) $name] >= 0} {
+	# this is an incoming private message
+	addAction $clr $name " whispers: $str"
+	return
+    }
+    if {[string match "->*" $name]} {
+	# an outgoing private message
+	addAction $clr $Options(Username) " whispered to [string range $name 2 end]: $str"
+	return
+    }
+    if {$clr != ""} {
+	.txt tag config HELP -foreground "#$clr"
+    }
+    set jump $Options(AutoScroll)
+    .txt config -state normal
+    .txt insert end "$name\t" [list HELP NICK]
+    foreach {str url} [parseStr $str] {
+	regsub -all "\n" $str "\n\t" str
+	if {[string equal $url ""]} {
+	    .txt insert end "$str " [list MSG HELP]
+	} else {
+	    .txt insert end "$str " [list MSG HELP URL URL-[incr ::URLID]]
+	    .txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	}
+    }
+    .txt insert end "\n"
+    .txt config -state disabled
+    if $jump { .txt see end }
+}
+
+proc createFonts {} {
+    font create FNT  -family helvetica -size -12 -weight normal -slant roman
+    font create ACT  -family helvetica -size -12 -weight normal -slant italic
+    font create NAME -family helvetica -size -12 -weight bold	-slant roman
+    font create SYS  -family helvetica -size -12 -weight bold	-slant italic
+}
+
+proc createGUI {} {
+    global Options
+
+    wm title . "Tcl'ers Chat"
+    wm withdraw .
+    wm protocol . WM_DELETE_WINDOW quit
+
+    createFonts
+
+    menu .mbar -type menubar
+    . config -menu .mbar
+
+    .mbar add cascade -label File -menu [menu .mbar.file -tearoff 0]
+    .mbar add cascade -label Edit -menu [menu .mbar.edit -tearoff 0]
+
+    ## File Menu
+    ##
+    set m .mbar.file
+    $m add checkbutton -label Pause \
+	    -variable ::tkchat::pause \
+	    -command { pause $::tkchat::pause }
+    $m add command -label Logout -command logonScreen
+    $m add separator
+    $m add command -label Exit -command quit
+
+    ## Edit Menu
+    ##
+    set m .mbar.edit
+    $m add command -label Options... \
+	    -state disabled \
+	    -command changeSettings
+    $m add command -label "My Color" \
+	    -command ::tkchat::ChooseColor
+    $m add cascade -label "Font Name" -menu $m.fontName
+    $m add cascade -label "Font Size" -menu $m.fontSize
+    $m add separator
+    if {[string compare "unix" $::tcl_platform(platform)]} {
+	set ::tkchat::_console 0
+	$m add checkbutton -label "Debug Console" \
+		-variable ::tkchat::_console \
+		-command {
+	    if {$::tkchat::_console} { console show } else { console hide }
+	}
+    }
+
+    ## Font Menus
+    ##
+    set m [menu .mbar.edit.fontName -tearoff 0]
+    foreach name [lsort [font families]] {
+	$m add radiobutton -label $name \
+		-var ::tkchat::_font \
+		-val $name \
+		-command [list ::tkchat::ChangeFont -family $name]
+    }
+    set m [menu .mbar.edit.fontSize -tearoff 0]
+    foreach sz {8 10 12 14 16 18 24 28 36} {
+	$m add radiobutton -label $sz \
+		-var ::tkchat::_fontsize \
+		-val $sz \
+		-command [list ::tkchat::ChangeFont -size $sz]
+    }
+
+    text .txt -background "#[getColor MainBG]" \
+	    -foreground "#[getColor MainFG]" \
+	    -font FNT -relief sunken -bd 2 -wrap word \
+	    -yscroll "scroll_set .sbar" \
+	    -state disabled -cursor left_ptr -height 1
+    scrollbar .sbar -command ".txt yview"
+    text .names -background "#[getColor MainBG]" \
+	    -foreground "#[getColor MainFG]" \
+	    -relief sunken -bd 2 -width 8 -font FNT -state disabled \
+	    -cursor left_ptr -height 1
+    button .ml -text "More >>>" -command showExtra
+    entry .eMsg
+    bind .eMsg <Return> userPost
+    bind .eMsg <KP_Enter> userPost
+    text .tMsg -height 6 -font FNT
+    button .post -text Post -command userPost
+    menubutton .mb -indicator on -relief raised -bd 2 \
+	    -menu .mb.mnu -textvar Options(MsgTo)
+    set Options(MsgTo) "All Users"
+    menu .mb.mnu -tearoff 0
+    .mb.mnu add command -label "All Users" \
+	    -command [list set Options(MsgTo) "All Users"]
+    .txt tag config MSG -lmargin2 50
+    .txt tag config NICK -font NAME
+    .txt tag config ACTION -font ACT
+    .txt tag config SYSTEM -font SYS
+    .txt tag config URL -underline 1
+    .txt tag bind URL <Enter> ".txt config -cursor hand2"
+    .txt tag bind URL <Leave> ".txt config -cursor {}"
+    .names tag config NICK -font NAME
+    .names tag config TITLE -font SYS -justify center
+    .names tag config URL -underline 1
+    .names tag bind URL <Enter> ".names config -cursor hand2"
+    .names tag bind URL <Leave> ".names config -cursor {}"
+
+    foreach nick [lsort $Options(NickList)] {
+	.mb.mnu add command -label $nick \
+		-command [list set Options(MsgTo) $nick]
+	.txt tag config NICK-$nick -foreground "#[getColor $nick]"
+	set wid [expr [font measure NAME $nick] + 10]
+	if {$wid > $Options(Offset)} {
+	    set Options(Offset) $wid
+	    .txt config -tabs [list $wid l]
+	    .txt tag config MSG -lmargin2 [incr wid 20]
+	}
+    }
+
+    grid .txt	-   .sbar .names    -  -padx 1 -pady 2 -sticky news
+    grid .ml .eMsg    -	  .post	 .mb -padx 2 -pady 3 -sticky ew
+    grid columnconfigure . 1 -weight 1
+    grid rowconfigure . 0 -weight 1
+    wm geometry . 600x500
+    wm deiconify .
+}
+
+proc userPost {} {
+    global Options
+    if [winfo ismapped .eMsg] {
+	set str [.eMsg get]
+    } else {
+	set str [.tMsg get 1.0 end]
+    }
+    set msg [string trim $str]
+    if [string equal $msg ""] {
+	return
+    }
+    if [string equal $Options(MsgTo) "All Users"] {
+	msgSend $msg
+    } else {
+	msgSend $msg $Options(MsgTo)
+    }
+    .eMsg delete 0 end
+    .tMsg delete 1.0 end
+}
+
+proc hideExtra {} {
+    grid remove .tMsg
+    grid config .eMsg -row 1 -column 1 -columnspan 2 -sticky ew
+    .ml config -text "More >>>" -command showExtra
+}
+proc showExtra {} {
+    grid remove .eMsg
+    grid config .tMsg -row 1 -column 1 -columnspan 2 -sticky ew
+    .ml config -text "Less <<<" -command hideExtra
+}
+proc logonScreen {} {
+    global Options LOGON
+    pause on 0
+    if {![winfo exists .logon]} {
+	toplevel .logon -class dialog
+	wm withdraw .logon
+	wm transient .logon .
+	wm title .logon "Logon to the Tcl'ers Chat"
+	checkbutton .logon.prx -text "Use Proxy" -var Options(UseProxy)
+	label .logon.lph -text "Proxy Host"
+	label .logon.lpp -text "Proxy Port"
+	entry .logon.eph -textvar Options(ProxyHost)
+	entry .logon.epp -textvar Options(ProxyPort)
+	label .logon.lpan -text "Proxy Auth Username"
+	label .logon.lpap -text "Proxy Auth Password"
+	entry .logon.epan -textvar Options(ProxyUsername)
+	entry .logon.epap -textvar Options(ProxyPassword) -show {*}
+	label .logon.lnm -text "Chat Username"
+	label .logon.lpw -text "Chat Password"
+	entry .logon.enm -textvar Options(Username)
+	entry .logon.epw -textvar Options(Password) -show *
+	checkbutton .logon.rpw -text "Remember Chat Password" \
+		-var Options(SavePW)
+	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect)
+	button .logon.ok -text "Logon" -command "set LOGON 1"
+	button .logon.cn -text "Quit" -command quit
+	trace variable Options(UseProxy) w optSet
+	trace variable Options(SavePW) w optSet
+	grid .logon.prx - - -sticky w -pady 3
+	grid  x .logon.lph .logon.eph -sticky w -pady 3
+	grid  x .logon.lpp .logon.epp -sticky w -pady 3
+	grid  x .logon.lpan .logon.epan -sticky w -pady 3
+	grid  x .logon.lpap .logon.epap -sticky w -pady 3
+	grid .logon.lnm .logon.enm - -sticky ew -pady 5
+	grid .logon.lpw .logon.epw - -sticky ew
+	grid x .logon.rpw  - -sticky w -pady 3 -pady 3
+	grid x .logon.atc  - -sticky w -pady 3
+	grid .logon.ok - .logon.cn -sticky {} -pady 10
+	wm resizable .logon 0 0
+    }
+    optSet
+    catch {::tk::PlaceWindow .logon widget .}
+    wm deiconify .logon
+    tkwait visibility .logon
+    grab .logon
+    vwait LOGON
+    grab release .logon
+    wm withdraw .logon
+    if {$Options(UseProxy)} {
+	::http::config -proxyhost $Options(ProxyHost) \
+		-proxyport $Options(ProxyPort)
+    }
+    # connect
+    logonChat
+}
+
+proc optSet {args} {
+    global Options
+    if $Options(UseProxy) {
+	set s normal
+    } else {
+	set s disabled
+    }
+    foreach w {lph lpp eph epp lpan epan lpap epap} {
+	.logon.$w config -state $s
+    }
+    if $Options(SavePW) {
+	.logon.atc config -state normal
+    } else {
+	.logon.atc config -state disabled
+	set Options(AutoConnect) 0
+    }
+}
+
+proc changeSettings {} {
+    tk_messageBox -message "Changing font/colors coming soon!"
+}
+
+proc quit {} {
+    set q "Are you sure you want to quit?"
+    set a [tk_messageBox -type yesno -message $q]
+    if {[string equal $a "yes"]} {
+	saveRC
+	exit
+    }
+}
+
+proc saveRC {} {
+    global Options
+    if [info exists ::env(HOME)] {
+	set rcfile [file join $::env(HOME) .tkchatrc]
+	array set tmp [array get Options]
+	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken ProxyPassword}
+	if { ! $tmp(SavePW) } {
+	    lappend ignore Password
+	}
+	foreach idx $ignore {
+	    catch {unset tmp($idx)}
+	}
+	if {![catch {open $rcfile w} fd]} {
+	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
+	    puts $fd [list array set Options [array get tmp]]
+	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
+	    close $fd
+	}
+    }
+}
+
+proc scroll_set {sbar f1 f2} {
+    global Options
+    $sbar set $f1 $f2
+    if {[string equal "$f1$f2" "01"]} {
+	grid remove $sbar
+    } else {
+	grid $sbar
+    }
+    set Options(AutoScroll) [string equal $f2 1]
+}
+
+proc init {} {
+    global Options
+    set ::URLID 0
+    # set intial defaults
+    set ::tkchat::pause 0
+    array set Options {
+	URL		http://mini.net/cgi-bin/chat.cgi
+	URL2		http://mini.net/cgi-bin/chat2.cgi
+	UseProxy	0
+	ProxyHost	""
+	ProxyPort	""
+	Username	""
+	Password	""
+	SavePW		0
+	MyColor		000000
+	FetchTimerID	-1
+	OnlineTimerID	-1
+	AutoConnect	0
+	RefreshMS	30000
+	NickList	{}
+	History		{}
+	AutoScroll	0
+    }
+    foreach {name clr} { MainBG FFFFFF MainFG 000000 } {
+	set Options(Color,$name,Web)   $clr
+	set Options(Color,$name,Mine)  $clr
+	set Options(Color,$name,Which) Web
+    }
+
+    # load RC file if it exists
+    if {[info exists ::env(HOME)]} {
+	if {[file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
+	    catch {source $rcfile}
+	}
+    }
+    set Options(Offset) 50
+    catch {unset Options(FetchToken)}
+    catch {unset Options(OnlineToken)}
+    set Options(History) {}
+
+    # build screen
+    createGUI
+
+    if {$Options(UseProxy)} {
+	::http::config -proxyhost $Options(ProxyHost) \
+		-proxyport $Options(ProxyPort)
+    }
+    # connect
+    if {$Options(AutoConnect)} {
+	logonChat
+    } else {
+	logonScreen
+    }
+}
+
+proc ::tkchat::ChooseColor {} {
+    set tmp [tk_chooseColor \
+	    -title "Select Your User Color" \
+	    -initialcolor \#$::Options(MyColor)]
+   if {$tmp != ""} {
+       set ::Options(MyColor) [string range $tmp 1 end]
+   }
+}
+
+proc ::tkchat::ChangeFont {opt val} {
+    foreach font [font names] {
+	font configure $font $opt $val
+    }
+}
+
+if {![info exists ::URLID]} {
+    init
+}
+
+
+
+proc say { message } {
+    # I've added a few lines to make this speak new messages via the festival
+    # synthesiser. It doesn't do it robustly as yet (you'll need festival
+    # installed) but as a quick (1min) hack it's got heaps of cool points...
+    global festival
+    if {![info exists festival]} {
+	set festival [open "|festival --pipe" w]
+    }
+
+    # remove quotes
+    regsub -all {\"} $message {} message2
+
+    puts $message2
+    puts $festival "(SayText \"$message2\")"
+    flush $festival
+}

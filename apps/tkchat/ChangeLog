@@ -1,0 +1,12 @@
+2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: Initial import of tkchat into CVS
+
+	* 26Sep2001  B. Hartweg	      Initial release to wiki
+	* 26Sep2001  J. Hobbs	      several enhancements
+	* 27Sep2001  B. Hartweg	      Add font selections
+	* 27Sep2001  B. Hartweg	      Add URL handling & minor fixes
+	* 27Sep2001  P. Thoyts	      Support for Proxy Authentication
+	* 27Sep2001  D. Porter	      Bug fix in findExecutable
+
+

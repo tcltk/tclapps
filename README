@@ -1,0 +1,37 @@
+RCS: @(#) $Id: README,v 1.1.1.1 2001/09/27 18:00:16 hobbs Exp $
+
+Welcome to the tclapps, a suite of small applications for Tcl useful as
+examples and in regular use to a large collection of Tcl programmers.
+Applications may require Tcl, Tk and any known extensions.  This should be
+explicitly noted in accompanying documentation, and the proper package
+require statements should be used.
+
+The structure of the tclapps heirarchy is:
+
+tclapps
+ +- apps
+     +- <app1>
+     +- <app2>
+     +- ...
+
+
+There are some base requirements that a application should meet before it
+will be added to tclapps:
+
+* the application should use a namespace for its commands and variables
+
+* the application must use package require statements for any packages
+  used, preferrably with pointers on how to obtain the package
+
+* the application must reside in a subdirectory of the applications
+  directory in the source heirarchy, and that subdirectory must have the
+  same name as the application and namespace used
+
+* the application must be released under the BSD License, the terms of
+  which can be found in the toplevel tclapps source directory in the file
+  license.terms
+
+* the application should have documentation
+
+* the application should adhere to Tcl coding standards
+
