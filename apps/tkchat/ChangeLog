@@ -1,3 +1,7 @@
+2003-09-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Namespaced pretty much everything into tkchat::*
+
 2003-09-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Updated to support JCW's new chatter.cgi

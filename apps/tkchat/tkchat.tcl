@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.115 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.116 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,25 +53,26 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.115 2003/09/17 00:26:31 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.116 2003/09/17 14:44:15 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
-                             "%user% has entered the chat!" \
-                             "Out of a cloud of smoke, %user% appears!" \
-                             "%user% saunters in." \
-                             "%user% wanders in." \
-                             "%user% checks into the chat." \
-                             "%user% is feeling chatty!" \
-                            ]
+                           "%user% has entered the chat!" \
+                           "Out of a cloud of smoke, %user% appears!" \
+                           "%user% saunters in." \
+                           "%user% wanders in." \
+                           "%user% checks into the chat." \
+                           "%user% is feeling chatty!" \
+                          ]
     set MSGS(left) [list \
-                          "%user% has left the chat!" \
-                          "In a cloud of smoke, %user% disappears!" \
-                          "%user% exits, stage left!" \
-                          "%user% doesn't want to talk to you anymore!" \
-                          "%user% looks at the clock and dashes out the door" \
-                          "%user% macht wie eine Banane ..." \
-                         ]
+                        "%user% has left the chat!" \
+                        "In a cloud of smoke, %user% disappears!" \
+                        "%user% exits, stage left!" \
+                        "%user% doesn't want to talk to you anymore!" \
+                        "%user% looks at the clock and dashes out the door" \
+                        "%user% macht wie eine Banane ..." \
+                        "%user% possibly hasn't really left." \
+                       ]
 
     # Variables to control the search function.
     variable searchString ""
@@ -81,21 +82,9 @@ namespace eval ::tkchat {
     variable lastCompletion "" 
 }
 
-set ::DEBUG 1
-proc vputs {args} {
-    if {$::DEBUG} {
-	set name [lindex [info level -1] 0]
-	if {[llength $args]} {
-	    log::log debug "$name: $args"
-	} else {
-	    log::log debug "CALLED $name"
-	}
-    }
-}
-
-proc errLog {args} {
+proc ::tkchat::errLog {args} {
     log::logMsg [join $args]
-    update idletasks
+    update idletasks;                   # why are we doing this??
 }
 
 # trace handler to set the log level whenever Options(LogLevel) is changed
@@ -112,17 +101,21 @@ proc ::tkchat::LogLevelSet {args} {
 # proxys accepting Basic authentication by building the header
 # required from the users login and password.
 #  - PT
-proc buildProxyHeaders {} {
+proc ::tkchat::buildProxyHeaders {} {
     global Options
     set auth {}
-    if { $Options(UseProxy) \
-               && [info exists Options(ProxyUsername)] \
-               && $Options(ProxyUsername) != {}
+    if { $Options(UseProxy)
+         && [info exists Options(ProxyUsername)]
+         && $Options(ProxyUsername) != {}
      } then {
-	set auth [list "Proxy-Authorization" \
-                        [concat "Basic" \
-                               [base64::encode \
-                                      $Options(ProxyUsername):$Options(ProxyPassword)]]]
+        if {![info exists Options(ProxyAuth)]} {
+            set Options(ProxyAuth) \
+                [list "Proxy-Authorization" \
+                     [concat "Basic" \
+                          [base64::encode \
+                               $Options(ProxyUsername):$Options(ProxyPassword)]]]
+        }
+        set auth $Options(ProxyAuth)
     }
     return $auth
 }
@@ -178,7 +171,7 @@ proc ::tkchat::Retrieve {} {
 }
 
 # Check the HTTP response for redirecting URLs. - PT
-proc checkForRedirection {tok optionName} {
+proc ::tkchat::checkForRedirection {tok optionName} {
     global Options
     set ncode [::http::ncode $tok]
     if {[expr {$ncode == 302 || $ncode == 301 || $ncode == 307}]} {
@@ -410,7 +403,7 @@ proc ::tkchat::LoadHistoryLines {} {
 }
 
 
-proc msgSend {str {user ""}} {
+proc ::tkchat::msgSend {str {user ""}} {
     global Options
     errLog "Send to $Options(URL)"
     set qry [::http::formatQuery \
@@ -428,15 +421,15 @@ proc msgSend {str {user ""}} {
         ::http::geturl $Options(URL) \
               -query [string map {%5f _} $qry] \
               -headers [buildProxyHeaders] \
-              -command msgDone
+              -command ::tkchat::msgDone
     } msg]} {
         set delay [expr {$Options(Refresh) * 1000 / 2}]
-        errLog "Retrying msgSend after $delay: $msg"
-        after $delay [list msgSend $str $user]
+        errLog "Retrying msgSend after $delay: \"$msg\""
+        after $delay [list ::tkchat::msgSend $str $user]
     }
 }
 
-proc msgDone {tok} {
+proc ::tkchat::msgDone {tok} {
     global Options
     errLog "Post: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
@@ -454,11 +447,11 @@ proc msgDone {tok} {
                     after idle [list ::http::geturl $Options(URL) \
                                       -query [set ${tok}(-query)] \
                                       -headers [buildProxyHeaders] \
-                                      -command msgDone]
+                                      -command ::tkchat::msgDone]
                 }
             } else {
                 checkForRedirection $tok URL
-                if {[catch {::tkchat::fetchPage} err]} { errLog $err }
+                if {[catch {fetchPage} err]} { errLog $err }
             }
         }
 	reset { errLog "User reset post operation" }
@@ -534,7 +527,7 @@ proc ::tkchat::logoffDone {tok} {
     ::http::cleanup $tok
 }
 
-proc pause {pause {notify 1}} {
+proc ::tkchat::pause {pause {notify 1}} {
     global Options
     set ::tkchat::pause [string is true -strict $pause]
     if {$pause} {
@@ -550,9 +543,9 @@ proc pause {pause {notify 1}} {
 		pack [label .pause.m -text \
                             "The session is paused,\nno updates will occur."]
 		button .pause.r -text "Resume" \
-                      -command { pause off ; wm withdraw .pause }
+                      -command { ::tkchat::pause off ; wm withdraw .pause }
 		pack .pause.r -padx 5 -pady 10
-		bind .pause <Destroy> [list pause off]
+		bind .pause <Destroy> [list ::tkchat::pause off]
 	    }
 	    catch {::tk::PlaceWindow .pause widget .}
 	    wm deiconify .pause
@@ -760,7 +753,7 @@ proc ::tkchat::onlineDone {tok} {
 # Translate the selection using Babelfish.
 # -------------------------------------------------------------------------
 
-proc tkchat::fetchurldone {cmd tok} {
+proc ::tkchat::fetchurldone {cmd tok} {
     errLog "fetchurl: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
@@ -779,14 +772,14 @@ proc tkchat::fetchurldone {cmd tok} {
     ::http::cleanup $tok
 }
 
-proc tkchat::translateSel {from to} {
+proc ::tkchat::translateSel {from to} {
     if {![catch {selection get} msg]} {
         log::log debug "translate: $from $to \"$msg\""
         translate $from $to $msg
     }
 }
 
-proc tkchat::translate {from to text} {
+proc ::tkchat::translate {from to text} {
     set url {http://babelfish.altavista.com/babelfish/tr}
     append op $from _ $to
     set query [http::formatQuery tt urltext urltext $text lp $op]
@@ -796,7 +789,7 @@ proc tkchat::translate {from to text} {
              -command [list ::tkchat::fetchurldone ::tkchat::translateDone]]
 }
 
-proc tkchat::translateDone {tok} {
+proc ::tkchat::translateDone {tok} {
     set ::tkchat::translate [http::data $tok]
     set r [regexp {<Div.*?>(.*)</div>} \
             [::http::data $tok] -> text]
@@ -810,14 +803,14 @@ proc tkchat::translateDone {tok} {
     }
 }
 
-proc tkchat::babelfishInit {{url http://babelfish.altavista.com/babelfish/}} {
+proc ::tkchat::babelfishInit {{url http://babelfish.altavista.com/babelfish/}} {
     set tok [http::geturl $url \
              -headers [buildProxyHeaders] \
              -command [list ::tkchat::fetchurldone \
                             ::tkchat::babelfishInitDone]]
 }
 
-proc tkchat::babelfishInitDone {tok} {
+proc ::tkchat::babelfishInitDone {tok} {
     set ::tkchat::babelfish [http::data $tok]
     if {[regexp {<select name="lp">(.*?)</select>} [::http::data $tok] -> r]} {
         .mbar.help.tr delete 0 end
@@ -837,7 +830,32 @@ proc tkchat::babelfishInitDone {tok} {
 
 # -------------------------------------------------------------------------
 
-proc updateNames {rawHTML} {
+proc ::tkchat::MsgTo {{user "All Users"}} {
+    global Options
+    variable MsgToColors
+
+    set windows [list .eMsg .tMsg]
+    if {![info exists MsgToColors]} {
+        foreach w $windows {
+            set MsgToColors($w,normal) [$w cget -bg]
+            set MsgToColors($w,whisper) $Options(WhisperIndicatorColor)
+        }
+    }
+    
+    if {$user == "All Users"} {
+        set type normal
+    } else {
+        set type whisper
+    }
+
+    foreach w $windows {
+        $w configure -bg $MsgToColors($w,$type)
+    }
+
+    set Options(MsgTo) $user
+}
+
+proc ::tkchat::updateNames {rawHTML} {
     global Options
 
     # Delete all URL-* tags to prevent a huge memory leak
@@ -853,7 +871,7 @@ proc updateNames {rawHTML} {
     set exp {<A HREF="(.+?)".*?>(.+?)</A>}
     .mb.mnu delete 0 end
     .mb.mnu add command -label "All Users" \
-          -command [list set Options(MsgTo) "All Users"]
+          -command [list ::tkchat::MsgTo "All Users"]
     set Options(OnLineUsers) {}
     foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
         lappend Options(OnLineUsers) $name
@@ -864,16 +882,17 @@ proc updateNames {rawHTML} {
 	# just do an inline /userinfo when they are clicked
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
 	.names tag bind URL-$::URLID <1> \
-              "set ::UserClicked 1 ; [list msgSend "/userinfo $name"]"
+              "set ::tkchat::UserClicked 1;\
+               [list ::tkchat::msgSend "/userinfo $name"]"
 	incr i
 	.mb.mnu add command -label $name \
-              -command [list set Options(MsgTo) $name]
+              -command [list ::tkchat::MsgTo $name]
     }
     .names insert 1.0 "$i Users Online\n\n" TITLE
     .names config -state disabled
 }
 
-proc invClr {clr {grays 0}} {
+proc ::tkchat::invClr {clr {grays 0}} {
     # generally this is used to get a color that shows
     # up on a dark BG if it was originally a white BG
     # so even the color is grey & the inv color is also
@@ -891,7 +910,7 @@ proc invClr {clr {grays 0}} {
     return [format "%02x%02x%02x" $R $G $B]
 }
 
-proc getColor {name} {
+proc ::tkchat::getColor {name} {
     global Options
     if {[catch {
 	set w $Options(Color,$name,Which)
@@ -903,7 +922,7 @@ proc getColor {name} {
     return $clr
 }
 
-proc parseData {rawHTML} {
+proc ::tkchat::parseData {rawHTML} {
     global Options
     # get body of data
     set clr ""
@@ -912,7 +931,7 @@ proc parseData {rawHTML} {
                $rawHTML -> clr body]} {
 	if {[string length $clr] && \
                   [string compare $Options(Color,MainBG,Web) $clr]} {
-	    set iclr [invClr $clr]
+	    set iclr [::tkchat::invClr $clr]
 	    set Options(Color,MainBG,Web) $clr
 	    set Options(Color,MainFG,Web) $iclr
 	    .txt config -background "#[getColor MainBG]" \
@@ -934,7 +953,7 @@ proc parseData {rawHTML} {
     }
 }
 
-proc getRecentLines {input} {
+proc ::tkchat::getRecentLines {input} {
     global Options
     set Found 0
     set mark 0
@@ -954,21 +973,27 @@ proc getRecentLines {input} {
     return [lrange $input $Found end]
 }
 
-set UserClicked 0
-array set RE {
-    HelpStart {^<FONT COLOR="(.+?)"><B>\[(.+?)\]</B>(.*)$}
-    MultiStart {^<FONT COLOR="(.+?)"><B>(\S+?)</B>:(.*?)$}
-    ActionStart {^<FONT COLOR="(.+?)"><B>\*\s+(\S+?)\s+(.+)$}
-    SectEnd {^(.*)</FONT>$}
-    Color {^<FONT COLOR="(.+?)">(.*?)</FONT>$}
-    Message {^<B>(\S+?)</B>:(.+?)$}
-    Help {^<B>\[(.+?)\]</B>(.*)$}
-    Action {^<B>\*\s+(\S+)\s+(.+)</B>$}
-    Traffic {^<B>\s*(\S+)\s+has (entered|left) the chat</B>$}
-    System {^<B>(.*)</B>$}
+namespace eval ::tkchat {
+    variable UserClicked 0
+    variable RE
+    array set RE {
+        HelpStart {^<FONT COLOR="(.+?)"><B>\[(.+?)\]</B>(.*)$}
+        MultiStart {^<FONT COLOR="(.+?)"><B>(\S+?)</B>:(.*?)$}
+        ActionStart {^<FONT COLOR="(.+?)"><B>\*\s+(\S+?)\s+(.+)$}
+        SectEnd {^(.*)</FONT>$}
+        Color {^<FONT COLOR="(.+?)">(.*?)</FONT>$}
+        Message {^<B>(\S+?)</B>:(.+?)$}
+        Help {^<B>\[(.+?)\]</B>(.*)$}
+        Action {^<B>\*\s+(\S+)\s+(.+)</B>$}
+        Traffic {^<B>\s*(\S+)\s+has (entered|left) the chat</B>$}
+        System {^<B>(.*)</B>$}
+    }
 }
-proc addNewLines {input} {
-    global Options RE UserClicked
+
+proc ::tkchat::addNewLines {input} {
+    global Options
+    variable RE
+    variable UserClicked
 
     # Add the input to the history.  It's OK to do this before processing.
     eval [list lappend Options(History)] $input
@@ -1002,7 +1027,9 @@ proc addNewLines {input} {
 		set inHelp 0
 		if {$helpName == "USERINFO"} {
                     if {$UserClicked} {
-                        set UserInfoCmd [list addHelp $helpColor $helpName [join $helpLines \n]]
+                        set UserInfoCmd \
+                            [list addHelp $helpColor $helpName \
+                                 [join $helpLines \n]]
                     }
 		} else {
                     addHelp $helpColor $helpName [join $helpLines \n]
@@ -1079,14 +1106,14 @@ proc addNewLines {input} {
     }
 }
 
-proc stripStr {str} {
+proc ::tkchat::stripStr {str} {
     # remove any remaining tags
     regsub -all -nocase "<.*?>" $str {} tmp
     # replace html escapes with real chars
     return [::htmlparse::mapEscapes $tmp]
 }
 
-proc parseStr {str} {
+proc ::tkchat::parseStr {str} {
     # get href info return list of str link pairs
     set sList {}
     while {[regexp -nocase -- {^(.*?)<A.*?HREF="(.+?)".*?>(.*?)</A>(.*?)$} \
@@ -1103,7 +1130,7 @@ proc parseStr {str} {
     return $sList
 }
 
-proc checkNick {nick clr} {
+proc ::tkchat::checkNick {nick clr} {
     global Options
     set wid [expr {[font measure NAME $nick] + 10}]
     if {$wid > $Options(Offset)} {
@@ -1120,7 +1147,7 @@ proc checkNick {nick clr} {
     if {[lsearch $Options(NickList) $nick] < 0} {
         lappend Options(NickList) $nick
         set Options(Color,$nick,Web) $clr
-        set Options(Color,$nick,Inv) [invClr $clr]
+        set Options(Color,$nick,Inv) [::tkchat::invClr $clr]
         set Options(Color,$nick,Mine) $clr
         set Options(Color,$nick,Which) Web
         ::tkchat::NickVisMenu
@@ -1128,7 +1155,7 @@ proc checkNick {nick clr} {
     if {[string compare $Options(Color,$nick,Web) $clr]} {
         # new color
         set Options(Color,$nick,Web) $clr
-        set Options(Color,$nick,Inv) [invClr $clr]
+        set Options(Color,$nick,Inv) [::tkchat::invClr $clr]
         .txt tag configure NICK-$nick -foreground "#[getColor $nick]"
     }
 }
@@ -1138,14 +1165,14 @@ proc checkNick {nick clr} {
 # to alert in a row and we want to batch them all together into one
 # action.
 #
-proc alertWhenIdle {} {
+proc ::tkchat::alertWhenIdle {} {
     variable alert_pending
     if {![info exists alert_pending]} {
         set alert_pending 1
-        after idle [namespace current]alertCallback
+        after idle [namespace origin alertCallback]
     }
 }
-proc alertCallback {} {
+proc ::tkchat::alertCallback {} {
     variable alert_pending
     global Options
     catch {unset alert_pending}
@@ -1164,7 +1191,7 @@ proc alertCallback {} {
 # As a side effect, record the time of last post for user $nick in
 # the global LastPost() array.
 #
-proc checkAlert {msgtype nick str} {
+proc ::tkchat::checkAlert {msgtype nick str} {
     global Options LastPost
     set now [clock seconds]
     set LastPost($nick) $now
@@ -1193,7 +1220,7 @@ proc checkAlert {msgtype nick str} {
     }
 }
 
-proc addMessage {clr nick str {mark end}} {
+proc ::tkchat::addMessage {clr nick str {mark end}} {
     global Options
     variable map
     set w .txt
@@ -1239,7 +1266,7 @@ proc addMessage {clr nick str {mark end}} {
             set tags [list MSG NICK-$nick]
             if {$url != ""} {
                 lappend tags URL URL-[incr ::URLID]
-                $w tag bind URL-$::URLID <1> [list gotoURL $url]
+                $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
             }
             tkchat::Insert $w $str $tags $url $mark
         }
@@ -1305,12 +1332,12 @@ proc ::tkchat::Hook {do type cmd} {
     }
 }
 
-proc say { message args } {
+proc ::tkchat::say { message args } {
     # I've added a few lines to make this speak new messages via the
     # festival synthesiser. It doesn't do it robustly as yet (you'll need
     # festival installed) but as a quick (1min) hack it's got heaps of
     # cool points...  -- Steve Cassidy
-    global festival
+    variable festival
     if {![info exists festival]} {
 	set festival [open "|festival --pipe" w]
     }
@@ -1322,10 +1349,10 @@ proc say { message args } {
 
 if {0 && [string length [auto_execok festival]]} {
     ## Don't add this by default ...
-    ::tkchat::Hook add message say
+    ::tkchat::Hook add message ::tkchat::say
 }
 
-proc findExecutable {progname varname} {
+proc ::tkchat::findExecutable {progname varname} {
     upvar 1 $varname result
     set progs [auto_execok $progname]
     if {[llength $progs]} {
@@ -1334,7 +1361,7 @@ proc findExecutable {progname varname} {
     return [llength $progs]
 }
 
-proc gotoURL {url} {
+proc ::tkchat::gotoURL {url} {
     # this can take a bit
     . config -cursor watch
     .txt config -cursor watch
@@ -1428,7 +1455,7 @@ proc gotoURL {url} {
     .txt config -cursor left_ptr
 }
 
-proc formatClock {str} {
+proc ::tkchat::formatClock {str} {
     global Options
     set out [stripStr $str]
     if {[regexp -- {^[\s:]*(\d+)} $out -> ticks]} {
@@ -1441,7 +1468,7 @@ proc formatClock {str} {
     return $out
 }
 
-proc addAction {clr nick str {mark end}} {
+proc ::tkchat::addAction {clr nick str {mark end}} {
     global Options
     checkNick $nick $clr
     checkAlert ACTION $nick $str
@@ -1454,7 +1481,7 @@ proc addAction {clr nick str {mark end}} {
 	    set tags [list MSG NICK-$nick ACTION]
 	    if {$url != ""} {
 		lappend tags URL URL-[incr ::URLID]
-		.txt tag bind URL-$::URLID <1> [list gotoURL $url]
+		.txt tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
 	    }
 	    tkchat::Insert .txt $str $tags $url $mark
 	}
@@ -1464,7 +1491,7 @@ proc addAction {clr nick str {mark end}} {
     if {$Options(AutoScroll)} { .txt see $mark }
 }
 
-proc addSystem {str {mark end}} {
+proc ::tkchat::addSystem {str {mark end}} {
     global Options
     .txt config -state normal
     .txt insert $mark "\t$str\n" [list MSG SYSTEM]
@@ -1476,7 +1503,7 @@ proc addSystem {str {mark end}} {
 # by setting Options(hideTraffic)
 # Always add tehse to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
-proc addTraffic {who action {mark end}} {
+proc ::tkchat::addTraffic {who action {mark end}} {
     global Options
 
     variable ::tkchat::MSGS
@@ -1497,7 +1524,7 @@ proc addTraffic {who action {mark end}} {
     if {$Options(AutoScroll)} { .txt see $mark }
 }
 
-proc addUnknown {str} {
+proc ::tkchat::addUnknown {str} {
     global Options
 }
 
@@ -1524,7 +1551,7 @@ proc ::tkchat::showInfo {title str} {
 	    $t.txt insert end "$str " INFO
 	} else {
 	    $t.txt insert end "$str " [list INFO URL URL-[incr ::URLID]]
-	    $t.txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	    $t.txt tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
 	}
     }
     $t.txt insert end "\n"
@@ -1533,7 +1560,7 @@ proc ::tkchat::showInfo {title str} {
     pack $t.close -side right
 }
 
-proc addHelp {clr name str} {
+proc ::tkchat::addHelp {clr name str} {
     global Options
 
     if {[lsearch -exact $Options(NickList) $name] >= 0} {
@@ -1566,13 +1593,13 @@ proc addHelp {clr name str} {
     }
     .txt config -state normal
     .txt insert end "$name\t" [list $tag NICK]
-    foreach {str url} [parseStr $str] {
+    foreach {str url} [::tkchat::parseStr $str] {
 	regsub -all "\n" $str "\n\t" str
 	if {[string equal $url ""]} {
 	    .txt insert end "$str " [list MSG $tag]
 	} else {
 	    .txt insert end "$str " [list MSG $tag URL URL-[incr ::URLID]]
-	    .txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	    .txt tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
 	}
     }
     .txt insert end "\n" [list $tag NICK]
@@ -1580,7 +1607,7 @@ proc addHelp {clr name str} {
     if {$Options(AutoScroll)} { .txt see end }
 }
 
-proc createFonts {} {
+proc ::tkchat::createFonts {} {
     font create FNT  -family helvetica -size -12 -weight normal -slant roman
     font create ACT  -family helvetica -size -12 -weight normal -slant italic
     font create NAME -family helvetica -size -12 -weight bold	-slant roman
@@ -1603,7 +1630,7 @@ proc ::tkchat::displayUsers {} {
     }
 }
 
-proc findCommonRoot { words } {
+proc ::tkchat::findCommonRoot { words } {
     #takes a list of words/nicks and returns the longest string
     #that matches the beginning of all of them.
  
@@ -1743,7 +1770,7 @@ proc ::tkchat::CreateGUI {} {
     $m add checkbutton -label "Pause" \
 	    -variable ::tkchat::pause \
 	    -underline 0 \
-	    -command { pause $::tkchat::pause }
+	    -command { ::tkchat::pause $::tkchat::pause }
     $m add command -label "Logout" -underline 0 \
 	    -command [namespace origin logonScreen]
     $m add command -label "Save Options" -underline 0 \
@@ -1962,7 +1989,7 @@ proc ::tkchat::CreateGUI {} {
     text .txt -background "#[getColor MainBG]" \
           -foreground "#[getColor MainFG]" \
           -font FNT -relief sunken -bd 2 -wrap word \
-          -yscroll "scroll_set .sbar" \
+          -yscroll "::tkchat::scroll_set .sbar" \
           -state disabled -cursor left_ptr -height 1
     scrollbar .sbar -command ".txt yview"
     # user display
@@ -1973,7 +2000,7 @@ proc ::tkchat::CreateGUI {} {
 
     # bottom frame for entry
     frame .btm
-    button .ml -text ">>" -command showExtra 
+    button .ml -text ">>" -command ::tkchat::showExtra 
     entry .eMsg
     bind .eMsg <Return>   ::tkchat::userPost
     bind .eMsg <KP_Enter> ::tkchat::userPost
@@ -1986,10 +2013,9 @@ proc ::tkchat::CreateGUI {} {
     #button .refresh -text "Refresh" -command {pause off}
     menubutton .mb -indicator on -relief raised -bd 2 -pady 4 \
           -menu .mb.mnu -textvar Options(MsgTo)
-    set Options(MsgTo) "All Users"
     menu .mb.mnu -tearoff 0
     .mb.mnu add command -label "All Users" \
-          -command [list set Options(MsgTo) "All Users"]
+          -command [list ::tkchat::MsgTo "All Users"]
     .txt tag configure MSG -lmargin2 50
     .txt tag configure INFO -lmargin2 50
     .txt tag configure NICK -font NAME
@@ -2055,6 +2081,7 @@ proc ::tkchat::CreateGUI {} {
     }
     
     # call this to activate the option on whether the users should be shown
+    MsgTo "All Users"
     displayUsers
 }
 
@@ -2152,6 +2179,8 @@ proc ::tkchat::About {} {
 
 proc ::tkchat::userPost {} {
     global Options
+    variable UserClicked
+
     if {[winfo ismapped .eMsg]} {
 	set str [.eMsg get]
     } else {
@@ -2166,24 +2195,24 @@ proc ::tkchat::userPost {} {
             # possible command
             switch -re -- $msg {
                 {^/smiley?s?$} {
-                    ::tkchat::ShowSmiles
+                    ShowSmiles
                 }
                 {^/colou?rs?$} {
-                    tkchat::ChangeColors
+                    ChangeColors
                 }
                 {^/font } {
                     set name [string trim [string range $msg 5 end]]
-                    catch {::tkchat::ChangeFont -family $name}
+                    catch {ChangeFont -family $name}
                 }
                 {^/(font)?size [0-9]+} {
                     regexp -- {[0-9]+} $msg size
-                    catch {::tkchat::ChangeFont -size $size}
+                    catch {ChangeFont -size $size}
                 }
                 {^/macros?$} {
-                    tkchat::EditMacros
+                    EditMacros
                 }
                 {^/userinfo} {
-                    set ::UserClicked 1
+                    set UserClicked 1
                     msgSend $msg
                 }
                 {^/\?} {
@@ -2197,8 +2226,8 @@ proc ::tkchat::userPost {} {
                         gotoURL http://purl.org/tcl/tip/$tip
                     }
                 }
-                {^/bug } {
-		    doBug $msg
+                {^/bug[: ]} {
+                    doBug [split $msg ": "]
                 }
                 {^/google\s} {
                     set msg [string range $msg 8 end]
@@ -2286,18 +2315,18 @@ proc ::tkchat::entryDown {} {
     set str [$w insert 0 $msg]
 }
 
-proc hideExtra {} {
+proc ::tkchat::hideExtra {} {
     grid remove .tMsg
     grid config .eMsg -in .btm -row 0 -column 1 -sticky ew
-    .ml config -text ">>" -command showExtra
+    .ml config -text ">>" -command ::tkchat::showExtra
     .eMsg delete 0 end
     .eMsg insert end [string trim [.tMsg get 1.0 end]]
 }
-proc showExtra {} {
+proc ::tkchat::showExtra {} {
     global Options
     grid remove .eMsg
     grid config .tMsg -in .btm -row 0 -column 1 -sticky ew
-    .ml config -text "<<" -command hideExtra
+    .ml config -text "<<" -command ::tkchat::hideExtra
     .tMsg delete 1.0 end
     .tMsg insert end [.eMsg get]
 }
@@ -2357,8 +2386,9 @@ proc ::tkchat::logonScreen {} {
     grab release .logon
     wm withdraw .logon
     if {$Options(UseProxy)} {
+        catch {unset Options(ProxyAuth)}
 	::http::config -proxyhost $Options(ProxyHost) \
-              -proxyport $Options(ProxyPort)
+            -proxyport $Options(ProxyPort)
     }
     # connect
     logonChat
@@ -2383,7 +2413,7 @@ proc ::tkchat::optSet {args} {
 }
 
 proc ::tkchat::doBug {msg} {
-    # msg should be off form: ^/bug id
+    # msg should be off form: ^/bug[: ]id
     if {[llength $msg] != 2} {
 	addSystem "wrong # args: must be /bug id"
 	return
@@ -2467,7 +2497,7 @@ proc ::tkchat::resetSearch {} {
 }
 
 # a couple of little helper funcs
-proc newColor {w idx} {
+proc ::tkchat::newColor {w idx} {
     set init "#$::DlgData(Color,$idx,Mine)"
     set tmp [tk_chooseColor \
                    -title "Select Override Color" \
@@ -2477,7 +2507,7 @@ proc newColor {w idx} {
 	$w config -fg $tmp -selectcolor $tmp
     }
 }
-proc buildRow {f idx disp} {
+proc ::tkchat::buildRow {f idx disp} {
     global DlgData
     variable buildRow_seq
     if { ![info exists buildRow_seq] } {
@@ -2503,7 +2533,7 @@ proc buildRow {f idx disp} {
           -selectcolor  "#$DlgData(Color,$idx,Mine)" \
           -indicatoron 0  -padx 0 -pady 0 -font FNT
     button $f.clr$seq -text "..." -padx 0 -pady 0  -font FNT \
-          -command [list newColor $f.ovr$seq $idx]
+          -command [list ::tkchat::newColor $f.ovr$seq $idx]
     grid $f.nm$seq $f.def$seq $f.inv$seq $f.ovr$seq $f.clr$seq \
           -padx 2 -pady 2 -sticky ew
 }
@@ -2612,12 +2642,13 @@ proc ::tkchat::ChangeColors {} {
     catch {destroy $t}
     toplevel $t -class Dialog
     wm transient $t .
-    wm protocol $t WM_DELETE_WINDOW {set DlgDone cancel}
+    wm protocol $t WM_DELETE_WINDOW {set ::DlgDone cancel}
     wm withdraw $t
     wm title $t "Color Settings"
 
     label $t.l1 -text "Posting Color" -font NAME
-    label $t.l2 -text "Example Text" -background white -foreground \#$DlgData(MyColor) -font ACT
+    label $t.l2 -text "Example Text" -background white \
+        -foreground \#$DlgData(MyColor) -font ACT
     button $t.myclr -text "Change..." -font FNT -command {
         set tmp [tk_chooseColor \
                        -title "Select Your User Color" \
@@ -2706,7 +2737,7 @@ proc ::tkchat::ChangeColors {} {
     destroy $t
 }
 
-proc applyColors {} {
+proc ::tkchat::applyColors {} {
     global Options
     # update colors
     .txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
@@ -2813,7 +2844,7 @@ proc ::tkchat::saveRC {} {
 	array set tmp [array get Options]
 	set ignore {
             History FetchTimerID OnlineTimerID FinalList
-            FetchToken OnlineToken ProxyPassword
+            FetchToken OnlineToken ProxyPassword ProxyAuth
             URL URL2 URLchk URLlogs errLog ChatLogChannel PaneUsersWidth
         }
 	if {!$tmp(SavePW)} {
@@ -2837,7 +2868,7 @@ proc ::tkchat::saveRC {} {
     }
 }
 
-proc scroll_set {sbar f1 f2} {
+proc ::tkchat::scroll_set {sbar f1 f2} {
     global Options
     $sbar set $f1 $f2
     if {[string equal "$f1$f2" "01"]} {        
@@ -3352,6 +3383,7 @@ proc ::tkchat::Init {} {
 	Alert,TOPIC	     1
 	Alert,NORMAL	     1
 	Alert,ACTION	     1
+        WhisperIndicatorColor #ffe0e0
     }
     set Options(URL)	 $::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	 $::tkchat::HOST/cgi-bin/chat2.cgi
@@ -3469,11 +3501,11 @@ namespace eval ::dict.leo.org {
 proc ::dict.leo.org::parse {tag close options body} {
     variable TD
     variable table
-	switch -- $close$tag {
-	    TD	   {set TD ""}
-	    /TD	   {if {[llength $TD]} {lappend table [string trim $TD]}}
-	    default {append TD [string map {&nbsp; { }} $body]}
-	}
+    switch -- $close$tag {
+        TD	   {set TD ""}
+        /TD	   {if {[llength $TD]} {lappend table [string trim $TD]}}
+        default {append TD [string map {&nbsp; { }} $body]}
+    }
 }
 
 proc ::dict.leo.org::query {query} {
@@ -4200,7 +4232,7 @@ namespace import -force ::dkfFontSel::dkf_chooseFont
 # -------------------------------------------------------------------------
 # Tracing variables
 # -------------------------------------------------------------------------
-#trace add variable ::UserClicked write ::tkchat::traceVar
+#trace add variable ::tkchat::UserClicked write ::tkchat::traceVar
 
 proc ::tkchat::traceVar {varname -> action} {
     if {[catch {
