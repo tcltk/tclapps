@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.82 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.83 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.82 2003/03/06 20:50:28 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.83 2003/03/07 05:25:10 dgp Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -226,24 +226,19 @@ proc ::tkchat::GetHistLogIdx {szary} {
 }
 proc ::tkchat::ParseHistLog {log} {
     global Options
+    
     set retList {}
     set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[([^\]]+)\]\s+([^:]+):?\s*(.*)$}
     # fetch log
     set url "$Options(URLlogs)/$log"
     log::log info "History: Fetch log \"$url\""
-
-    if {[catch {set tok [::http::geturl $url \
-                             -headers [buildProxyHeaders]]} msg]} {
-        set delay [expr {$Options(Refresh) * 1000 / 2}]
-        errLog "Retrying ParseHistLog after $delay: $msg"
-        after $delay [list [namespace origin ParseHistLog] $log]
-    }
-
-    errLog "History: status for $log was [::http::status $tok]\
-                 [::http::code $tok]"
+    set tok [::http::geturl $url \
+                   -headers [buildProxyHeaders]]
+    
+    errLog "History: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
         ok {
-            set logdata [split [::http::data $tok] \n]
+            set logdata [split  [::http::data $tok] \n]
             set lastnick ""
             set lastdata ""
             foreach line $logdata {
@@ -351,7 +346,6 @@ proc ::tkchat::LoadHistory {} {
 	}
     }
 
-    log::log info "History final list is [llength $FinalList] entries"
     foreach {nick msg} $FinalList {
         addMessage "" $nick $msg
     }
@@ -440,10 +434,9 @@ proc logonChat {{retry 0}} {
                    password     $Options(Password) \
                   ]
     ::http::geturl $Options(URL2) \
-        -query $qry \
-        -headers [buildProxyHeaders] \
-        -command logonDone \
-        -timeout 30000
+          -query $qry \
+          -headers [buildProxyHeaders] \
+          -command logonDone
 }
 
 proc logonDone {tok} {
@@ -456,16 +449,11 @@ proc logonDone {tok} {
                 return
             }
             
-            if {[::http::ncode $tok] >= 500} {
-                tk_messageBox -message "Logon failure: [::http::code $tok]"
-                pause 1 0
-            }
-
             if {[catch {pause off} err]} { errLog $err }
             ::tkchat::DoAnim
         }
 	reset	{ errLog "User reset logon operation" }
-	timeout	{ tk_messageBox -message "Logon timed out" ; pause 1 0}
+	timeout	{ tk_messageBox -message "Logon timed out" }
 	error	{ tk_messageBox -message "Logon Error: [::http::error $tok]" }
     }
     ::http::cleanup $tok
@@ -579,16 +567,7 @@ proc fetchDone {tok} {
                 fetchPage
                 return
             }
-            if {[::http::ncode $tok] >= 500} {
-                # Server failed: dont try to parse anything.
-                # We could toggle some connected icon here.
-                ::tkchat::ShowConnectionStatus 0 [http::code $tok]
-            } else {
-                ::tkchat::ShowConnectionStatus 1
-                if {[catch {parseData [::http::data $tok]} err]} {
-                    errLog $err 
-                }
-            }
+	    if {[catch {parseData [::http::data $tok]} err]} { errLog $err }
 	}
 	reset - Reset - RESET {
 	    errLog "Reset called while updating the chat page."
@@ -1358,29 +1337,6 @@ proc addUnknown {str} {
     global Options
 }
 
-# If we can't get through to the server, show this to the user somehow.
-# Currently we disable the entry field and put the HTTP error in it.
-proc ::tkchat::ShowConnectionStatus {connected {msg ""}} {
-    global Options
-    set connected [string is true -strict $connected]
-    if {$Options(connectionStatus) != $connected} {
-        set Options(connectionStatus) $connected
-        if {$connected} {
-            .eMsg configure -state normal
-            .eMsg delete 0 end
-            .post configure -state normal
-        } else {
-            if {[string length $msg] > 0} {
-                .eMsg configure -state normal
-                .eMsg delete 0 end
-                .eMsg insert 0 $msg
-            }
-            .eMsg configure -state disabled
-            .post configure -state disabled
-        }
-    }
-}
-
 proc showInfo {title str} {
     set t .infobox
     set i 0
@@ -2001,8 +1957,6 @@ proc ::tkchat::logonScreen {} {
 	grid x .logon.atc  - -sticky w -pady 3
 	grid .logon.ok - .logon.cn -pady 10
 	wm resizable .logon 0 0
-        bind .logon <Return> [list .logon.ok invoke]
-        bind .logon <Escape> [list .logon.cn invoke]
     }
     optSet
     catch {::tk::PlaceWindow .logon widget .}
@@ -3762,7 +3716,6 @@ namespace import -force ::dkfFontSel::dkf_chooseFont
 # Tracing variables
 # -------------------------------------------------------------------------
 #trace add variable ::UserClicked write ::tkchat::traceVar
-trace add variable ::tkchat::pause write ::tkchat::traceVar
 
 proc ::tkchat::traceVar {varname -> action} {
     if {[catch {
