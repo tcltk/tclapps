@@ -1,3 +1,9 @@
+2002-09-26  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: Added entry widget "history" (up/down arrows,
+	transient to current chat session).
+	Added the ability to hide the online users list.
+
 2002-09-26  D. Richard Hipp  <drh@hwaci.com>
 
 	* tkchat.tcl: Added the "Alerts" menu and its associated functionality.
