@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.264 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.265 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.264 2005/03/04 01:57:41 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.265 2005/03/04 03:01:34 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -294,54 +294,34 @@ proc ::tkchat::checkForRedirection {tok optionName} {
     return 0
 }
 
-proc ::tkchat::GetHistLogIdx {szary} {
-    global Options
-    upvar $szary ary
-
-    catch {unset ary}
-    array set ary {}
-    set loglist {}
-    # get list of available logs
-    set url "$Options(JabberLogs)/?pattern=*.tcl"
-    set tok [::http::geturl $url \
-		 -headers [buildProxyHeaders]]
-    errLog "History Fetch: status was\
-	    [::http::status $tok] [::http::code $tok]"
-    switch -- [::http::status $tok] {
-	ok {
-	    if {[::http::ncode $tok] >= 500} {
-                HttpServerError $tok "History Fetch"
-            } elseif {[::http::ncode $tok] >= 400} {
-                AuthenticationError $tok
-	    } else {
-		if { [checkForRedirection $tok URLlogs] } {
-		    # trim off the /?M=D part
-		    regsub {/\?M=D} $Options(URLlogs) {} Options(URLlogs)
-		    set loglist [::tkchat::GetHistLogIdx ary]
-		} else {
-		    set RE {<A HREF="([0-9\-%d]+\.tcl)">.*\s([0-9]+) bytes}
-		    foreach line [split [::http::data $tok] \n] {
-			# puts "$RE $line"
-			if { [regexp  -- $RE $line -> logname size] } {
-			    set logname [string map {"%2d" -} $logname]
-			    set size [expr { $size / 1024 }]k
-			    lappend loglist $logname
-			    set ary($logname) $size
-			}
-		    }
-		}
-	    }
-	}
-	reset { errLog "User reset post operation" }
-	timeout { errLog "History Fetch timed out." }
-	error {
-	    tk_messageBox -message "History Fetch error: [::http::error $tok]"
-	}
+proc ::tkchat::GetHistLogIdx {url} {
+    if {[catch {::http::geturl $url -headers [buildProxyHeaders] \
+                    -command [list ::tkchat::fetchurldone \
+                                  ::tkchat::GotHistLogIdx]} msg]} {
+        addSystem "Unable to obtain history from $url: \"$msg\"" end ERROR
     }
-    ::http::cleanup $tok
-    # Show a max of 7 days worth of logs
-    return [lrange $loglist end-6 end]
 }
+
+proc ::tkchat::GotHistLogIdx {tok} {
+    global Options
+    set loglist {}
+
+    set RE {<A HREF="([0-9\-%d]+\.tcl)">.*\s([0-9]+) bytes}
+    foreach line [split [::http::data $tok] \n] {
+        # puts "$RE $line"
+        if { [regexp  -- $RE $line -> logname size] } {
+            set logname [string map {"%2d" -} $logname]
+            set size [expr { $size / 1024 }]k
+            lappend loglist $logname $size
+        }
+    }
+    # Only show 7 days worth.
+    set loglist [lrange $loglist end-13 end]
+    log::log debug "Logs: $loglist"
+    after idle [list [namespace origin LoadHistoryFromIndex] $loglist]
+    return
+}
+
 proc ::tkchat::ParseHistLog {log {reverse 0}} {
     global Options
 
@@ -399,11 +379,27 @@ proc ::tkchat::LoadHistory {} {
     }
 
     set FinalList {}
-    if {$Options(HistoryLines) == 0} {
-	# don't even bother
-    } elseif {$Options(HistoryLines) < 0} {
-	set loglist [GetHistLogIdx logsize]
-	if {[llength $loglist]>0} {
+    if {$Options(HistoryLines) != 0} {
+        set url "$Options(JabberLogs)/?pattern=*.tcl"
+	GetHistLogIdx $url
+    }
+}
+
+# Called once we have acquired the log file index.
+# logindex is a list of "filename sizeK filename ...."
+proc ::tkchat::LoadHistoryFromIndex {logindex} {
+    global Options
+    set FinalList {}
+    set loglist {}
+    array set logsize {}
+
+    foreach {name size} $logindex {
+        lappend loglist $name
+        set logsize($name) $size
+    }
+
+    if {$Options(HistoryLines) < 0} {
+	if {[llength $loglist] > 0} {
 	    # ask user
 	    set t [toplevel .histQ -class dialog]
 	    wm withdraw $t
@@ -444,7 +440,6 @@ proc ::tkchat::LoadHistory {} {
 	    }
 	}
     } else {
-	set loglist [GetHistLogIdx logsize]
 	# go thru logs in reverse until N lines loaded
 	for {set idx [expr {[llength $loglist] - 1}]} {$idx >= 0} {incr idx -1} {
 	    # fetch log
@@ -498,7 +493,7 @@ proc ::tkchat::LoadHistoryLines {} {
         incr count 3
         if {$count > 100} { break }
     }
-    .txt see end
+    #.txt see end
     set Options(FinalList) [lrange $Options(FinalList) $count end]
 
     # Restore the alerts
@@ -1361,11 +1356,11 @@ proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0} {extraOpts ""}} 
     if {$Options(AutoScroll)} { .txt see $mark }
 }
 
-proc ::tkchat::addSystem {str {mark end}} {
+proc ::tkchat::addSystem {str {mark end} {tags {}}} {
     global Options
     .txt config -state normal
     ::tkchat::InsertTimestamp .txt "" $mark
-    .txt insert $mark "\t$str\n" [list MSG SYSTEM]
+    .txt insert $mark "\t$str\n" [concat [list MSG SYSTEM] $tags]
     .txt config -state disabled
     if {$Options(AutoScroll)} { .txt see $mark }
 }
@@ -1997,6 +1992,7 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure ACTION -font ACT
     .txt tag configure NOLOG -font NOLOG
     .txt tag configure SYSTEM -font SYS
+    .txt tag configure ERROR -background red
     .txt tag configure ENTERED -foreground $Options(EntryMessageColor)
     .txt tag configure LEFT -foreground $Options(ExitMessageColor)
     .txt tag configure STAMP -font STAMP
@@ -2400,7 +2396,7 @@ proc ::tkchat::processAliasCommand { msg } {
 		    if {$msg_array(count) == 1} then {
 			set result [listAliases]
 		    } else {
-			addSystem "wrong # args: must be /alias name type body"
+			addSystem "wrong # args: must be /alias name type body" end ERROR
 			set result 0
 		    }
 		}
@@ -2415,13 +2411,13 @@ proc ::tkchat::processAliasCommand { msg } {
 		    # skip over "/unalias" in array...
 		    set result [removeAliases $msg_array(2)]
 		} else {
-		    addSystem "wrong # args: must be /unalias name"
+		    addSystem "wrong # args: must be /unalias name" end ERROR
 		    set result 0
 		}
 	    }
 	}
 	default {
-	    addSystem "unknown alias processing directive"
+	    addSystem "unknown alias processing directive" end ERROR
 	    set result 0
 	}
     }
@@ -2554,10 +2550,10 @@ proc ::tkchat::checkAlias { msg } {
 			set error [catch {set result [expr {[namespace eval [namespace \
 										 current] [list $command_body $msg_array(2)]] != 0}]} alias_error]
 		    } else {
-			addSystem "did not get exactly 2 arguments for alias \"$command_name\" ($command_type)"
+			addSystem "did not get exactly 2 arguments for alias \"$command_name\" ($command_type)" end ERROR
 		    }
 		} else {
-		    addSystem "could not parse arguments for alias \"$command_name\" ($command_type)"
+		    addSystem "could not parse arguments for alias \"$command_name\" ($command_type)" end ERROR
 		}
 	    }
 	    "script" -
@@ -3073,7 +3069,7 @@ proc ::tkchat::registerScreen {} {
 proc ::tkchat::doBug {msg} {
     # msg should be off form: ^/bug[: ]id
     if {[llength $msg] != 2} {
-	addSystem "wrong # args: must be /bug id"
+	addSystem "wrong # args: must be /bug id" end ERROR
 	return
     }
     set id  [lindex $msg end]
@@ -6030,7 +6026,7 @@ proc tkjabber::connect { } {
 	    }
 	} res] } {
 	    # Connection failed.
-	    tkchat::addSystem "Connecting failed: $res"
+	    tkchat::addSystem "Connecting failed: $res" end ERROR
 	    if { $reconnect } {
 		scheduleReconnect
 	    }
