@@ -1,3 +1,8 @@
+2002-03-20  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: improved emoticon detection and simplified interface
+	for defining new smileys.
+
 2002-03-14  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: added emoticon support

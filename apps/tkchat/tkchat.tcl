@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.44 2002/03/15 20:59:42 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.45 2002/03/20 21:21:32 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -928,16 +928,15 @@ proc ::tkchat::Insert {w str tags {url ""}} {
     set str [string map {"\n" "\n\t"} $str]
     # Don't do emoticons on URLs
     if {($url == "") && $Options(emoticons)} {
-	variable ::tkchat::img
-	variable ::tkchat::img::re
+	variable IMG
+	variable IMGre
 	set i 0
-	foreach match [regexp -inline -all -indices $re $str] {
+	foreach match [regexp -inline -all -indices $IMGre $str] {
 	    foreach {start end} $match {break}
 	    set emot [string range $str $start $end]
-	    if {[info exists img($emot)]} {
-		$w insert end [string range $str $i [expr {$start-1}]] \
-			$tags
-		$w image create end -image ::tkchat::img::$img($emot)
+	    if {[info exists IMG($emot)]} {
+		$w insert end [string range $str $i [expr {$start-1}]] $tags
+		$w image create end -image ::tkchat::img::$IMG($emot)
 	    } else {
 		$w insert end [string range $str $i $end] $tags
 	    }
@@ -948,7 +947,7 @@ proc ::tkchat::Insert {w str tags {url ""}} {
 	}
     } else {
 	# no emoticons?  perish the thought ...
-	$w insert end "$str " $tags
+	$w insert end $str $tags
     }
 }
 
@@ -2010,29 +2009,52 @@ proc ::tkchat::ChangeFont {opt val} {
     }
 }
 
-proc ::tkchat::anim {img {idx 0}} {
+proc ::tkchat::anim {image {idx 0}} {
     namespace eval ::tkchat::img {} ; # create img namespace
     set this [lindex [info level 0] 0]
-    if {[catch {$img configure -format "GIF -index $idx"}]} {
+    if {[catch {$image configure -format "GIF -index $idx"}]} {
 	if {$idx == 1} {
 	    # stop animating, only base image exists
 	    return
 	}
-	set ::tkchat::img::id [after $::tkchat::img::delay [list $this $img]]
+	set ::tkchat::img::id [after $::tkchat::img::delay [list $this $image]]
     } else {
 	set ::tkchat::img::id [after $::tkchat::img::delay \
-		[list $this $img [expr {$idx + 1}]]]
+		[list $this $image [expr {$idx + 1}]]]
     }
+}
+
+proc ::tkchat::SmileId {{image {}} args} {
+    # Here be magic
+    variable IMG
+    foreach arg $args {	set IMG($arg) $image }
+    # Do some checking so that things like 'C:/temp/tcl98/blah' and
+    # 'lollipop' don't get smileys inserted
+    set ids ""
+    foreach arg [array names IMG] {
+	if {[string is alnum -strict -failindex i $arg]} {
+	    lappend ids "\1$arg\1"
+	} elseif {$i > 0} {
+	    lappend ids "\2$arg"
+	} else {
+	    lappend ids "\3$arg"
+	}
+    }
+    set ids [join $ids "\0"]
+    # The double-back is needed because when map is converted to a list,
+    # it will become a single-back.
+    set map {
+	| \\| ( \\( ) \\) [ \\[ - \\- . \\. * \\* ? \\?
+	\\ \\\\ ^ \\^ $ \\$ \1 \\y \2 \\m \3 \\Y \0 |
+    }
+    # If we ever change this to use () capturing, change tkchat::Insert too.
+    set ::tkchat::IMGre [string map $map $ids]
 }
 
 proc ::tkchat::Smile {} {
     namespace eval ::tkchat::img {} ; # create img namespace
-    catch {unset img}
-    catch {unset imgre}
-    variable ::tkchat::img
     set ::tkchat::img::delay 400
-    array set imgre { :[-^]?\\( cry }
-    array set img { :-( cry :^( cry :( cry }
+    SmileId cry :-( :^( :(
     image create photo ::tkchat::img::cry -format GIF -data {
 	R0lGODlhDwAPANUAAP8AzeEDueQFvcUFp8kKq1AqdFJDkCQhUiIvaQASIQUr
 	SAAdMQEjOgBtqABqowJ5uj1ofwCf9QCI0QB/xAB9vwB7vQB3twB1swBzsQBw
@@ -2044,8 +2066,7 @@ proc ::tkchat::Smile {} {
 	DxgZFRQYCwcYURIORkcKGhUaSQgUXbENDg4asXZMDWelFhcYF7xqIAYOF4zE
 	xxrJQk0OGQ0NGlRLQwcL3klKQQA7
     }
-    array set imgre { 8[-^]?[\\|\\(] grrr }
-    array set img { 8-( grrr 8^( grrr 8( grrr 8-| grrr 8^| grrr 8| grrr }
+    SmileId grrr 8-( 8^( 8( 8-| 8^| 8|
     image create photo ::tkchat::img::grrr -format GIF -data {
 	R0lGODlhDwAPANX/AMDAwM/RAMXHALGzAJKUAP//AOvrAOfnAObmAN/fANzc
 	ANfYANjYANXVAM7PAM7OAMrKAMDBAMHBAL29ALS1ALW1ALO0ALS0AK6vAK6u
@@ -2056,8 +2077,7 @@ proc ::tkchat::Smile {} {
 	a6zb6y37x56HeUpGEAUQRiUeRR8PEQ8TBwYFCg8SD3swKxALHUYTDQgMEFBK
 	HBcwLy4vYQEaaFMCJEYiIzAboUQpHBkDFg8QKGdJS01PUUlKdUlBADs=
     }
-    array set imgre { \\mLOL\\M LOL-anim }
-    array set img { LOL LOL-anim }
+    SmileId LOL-anim LOL lol
     image create photo ::tkchat::img::LOL-anim -format GIF -data {
 	R0lGODlhFQAYAKIFAAAAABhr/+fn5///AP///wAAAAAAAAAAACH/C05FVFND
 	QVBFMi4wAwEAAAAh+QQFCgAFACwAAAAAFQAYAAADS1i63P4wykmrvbiAve0e
@@ -2135,45 +2155,39 @@ proc ::tkchat::Smile {} {
 	7qpphjrrWRxxTnsMTjSEd1ILCQAAIf4aQ29weXJpZ2h0IKkgMjAwMCBLbGFh
 	cyBXaXQAOw==
     }
-    array set imgre { >:[-^]?\\( mad }
-    array set img { >:( mad >:-( mad >:^( mad }
+    SmileId mad >:( >:-( >:^(
     image create photo ::tkchat::img::mad -format GIF -data {
 	R0lGODlhDwAPALP/AMDAwEpKSjk5Kd7ehP//Y729QoSEKefnKa2tEEpKAISE
 	AK2tAL29AO/vAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAARlEEhZ0EJlalAW
 	+9+1IUqyNOiSKMtUMKzCNPAiI5LXKIfhw7TWCyUIHAqHgADFqMwaRYJUybQ8
 	fVKCj3l5HrLSQ3WIkg6kKBpOh/IZxEEJ4tNYnBh3Bi4XSnvwI38gIhsUFgh7ExEAOw==
     }
-    array set imgre { :[-^]?[oO] oh }
-    array set img { :-o oh :^o oh :o oh :-O oh :^O oh :O oh }
+    SmileId oh :-o :^o :o :-O :^O :O
     image create photo ::tkchat::img::oh -format GIF -data {
 	R0lGODlhDwAPALMAAAAAABgYGGPG/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAPAA8AAAQyMEgJap04VMH5
 	xUAnelM4jgDlmcLWap3bsvIp1vaao+z+9pab6gYsxWQpUG+WKVmSkwgAOw==
     }
-    array set imgre { :[-^]?\\) smile }
-    array set img { :-) smile :^) smile :) smile }
+    SmileId smile :-) :^) :)
     image create photo ::tkchat::img::smile -format GIF -data {
 	R0lGODlhDwAPAJEBAAAAAL+/v///AAAAACH5BAEAAAEALAAAAAAPAA8AAAIu
 	jA2Zx5EC4WIgWnnqvQBJLTyhE4khaG5Wqn4tp4ErFnMY+Sll9naUfGpkFL5DAQA7
     }
-    array set imgre { :[-^]?D smile-big }
-    array set img { :-D smile-big :^D smile-big :D smile-big }
+    SmileId smile-big :-D :^D :D
     image create photo ::tkchat::img::smile-big -format GIF -data {
 	R0lGODlhEAAQALMAAAAAAKamAP//AP///wAAAAAAAAAAAAAAAAAAAAAAAAAA
 	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAQABAAAAQ/MEgJqp04VMF7
 	zUAnelPocSZKiWYqANrYyu5Io1a+ve0wAD7gD4fTWYivoHL4iiWFwNaqeFRN
 	bdZSjZfR5jIRADs=
     }
-    array set imgre { <:[-^]?\\) smile-dork }
-    array set img { <:-) smile-dork <:^) smile-dork <:) smile-dork }
+    SmileId smile-dork <:-) <:^) <:)
     image create photo ::tkchat::img::smile-dork -format GIF -data {
 	R0lGODlhEQAfAKIEAP//AAAAAP///zMzM////wAAAAAAAAAAACH5BAEAAAQA
 	LAAAAAARAB8AAANhSLrcPi6uIGMQtLKL9RSdR3ChRmYmCKLSoJbWu1akyja1
 	LeVzLPc4WWB4U5wCgOTQQUQmn4CbE0plOYdPbHSSnWq3I6pYaRyLM9fxtaxs
 	flFeDCa7ycq9uC6eOW2bmiIeCQA7
     }
-    array set imgre { 8[-^]?\\) smile-glasses }
-    array set img { 8-) smile-glasses 8^) smile-glasses 8) smile-glasses }
+    SmileId smile-glasses 8-) 8^) 8)
     image create photo ::tkchat::img::smile-glasses -format GIF -data {
 	R0lGODlhFAAQALMAAAAAAAD/ANbWAP//AP///wAAAAAAAAAAAAAAAAAAAAAA
 	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAUABAAAARUMMgZgL00Tzu6
@@ -2196,10 +2210,7 @@ proc ::tkchat::Smile {} {
 	AAsAAwADAAAICgATMEhAsGCCgAAAIfkEBQwAEwAsBQAJAAUAAwAACAwABwgc
 	mKDggAQEAwIAOw==
     }
-    array set imgre { [;:8][-^]?/ smirk-glasses }
-    array set img { ;/ smirk-glasses ;-/ smirk-glasses ;^/ smirk-glasses }
-    array set img { :/ smirk-glasses :-/ smirk-glasses :^/ smirk-glasses }
-    array set img { 8/ smirk-glasses 8-/ smirk-glasses 8^/ smirk-glasses }
+    SmileId smirk-glasses ";/" ";-/" ";^/" :/ :-/ :^/ 8/ 8-/ 8^/
     image create photo ::tkchat::img::smirk-glasses -format GIF -data {
 	R0lGODlhDwAPANX/AMDAwM/RAKepAJmbAI2PAICCAHp7AGxtAGlqAP//APr7
 	APX2APX1AOrqANzdANXVAM7OAMzNAMvMAMnKAMnJAMjIAMfHAMTFAMLDAMDB
@@ -2210,8 +2221,7 @@ proc ::tkchat::Smile {} {
 	SK/TD/VRHa9TwYwUCRRGLypFAxkeIQ8JjQ8WHBktSxogOhAMCgsNDhEaNF06
 	KQI6IxQSEw4BGClnOjYdBHQfGB0FZ0o3KSckIyQaKTe4RDo0LU6gw1J0SUEAOw==
     }
-    array set imgre { :[-^]?[pP] tongue2 }
-    array set img { :-p tongue2 :^p tongue2 :p tongue2 :-P tongue2 :^P tongue2 :P tongue2 }
+    SmileId tongue2 :-p :^p :p :-P :^P :P
     image create photo ::tkchat::img::tongue2 -format GIF -data {
 	R0lGODlhDwAPAMT/AMDAwFoAAJQAAK0AAM4QADkQAKUxAFI5EL21ADExKVpa
 	Ss7Oa///c/f3Y4SEKe/vSv//SrW1MXNzGK2tEPf3CBgYAGNjAIyMAKWlAM7O
@@ -2220,15 +2230,13 @@ proc ::tkchat::Smile {} {
 	HZVqpqSlOBQNRmORwGVMZciDQZcT35M4JN2I5t5YGRcZD4UPRBQWFygIGC0S
 	Dg4HBwUBFxckTIgEAwIDSSMTQGUEAgIGPSmiWS8GAqkqVyYTKCkhADs=
     }
-    array set imgre { \\([-^]?: updown }
-    array set img { (: updown (^: updown (-: updown }
+    SmileId updown (: (^: (-:
     image create photo ::tkchat::img::updown -format GIF -data {
 	R0lGODlhDwAPALMAAAAAAFr/zv//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAPAA8AAAQwMEgJap04VMH5
 	xUAnelPoWaYAUN5orunoxnK31TOen3YK88CVRkdi4YQl2iejQWUiADs=
     }
-    array set imgre { ;[-^]?\\) wink-anim }
-    array set img { ;-) wink-anim ;^) wink-anim ;) wink-anim }
+    SmileId wink-anim ";-)" ";^)" ";)"
     image create photo ::tkchat::img::wink-anim -format GIF -data {
 	R0lGODlhDwAPAPcAAOD0AL/WAKu6AF9oAICMAERKALe3t11oAm57A6y7MaWz
 	L+//Y/H/Wer/N+j9M+j4MsfZL7jEMpWiKvD/cfD/SdnoMOz8NODvM73OMBwd
@@ -2253,7 +2261,6 @@ proc ::tkchat::Smile {} {
 	FzxEaMiApAStVrcm8KAAAoYIXyVskCCzggMFHuLGlQDhJ8EEJCMkSKCgLAS2
 	HRVgMAqhcALAEjso0Hs4YkKFBk8ODAgAOw==
     }
-    set ::tkchat::img::re "[join [array names imgre] |]"
 }
 
 proc ::tkchat::ShowSmiles {} {
@@ -2262,13 +2269,13 @@ proc ::tkchat::ShowSmiles {} {
         wm deiconify $t
         raise $t
     } else {
-        variable img
-        foreach {i e} [array get img] {
+        variable IMG
+        foreach {i e} [array get IMG] {
             lappend tmp($e) $i
         }
         toplevel $t
         wm title $t "Available Emoticons"
-        wm protocol $t WM_DELETE_WINDOW "wm withdraw $t"
+        wm protocol $t WM_DELETE_WINDOW [list wm withdraw $t]
         set txt [text $t.txt -background black -foreground white \
                        -font NAME -tabs {1.5i l 2.0i l} \
                        -height [expr [llength [image names]] + 5]]
