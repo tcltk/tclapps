@@ -32,7 +32,10 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     # this is http://mini.net - but that recently had a dns problem
-    variable HOST http://216.110.35.177
+    variable HOST http://purl.org/mini
+
+    variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
+    variable rcsid   {$Id: tkchat.tcl,v 1.11 2001/10/15 11:50:11 patthoyts Exp $}
 }
 
 set ::DEBUG 1
@@ -71,8 +74,73 @@ proc buildProxyHeaders {} {
     return $auth
 }
 
+# Retrieve the lastest version of tkchat from the SourceForge CVS.
+# This code is (almost) entirely ripped from TkCon. - PT.
+proc tkchat::Retrieve {} {
+    variable HEADUrl
+    set rcsVersion {}
+
+    set defExt ""
+    if {[string match "windows" $::tcl_platform(platform)]} {
+	set defExt ".tcl"
+    }
+
+    set file [tk_getSaveFile -title "Save Latest TkChat to ..." \
+		  -defaultextension $defExt \
+		  -initialdir [file dirname $::argv0] \
+		  -initialfile [file tail $::argv0] \
+		  -parent . \
+		  -filetypes {{"Tcl Files" {.tcl .tk}} {"All Files" {*.*}}}]
+    if {[string compare $file ""]} {
+	set token [::http::geturl $HEADUrl -headers [buildProxyHeaders] -timeout 30000]
+	::http::wait $token
+	set code [catch {
+	    if {[::http::status $token] == "ok"} {
+		set fid [open $file w]
+		fconfigure $fid -translation binary
+		set data [::http::data $token]
+		puts -nonewline $fid $data
+		close $fid
+		regexp {Id: tkchat.tcl,v (\d+\.\d+)} $data -> rcsVersion
+	    }
+	} err]
+	::http::cleanup $token
+	
+	if {$code} {
+	    tk_messageBox -type ok -icon error \
+		-title "Error retrieving tkchat from CVS" \
+		-message $err
+	} else {
+	    set resource? [tk_messageBox -type yesno -icon info \
+			       -title "Retrieved tkchat $rcsVersion" \
+			       -message "Successfully retrieved v$rcsVersion.\
+                                   Do you want to reload from the new version?"]
+	    if {${resource?} == "yes"} {
+		uplevel \#0 [list source $file]
+		tk_messageBox -message "Script has been reloaded!"
+	    }
+	}
+    }
+}
+
+# Check the HTTP response for redirecting URLs. - PT
+proc checkForRedirection {tok optionName} {
+    global Options
+    set ncode [::http::ncode $tok]
+    if {[expr $ncode == 302]} {
+        upvar \#0 $tok state
+        array set meta $state(meta)
+        if {[info exists meta(Location)]} {
+            set Options($optionName) $meta(Location)
+            return 1
+        }
+    }
+    return 0
+}
+
 proc msgSend {str {user ""}} {
     global Options
+    errLog "Send to $Options(URL)"
     set qry [::http::formatQuery \
 	    action	postmsg \
 	    name	$Options(Username) \
@@ -91,9 +159,12 @@ proc msgSend {str {user ""}} {
 }
 
 proc msgDone {tok} {
-    errLog "Post: status was [::http::status $tok]"
+    errLog "Post: status was [::http::status $tok] [::http::code $tok]"
     switch [::http::status $tok] {
-	ok { if {[catch {fetchPage} err]} { errLog $err } }
+	ok { 
+            checkForRedirection $tok URL
+            if {[catch {fetchPage} err]} { errLog $err }
+        }
 	reset { errLog "User reset post operation" }
 	timeout { tk_messageBox -message "Message Post timed out" }
 	error {
@@ -106,6 +177,7 @@ proc msgDone {tok} {
 
 proc logonChat {} {
     global Options
+    errLog "Logon to $Options(URL2)"
     set qry [::http::formatQuery \
 	    action	login \
 	    name	$Options(Username) \
@@ -118,9 +190,15 @@ proc logonChat {} {
 }
 
 proc logonDone {tok} {
-    errLog "Logon: status was [::http::status $tok]"
+    errLog "Logon: status was [::http::status $tok] [::http::code $tok]"
     switch [::http::status $tok] {
-	ok	{ if {[catch {pause off} err]} { errLog $err } }
+	ok {
+            if {[checkForRedirection $tok URL2]} {
+                ::http::cleanup $tok
+                return [logonChat]
+            }
+            if {[catch {pause off} err]} { errLog $err }
+        }
 	reset	{ errLog "User reset logon operation" }
 	timeout	{ tk_messageBox -message "Logon timed out" }
 	error	{ tk_messageBox -message "Logon Error: [::http::error $tok]" }
@@ -138,7 +216,7 @@ proc logoffChat {} {
 }
 
 proc logoffDone {tok} {
-    errLog "Logoff: status was [::http::status $tok]"
+    errLog "Logoff: status was [::http::status $tok][::http::code $tok]"
     # don't really care if this works or not
     ::http::cleanup $tok
 }
@@ -181,6 +259,8 @@ proc fetchPage {} {
 	return
     }
 
+    errLog "fetchPage from $Options(URL)"
+
     after cancel $Options(FetchTimerID)
     set Options(FetchTimerID) -1
     set qry [::http::formatQuery \
@@ -211,9 +291,13 @@ proc fetchDone {tok} {
 	set Options(FetchTimerID) \
 		[after [expr $Options(Refresh) * 1000] fetchPage]
     }
-    errLog "Fetch: status was [::http::status $tok]"
+    errLog "Fetch: status was [::http::status $tok] [::http::code $tok]"
     switch [::http::status $tok] {
 	ok - OK - Ok {
+            if {[checkForRedirection $tok URL]} {
+                ::http::cleanup $tok
+                return [fetchPage]
+            }
 	    if {[catch {parseData [::http::data $tok]} err]} { errLog $err }
 	}
 	reset - Reset - RESET {
@@ -266,9 +350,13 @@ proc onlineDone {tok} {
 	set Options(OnlineTimerID) \
 		[after [expr {$Options(Refresh) * 1000}] onlinePage]
     }
-    errLog "Online: status was [::http::status $tok]"
+    errLog "Online: status was [::http::status $tok] [::http::code $tok]"
     switch [::http::status $tok] {
 	ok {
+            if {[checkForRedirection $tok URL]} {
+                ::http::cleanup $tok
+                return [onlinePage]
+            }
 	    if {[catch {updateNames [::http::data $tok]} err]} { errLog $err }
 	}
 	reset {
@@ -596,7 +684,7 @@ proc gotoURL {url} {
 	# assume a raw url
     }
     global tcl_platform Options
-    # this code from $::tkchat::HOST/tcl/557.html
+    # this code from  http://purl.org/mini/tcl/557.html
     switch $tcl_platform(platform) {
 	"unix" {
 	    expr {
@@ -803,6 +891,8 @@ proc createGUI {} {
 	    -command [list ::tkchat::debug reload]
     $m add comman -label "Restart Script" \
 	    -command [list ::tkchat::debug restart]
+    $m add comman -label "Retrieve Script" \
+	    -command [list ::tkchat::debug retrieve]
     $m add comman -label "Evaluate Selection" \
 	    -command [list ::tkchat::debug evalSel]
     $m add comman -label "Purge Chat Window" \
@@ -1170,7 +1260,7 @@ proc saveRC {} {
     if {[info exists ::env(HOME)]} {
 	set rcfile [file join $::env(HOME) .tkchatrc]
 	array set tmp [array get Options]
-	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken ProxyPassword}
+	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken ProxyPassword URL URL2}
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password
 	}
@@ -1217,6 +1307,9 @@ proc ::tkchat::debug {cmd args } {
 	    eval font delete [font names]
 	    unset ::Options
 	    Init
+	}
+	retrieve {
+	    Retrieve
 	}
 	purge {
 	    pause on 0
