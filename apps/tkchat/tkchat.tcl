@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.214 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.215 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.214 2004/11/15 08:15:45 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.215 2004/11/15 11:38:16 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6582,12 +6582,12 @@ proc tkjabber::MsgCB {jlibName type args} {
 			    set from "[string trim [string range $m(-body) 0 $pos]]"
 			    incr pos
 			    set m(-body) [string range $m(-body) $pos end]
-			    if { $from eq "*" } {
-				set pos [string first " " $m(-body)]
-				set from "<[string trim [string range $m(-body) 0 $pos]]>"
-				incr pos
-				set m(-body) "/me [string range $m(-body) $pos end]"				
-			    }
+			}
+			if { $from eq "*" } {
+			    set pos [string first " " $m(-body)]
+			    set from "<[string trim [string range $m(-body) 0 $pos]]>"
+			    incr pos
+			    set m(-body) "/me [string range $m(-body) $pos end]"				
 			}
 	    	    }
 		    set nolog [string match "/nolog*" $m(-body)] 
@@ -6652,6 +6652,15 @@ proc tkjabber::MsgCB {jlibName type args} {
 		    }
 		}
 	    }	    
+	}
+	#get {
+	    array set m $args
+	    if { [info exists m(-query)] } {
+		log::log debug "Jabber query\n$args"
+		array set iq $m(-query)		
+	    } else {
+		tkchat::addSystem "|| MsgCB > type=$type, args=$args"
+	    }
 	}
 	default {
 	    tkchat::addSystem "|| MsgCB > type=$type, args=$args"
@@ -7005,12 +7014,12 @@ proc ::tkjabber::LoadHistoryLines {} {
 		set nick "[string trim [string range $msg 0 $pos]]"
 		incr pos
 		set msg [string range $msg $pos end]
-		if { $nick eq "*" } {
-		    set pos [string first " " $msg]
-		    set nick "<[string trim [string range $msg 0 $pos]]>"
-		    incr pos
-		    set msg "/me [string range $msg $pos end]"				
-		}
+	    }
+	    if { $nick eq "*" } {
+		set pos [string first " " $msg]
+		set nick "<[string trim [string range $msg 0 $pos]]>"
+		incr pos
+		set msg "/me [string range $msg $pos end]"				
 	    }
 	}
 	
