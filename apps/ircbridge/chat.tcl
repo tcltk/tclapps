@@ -318,9 +318,9 @@ proc chat::onlineDone {tok} {
 
 proc chat::parseData {rawHTML} {
     if {[regexp -nocase -- {<BODY[^>]*>(.*)</BODY>} [string map {\n ""} $rawHTML] -> body]} {
-        regsub -all -nocase {<B>} $body "\000" body
-        regsub -all -nocase {<BR>} $body "\n" body
-        set body [stripStr $body]
+        regsub -all -nocase {<B>}   $body "\000" body
+        regsub -all -nocase {<BR>}  $body "\n"   body
+        regsub -all -nocase {<.*?>} $body ""     body
 	set dataList [split $body "\n"]
 	# remove empty lines
 	while {[set pos [lsearch $dataList {}]] > -1} {
@@ -379,6 +379,7 @@ proc chat::addNewLines {input} {
 
     set last {}
     foreach line $input {
+        set line [::htmlparse::mapEscapes $line]
         ::log::log debug "new line: '$line'"
         if {[regexp -nocase -- $RE(Whisper) $line -> nick line]} {
             if {$nick == $Options(Username)} continue
@@ -397,13 +398,6 @@ proc chat::addNewLines {input} {
         }
         eval $last
     }
-}
-
-proc chat::stripStr {str} {
-    # remove any remaining tags
-    regsub -all -nocase "<.*?>" $str {} tmp
-    # replace html escapes with real chars
-    return [::htmlparse::mapEscapes $tmp]
 }
 
 proc chat::Init {} {
