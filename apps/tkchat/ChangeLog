@@ -1,3 +1,8 @@
+2004-08-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Updated tile theme handling to permit use of
+	third-party theme packages.
+
 2004-08-16  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Adjusted checkNick so it doesn't make the nick

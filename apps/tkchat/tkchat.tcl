@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.173 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.174 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.173 2004/08/16 16:37:28 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.174 2004/08/24 09:52:40 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2168,8 +2168,13 @@ proc ::tkchat::CreateGUI {} {
     $m add separator
 
     if {[package provide tile] != {}} {
+        if {[package vsatisfies [package provide tile] 0.4]} {
+            set themes [tile::availableThemes]
+        } else {
+            set themes [style theme names]
+        }
 	$m add cascade -label "Tk themes" -menu [menu $m.themes -tearoff 0]
-	foreach theme [style theme names] {
+	foreach theme $themes {
 	    $m.themes add radiobutton -label [string totitle $theme] \
 		-variable ::Options(Theme) \
 		-value $theme \
@@ -2485,7 +2490,11 @@ proc ::tkchat::CreateGUI {} {
 proc ::tkchat::SetTheme {theme} {
     global Options
     catch {
-	style theme use $theme
+        if {[package vsatisfies [package provide tile] 0.4]} {
+            tile::setTheme $theme
+        } else {
+            style theme use $theme
+        }
 	set Options(Theme) $theme
     }
 }
