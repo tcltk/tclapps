@@ -1,3 +1,11 @@
+2003-01-30  Kevin Kenny  <kennykb@users.sourceforge.net>
+
+	* apps/tkchat/tkchat.tcl: Fixed a bug in the color dialog
+	that caused a bgerror if any user's nick contained a period.
+	Added dkf's font dialog to tkchat.tcl, to keep the "Font Family"
+	menu from exceeding the screen size if many, many fonts are
+	installed.
+	
 2003-01-29  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (tkchat::babelfishInit): Fixed the translation code
