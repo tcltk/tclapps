@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.89 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.90 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.89 2003/03/10 20:27:24 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.90 2003/03/10 21:01:08 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -453,11 +453,16 @@ proc ::tkchat::logonDone {tok} {
                 return
             }
             
-            if {[catch {pause off} err]} { errLog $err }
-            ::tkchat::DoAnim
+            if {[::http::ncode $tok] >= 500} {
+                tk_messageBox -message "Logon failure: [::http::code $tok]"
+                pause 1 0
+            } else {
+                if {[catch {pause off} err]} { errLog $err }
+                ::tkchat::DoAnim
+            }
         }
 	reset	{ errLog "User reset logon operation" }
-	timeout	{ tk_messageBox -message "Logon timed out" }
+	timeout	{ tk_messageBox -message "Logon timed out" ; pause 1 0}
 	error	{ tk_messageBox -message "Logon Error: [::http::error $tok]" }
     }
     ::http::cleanup $tok
@@ -571,7 +576,14 @@ proc fetchDone {tok} {
                 fetchPage
                 return
             }
-	    if {[catch {parseData [::http::data $tok]} err]} { errLog $err }
+            if {[::http::ncode $tok] >= 500} {
+                # server failed: don't try to parse anything
+                # we could toggle some connected icon here.
+            } else {
+                if {[catch {parseData [::http::data $tok]} err]} {
+                    errLog $err 
+                }
+            }
 	}
 	reset - Reset - RESET {
 	    errLog "Reset called while updating the chat page."
@@ -1944,7 +1956,8 @@ proc ::tkchat::logonScreen {} {
 	wm withdraw .logon
 	wm transient .logon .
 	wm title .logon "Logon to the Tcl'ers Chat"
-	checkbutton .logon.prx -text "Use Proxy" -var Options(UseProxy)
+	checkbutton .logon.prx -text "Use Proxy" -var Options(UseProxy) -underline 0
+        bind .logon <Alt-u> {focus .logon.prx}
 	label .logon.lph -text "Proxy Host"
 	label .logon.lpp -text "Proxy Port"
 	entry .logon.eph -textvar Options(ProxyHost)
@@ -1960,8 +1973,10 @@ proc ::tkchat::logonScreen {} {
 	checkbutton .logon.rpw -text "Remember Chat Password" \
               -var Options(SavePW)
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect)
-	button .logon.ok -text "Logon" -command "set LOGON 1" -width 8
-	button .logon.cn -text "Quit" -command quit -width 8
+	button .logon.ok -text "Logon" -command "set LOGON 1" -width 8 -underline 0
+        bind .logon <Alt-l> {focus .logon.ok}
+	button .logon.cn -text "Quit" -command quit -width 8 -underline 0
+        bind .logon <Alt-q> {focus .logon.cn}
 	trace variable Options(UseProxy) w [namespace origin optSet]
 	trace variable Options(SavePW) w [namespace origin optSet]
 	grid .logon.prx - - -sticky w -pady 3
@@ -1982,6 +1997,7 @@ proc ::tkchat::logonScreen {} {
     catch {::tk::PlaceWindow .logon widget .}
     wm deiconify .logon
     tkwait visibility .logon
+    focus -force .logon.ok
     grab .logon
     vwait LOGON
     grab release .logon

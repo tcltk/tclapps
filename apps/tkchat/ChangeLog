@@ -3,6 +3,8 @@
 	* tkchat.tcl: Applied patch 627521 from Pascal Scheffers to
 	provide a search function using /?regexp to highlight matches, /?
 	to skip to the previous match and /! to reset the search state.
+	* tkchat.tcl: Added some key bindings to the login dialog. Made
+	logging in more robust in the face of server failure.
 
 2003-03-10  Reinhard Max  <max@suse.de>
 
