@@ -8,7 +8,7 @@
 
 package require Tk 8.4
 
-set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.7 2005/02/28 02:33:49 jgodfrey Exp $"}
+set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.8 2005/02/28 04:01:02 jgodfrey Exp $"}
 set ::DIR [file dirname [info script]]
 
 proc main {} {
@@ -191,8 +191,9 @@ proc bindNavKeys {mode} {
     } elseif {$mode eq "game"} {
         # empty menu bindings
         foreach key $keys { bind . <KeyPress-$key> {} }
-        bind . <KeyPress-P> { pauseGame }
-        bind . <KeyPress-p> { pauseGame }
+        bind . <KeyPress-P>      { togglePauseState }
+        bind . <KeyPress-p>      { togglePauseState }
+        bind . <KeyPress-Escape> { resetGame }
     }
 }
 
@@ -400,13 +401,12 @@ proc newGame {} {
     nextLevel
 }
 
-proc _pauseGame {} {
-    # hmmm, what to do here ?
-    # right now, it's new game ...
-    heartBeatOff
+proc resetGame {} {
     set ::globals(shipExists) 0
     set ::globals(lives) 0
     .c1 delete all
+    if {$::globals(pause)} {togglePauseState}
+    heartBeatOff
     showMainMenu
 }
 
@@ -414,17 +414,21 @@ proc _pauseGame {} {
 #     This could have been done by simply checking ::globals(pause) at the top
 #     of "nextFrame" and returning if it were set.  While simpler, that approach
 #     wastes unnecessary CPU cycles in a routine that needs to be kept fast...
-proc pauseGame {} {
-    if {!$::globals(pause)} {
+proc togglePauseState {} {
+    set ::globals(pause) [expr !{$::globals(pause)}]
+    if {$::globals(pause)} {
         rename nextFrame _nextFrame
-        proc nextFrame {dummy} {}
+        proc nextFrame {dummy} {
+            if {$::TIGHTLOOP} {
+                update
+            }
+        }
         heartBeatOff
     } else {
         rename nextFrame ""
         rename _nextFrame nextFrame
         heartBeat 0
     }
-    set ::globals(pause) [expr !{$::globals(pause)}]
 }
 
 proc updateScore {{incrScore 0}} {
