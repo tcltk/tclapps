@@ -1,4 +1,12 @@
+2005-03-02  Jeff Godfrey <jeff_godfrey@pobox.com>
+
+    * asteroids.tcl
+    - Fixed Bug #1155390 - Background "heartbeat" sound (which gets
+      progressively faster throughout a game), was not being reset to its
+      initial _slow_ speed when the game ended.
+    
 2005-02-27  Jeff Godfrey <jeff_godfrey@pobox.com>
+
     * asteroids.tcl
     - Fixed - Newly added "Pause" state didn't work with "Game Loop Godfrey"
     - Added back ability to return to main menu during game play by pressing
