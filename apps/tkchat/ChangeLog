@@ -2,6 +2,7 @@
 
 	* tkchat.tcl: Babelfish is now only initialized if the user clicks
 	on the Translate selection menu item. 
+	Oops. Forgot the context menu.
 
 2004-11-15  Pascal Scheffers  <pascal@scheffers.net>
 

@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.217 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.218 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.217 2004/11/16 09:21:05 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.218 2004/11/16 09:51:32 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1099,6 +1099,8 @@ proc ::tkchat::babelfishInitDone {tok} {
             #log::log debug "option: $label $value"
             .mbar.help.tr add command -label $label \
                     -command [concat [namespace current]::translateSel $value]
+            variable babelfishinit
+            set babelfishinit 1
         }
     } else {
         log::log debug "babelfish received no data"
@@ -1108,11 +1110,32 @@ proc ::tkchat::babelfishInitDone {tok} {
 proc ::tkchat::babelfishMenu {} {
     set menu .mbar.help
     if {![winfo exists ${menu}.tr]} {
-        $menu entryconfigure 1 \
-            -menu [menu ${menu}.tr] \
-            -label "Translate selection" 
+        log::log debug "Initializing babelfish translation"
+        set tr [menu ${menu}.tr]
+        
+        # Add to the Help->Translate menu
+        catch {
+            set ndx [$menu index "Translate Selection"]
+            $menu entryconfigure $ndx -menu $tr
+        }
+
+        # Add to the context menu
+        catch {
+            set ndx [.mbar.mm index "Translate"]
+            .mbar.mm entryconfigure $ndx -menu $tr
+        }
         ::tkchat::babelfishInit
     }
+}
+
+proc ::tkchat::babelfishMenuPost {x y} {
+    variable babelfishinit 0
+    log::log debug "babelfishmenu post"
+    if {![winfo exists ${mbar}.tr]} {
+        babelfishMenu
+    }
+    tkwait variable babelfishinit
+    .mbar.help.tr post $x $y
 }
 
 # -------------------------------------------------------------------------
@@ -2677,7 +2700,7 @@ proc ::tkchat::CreateGUI {} {
     bind .txt <Down>	   {.txt yview scroll	1 units}
     bind .txt <Button-4>   {.txt yview scroll  -1 units}
     bind .txt <Button-5>   {.txt yview scroll	1 units}
-    bind .txt <Button-3>   {.mbar.help.tr post \
+    bind .txt <Button-3>   {::tkchat::babelfishMenuPost
 				[winfo pointerx %W] [winfo pointery %W]}
     bind .txt <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
 
@@ -5910,7 +5933,8 @@ proc ::tkchat::BookmarkInit {} {
     .mbar.mm add command -label "Google Selection" -accelerator Ctrl-G \
         -command ::tkchat::GoogleSelection
 
-    .mbar.mm add cascade -label "Translate" -menu .mbar.help.tr
+    
+    .mbar.mm add cascade -label "Translate" -command ::tkchat::babelfishMenu
 
     .mbar.mm add command -label "Cancel"
     
