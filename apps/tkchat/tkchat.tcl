@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.146 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.147 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.146 2004/03/15 14:55:51 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.147 2004/03/15 22:15:26 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1526,7 +1526,6 @@ proc ::tkchat::gotoURL {url} {
                   || [findExecutable konqueror	Options(BROWSER)]
                   || [findExecutable netscape	Options(BROWSER)]
                   || [findExecutable iexplorer	Options(BROWSER)]
-                  || [findExecutable $Options(NETSCAPE)	Options(BROWSER)]
                   || [findExecutable lynx		Options(BROWSER)]
               }
 	    # lynx can also output formatted text to a variable
@@ -3962,8 +3961,6 @@ proc ::tkchat::ShowSmiles {} {
 }
 proc ::tkchat::Init {args} {
     global Options env
-    catch {set Options(BROWSER) $env(BROWSER)}
-    catch {set Options(NETSCAPE) $env(NETSCAPE)}
     set ::URLID 0
     # set intial defaults
     set ::tkchat::pause 0
@@ -4022,6 +4019,7 @@ proc ::tkchat::Init {args} {
 	Alert,ACTION	     1
         WhisperIndicatorColor #ffe0e0
     }
+    catch {set Options(BROWSER) $env(BROWSER)}
     set Options(URL)	 $::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	 $::tkchat::HOST/cgi-bin/chat2.cgi
     set Options(URLchk)	 $::tkchat::HOST/cgi-bin/chatter.cgi
@@ -5252,11 +5250,7 @@ proc ::tkchat::EditOptions {} {
     if {[info exists Options(BROWSER)]} {
         set EditOptions(BROWSER) $Options(BROWSER)
     } else {
-        if {[info exists Options(NETSCAPE)]} {
-            set EditOptions(BROWSER) $Options(NETSCAPE)
-        } else {
-            set EditOptions(BROWSER) {}
-        }
+        set EditOptions(BROWSER) {}
     }
     
     set EditOptions(Style) $Options(Style)

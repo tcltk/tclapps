@@ -1,3 +1,8 @@
+2004-03-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Removed the now redundant code using a NETSCAPE
+	environment variable. We have a dialog to set this now.
+
 2004-03-15  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
 
 	* tkchat.tcl: Added support for the ActiveState Tk style package
