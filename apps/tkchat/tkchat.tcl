@@ -42,7 +42,7 @@ if {[llength [info command ::tk::label]] < 1} {
     foreach cmd {label radiobutton entry} {
         rename ::$cmd ::tk::$cmd
     }
-    if {![catch {package require tile 0.4}]} {
+    if {![catch {package require tile 0.5}]} {
         if {[namespace exists ::ttk]} {
             namespace import -force ttk::*
         } else {
@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.263 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.264 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.263 2005/02/16 01:02:54 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.264 2005/03/04 01:57:41 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -643,11 +643,8 @@ proc ::tkchat::translateDone {tok} {
     set ::tkchat::translate [http::data $tok]
     set r [regexp {<td.*?class=s><div.*?>(.*)</div>} \
             [::http::data $tok] -> text]
-    set text [string trim $text]
-    log::log debug "Translate: \"$text\""
     if {$r} {
-        #addSystem "TR: $text"
-        showInfo Translation $text
+        showInfo Translation [string trim $text]
     } else {
         errLog "Translation returned no matching data."
     }
@@ -1073,7 +1070,7 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}}
 		    # The first line has the timestamp, only
 		    # subsequent lines need an extra tab char
 		    log::log debug "More than one line, add tabs"
-		    $w insert $mark "\n\t" [list STAMP]		
+		    $w insert $mark "\n" {} "\t" [list STAMP]		
 		    set line "\t$line"
 		}
 		tkchat::Insert $w $line $tags $url $mark
@@ -6153,7 +6150,12 @@ proc tkjabber::SendAuth { } {
     set pass $Options(Password)
     set ress $Options(JabberResource)
 
-    jlib::auth_sasl $jabber $user $ress $pass [namespace origin OnSaslFinish]
+    if {[info command jlib::havesasl] ne "" && [jlib::havesasl]} {
+        jlib::auth_sasl $jabber $user $ress $pass \
+            [namespace origin OnSaslFinish]
+    } else {
+        SendAuthOld
+    }
 }
 
 proc ::tkjabber::OnSaslFinish {jlib type args} {
@@ -6178,8 +6180,9 @@ proc tkjabber::SendAuthOld {} {
     set pass $Options(Password)
     set ress $Options(JabberResource)
 
-    set myId [$jabber send_auth $username $ress \
-                  [namespace origin LoginCB] -digest [sha1::sha1 $conn(id)$pass]]
+    set myId [$jabber send_auth $user $ress \
+                  [namespace origin LoginCB] \
+                  -digest [sha1::sha1 $conn(id)$pass]]
     log::log debug "SendAuth: Logging in as $myId"
 
     update idletasks

@@ -1,3 +1,10 @@
+2005-03-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: bug #1154862 - fixed varname in SendAuthOld.
+	Bug #1154619 - require tile 0.5. 0.4 can segfault on solaris.
+	Fixed display of multiple-line posts with hidden timestamps for
+	fixed Tk 8.5. Checked on 8.4 and 8.5.
+
 2005-02-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Get the babelfish code to use utf-8. This fixes
