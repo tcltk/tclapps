@@ -6,14 +6,14 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.4 2003/06/26 09:20:33 davidw Exp $
+# $Id: bridge.tcl,v 1.5 2003/10/08 08:21:36 davidw Exp $
 
 # There's a lot that could be added here.
 
 set auto_path "[file dirname [info script]] $auto_path"
 
 # This requires the irc module from CVS.
-package require irc 0.3
+package require irc 0.4
 package require chat
 
 
