@@ -1,3 +1,8 @@
+2003-03-25  Andreas Kupries  <andreask@activestate.com>
+
+	* lib/app-help/help.tcl (app-help::run): Extended the range
+	  covered by catch.
+
 2003-03-24  Andreas Kupries  <andreask@activestate.com>
 
 	* lib/app-help/help.tcl (app-help::run): Catching errors

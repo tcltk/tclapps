@@ -96,8 +96,10 @@ proc ::app-help::run {argv} {
     package require dtglue
     set data [dtglue::cvtstring $format $data "$topic Documentation"]
 	
-    file mkdir [file dirname $cached]
-    catch {tools::putfile $cached $data}
+    catch {
+	file mkdir [file dirname $cached]
+	tools::putfile $cached $data
+    }
 
     puts stdout $data
     return
