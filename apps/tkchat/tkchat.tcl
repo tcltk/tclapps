@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.93 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.94 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.93 2003/03/13 08:43:42 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.94 2003/04/04 08:29:04 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -872,6 +872,7 @@ set UserClicked 0
 array set RE {
     HelpStart {^<FONT COLOR="(.+?)"><B>\[(.+?)\]</B>(.*)$}
     MultiStart {^<FONT COLOR="(.+?)"><B>(\S+?)</B>:(.*?)$}
+    ActionStart {^<FONT COLOR="(.+?)"><B>\*\s+(\S+)\s+(.+)$}
     SectEnd {^(.*)</FONT>$}
     Color {^<FONT COLOR="(.+?)">(.*?)</FONT>$}
     Message {^<B>(\S+?)</B>:(.+?)$}
@@ -897,6 +898,7 @@ proc addNewLines {input} {
     
     set inHelp 0
     set inMsg 0
+    set inAction 0
     set UserInfoCmd [list]
 
     foreach line $input {
@@ -930,6 +932,14 @@ proc addNewLines {input} {
 	    } else {
 		lappend msgLines [string trimright $line]
 	    }
+	} elseif {$inAction} {
+	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
+		lappend msgLines [string trimright $text]
+		set inAction 0
+		addAction $nickColor $nick [join $msgLines \n]
+	    } else {
+		lappend msgLines [string trimright $line]
+	    }
 	} else {
             # optionally log the chat.
             log::log debug $line
@@ -945,6 +955,12 @@ proc addNewLines {input} {
 	    } elseif {[regexp -nocase -- $RE(MultiStart) $line \
                              -> clr name str]} {
 		set inMsg 1
+		set nickColor $clr
+		set nick $name
+		set msgLines [list [string trimright $str]]
+	    } elseif {[regexp -nocase -- $RE(ActionStart) $line \
+                             -> clr name str]} {
+		set inAction 1
 		set nickColor $clr
 		set nick $name
 		set msgLines [list [string trimright $str]]

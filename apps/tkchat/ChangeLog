@@ -1,3 +1,7 @@
+2003-04-04  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Fixed bug 686065. Multiline actions are now
+	handled in exactly the same way as multiline messages.
+	
 2003-03-13  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Fixed a small bug for double-tab. Changed the look
 	of the suggested completions for double-tab. Previous completion
