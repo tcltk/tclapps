@@ -1,3 +1,8 @@
+2005-02-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Cleaned up quite a lot of whitespace at the end of
+	lines. Fixed a bug calling the setNick proc via after sometimes.
+
 2005-02-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added /afk, /away and /back commands to set the
