@@ -1,3 +1,8 @@
+2002-07-19  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Added bindings to the text window for scrolling with
+	cursor up/dowm keys, and mouse wheel (maybe Unix only).
+
 2002-05-20  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: don't add the festival hook by default - it can
