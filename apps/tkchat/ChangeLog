@@ -1,3 +1,10 @@
+2003-04-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (getRecentLines): Fix for bug #729709: alerts no
+	longer working. The ActionStart regexp was being too greedy.
+	* tkchat.tcl (tkchat::userPost): Added a client command to open
+	a browser on a TIP reference as /tip:NUMBER.
+
 2003-04-04  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Fixed bug 686065. Multiline actions are now
 	handled in exactly the same way as multiline messages.
