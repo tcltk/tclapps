@@ -3,6 +3,10 @@
 	* tkchat.tcl: Support 'tile' themeing now. There are a couple of
 	places (font and color dialogs) that have compatability
 	workarounds that might be removed in the future. Requires tile0.4+
+	
+	* tkchat.tcl: Provide activity indicators by editing the title
+	when the window isn't focused and with winico support for windows.
+	* tkchat.ico: Icons for use with windows.
 
 2003-02-09  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Updated the way messages from ircbridge and ijchain

@@ -57,7 +57,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.155 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.156 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -77,12 +77,14 @@ namespace eval ::tkchat {
     # Everything will eventually be namespaced
     variable MessageHooks
     array set MessageHooks {}
+    variable ChatActivityHooks
+    array set ChatActivityHooks {}
 
     # this is http://mini.net - but that recently had a dns problem
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.155 2004/04/29 10:54:03 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.156 2004/04/29 14:37:30 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -118,6 +120,7 @@ namespace eval ::tkchat {
 
     #NoisyUsers: temporarily hide users who are blabbering
     variable noisyUsers      
+    variable MessageCounter 0
 }
 
 proc ::tkchat::errLog {args} {
@@ -1424,10 +1427,35 @@ proc ::tkchat::addMessage {clr nick str {mark end}} {
             }
             tkchat::Insert $w $str $tags $url $mark
         }
+        # Call chat activity hooks
+        foreach cmd [array names ::tkchat::ChatActivityHooks] {
+            eval $cmd
+        }
     }
     $w insert $mark "\n" [list NICK NICK-$nick]
     $w config -state disabled
     if {$Options(AutoScroll)} { $w see end }
+}
+
+# Provide an indication of the number of messages since the window was last 
+# in focus.
+proc ::tkchat::IncrMessageCounter {} {
+    variable MessageCounter
+    if {[focus] != {} } {
+        ResetMessageCounter
+    } else {
+        incr MessageCounter
+        set title "$MessageCounter - Tcl'ers Chat"
+        wm title . $title
+        wm iconname . $title
+    }
+}
+proc ::tkchat::ResetMessageCounter {} {
+    variable MessageCounter
+    set MessageCounter 0
+    set title "Tcl'ers Chat"
+    wm title . $title
+    wm iconname . $title
 }
 
 proc ::tkchat::Insert {w str tags {url ""} {mark end}} {
@@ -1465,9 +1493,10 @@ proc ::tkchat::Insert {w str tags {url ""} {mark end}} {
 proc ::tkchat::Hook {do type cmd} {
     switch -glob -- $type {
 	msg - mes* { set var [namespace current]::MessageHooks }
+        chat       { set var [namespace current]::ChatActivityHooks }
 	default {
 	    return -code error "unknown hook type \"$type\": must be\
-		    message"
+		    message or chat"
 	}
     }
     switch -exact -- $do {
@@ -2282,6 +2311,7 @@ proc ::tkchat::CreateGUI {} {
     bind .txt <Button-5>   {.txt yview scroll   1 units}
     bind .txt <Button-3>   {.mbar.help.tr post \
                                 [winfo pointerx %W] [winfo pointery %W]}
+    bind . <FocusIn> [list [namespace origin ResetMessageCounter]]
 
     # using explicit rows for restart
     set Options(NamesWin) [MakeScrolledWidget .names]
@@ -4134,7 +4164,11 @@ proc ::tkchat::Init {args} {
 	.txt tag config $tag -elide $Options($idx)
     }
 
+    Hook add chat [namespace origin IncrMessageCounter]
     BookmarkInit
+    if {[tk windowingsystem] == "win32"} {
+        WinicoInit
+    }
     
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
@@ -5082,6 +5116,52 @@ proc ::tkchat::UserInfoSendDone {tok} {
             -message "Failed to update information on the server."
     }
     http::cleanup $tok    
+}
+# -------------------------------------------------------------------------
+
+# Windows taskbar support.
+# At some point I want to support multiple icons for nochat/chat/alert.
+#
+proc ::tkchat::WinicoInit {} {
+    catch {
+        package require Winico
+        variable TaskbarIcon
+        set icofile [file join [file dirname [info script]] tkchat.ico]
+        if {[file exists $icofile]} {
+            set TaskbarIcon [winico createfrom $icofile]
+            winico taskbar add $TaskbarIcon \
+                -pos 0 \
+                -text [wm title .] \
+                -callback [list [namespace origin WinicoCallback] %m %i]
+            Hook add chat [namespace origin WinicoChatHook]
+        }
+    }
+}
+
+proc ::tkchat::WinicoCallback {msg icn} {
+    switch -exact -- $msg {
+        WM_LBUTTONDOWN {
+            if {[wm state .] == "withdrawn"} {
+                wm deiconify .
+            } else {
+                wm withdraw .
+            }
+        }
+    }
+}
+
+proc ::tkchat::WinicoChatHook {} {
+    variable MessageCounter
+    variable TaskbarIcon
+    if {$MessageCounter > 0} {
+        winico taskbar modify $TaskbarIcon \
+            -pos 2 \
+            -text "$MessageCounter - Tcl'ers chat"
+    } else {
+        winico taskbar modify $TaskbarIcon \
+            -pos 0 \
+            -text "Tcl'ers chat"
+    }
 }
 
 # -------------------------------------------------------------------------
