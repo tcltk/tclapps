@@ -1,7 +1,7 @@
 2004-06-29  Jeff Hobbs  <jeffh@ActiveState.com>
 
-	* tkchat.tcl (::tkchat::parseStr): add recognition of any 6-digit
-	sequence as a SF bug id, make it a URL that jumps to that bug.
+	* tkchat.tcl (::tkchat::parseStr): add recognition of any 6 or
+	7-digit sequence as a SF bug id, make it a URL that jumps to it.
 
 2004-06-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
