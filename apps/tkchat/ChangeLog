@@ -1,6 +1,14 @@
+2004-12-08  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::parseStr): Simplified the URL parsing
+	regexp and added support for ftp URLs. It is much more relaxed in
+	what it accepts as an URL now, and only tries hard to get the end
+	right.
+ 
 2004-12-08  Pascal Scheffers  <pascal@scheffers.net>
 
-	* tkchat.tcl: /nick now asks any other egos you may have for a nick transfer.
+	* tkchat.tcl: /nick now asks any other egos you may have for a
+	nick transfer.
 
 2004-12-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
@@ -9,15 +17,16 @@
 
 2004-12-03  Pascal Scheffers  <pascal@scheffers.net>
 
-	* tkchat.tcl: Sort the online users list -dictionary. Call [muc exit] to
-	cleanup the roster for the chat. Fixed display of entry exit messages for
-	web and irc users, added more entry/exit messages and color them.
-	/help now goes to http://wiki.tcl.tk/tkchat
+	* tkchat.tcl: Sort the online users list -dictionary. Call [muc
+	exit] to cleanup the roster for the chat. Fixed display of entry
+	exit messages for web and irc users, added more entry/exit
+	messages and color them.  /help now goes to
+	http://wiki.tcl.tk/tkchat
 
 2004-12-01  Pascal Scheffers  <pascal@scheffers.net>
 
-	* tkchat.tcl: Added jabber resource in the connect dialog. Improved the
-	reconnect code, it now actually tries again. 	
+	* tkchat.tcl: Added jabber resource in the connect
+	dialog. Improved the reconnect code, it now actually tries again.
 
 2004-12-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
