@@ -1,7 +1,9 @@
 2002-07-19  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Added bindings to the text window for scrolling with
-	cursor up/dowm keys, and mouse wheel (maybe Unix only).
+	cursor up/dowm keys, and mouse wheel (maybe Unix only). Also added
+	askLEO, a web scraper for English <=> German translation via
+	http://dict.leo.org.
 
 2002-05-20  Jeff Hobbs  <jeffh@ActiveState.com>
 
