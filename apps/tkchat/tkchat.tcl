@@ -42,7 +42,21 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.123 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.124 $}]
+
+# Maybe exec a user defined preload script at startup (to set Tk options,
+# for example.
+# just before showing the logon screen (or not), call 'tkchatrcPostload' so 
+# you can also tinker with settings when the UI has been built.
+proc tkchatrcPostload {} {}
+if {[info exists ::env(HOME)] && \
+	[file readable [set rctclfile \
+			    [file join $::env(HOME) .tkchatrc.tcl]]]} {    
+    if {[catch {uplevel \#0 source $rctclfile}]} {	
+	puts stderr $::errorInfo
+	exit	
+    }
+}
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.123 2003/09/24 09:49:02 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.124 2003/09/25 11:21:23 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3481,6 +3495,7 @@ proc ::tkchat::Init {} {
 	      [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
 	catch {source $rcfile}
     }
+
     set Options(Offset) 50
     catch {unset Options(FetchToken)}
     catch {unset Options(OnlineToken)}
@@ -3535,6 +3550,10 @@ proc ::tkchat::Init {} {
     ChangeFont -size $Options(Font,-size)
 
     applyColors
+
+    #call the (possibly) user defined postload proc:
+    tkchatrcPostload
+
     # connect
     if {$Options(AutoConnect)} {
 	logonChat
