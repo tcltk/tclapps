@@ -1,3 +1,8 @@
+2003-03-12  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added ::tkchat::nickComplete and <Key-Tab> bindings
+	to make bash-style command-completion of the nick under the cursor.
+	
 2003-03-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Applied patch 627521 from Pascal Scheffers to

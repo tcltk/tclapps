@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.91 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.92 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.91 2003/03/12 16:22:23 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.92 2003/03/12 20:42:04 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -71,6 +71,9 @@ namespace eval ::tkchat {
     # Variables to control the search function.
     variable searchString ""
     variable searchOffset end
+
+    # a variable to support nickname completion
+    variable lastCompletion "" 
 }
 
 set ::DEBUG 1
@@ -1447,17 +1450,39 @@ proc ::tkchat::displayUsers {} {
     if {$::Options(DisplayUsers)} { grid .names } else { grid remove .names }
 }
 
+proc findCommonRoot { words } {
+    #takes a list of words/nicks and returns the longest string
+    #that matches the beginning of all of them.
+ 
+    set count [llength $words]
+    if { $count <= 1 } {
+	return $words
+    }
+    set word [lindex $words 0]
+    for { set c 0 } { $c < [string length $word] } {incr c} {
+	set partial [string range $word 0 $c]
+	if { [lsearch -not -glob $words "$partial*"] > -1 } {
+	    return [string range $partial 0 end-1]
+	}
+    }
+    return $word
+}
+
 proc ::tkchat::nickComplete {} {
     #Bound to <Key-Tab> in the message entry widgets .eMsg and .tMsg
     #It will do nickname completion a'la bash command completion
     #nicknames are taken from the complete, stored nick list
     #not the users' online one. Which is too unreliable IMO. 
     global Options
-
+    variable lastCompletion
+    
     set nicks [list]
     foreach key [array names Options "Visibility,NICK-*"] {
-	lappend nicks [string range $key \
-			   [string length "Visibility,NICK-"] end]
+	set nick [string range $key [string length "Visibility,NICK-"] end]
+	
+	set nick [string map {< "" > ""} $nick]
+
+	lappend nicks $nick
 	
     }
     set nicks [lsort -dictionary $nicks]
@@ -1474,24 +1499,41 @@ proc ::tkchat::nickComplete {} {
 	set partial [.tMsg get "insert-1c wordstart" "insert-1c wordend"]
     }
 
-    set match [lsearch -glob $nicks "$partial*"]
-
-    if { $match == -1 } {
-	bell
-	return	
-    }
+    set matches [lsearch -all -inline -glob $nicks "$partial*"]
+     
+    switch [llength $matches] {
+	0 {
+	    bell
+	    set lastCompletion ""
+	    return	    
+	}
+	1 {
+	    set match "$matches "
+	    set lastCompletion ""
+	}
+	default {
+	    if { [clock seconds]-2 > [lindex $lastCompletion 0] } {
+		set lastCompletion ""
+	    }
+	    set match [findCommonRoot $matches]
+	    if { [string equal [lindex $lastCompletion 1] $match] && \
+		     [string length $match] > 0 } {	
+		addSystem "Completions: $matches"
+	    }
+	    set lastCompletion [list [clock seconds] $match]
+	    bell	    
+	}
+    }    
 
     if {[winfo ismapped .eMsg]} {
 	.eMsg delete [string wordstart $str $cursor] \
 	    [string wordend $str $cursor]
-
-	.eMsg insert [string wordstart $str $cursor] [lindex $nicks $match]
-
+	.eMsg insert [string wordstart $str $cursor] $match	
     } else {
 	.tMsg delete "insert-1c wordstart" "insert-1c wordend"
-	.tMsg insert insert [lindex $nicks $match]
+	.tMsg insert insert $match
     }
-
+    
 }
 
 proc ::tkchat::CreateGUI {} {
