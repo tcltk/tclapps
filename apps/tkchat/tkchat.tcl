@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.175 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.176 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.175 2004/09/07 18:09:50 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.176 2004/09/08 09:32:06 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -303,6 +303,7 @@ proc ::tkchat::ParseHistLog {log} {
     set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[([^\]]+)\]\s+([^:]+):?\s*(.*)$}
     set ircRE {ircbridge: \*\*\* (.+) (.+)$}
     set TimeRE {^(.+?)\s+(.+?)\s+(\d{1,2})\s+(\d\d:\d\d:\d\d)\s+(\d{4})}
+    
     set logTime 0
     # fetch log
     set url "$Options(URLlogs)/$log"
@@ -1935,10 +1936,13 @@ proc ::tkchat::addHelp {clr name str} {
         set tag MEMO
     } elseif {[string equal $name "WELCOME"]} {
         set tag WELCOME
+    } elseif {[string equal $name "IP"]} {
+        set tag SYSTEM
     } else {
-        set tag HELP
+	set tag HELP
     }
-    if {$Options(Popup,$tag)} {
+
+    if {![string equal $tag SYSTEM] && $Options(Popup,$tag)} {
 	::tkchat::showInfo $tag $str
     }
 
@@ -2168,7 +2172,7 @@ proc ::tkchat::CreateGUI {} {
     $m add separator
 
     if {[package provide tile] != {}} {
-        if {[package vsatisfies [package provide tile] 0.4]} {
+        if {[info commands tile::availableThemes] != {}} {
             set themes [tile::availableThemes]
         } else {
             set themes [style theme names]
