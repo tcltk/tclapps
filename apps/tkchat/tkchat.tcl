@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.57 2002/07/19 14:31:41 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.58 2002/07/25 08:57:19 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2545,6 +2545,22 @@ proc ::tkchat::Smile {} {
         R0lGODlhEAAQAMIAAAAAAPiUGPisEPj8APj8+AAAAAAAAAAAACH5BAEAAAQA
         LAAAAAAQABAAAAM9SKrQvpC0QWuLoGq78v4AQ02WF3oDOaKTIHyUmwJCELxb
         fTc6rvUtX+510jhQKRHM2FmOMMhVpHMMTa/XBAA7
+    }
+    SmileId coffee LP
+    image create photo ::tkchat::img::coffee -format GIF -data {
+	R0lGODlhEAAQAPECAAAAAH9/f////wAAACH5BAEAAAIALAAAAAAQABAAAAKR
+	TJgwoUSJEiVKlKgwYUKJEiVKlChRYcKIEiVKlKgwYUSJEiVKlChRYcKIEiVK
+	lChRosKEEiVKlChRokSJEiVKlCgRIECAACVKlCgRIECAAAFKlCgRIECAAAVK
+	lCgRIECAAAVKlCgRIECAAAFKlCgRIECAACVKlChRIECAECVKFAgQIECAAAFC
+	lCgQIECAACFKBQA7
+    }
+    SmileId lunch |O| |o| |0|
+    image create photo ::tkchat::img::lunch -format GIF -data {
+	R0lGODlhEAAQAPABAAAAAP///yH5BAEAAAEALAAAAAAQABAAAAKRTJgwYcKE
+	CRMmRIgwYcKECRMCBIgwYcKECRMCBIgwIUCACBMCBIgQIECAABECBIgQYMKE
+	ARECBAgQYcKECQECDAgQYcKECQECDAgQYcKECQECDAgQYcKECQECDAgQYcKE
+	CQECDIgQYMKEARECDIgQIECAABECDIgwIUCACBMCDIgwYcKECRMGTJgwYcKE
+	CRMmBQA7
     }
 }
 
