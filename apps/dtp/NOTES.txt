@@ -1,0 +1,88 @@
+DTP, the DocTools Processor
+===========================
+
+Internal notes
+--------------
+
+Consider comparison of timestamps to generate only the output files
+which are needed. sort of a specialized mini make-mode.
+
+Create sub-command to extract and list engine parameters
+Create sub-command to list the builtin formats (doc, toc, idx)
+
+Consider sub-command which does a complete run (index, toc, manpages)
+in one go => html. Essentially the shell script of `dtp script` in
+tcl, using all proper shortcuts, no intermediate files.
+
+
+Directory structure, basic
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/
+	main.tcl
+	lib/
+		app-*/	Application packages
+		tools/	Tool package, common code
+		dtglue/	Package containing convenience routines for
+			dealing with the doctools packages.
+	data/
+
+Directory structure, help
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+/
+	lib/
+		app-help/
+			pkgIndex.tcl	Package Index
+			help.tcl	Implementation
+	data/
+		help/
+			<cmdline.man>
+			doctools.man	(Actually dtformat.man)
+			cache/
+				<format>/
+					Cached data
+
+
+Command line, possible future sub commands
+------------------------------------------
+
+	dtp httpd
+
+	    Run as webserver. Displays the documentation, and has an
+	    interface to upload and convert .man files.
+
+	Half-baked formats.
+
+	*	Generate output requiring header and/or
+		footer for completion
+
+	*	Header/footer specification
+
+	Merged output
+
+	*	Concatenate the generated output into one long file.
+
+	*	Allow for insertion of text between the individual
+		files. Together with halfbaked formats we get header,
+		footer, and intra-file separator text.
+
+	toc/index merging
+
+	*	All files + toc + index in one output
+		Header, footer, intra-file separator
+		toc- and index-separators.
+
+
+Command line, internal (future)
+-------------------------------
+
+	dtp wrap
+		Wrap your self into a starkit.
+		See Misc. below.
+
+
+Misc
+----
+
+Need a tool to setup the complete tree of DTP, using soft-links to the
+originating files.

@@ -1,0 +1,7 @@
+cmdline      {Information about the available subcommands}
+doctools_fmt {Format specification:  doctools (Manpages)}
+doctoc_fmt   {Format specification:  doctoc   (Table of Contents)}
+docidx_fmt   {Format specification:  docidx   (Indices)}
+doctools_api {API Formatting engine: doctools (Manpages)}
+doctoc_api   {API Formatting engine: doctoc   (Table of Contents)}
+docidx_api   {API Formatting engine: docidx   (Indices)}

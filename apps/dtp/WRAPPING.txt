@@ -1,0 +1,24 @@
+How to convert this application into a starkit
+==============================================
+
+It should be noted that the description below leaves out the steps of
+aquiring dtp and tcllib. The first is not necessary when reading this
+file, you already have the sources. It is assumed that the reader
+knows how to perform the second.
+
+==============================================
+
+Only 2 steps are required
+
+1)   tclsh dtp.vfs/main.tcl assemble TCLLIB_DIR
+
+     In the command above TCLLIB_DIR refers to either a source
+     directory of tcllib, or an installation of tcllib
+
+     The 'assemble' command determines the locations of textutil and
+     doctools and copies the relevant portions into the lib and help
+     subdirectories of 'dtp.vfs'.
+
+2)   sdx wrap dtp
+
+==============================================

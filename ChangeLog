@@ -1,3 +1,9 @@
+2003-03-11  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
+
+	* apps/dtp/*: Added the DocTools Processor, an application for
+	  handling manpages in the doctools format. Requires
+	  tcllib/textutil and tcllib/doctools for proper operation.
+
 2003-01-15  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* apps/tkvnc/tkvnc.tcl: added to CVS.  Original author is
