@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.77 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.78 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.77 2003/01/31 13:34:14 kennykb Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.78 2003/02/18 15:33:59 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -734,6 +734,14 @@ proc tkchat::babelfishInitDone {tok} {
 
 proc updateNames {rawHTML} {
     global Options
+
+    # Delete all URL-* tags to prevent a huge memory leak
+    foreach tagname [.names tag names] {
+        if {[string match URL-* $tagname]} {
+	    .names tag delete $tagname
+	}
+    }
+
     set i 0
     .names config -state normal
     .names delete 1.0 end
@@ -1680,7 +1688,8 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <Key-Down> ::tkchat::entryDown
     text .tMsg -height 6 -font FNT
     button .post -text "Post" -width 8 -command ::tkchat::userPost
-    menubutton .mb -indicator on -relief raised -bd 2 \
+    button .refresh -text "Refresh" -command {pause off}
+    menubutton .mb -indicator on -relief raised -bd 2 -pady 4 \
           -menu .mb.mnu -textvar Options(MsgTo)
     set Options(MsgTo) "All Users"
     menu .mb.mnu -tearoff 0
@@ -1711,7 +1720,8 @@ proc ::tkchat::CreateGUI {} {
     grid .txt .sbar .names -sticky news -padx 1 -pady 2
     grid configure .sbar -sticky ns
     grid .btm              -sticky news -columnspan 3
-    grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
+    grid .ml .eMsg .post .refresh .mb -in .btm -sticky ews -padx 2 -pady 2
+    grid configure .eMsg .mb -sticky ew
 
     grid rowconfigure    . 0 -weight 1
     grid columnconfigure . 0 -weight 1
@@ -3040,7 +3050,7 @@ proc ::dict.leo.org::init {} {
     catch {destroy $w}
     toplevel $w
     wm withdraw $w
-    bind $w <Button-3> {wm withdraw [winfo toplevel %W]}
+    bind $w <Double-Button-3> [list wm withdraw $w]
     wm protocol $w WM_DELETE_WINDOW [list wm withdraw $w]
     frame $w.main
     frame  $w.top
