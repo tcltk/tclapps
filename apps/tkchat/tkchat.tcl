@@ -62,7 +62,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.194 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.195 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -94,7 +94,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.194 2004/10/20 22:19:11 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.195 2004/10/22 21:24:22 jenglish Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2499,19 +2499,21 @@ proc ::tkchat::CreateGUI {} {
 
     # bottom frame for entry
     frame .btm
-    button .ml -text ">>" -command ::tkchat::showExtra
+    button .ml -text ">>" -width 0 -command ::tkchat::showExtra
     entry .eMsg
     bind .eMsg <Return>	  ::tkchat::userPost
     bind .eMsg <KP_Enter> ::tkchat::userPost
     bind .eMsg <Key-Up>	  ::tkchat::entryUp
     bind .eMsg <Key-Down> ::tkchat::entryDown
     bind .eMsg <Key-Tab>  {::tkchat::nickComplete ; break}
+    bind .eMsg <Key-Prior> [list .txt yview scroll -1 pages]
+    bind .eMsg <Key-Next>  [list .txt yview scroll  1 pages]
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab> {::tkchat::nickComplete ; break}
     button .post -text "Post" -command ::tkchat::userPost
     #button .refresh -text "Refresh" -command {pause off}
     menubutton .mb -indicator on -pady 4 \
-	-menu .mb.mnu -textvar Options(MsgTo)
+	-menu .mb.mnu -textvar Options(MsgTo) -direction above
     menu .mb.mnu -tearoff 0
     .mb.mnu add command -label "All Users" \
 	-command [list ::tkchat::MsgTo "All Users"]
@@ -2566,7 +2568,7 @@ proc ::tkchat::CreateGUI {} {
 	grid .btm	     -sticky news -columnspan 3
     }
     grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
-    grid configure .eMsg .mb -sticky ew
+    grid configure .eMsg -sticky ew
 
     grid rowconfigure	 . 0 -weight 1
     grid columnconfigure . 0 -weight 1

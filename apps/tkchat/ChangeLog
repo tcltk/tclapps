@@ -1,3 +1,8 @@
+2004-10-22  Joe English  <jenglish@users.sourceforge.net>
+
+	* tkchat.tcl: Tweaked bottom row geometry management.
+	Added PageUp / PageDown bindings to entry widget to scroll chat log.
+
 2004-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fix for bug #1049503 - remove all writes to stdout
