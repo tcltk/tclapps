@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.244 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.245 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.244 2004/12/03 14:32:19 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.245 2004/12/04 00:57:31 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2647,10 +2647,8 @@ proc ::tkchat::userPost {} {
 		    tkjabber::setTopic [string range $msg 7 end]
 		}
 		{^/memo\s?} {
-		    addSystem "Memo is not yet implemented. Sorry."
-		    return
 		    if { [regexp {^/memo ([^ ]+) (.+)} $msg -> toNick privMsg] } {
-			addSystem "Memo is not yet implemented. Sorry."
+                        tkjabber::send_memo $toNick $privMsg
 		    }
 		}
 		{^/me\s?} {
@@ -5665,6 +5663,9 @@ namespace eval tkjabber {
     Variable users ;# 
     Variable user_alias
 
+    # Provides a map of nicks to full jids (works because the chat is
+    # not anonymous. Used for the /memo function.
+    variable members; if {![info exists members]} {array set members {}}
 }
 
 # Login:
@@ -5815,6 +5816,7 @@ proc tkjabber::SendAuth { } {
 proc tkjabber::RosterCB {rostName what {jid {}} args} {
     log::log debug "--roster-> what=$what, jid=$jid, args='$args'"
     variable conference
+    variable members
     
     switch -- $what {
 	presence {
@@ -5828,10 +5830,30 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 	    switch -- $p(-type) {
 		available {
 		    set action entered
+
+                    # Add the user's nick into a nick/jid map
+                    if {[info exists p(-x)]} {
+                        foreach child $p(-x) {
+                            set ns [wrapper::getattribute $child xmlns]
+                            if {[string equal $ns \
+                                     "http://jabber.org/protocol/muc#user"]} {
+                                set item [wrapper::getchildswithtag $child item]
+                                if {[llength $item] > 0} {
+                                    set usrjid [wrapper::getattribute \
+                                                    [lindex $item 0] jid]
+                                    set members($p(-resource)) $usrjid
+                                }
+                                break
+                            }
+                        }
+                    }
 		}
 		unavailable {
 		    set action left
 		    set status offline
+                    if {[info exists members($p(-resource))]} {
+                        unset members($p(-resource))
+                    }
 		}		
 	    }
 	    if { $jid ne $conference } {
@@ -6355,6 +6377,32 @@ proc tkjabber::msgSend { msg args } {
     }
     #-xlist [wrapper::createtag x -attrlist {xmlns http://tcl.tk/tkchat foo bar}]
     
+}
+
+# Send a Jabber message to the full jid of a user. Accept either a full
+# JID or lookup a chatroom nick in the members array. Such messages
+# are held for the user if the user is not currently available.
+proc ::tkjabber::send_memo {to msg {subject Memo}} {
+    variable myId
+    variable jabber
+    variable members
+
+    if {[string first @ $to] == -1} {
+        if {[info exists members($to)]} {
+            set to $members($to)
+        } else {
+            tkchat::addSystem "Cannot find a JID for '$to'."
+            return
+        }
+    }
+
+    set k {}
+    lappend k [list subject {} 0 $subject {}]
+    lappend k [list body {} 0 $msg {}]
+    set a [list xmlns jabber:client type normal from $myId to $to]
+    set m [list message $a 0 "" $k]
+    $jabber send $m
+    tkchat::addSystem "Memo send to $to."
 }
 
 proc ::tkchat::updateJabberNames { } {

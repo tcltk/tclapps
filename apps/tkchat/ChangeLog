@@ -1,3 +1,8 @@
+2004-12-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Some support for sending memos. Needs more work to
+	handle offline users properly.
+
 2004-12-03  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Sort the online users list -dictionary. Call [muc exit] to
