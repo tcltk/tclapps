@@ -1,3 +1,8 @@
+2001-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: implemented feature request 466094 to allow
+	logging to a user specified file using tcllib log package.
+
 2001-10-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: added Retrieve menu item (patch 47026)

@@ -23,6 +23,7 @@ if {[info exists scripdoc::self]} {
 package require http		; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
+package require log		; # tcllib
 package require base64		; # tcllib
 package require Tk 8.3		; # core Tk
 
@@ -35,7 +36,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.12 2001/10/15 16:11:12 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.13 2001/10/17 11:50:46 patthoyts Exp $}
 }
 
 set ::DEBUG 1
@@ -43,16 +44,25 @@ proc vputs {args} {
     if {$::DEBUG} {
 	set name [lindex [info level -1] 0]
 	if {[llength $args]} {
-	    puts "$name: $args"
+	    log::log debug "$name: $args"
 	} else {
-	    puts "CALLED $name"
+	    log::log debug "CALLED $name"
 	}
     }
 }
 
 proc errLog {args} {
-    puts stderr [join $args]
+    log::logMsg [join $args]
     update idletasks
+}
+
+# trace handler to set the log level whenever Options(LogLevel) is changed
+# enable the selected level and above
+proc tkchat::LogLevelSet {args} {
+    global Options
+    log::lvSuppressLE emergency 0         ;# unsuppress all
+    log::lvSuppressLE $Options(LogLevel)  ;# suppress all below selected
+    log::lvSuppress $Options(LogLevel) 0  ;# unsupress selected
 }
 
 # If Proxy Authentication was specified then each HTTP request
@@ -110,6 +120,7 @@ proc tkchat::Retrieve {} {
 	    tk_messageBox -type ok -icon error \
 		-title "Error retrieving tkchat from CVS" \
 		-message $err
+            log::log error $err
 	} else {
 	    set resource? [tk_messageBox -type yesno -icon info \
 			       -title "Retrieved tkchat $rcsVersion" \
@@ -1129,6 +1140,9 @@ proc changeSettings {} {
     label $t.l2 -text "Maximum Saved Lines"
     entry $t.e2 -textvar DlgData(MaxLines) -validate all \
 	    -vcmd {string is integer %P} -invcmd bell
+    label $t.l2a -text "Log Filename"
+    entry $t.e2a ; $t.e2a insert 0 $Options(LogFile)
+    eval tk_optionMenu $t.m2a Options(LogLevel) [lsort -command ::log::lvCompare $::log::levels]
     label $t.l3 -text "Color Selections"
     foreach {idx str} {MainBG Background MainFG Foreground} { 
 	label $t.nm$idx -text "$str" -anchor e
@@ -1202,12 +1216,13 @@ proc changeSettings {} {
     
     grid $t.l1           $t.e1         -           x        x   -padx 1 -pady 3 -sticky ew
     grid $t.l2           $t.e2         -           x        x   -padx 1 -pady 3 -sticky ew
+    grid $t.l2a          $t.e2a        -         $t.m2a     -     -   -padx 1 -pady 3 -sticky ew
     grid $t.l3             -           -           -        -     -   -padx 5 -pady 5
     grid $t.nmMainBG $t.defMainBG $t.ovrMainBG $t.clrMainBG x     x   -padx 2 -pady 2 -sticky news
     grid $t.nmMainFG $t.defMainFG $t.ovrMainFG $t.clrMainFG x     x   -padx 2 -pady 2 -sticky news
     grid $t.f              -           -           -        -  $t.scr -padx 1 -pady 5 -sticky news
     grid $t.f2             -           -           -        -     -   -padx 1 -pady 10 -sticky news
-    grid rowconfigure $t 5 -weight 1
+    grid rowconfigure $t 6 -weight 1
     grid columnconfigure $t 4 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
@@ -1232,7 +1247,7 @@ proc changeSettings {} {
 	    }
 	}
 	if {$change} {
-	    # proagate changes to main data
+	    # propagate changes to main data
 	    array set Options [array get DlgData]
 	    # update colors
 	    .txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
@@ -1240,6 +1255,26 @@ proc changeSettings {} {
 	    foreach nk $Options(NickList) {
 		.txt tag config NICK-$nk -foreground "#[getColor $nk]"
 	    }
+
+            # Update the logfile (if changed). Close the old filehandle
+            set newname [$t.e2a get]
+            if {![string match $Options(LogFile) $newname]} {
+                if {[catch {
+                    set f [open $newname a]
+                    fconfigure $f -buffering line
+                    set Options(LogFile) $newname
+                    set oldlog $Options(errLog)
+                    set Options(errLog) $f
+                    if {![string match stderr $oldlog]} {
+                        close $oldlog
+                    }
+                    log::lvChannelForall $Options(errLog)
+                } err]} {
+                    # Handle file access problems.
+                    log::log error $msg
+                    bgerror $err
+                }
+            }
 	}
     }
     grab release $t
@@ -1260,7 +1295,8 @@ proc saveRC {} {
     if {[info exists ::env(HOME)]} {
 	set rcfile [file join $::env(HOME) .tkchatrc]
 	array set tmp [array get Options]
-	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken ProxyPassword URL URL2}
+	set ignore {History FetchTimerID OnlineTimerID FetchToken OnlineToken\
+                        ProxyPassword URL URL2 errLog}
 	if {!$tmp(SavePW)} {
 	    lappend ignore Password
 	}
@@ -1376,6 +1412,9 @@ proc ::tkchat::Init {} {
 	Font,-family	Helvetica
 	Font,-size	-12
 	MaxLines	500
+        LogFile		""
+        LogLevel        debug
+        errLog		stderr
     }
     set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
     set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
@@ -1384,6 +1423,10 @@ proc ::tkchat::Init {} {
 	set Options(Color,$name,Mine)  $clr
 	set Options(Color,$name,Which) Web
     }
+
+    # attach a trace function to the log level
+    trace variable Options(LogLevel) w [namespace origin LogLevelSet]
+    LogLevelSet
 
     # load RC file if it exists
     if {[info exists ::env(HOME)] && \
@@ -1401,6 +1444,13 @@ proc ::tkchat::Init {} {
     catch {unset Options(FetchToken)}
     catch {unset Options(OnlineToken)}
     set Options(History) {}
+
+    # Open the error log to file if specified. Default is stderr.
+    if {[string length $Options(LogFile)] > 0} {
+        set Options(errLog) [open $Options(LogFile) a]
+        fconfigure $Options(errLog) -buffering line
+    }
+    log::lvChannelForall $Options(errLog)
 
     # build screen
     createGUI
