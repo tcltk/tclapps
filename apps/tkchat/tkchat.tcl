@@ -1213,7 +1213,7 @@ proc ::tkchat::debug {cmd args } {
 	    eval destroy [winfo children .]
 	    eval font delete [font names]
 	    unset ::Options
-	    init
+	    Init
 	}
 	purge {
 	    pause on 0
