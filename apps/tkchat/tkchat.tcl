@@ -69,7 +69,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.207 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.208 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -101,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.207 2004/11/08 15:45:04 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.208 2004/11/08 19:31:36 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -577,7 +577,7 @@ proc ::tkchat::msgSend {str {user ""}} {
     
     global Options
     if { $::Options(UseJabber) } {
-	::tkjabber::msgSend $str $user	
+	::tkjabber::msgSend $str -user $user	
     } else {
 	errLog "Send to $Options(URL)"
 	if {![package vsatisfies [package provide http] 2.4.6]} {
@@ -1082,6 +1082,7 @@ proc ::tkchat::babelfishInit {{url http://babelfish.altavista.com/babelfish/}} {
 }
 
 proc ::tkchat::babelfishInitDone {tok} {
+    log::log debug "Babelfish init done."
     set ::tkchat::babelfish [http::data $tok]
     if {[regexp {<select name="lp"[^>]*?>(.*?)</select>} [::http::data $tok] -> r]} {
         .mbar.help.tr delete 0 end
@@ -1090,7 +1091,7 @@ proc ::tkchat::babelfishInitDone {tok} {
             regexp {<option value="(.*?)"[^>]*>(.*?)</option>} \
                     $option -> value label
             set value [split $value _]
-            log::log debug "option: $label $value"
+            #log::log debug "option: $label $value"
             .mbar.help.tr add command -label $label \
                     -command [concat [namespace current]::translateSel $value]
         }
@@ -3308,7 +3309,7 @@ proc ::tkchat::userPost {} {
 			addSystem "Your messages will not be logged by the server."
 		    } else {
 			# Send a single message without logging:
-			msgSend $msg
+			tkjabber::msgSend $msg -attrs [list nolog 1]
 		    }
 		}	
 		{^/nick\s?} {
@@ -3326,7 +3327,7 @@ proc ::tkchat::userPost {} {
 			switch $Options(ServerLogging) {
 			    oldStyle -
 			    none {
-				msgSend "/nolog$msg"
+				msgSend "/nolog$msg" -attrs [list nolog 1]
 			    }
 			    default {
 				msgSend $msg
@@ -3351,10 +3352,10 @@ proc ::tkchat::userPost {} {
 			if { $Options(UseJabber) } {
 			    switch $Options(ServerLogging) {
 				none {
-				    msgSend "/nolog $msg"
+				    tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
 				}				
 				default {
-				    msgSend $msg
+				    tkjabber::msgSend $msg
 				}			    
 			    }
 			} else {
@@ -3385,10 +3386,10 @@ proc ::tkchat::userPost {} {
 		if { $Options(UseJabber) } {
 		    switch $Options(ServerLogging) {
 			none {
-			    msgSend "/nolog $msg"
+			    tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
 			}				
 			default {
-			    msgSend $msg
+			    tkjabber::msgSend $msg 
 			}			    
 		    }
 		} else {
@@ -6469,24 +6470,39 @@ proc tkjabber::MsgCB {jlibName type args} {
 	    set from $m(-from)
             regexp {([^/]+)/(.+)} $m(-from) -> conf from
 	    if { [info exists m(-x)] } {
-		array set x [lindex [lindex $m(-x) 0] 1]
-		if { [info exists x(stamp)] } {
-		    set ts [clock scan $x(stamp) -gmt 1]
+		foreach x $m(-x) {
+		    if { [wrapper::getattribute $x xmlns] eq "jabber:x:delay" } {
+			set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
+			if { $ts eq "" } {
+			    set ts 0
+			}
+			break
+		    }
 		}
 	    }
 	    tkchat::addAction "" $from " whispers: $m(-body)" end $ts
 	}
 	groupchat {
 	    array set m $args
-	    set ts 0	    
+	    set ts 0
+	    set color ""
 	    set from $m(-from)
             regexp {([^/]+)/(.+)} $m(-from) -> conf from
 	    if { [info exists m(-x)] } {
-		array set x [lindex [lindex $m(-x) 0] 1]
-		if { [info exists x(stamp)] } {
-		    set ts [clock scan $x(stamp) -gmt 1]
+		foreach x $m(-x) {
+		    switch [wrapper::getattribute $x xmlns] {
+			"jabber:x:delay" {
+			    set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
+			    if { $ts eq "" } {
+			        set ts 0
+			    }
+			}
+			"tcl.tk:tkchat" {
+			    set color [wrapper::getattribute $x color]
+			}
+		    }		    
 		}
-	    }
+	    }	    
 	    set msg ""
 	    if { [info exists m(-subject)] } {
 		# changing topic.
@@ -6497,15 +6513,14 @@ proc tkjabber::MsgCB {jlibName type args} {
 		    if { $from eq $conference } {
 			tkchat::addSystem $m(-body)
 		    } else {
-			tkchat::addAction "" $from " changed the topic to: $m(-subject)\n ... $m(-body)" end $ts
+			tkchat::addAction $color $from " changed the topic to: $m(-subject)\n ... $m(-body)" end $ts
 		    }
 	    	} else {
-		    tkchat::addAction "" $from " changed the topic to: $m(-subject)" end $ts
+		    tkchat::addAction $color $from " changed the topic to: $m(-subject)" end $ts
 		}		
 	    } else {		
 		if { [info exists m(-body)] > 0 } {
-		    set opts {}
-		    set color ""
+		    set opts {}		    
 		    set nolog [string match "/nolog*" $m(-body)] 
 		    if { $nolog } {
 			set m(-body) [string trim [string range $m(-body) 6 end]]
@@ -6529,12 +6544,16 @@ proc tkjabber::MsgCB {jlibName type args} {
             regexp {([^/]+)/(.+)} $m(-from) -> conf from
 	    if { $conf ne $conference } {
 		set from $m(-from)
-	    }
-	    
+	    }	    
 	    if { [info exists m(-x)] } {
-		array set x [lindex [lindex $m(-x) 0] 1]
-		if { [info exists x(stamp)] } {
-		    set ts [clock scan $x(stamp) -gmt 1]
+		foreach x $m(-x) {
+		    if { [wrapper::getattribute $x xmlns] eq "jabber:x:delay" } {
+			set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
+			if { $ts eq "" } {
+			    set ts 0
+			}
+			break
+		    }
 		}
 	    }
 	    set msg ""
@@ -6720,10 +6739,22 @@ proc tkjabber::MucEnterCB {mucName type args} {
     
 }
 
-proc tkjabber::msgSend { msg {user ""} } {
+proc tkjabber::msgSend { msg args } {
     variable jabber
     variable conference
-        
+
+    array set opts {
+	-user {}
+	-xlist {}
+	-attrs {}
+    }
+
+    if { [llength $args] > 0 } {
+	array set opts $args
+    }
+    
+    set user $opts(-user)
+
     if { $user eq "" } {
 	set user $conference
 	set type groupchat
@@ -6746,7 +6777,16 @@ proc tkjabber::msgSend { msg {user ""} } {
 	    return
 	}
     }
-    $jabber send_message $user -body $msg -type $type
+    
+    # Example usage
+    #set x [wrapper::createtag x -attrlist {xmlns tcl.tk:tkchat} \
+	    -subtags [list [wrapper::createtag color -attrlist {attr1 val1 attr2 val2} -chdata $::Options(MyColor)]]]
+
+    set attrs [concat $opts(-attrs) [list xmlns tcl.tk:tkchat color $::Options(MyColor)]]
+
+    set xlist [concat [list [wrapper::createtag x -attrlist $attrs]] $opts(-xlist)]
+    
+    $jabber send_message $user -body $msg -type $type -xlist $xlist
     #-xlist [wrapper::createtag x -attrlist {xmlns http://tcl.tk/tkchat foo bar}]
     
 }
