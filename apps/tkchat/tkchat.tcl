@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.116 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.117 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.116 2003/09/17 14:44:15 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.117 2003/09/17 21:50:56 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -568,7 +568,8 @@ proc ::tkchat::checkPage {} {
 
 proc ::tkchat::checkDone {start tok} {
     set elapsed [expr {[clock seconds] - $start}]
-    errLog "checkDone in $elapsed secs status [::http::status $tok]"
+    errLog "checkDone in $elapsed secs status [::http::status $tok]\
+            [string length [http::data $tok]] bytes."
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
             if {[checkForRedirection $tok URL]} {
@@ -579,10 +580,6 @@ proc ::tkchat::checkDone {start tok} {
 
             if {[::http::ncode $tok] >= 500} {
                 errLog "Error calling check script. [http::error $tok]"
-            } else {
-                if {[catch {parseData [::http::data $tok]} err]} {
-                    errLog $err 
-                }
             }
 	}
 	reset - Reset - RESET {
