@@ -1,3 +1,7 @@
+2004-10-16  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Jabber. Register account popup fixed for jabberd2,
+	nickname conflict resolution added at room entry.
+	
 2004-10-22  Joe English  <jenglish@users.sourceforge.net>
 
 	* tkchat.tcl: Tweaked bottom row geometry management.

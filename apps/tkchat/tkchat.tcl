@@ -62,7 +62,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.195 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.196 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -94,7 +94,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.195 2004/10/22 21:24:22 jenglish Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.196 2004/10/26 18:42:06 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3320,9 +3320,11 @@ proc ::tkchat::logonScreen {} {
 	checkbutton .logon.rpw -text "Remember Chat Password" \
               -var Options(SavePW) -underline 0
 	checkbutton .logon.rjabber -text "Use Jabber Server (experimental)" \
-              -var Options(UseJabber) -underline 0
+              -var Options(UseJabber) 
+	label .logon.ljsrv -text "Jabber server" 
+	entry .logon.ejsrv -textvar Options(JabberServer)
 	checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
-              -var Options(UseJabberPoll) -underline 0
+              -var Options(UseJabberPoll) 
         if {$have_tls} {
             checkbutton .logon.rjabberssl -text "Use Jabber SSL" \
                 -var Options(UseJabberSSL) -underline 0
@@ -3362,6 +3364,7 @@ proc ::tkchat::logonScreen {} {
 	grid .logon.lpw .logon.epw  -           -in $lf -sticky ew
 	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
 	grid x          .logon.rjabber -        -in $lf -sticky w -pady 3
+	grid .logon.ljsrv .logon.ejsrv -        -in $lf -sticky w -pady 3
         if {$have_tls} {
             grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
         }
@@ -4431,6 +4434,7 @@ proc ::tkchat::Init {args} {
 	Username	""
 	Password	""
 	SavePW		0
+	Nickname	""
 	UseJabber	0
 	UseJabberPoll	0
 	UseJabberSSL	0
@@ -6055,10 +6059,11 @@ proc gtklook_style_init {} {
 
 namespace eval tkjabber {
     variable jabber ""
-    variable conference ""
     variable topic
     variable jhttp ""
     variable muc
+    variable nickTries 0 ;# The number of times I tried to solve a nick conflict
+    variable baseNick "" ;# used when trying to solve a nick conflict.
     variable roster ""
     variable browser ""
     variable socket ""
@@ -6066,7 +6071,7 @@ namespace eval tkjabber {
     variable myId ""
     variable RunRegistration 0
 
-    variable conference tcl@conference.scheffers.net    
+    variable conference tcl@tach.tclers.tk
 
     variable muc_jid_map ;# array with conference-id to user-jid map.  
     variable users ;# 
@@ -6354,13 +6359,17 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
     variable roster
     variable conference
     variable muc
+    variable baseNick
+    variable nickTries
+    
     global Options
     log::log debug "LoginCB: type=$type, theQuery='$theQuery'"
     
     #set conference tcl@conference.kroc.tk
     switch -- $type {
 	error {
-	    if { [lindex $theQuery 0] eq "not-authorized" } {
+	    if { [lindex $theQuery 0] eq "not-authorized" || \
+		$theQuery eq "{} {}" } {
 		if { ![tkchat::registerScreen] } {
 		    return
 		}
@@ -6379,8 +6388,13 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	result {
 	    tkchat::addSystem "Logged in."
 	    $jabber send_presence -type available    
-	    set muc [jlib::muc::new $jabber]    
-	    $muc enter $conference $::Options(Username) -command [namespace current]::MucEnterCB
+	    set muc [jlib::muc::new $jabber]
+	    if { $::Options(Nickname) eq "" } {
+		set ::Options(Nickname) $::Options(Username)
+	    }
+	    set baseNick $::Options(Nickname)
+	    set nickTries 0
+	    $muc enter $conference $::Options(Nickname) -command [namespace current]::MucEnterCB
 	}
 	default {
 	    tkchat::addSystem "LoginCB: type=$type, theQuery='$theQuery'"
@@ -6414,8 +6428,50 @@ proc tkjabber::GenericIQProc {jlibName type theQuery} {
     tkchat::addSystem  "GenericIQProc: type=$type, theQuery='$theQuery'"
 }
 proc tkjabber::MucEnterCB {mucName type args} {
+    variable conference
+    variable muc
+    variable nickTries
+    variable baseNick
+    
     log::log debug "MucEnter: type=$type, args='$args'"
     switch -- $type {
+	error {
+	    array set m $args
+	    if { [info exists m(-error)] } {
+		switch -- [lindex $m(-error) 0] {
+		    401 {
+			tkchat::addSystem "This conference is password protected."
+		    }
+		    403 {
+			tkchat::addSystem "You have been banned from this conference."
+		    }
+		    404 {
+			tkchat::addSystem "This room does not exist."
+		    }
+		    405 {
+			tkchat::addSystem "The maximum number of users has been reached for this room."
+		    }
+		    407 {
+			tkchat::addSystem "You must be a member to enter this conference."
+		    }		    
+		    409 {
+			# Nick conflict. Try again?
+			if { $nickTries > 5 } {
+    			    tkchat::addSystem  "Unable to solve nick conflict, try setting one with /nick <nickname> and then trying again"
+			}
+			if { $nickTries < 2 } {
+			    append ::Options(Nickname) _
+			} else {
+			    set ::Options(Nickname) $baseNick$nickTries			    
+			}
+			$muc enter $conference $::Options(Nickname) -command [namespace current]::MucEnterCB
+		    }
+		    default {
+			tkchat::addSystem  "MucEnter: type=$type, args='$args'"
+		    }
+		}
+	    }
+	}
 	available {
 	    #tkchat::addSystem  "MucEnter: type=$type, args='$args'"
 	}
@@ -6504,6 +6560,14 @@ proc ::tkjabber::setNick { newnick } {
     variable muc
     variable conference
     
+    if {[lsearch -exact $::Options(OnLineUsers) $newnick] > -1 } {
+	tkchat::addSystem "The nickname '$newnick' is already in use."
+	return
+    }
+    
+    # There is a race condition here. new nick could enter between the check
+    # and the setnick call...
+    set ::Options(Nickname) $newnick
     $muc setnick $conference $newnick
 }
 
