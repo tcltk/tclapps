@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.42 2002/03/15 14:15:48 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.43 2002/03/15 18:13:22 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1257,6 +1257,8 @@ proc ::tkchat::CreateGUI {} {
     set m .mbar.edit
     $m add command -label Colors... -underline 0 \
           -command tkchat::ChangeColors
+    $m add command -label Macros... -underline 0 \
+          -command tkchat::EditMacros
     $m add cascade -label "Font Name" -underline 0 \
           -menu [menu $m.fontName -tearoff 0]
     set num 0
@@ -1285,6 +1287,8 @@ proc ::tkchat::CreateGUI {} {
           }
     $m add checkbutton -label "Use Emoticons" \
           -onval 1 -offval 0 -var Options(emoticons)
+    $m add command -label "Show Emoticons" -command ::tkchat::ShowSmiles
+    
     $m add cascade -label "Refresh Frequency" -menu [menu $m.refresh -tearoff 0]
     foreach s {15 30 45 60} {
         $m.refresh add radiobutton -label "$s seconds" -val $s \
@@ -1462,9 +1466,23 @@ proc ::tkchat::userPost {} {
         }
         "/*" {
             # possible command
-            switch -exact -- $msg {
-                "/smile" - "/smiles" - "/smiley" - "/smileys" {
+            switch -re -- $msg {
+                "^/smiley?s?$" {
                     ::tkchat::ShowSmiles
+                }
+                "^/colou?rs?$" {
+                    tkchat::ChangeColors
+                }
+                "^/font " {
+                    set name [string trim [string range $msg 5 end]]
+                    catch {::tkchat::ChangeFont -family $name}
+                }
+                "^/(font)?size [0-9]+" {
+                    regexp {[0-9]+} $msg size
+                    catch {::tkchat::ChangeFont -size $size}
+                }
+                "^/macros?$" {
+                    tkchat::EditMacros
                 }
                 default  {
                     # might be server command - pass it on
@@ -1473,10 +1491,25 @@ proc ::tkchat::userPost {} {
             }
         }
         default {
-            if {[string equal $Options(MsgTo) "All Users"]} {
-                msgSend $msg
+            # check for user defined macro
+            set words [regexp -all -inline {\S+} $msg]
+            set macro [lindex $words 0]
+            if {[info exists Options(Macro,$macro)]} {
+                # invoke macro instead of raw string
+                # build subst map
+                set i 1
+                set map [list %% % %@ [string map [list "$macro " ""] $msg]]
+                foreach w [lrange $words 1 end] {
+                    lappend map "%$i" $w
+                    incr i
+                }
+                msgSend [string map $map $Options(Macro,$macro)]
             } else {
-                msgSend $msg $Options(MsgTo)
+                if {[string equal $Options(MsgTo) "All Users"]} {
+                    msgSend $msg
+                } else {
+                    msgSend $msg $Options(MsgTo)
+                }
             }
         }
     }
@@ -1605,6 +1638,75 @@ proc buildRow {f idx disp} {
           -command [list newColor $f.ovr$idx $idx]
     grid $f.nm$idx $f.def$idx $f.inv$idx $f.ovr$idx $f.clr$idx \
           -padx 2 -pady 2 -sticky ew
+}
+
+proc ::tkchat::EditMacros {} {
+    set t .macros
+    catch {destroy $t}
+    toplevel $t -class Dialog
+    wm transient $t .
+    wm withdraw $t
+    wm title $t "Edit Macros"
+
+    listbox $t.lst -yscroll "$t.scr set" -font FNT -selectmode extended
+    scrollbar $t.scr -command "$t.lst yview"
+    label $t.lbl1 -text "Macro:" -font NAME
+    entry $t.mac -width 10 -font FNT -validate all -vcmd {regexp {^\S*$} %P}
+    bind $t.mac <Return> "focus $t.txt"
+    label $t.lbl2 -text "Text:" -font NAME
+    entry $t.txt -width 40 -font FNT
+    bind $t.txt <Return> "$t.sav invoke"
+    bind $t.lst <Double-1> "::tkchat::MacroSel %W @%x,%y"
+    button $t.sav -text Save -command "::tkchat::MacroSave $t"
+    button $t.del -text Delete -command "::tkchat::MacroKill $t.lst"
+
+    grid $t.lst - $t.scr -sticky news
+    grid $t.del - - -sticky {}
+    grid $t.lbl1 $t.mac - -sticky news
+    grid $t.lbl2 $t.txt - -sticky news
+    grid $t.sav - - -sticky {}
+
+    grid rowconfigure $t 0 -weight 10
+    grid columnconfigure $t 1 -weight 10
+    
+    tkchat::MacroList $t.lst
+    catch {::tk::PlaceWindow $t widget .}
+    wm deiconify $t    
+}
+proc ::tkchat::MacroSave {t} {
+    global Options
+    set m [string trim [$t.mac get]]
+    set s [string trim [$t.txt get]]
+    if {[string length $m] > 0 &&
+        [string length $s] > 0} {
+        set Options(Macro,$m) $s
+        ::tkchat::MacroList $t.lst
+    }
+}
+proc ::tkchat::MacroKill { w } {
+    global Options
+    foreach idx [$w curselection] {
+        set m [lindex [split [$w get $idx]] 0]
+        catch {unset Options(Macro,$m)}
+    }
+    tkchat::MacroList $w
+}
+proc ::tkchat::MacroSel { w idx} {
+    global Options
+    set m [lindex [split [$w get $idx]] 0]
+    if {[info exists Options(Macro,$m)]} {
+        [winfo parent $w].mac delete 0 end
+        [winfo parent $w].txt delete 0 end
+        [winfo parent $w].mac insert end $m
+        [winfo parent $w].txt insert end $Options(Macro,$m)
+    }
+}
+proc ::tkchat::MacroList {w} {
+    global Options
+    $w delete 0 end
+    foreach idx [lsort [array names Options Macro,*]] {
+        $w insert end [format "%-10s  %s" [string range $idx 6 end] $Options($idx)]        
+    }
 }
 
 proc ::tkchat::ChangeColors {} {
