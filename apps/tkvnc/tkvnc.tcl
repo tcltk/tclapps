@@ -61,6 +61,20 @@ namespace eval ::vnc {
 	height 0
     }
 
+    # Specify default encoding order
+    set RAW      0
+    set COPYRECT 1
+    set RRE      2
+    set CoRRE    4
+    set HEXTILE  5
+    variable ENC
+    set ENC(order)     "1 5 4 2 0"
+    set ENC($RAW)      ::vnc::RawEncoding
+    set ENC($COPYRECT) ::vnc::CopyRectEncoding
+    set ENC($RRE)      ::vnc::RRERectEncoding
+    set ENC($CoRRE)    ::vnc::CoRRERectEncoding
+    set ENC($HEXTILE)  ::vnc::HextileRectEncoding
+
     variable VNC; # vnc connection info
     array set VNC {}
 
@@ -97,7 +111,6 @@ proc ::vnc::attach {server {port {}}} {
 	    set port [expr {$scrn + 5900}]
 	}
     }
-    variable chan
     if {[catch {set chan [socket $host $port]} err]} {
 	return -code error "Unable to connect to $server on port $port:\n$err"
     }
@@ -114,6 +127,7 @@ proc ::vnc::attach {server {port {}}} {
 
 proc ::vnc::GetConnectionDetails {chan {exclusive 0}} {
     variable VNC
+    set VNC(chan)    $chan
     set VNC(version) [read $chan 12]
     puts -nonewline $chan "RFB 003.003\n"
     flush $chan
@@ -185,22 +199,10 @@ proc ::vnc::SetPixelFormat {chan} {
 
 proc ::vnc::SetEncodings {chan} {
     variable ENC
-    set RAW      0
-    set COPYRECT 1
-    set RRE      2
-    set CoRRE    4
-    set HEXTILE  5
-    set ENC($RAW)      ::vnc::RawEncoding
-    set ENC($COPYRECT) ::vnc::CopyRectEncoding
-    set ENC($RRE)      ::vnc::RRERectEncoding
-    set ENC($CoRRE)    ::vnc::CoRRERectEncoding
-    set ENC($HEXTILE)  ::vnc::HextileRectEncoding
-    #set encodings_prefs [list $RAW $COPYRECT $HEXTILE $CoRRE $RRE]
-    set encodings_prefs [list $COPYRECT $HEXTILE $CoRRE $RRE $RAW]
-    set num_prefs [llength $encodings_prefs]
+    set num_prefs [llength $ENC(order)]
     puts -nonewline $chan [binary format cc 2 0]; # add padding
     puts -nonewline $chan [binary format S $num_prefs]
-    puts -nonewline $chan [binary format I$num_prefs $encodings_prefs]
+    puts -nonewline $chan [binary format I$num_prefs $ENC(order)]
     flush $chan
 }
 
@@ -249,6 +251,8 @@ proc ::vnc::ChannelReader {chan} {
 	tk_messageBox -icon error -type ok -title "Lost Connection" \
 	    -message "Lost connection to server"
 	# actually, I should do something better here
+	variable VNC
+	unset VNC
 	UpdateUI
 	return
     }
@@ -559,6 +563,18 @@ proc ::vnc::FillOutPixelCache {} {
     }
 }
 
+proc ::vnc::disconnect {root} {
+    variable VNC
+
+    if {[info exists VNC(chan)]} {
+	close $VNC(chan)
+	UpdateUI
+    }
+
+    variable MENU
+    $MENU.file entryconfigure "Connect"    -state normal
+    $MENU.file entryconfigure "Disconnect" -state disabled
+}
 
 # ::vnc::connection --
 #
@@ -569,8 +585,9 @@ proc ::vnc::FillOutPixelCache {} {
 # Results:
 #   Will attach to user provided server.
 #
-proc ::vnc::connect {} {
-    set t .__conn
+proc ::vnc::connect {root} {
+    set base [expr {($root == ".") ? "" : $root}]
+    set t $base.__conn
     if {![winfo exists $t]} {
 	toplevel $t
 	wm withdraw $t
@@ -579,9 +596,9 @@ proc ::vnc::connect {} {
 	entry $t.host -width 15
 	label $t.lport -text "Port: "
 	entry $t.port -width 3 -validate key -invcmd bell \
-	    -vcmd {string is integer %P}
+		-vcmd {string is integer %P}
 	button $t.ok -text "Connect" -width 8 \
-	    -command {set ::vnc::PRIV(grab) 1}
+		-command {set ::vnc::PRIV(grab) 1}
 	bind $t.host <Return> [list focus $t.port]
 	bind $t.port <Return> [list focus $t.ok]
 	bind $t.ok   <Return> [list $t.ok invoke]
@@ -589,13 +606,11 @@ proc ::vnc::connect {} {
 	grid configure $t.ok -sticky ew -padx 4
 	grid columnconfig $t 1 -weight 1
 	grid rowconfigure $t 1 -weight 1
-	#wm transient $t $PRIV(root)
+	wm transient $t $root
 	wm geometry $t +[expr {([winfo screenwidth $t]-[winfo \
 		reqwidth $t]) / 2}]+[expr {([winfo \
 		screenheight $t]-[winfo reqheight $t]) / 2}]
     }
-    #$t.host delete 0 end
-    #$t.port delete 0 end
     wm deiconify $t
     raise $t
     grab $t
@@ -611,7 +626,12 @@ proc ::vnc::connect {} {
 	tk_messageBox -title "Socket Connection Error" \
 		-message "Unable to connect to \"$host\" port $port:\n$err" \
 		-icon error -type ok
+	return
     }
+
+    variable MENU
+    $MENU.file entryconfigure "Connect"    -state disabled
+    $MENU.file entryconfigure "Disconnect" -state normal
 }
 
 proc ::vnc::UpdateUI {{chan {}}} {
@@ -658,6 +678,7 @@ proc ::vnc::InitUI {root} {
 
     variable ROOT   $root
     variable CANVAS $base.screen
+    variable MENU   $base.menu
     variable SCREEN [image create photo]
     variable SCREENBUF [image create photo]
 
@@ -667,12 +688,15 @@ proc ::vnc::InitUI {root} {
     $CANVAS create image 0 0 -anchor nw -image $SCREEN -tags screen
     pack $CANVAS -fill both -expand 1
 
-    set menu [menu $base.menu]
+    set menu [menu $MENU]
     $root configure -menu $menu
 
-    set m [menu $menu.file]
+    # File
+    set m [menu $menu.file -tearoff 0]
     $menu add cascade -label "File" -menu $m
-    $m add command -label Connect -command ::vnc::connect
+    $m add command -label "Connect" -command [list ::vnc::connect $root]
+    $m add command -label "Disconnect" -state disabled \
+	    -command [list ::vnc::disconnect $root]
     if {[llength [info commands console]]} {
 	$m add command -label "Show Console" -command { console show }
     }
@@ -681,6 +705,23 @@ proc ::vnc::InitUI {root} {
     }
     $m add separator
     $m add command -label Exit -command exit
+
+    # Prefs
+    set m [menu $menu.prefs -tearoff 0]
+    $menu add cascade -label "Prefs" -menu $m
+    $m add cascade -label "Encoding Order" -menu $m.order
+
+    # Prefs -> Order
+    set m [menu $menu.prefs.order -tearoff 0]
+    foreach {lbl order} {
+	"CopyRect Hextile CoRRE RRE Raw" "1 5 4 2 0"
+	"Hextile CopyRect CoRRE RRE Raw" "5 1 4 2 0"
+	"Raw CopyRect Hextile CoRRE RRE" "0 1 5 4 2"
+	"Raw Hextile CopyRect CoRRE RRE" "0 5 1 4 2"
+    } {
+	$m add radio -variable ::vnc::ENC(order) -value $order -label $lbl \
+		-command "catch {::vnc::SetEncodings \$::vnc::VNC(chan)}"
+    }
 
     UpdateUI
 }

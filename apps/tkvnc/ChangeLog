@@ -1,3 +1,7 @@
+2003-01-16  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkvnc.tcl: Add File -> Disconnect menu and Prefs -> Encoding Order.
+
 2003-01-16  Miguel Sofer  <msofer@users.sf.net>
 
 	* tkvnc.tcl (RawEncoding): slightly faster option
