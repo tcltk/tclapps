@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.56 2002/07/19 12:37:20 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.57 2002/07/19 14:31:41 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2802,13 +2802,8 @@ proc ::dict.leo.org::init {} {
     variable LEOlogo
     catch {destroy $w}
     toplevel $w
-    if {[info script] == $::argv0} {
-	wm withdraw .
-	bind $w <Button-3> {wm iconify [winfo toplevel %W]}
-    } else {
-	wm withdraw $w
-	bind $w <Button-3> {wm withdraw [winfo toplevel %W]}
-    }
+    wm withdraw $w
+    bind $w <Button-3> {wm withdraw [winfo toplevel %W]}
     frame $w.main
     frame  $w.top
     entry  $w.top.ent -bg white -textvariable [namespace current]::Query
