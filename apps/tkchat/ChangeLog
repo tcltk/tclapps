@@ -1,3 +1,10 @@
+2003-03-06  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Enable default key bindings for logon screen.
+	- Better handling of logon failure when the server is down.
+	- Indicate HTTP failure by disabling Post button and entry field
+	and showing the HTTP error in the entry field.
+
 2003-03-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (checkForRedirection): Handle 307 Temporary Redirect.
