@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.260 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.261 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.260 2005/02/12 22:21:37 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.261 2005/02/12 23:34:42 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1052,7 +1052,7 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}}
 	$w insert $mark "$displayNick\t" [list NICK NICK-$nick]
         foreach {str url} [parseStr $str] {
             foreach cmd [array names ::tkchat::MessageHooks] {
-                eval $cmd [list $str $url]
+                eval $cmd [list $nick $str $url]
             }
 	    if { [info exists opts(nolog)] } {
 		set tags [list MSG NOLOG-$nick NOLOG]
@@ -1180,7 +1180,7 @@ proc ::tkchat::Hook {do type cmd} {
     }
 }
 
-proc ::tkchat::say { message args } {
+proc ::tkchat::say { who message args } {
     # I've added a few lines to make this speak new messages via the
     # festival synthesiser. It doesn't do it robustly as yet (you'll need
     # festival installed) but as a quick (1min) hack it's got heaps of
@@ -2737,7 +2737,7 @@ proc ::tkchat::userPost {} {
                 {^/away} -
                 {^/afk} {
                     set status ""
-                    regexp {^/(?:afk)|(?:away)\s*(.*)$} $msg -> status
+                    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
                     tkjabber::away $status
                 }
                 {^/back} {
@@ -3417,6 +3417,7 @@ proc ::tkchat::OpenChatLog {opt} {
         close {
             set Options(ChatLogFile) ""
             set Options(ChatLogOff) 1
+            Hook remove message [namespace origin ChatLogHook]
             if {[info exists Options(ChatLogChannel)]} {
                 close $Options(ChatLogChannel)
                 unset Options(ChatLogChannel)
@@ -3427,13 +3428,14 @@ proc ::tkchat::OpenChatLog {opt} {
             if {[string length $newFileName]>0} {
                 if {[catch {
                     set f [open $newFileName a]
-                    fconfigure $f -buffering line
+                    fconfigure $f -buffering line -encoding utf-8
                     set Options(ChatLogFile) $newFileName
                     if {[info exists Options(ChatLogChannel)]} {
                         close $Options(ChatLogChannel)
                     }
                     set Options(ChatLogChannel) $f
                     set Options(ChatLogOff) 0
+                    Hook add message [namespace origin ChatLogHook]
                 } err]} {
                     # Handle file access problems.
                     log::log error $err
@@ -3444,6 +3446,13 @@ proc ::tkchat::OpenChatLog {opt} {
     }
 }
 
+proc ::tkchat::ChatLogHook {who str url} {
+    global Options
+    if {! $Options(ChatLogOff)} {
+        set T [clock format [clock seconds] -format "%Y%m%dT%H:%M:%S"]
+        puts $Options(ChatLogChannel) "$T: $who\t$str"
+    }
+}
 
 # Point the Error Log to a new file
 proc ::tkchat::OpenErrorLog {opt} {
@@ -4220,7 +4229,7 @@ proc ::tkchat::Init {args} {
     # Open the ChatLog file for appending.
     if {[string length $Options(ChatLogFile)] > 0} {
 	set Options(ChatLogChannel) [open $Options(ChatLogFile) a]
-	fconfigure $Options(ChatLogChannel) -buffering line
+	fconfigure $Options(ChatLogChannel) -buffering line -encoding utf-8
 	set Options(ChatLogOff) 0
     } else {
 	set Options(ChatLogOff) 1
@@ -5985,6 +5994,10 @@ proc tkjabber::connect { } {
 			-keepalivesecs	    $keepalive_seconds]
 	
 	set browser [browse::new $jabber -command [namespace current]::BrowseCB]
+        
+        # override the jabberlib version info query
+        jlib::iq_register $jabber get jabber:iq:version \
+            [namespace origin on_iq_version] 40
     }
 
     if { $Options(UseJabberPoll) } {
@@ -7206,6 +7219,32 @@ proc tkjabber::back {status} {
     set jid $conference/[$tkjabber::muc mynick $conference]
     $tkjabber::jabber send_presence -type available \
         -from $jid -to $conference -show online -status $status
+}
+
+# -------------------------------------------------------------------------
+
+proc tkjabber::on_iq_version {token from subiq args} {
+    global tcl_platform
+    
+    array set a {-id {}}
+    array set a $args
+    set opts {}
+    if {$a(-id) ne {}} { lappend opts -id $a(-id) }
+    set os $tcl_platform(os)
+    if {[info exists tcl_platform(osVersion)]} {
+	append os " $tcl_platform(osVersion)"
+    }
+    lappend opts -to $from
+    set subtags [list  \
+      [wrapper::createtag name    -chdata "Tkchat"]  \
+      [wrapper::createtag version -chdata [package provide app-tkchat]]  \
+      [wrapper::createtag os      -chdata $os] ]
+    set xmllist [wrapper::createtag query -subtags $subtags  \
+      -attrlist {xmlns jabber:iq:version}]
+    eval {jlib::send_iq $token "result" [list $xmllist]} $opts
+
+    # Tell jlib's iq-handler that we handled the event.
+    return 1
 }
 
 # -------------------------------------------------------------------------

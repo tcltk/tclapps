@@ -4,6 +4,9 @@
 	negotiation. Also encoding of the .tkchatrc file.
 	Added a 'No SSL' option and an entry field for the conference to
 	join to the login dialog.
+	Re-enabled local chat logging (uses utf-8 encoding now).
+	Fixed jabber:iq:version reporting to report the version of tkchat
+	instead of the jabberlib version.
 
 2005-02-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
