@@ -1,3 +1,13 @@
+2004-10-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Modified the startup to avoid multiple http requests
+	if we get an authentication error during the logon. This avoids
+	locking your account on a proxy server from too many failed login
+	attempts (Windows networks). We now only do one request if it fails.
+	Also changed the history loading to ensure we always load above
+	any current chat text.
+	Added a scrollbar to the smilies display dialog.
+
 2004-10-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::Retrieve): Fixed a dumb bug introduced in

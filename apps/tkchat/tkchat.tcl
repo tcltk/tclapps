@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.184 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.185 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.184 2004/10/12 12:35:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.185 2004/10/13 02:32:05 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -279,10 +279,10 @@ proc ::tkchat::GetHistLogIdx {szary} {
 	    [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
-	    if {[::http::ncode $tok] == 500} {
-		set msg "History Fetch error: [::http::code $tok]"
-		log::log error $msg
-		tk_messageBox -message $msg
+	    if {[::http::ncode $tok] >= 500} {
+                HttpServerError $tok "History Fetch"
+            } elseif {[::http::ncode $tok] >= 400} {
+                AuthenticationError $tok
 	    } else {
 		if { [checkForRedirection $tok URLlogs] } {
 		    # trim off the /?M=D part
@@ -452,11 +452,13 @@ proc ::tkchat::LoadHistory {} {
     }
 
     # Set a mark for the history insertion point.
-    set pos "[.txt index end] - 1 line"
+    #set pos "[.txt index end] - 1 line"
     .txt config -state normal
-    .txt insert end \
-        "+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
-    .txt mark set HISTORY $pos
+    if {[lsearch [.txt mark names] HISTORY] == -1} {
+        .txt insert 0.0 \
+            "+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
+        .txt mark set HISTORY 0.0
+    }
 
     set Options(FinalList) $FinalList
     LoadHistoryLines
@@ -575,9 +577,6 @@ proc ::tkchat::msgDone {tok} {
 }
 
 proc ::tkchat::logonChat {{retry 0}} {
-    if { ! $retry } {
-        if {[catch {LoadHistory} err]} { errLog $err }
-    }
     if {0} {
         # use when testing only - allows restarts without actually logging in again
         catch {pause off}
@@ -603,17 +602,21 @@ proc ::tkchat::logonDone {tok} {
 	ok {
 	    if {[checkForRedirection $tok URL2]} {
 		::http::cleanup $tok
-		logonChat 1
+		logonChat 0
 		return
 	    }
 
 	    if {[::http::ncode $tok] >= 500} {
 		tk_messageBox -message "Logon failure: [::http::code $tok]"
 		pause 1 0
+            } elseif {[::http::ncode $tok] >= 400} {
+                AuthenticationError $tok
 	    } else {
 		if {[catch {pause off} err]} { errLog $err }
 		::tkchat::DoAnim
 		::tkchat::msgSend "/msg ircbridge onlineusers"
+                
+                if {[catch {LoadHistory} err]} { errLog $err }
 	    }
 	}
 	reset	{ errLog "User reset logon operation" }
@@ -883,6 +886,47 @@ proc ::tkchat::onlineDone {tok} {
     ::http::cleanup $tok
 }
 
+# Display the error message returned when an HTTP request results
+# in an authentication error.
+# Do NOT clean up this token - that's the callers job.
+#
+proc ::tkchat::AuthenticationError {token {prefix ""}} {
+    log::log error "$prefix error: [http::code $token]"
+    variable msgtext ""
+    htmlparse::parse \
+        -cmd [list ::tkchat::ErrorMessageParse ::tkchat::msgtext] \
+        [http::data $token]
+    set msgtext [regsub -all -line "\n{1,}" $msgtext "\n"]
+    tk_messageBox \
+        -title [http::code $token] \
+        -icon warning \
+        -message $msgtext
+    unset msgtext
+}
+
+proc ::tkchat::ErrorMessageParse {varname tag end attr text} {
+    upvar #0 $varname v
+    set tag [string tolower $tag]
+    set end [string length $end]
+    if {[string equal $tag "hmstart"] && $end == 0} {
+        set v ""
+    } elseif {[string match "h*" $tag] && $end == 0} {
+        append v "\n$text"
+    } elseif {[string equal "p" $tag] && $end == 0} {
+        append v "\n$text"
+    } elseif {[string equal "pre" $tag] && $end == 0} {
+        append v "\n$text"
+    } elseif {[string equal "a" $tag]} {
+        append v "$text"
+    }
+}
+
+proc ::tkchat::HttpServerError {token {prefix ""}} {
+    set msg "$prefix error: [::http::code $tok]"
+    log::log error $msg
+    tk_messageBox -message $msg
+}
+
 # -------------------------------------------------------------------------
 # Translate the selection using Babelfish.
 # -------------------------------------------------------------------------
@@ -891,7 +935,13 @@ proc ::tkchat::fetchurldone {cmd tok} {
     errLog "fetchurl: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
-            $cmd $tok
+            if {[::http::ncode $tok] >= 500} {
+                HttpServerError $tok
+            } elseif {[::http::ncode $tok] >= 400} {
+                AuthenticationError $tok
+            } else {
+                $cmd $tok
+            }
 	}
 	reset - Reset - RESET {
 	    errLog "Reset called during fetch of URL"
@@ -4197,6 +4247,9 @@ proc ::tkchat::ShowSmiles {} {
         set txt [text $t.txt -background black -foreground white \
                        -font NAME -tabs {1.5i l 2.0i l} \
                        -height [expr {[llength [image names]] + 5}]]
+        set sb [scrollbar $t.sb -command [list $txt yview]]
+        $txt configure -yscrollcommand [list $sb set]
+                
         foreach image [lsort [image names]] {
             set name [lindex [split $image :] end]
             $txt insert end "$name\t"
@@ -4206,7 +4259,9 @@ proc ::tkchat::ShowSmiles {} {
             }
             $txt insert end \n
         }
-        pack $txt -expand 1 -fill both
+        grid $txt $sb -sticky news
+        grid rowconfigure $t 0 -weight 1
+        grid columnconfigure $t 0 -weight 1
     }
 }
 proc ::tkchat::Init {args} {
@@ -4379,6 +4434,7 @@ proc ::tkchat::Init {args} {
             }
 	}
     }
+
     ChangeFont -family $Options(Font,-family)
     ChangeFont -size $Options(Font,-size)
 
