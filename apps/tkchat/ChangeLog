@@ -1,3 +1,7 @@
+2004-12-08  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: /nick now asks any other egos you may have for a nick transfer.
+
 2004-12-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Some support for sending memos. Needs more work to

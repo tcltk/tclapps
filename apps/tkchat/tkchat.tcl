@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.245 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.246 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.245 2004/12/04 00:57:31 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.246 2004/12/08 15:10:56 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5642,6 +5642,7 @@ namespace eval tkjabber {
     Variable muc
     Variable nickTries 0 ;# The number of times I tried to solve a nick conflict
     Variable baseNick "" ;# used when trying to solve a nick conflict.
+    Variable grabNick "" ;# grab this nick when it becomes available.
     Variable roster ""
     Variable browser ""
     Variable socket ""
@@ -5817,6 +5818,7 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
     log::log debug "--roster-> what=$what, jid=$jid, args='$args'"
     variable conference
     variable members
+    variable grabNick
     
     switch -- $what {
 	presence {
@@ -5850,10 +5852,15 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 		}
 		unavailable {
 		    set action left
-		    set status offline
+		    set status offline		    
                     if {[info exists members($p(-resource))]} {
                         unset members($p(-resource))
                     }
+		    # Do we want to be this nick?		    
+		    if { $p(-resource) eq $grabNick } {			
+			after idle tkjabber::setNick $grabNick
+			set grabNick ""
+		    }		    
 		}		
 	    }
 	    if { $jid ne $conference } {
@@ -5959,6 +5966,12 @@ proc tkjabber::MsgCB {jlibName type args} {
 		}
 		"urn:tkchat:whiteboard" {		    
 		    tkchat::whiteboard_eval [wrapper::getcdata $x] [wrapper::getattribute $x color]
+		    return
+		}
+		"urn:tkchat:changenick" {
+		    # Request for nick handover.
+		    tkchat::addSystem "$m(-from) has requested your nickname."
+		    transferNick $m(-from)
 		    return
 		}
 	    }		    
@@ -6451,8 +6464,34 @@ proc ::tkchat::updateJabberNames { } {
 proc ::tkjabber::setNick { newnick } {
     variable muc
     variable conference
+    variable roster
+    variable jabber
+    variable grabNick
     
     if {[lsearch -exact $::Options(OnLineUsers) $newnick] > -1 } {
+	# Perhaps it is my own nick, in another window?
+	set x [$roster getx $conference/$newnick muc#user]
+	set item [wrapper::getchildswithtag $x item]
+	set otherjid ""
+	if {[llength $item] > 0} {
+	    set otherjid [wrapper::getattribute \
+			    [lindex $item 0] jid]	    
+	}
+	regexp {([^/]+)/(.+)} [$jabber myjid] -> myjid myres
+	
+	if { [regexp {([^/]+)/(.+)} $otherjid -> ojid ores] } {
+	    if { $ojid eq $myjid && $ores ne $myres } {
+		# Yes, it is my JID, different resource.
+		# Send a rename request:
+	        set attrs [list xmlns urn:tkchat:changenick]
+	        set xlist [list [wrapper::createtag x -attrlist $attrs]]
+    
+		$tkjabber::jabber send_message $otherjid -type chat -xlist $xlist
+		tkchat::addSystem "This nick is owned by another you, requested transfer..."
+		set grabNick $newnick
+		return
+	    }
+	}	
 	tkchat::addSystem "The nickname '$newnick' is already in use."
 	return
     }
@@ -6462,6 +6501,46 @@ proc ::tkjabber::setNick { newnick } {
     set ::Options(Nickname) $newnick
     $muc setnick $conference $newnick
 }
+
+proc ::tkjabber::transferNick { reqfrom } {
+    variable muc
+    variable conference
+    variable roster
+    variable jabber
+
+    regexp {([^/]+)/(.+)} $reqfrom -> ojid ores
+	
+    regexp {([^/]+)/(.+)} [$jabber myjid] -> myjid myres
+	
+    if { $ojid ne $myjid } {
+	# No, it is not a request from an alter ego.
+	# Denied.
+	log::log debug "Denied nick transfer request from $reqfrom"
+	return
+    }
+    
+    # It is a valid request. Do the transfer.
+    set postfix $::Options(JabberResource)
+    if { [string match "tkchat*" $postfix] } {
+	set postfix [string range $postfix 6 end]
+	if { $postfix eq "" } {
+	    set postfix "Away"
+	}
+    }
+    set newnick $::Options(Nickname)$postfix
+    if {[lsearch -exact $::Options(OnLineUsers) $newnick] > -1 } {
+	tkchat::addSystem "Got a nick transfer request, but $newnick is already in use."
+	return
+    }
+    
+    # Set my nick name to newnick.
+    set ::Options(Nickname) $newnick
+    $muc setnick $conference $newnick
+
+    # The other party does not need to be notified - it should be in nickgrab mode.
+       
+}
+
 
 proc ::tkjabber::setTopic { newtopic } {
 
