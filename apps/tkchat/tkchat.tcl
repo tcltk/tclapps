@@ -269,7 +269,7 @@ proc onlineDone {tok} {
     }
     if {!$::tkchat::pause} {
 	set Options(OnlineTimerID) \
-		[after [expr $Options(Refresh) * 1000] onlinePage]
+		[after [expr {$Options(Refresh) * 1000}] onlinePage]
     }
     errLog "Online: status was [::http::status $tok]"
     switch [::http::status $tok] {
@@ -417,7 +417,7 @@ proc addNewLines {input} {
 	    set color ""
 	}
 	# check what kind of line it is
-	if $inHelp {
+	if {$inHelp} {
 	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
 		lappend helpLines $text
 		set inHelp 0
@@ -425,7 +425,7 @@ proc addNewLines {input} {
 	    } else {
 		lappend helpLines [string trimright $line]
 	    }
-	} elseif $inMsg {
+	} elseif {$inMsg} {
 	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
 		lappend msgLines [string trimright $text]
 		set inMsg 0
@@ -571,7 +571,7 @@ if {[string length [auto_execok festival]]} {
 	    set festival [open "|festival --pipe" w]
 	}
 
-	puts [string map "\" {}" $message]
+	puts [string map [list "\"" ""] $message]
 	puts $festival "(SayText \"$message\")"
 	flush $festival
     }
@@ -594,7 +594,7 @@ proc gotoURL {url} {
     if {[regexp -nocase -- {&url=(.*)} $url -> trueUrl]} {
 	# this was a redirect - just get final destination
 	set url $trueUrl
-    } elseif [regexp -nocase -- {^chat} $url] {
+    } elseif {[regexp -nocase -- {^chat} $url]} {
 	# this is a relative url
 	set url "http://mini.net/cgi-bin/$url"
     } else {
@@ -694,21 +694,22 @@ proc showInfo {title str} {
     }
     toplevel $t
     wm title $t $title
-    text $t.txt -cursor left_ptr \
-	    -height [llength [split $str \n]] \
-	    -font NAME
+    set height [expr {[string length $str] / 75 + 1}]
+    if {[set lines [regexp -all "\n" $str]] > $height} {
+	set height $lines
+    }
+    text $t.txt -cursor left_ptr -wrap word -height $height -font NAME
     pack $t.txt -expand 1 -fill both
-    bind $t.txt <1> "focus %W"
+    bind $t.txt <1> { focus %W }
     $t.txt tag config URL -underline 1
     $t.txt tag bind URL <Enter> "$t.txt config -cursor hand2"
     $t.txt tag bind URL <Leave> "$t.txt config -cursor left_ptr"
     foreach {str url} [parseStr $str] {
-	regsub -all "\n" $str "\n\t" str
-	if {[string equal $url ""]} {
-	    $t.txt insert end "$str " 
+	set str [string map [list "\n" "\n\t"] $str]
+	if {$url == ""} {
+	    $t.txt insert end "$str "
 	} else {
-	    $t.txt insert end "$str " \
-		    [list URL URL-[incr ::URLID]]
+	    $t.txt insert end "$str " [list URL URL-[incr ::URLID]]
 	    $t.txt tag bind URL-$::URLID <1> [list gotoURL $url]
 	}
     }
@@ -741,7 +742,6 @@ proc addHelp {clr name str} {
     if {$clr != ""} {
 	.txt tag config HELP -foreground "#$clr"
     }
-    set jump $Options(AutoScroll)
     .txt config -state normal
     .txt insert end "$name\t" [list HELP NICK]
     foreach {str url} [parseStr $str] {
@@ -755,7 +755,7 @@ proc addHelp {clr name str} {
     }
     .txt insert end "\n"
     .txt config -state disabled
-    if $jump { .txt see end }
+    if {$Options(AutoScroll)} { .txt see end }
 }
 
 proc createFonts {} {
@@ -905,16 +905,16 @@ proc createGUI {} {
 
 proc userPost {} {
     global Options
-    if [winfo ismapped .eMsg] {
+    if {[winfo ismapped .eMsg]} {
 	set str [.eMsg get]
     } else {
 	set str [.tMsg get 1.0 end]
     }
     set msg [string trim $str]
-    if [string equal $msg ""] {
+    if {$msg == ""} {
 	return
     }
-    if [string equal $Options(MsgTo) "All Users"] {
+    if {[string equal $Options(MsgTo) "All Users"]} {
 	msgSend $msg
     } else {
 	msgSend $msg $Options(MsgTo)
@@ -992,7 +992,7 @@ proc logonScreen {} {
 
 proc optSet {args} {
     global Options
-    if $Options(UseProxy) {
+    if {$Options(UseProxy)} {
 	set s normal
     } else {
 	set s disabled
@@ -1000,7 +1000,7 @@ proc optSet {args} {
     foreach w {lph lpp eph epp lpan epan lpap epap} {
 	.logon.$w config -state $s
     }
-    if $Options(SavePW) {
+    if {$Options(SavePW)} {
 	.logon.atc config -state normal
     } else {
 	.logon.atc config -state disabled
@@ -1146,17 +1146,14 @@ proc changeSettings {} {
 		set working 0
 	    }
 	}
-	if $change {
+	if {$change} {
 	    # proagate changes to main data
 	    array set Options [array get DlgData]
 	    # update colors
-	    .txt config -bg "#[getColor MainBG]" \
-		    -fg "#[getColor MainFG]"
-	    .names config -bg "#[getColor MainBG]" \
-		    -fg "#[getColor MainFG]"
+	    .txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
+	    .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
 	    foreach nk $Options(NickList) {
-		.txt tag config NICK-$nk \
-			-foreground "#[getColor $nk]"
+		.txt tag config NICK-$nk -foreground "#[getColor $nk]"
 	    }
 	}
     }
