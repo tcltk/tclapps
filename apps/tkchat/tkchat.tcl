@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.176 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.177 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.176 2004/09/08 09:32:06 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.177 2004/09/16 19:33:49 kennykb Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3771,7 +3771,7 @@ proc ::tkchat::Debug {cmd args } {
 	    pause on 0
 	    saveRC
 	    eval destroy [winfo children .]
-	    eval font delete [font names]
+	    eval font delete {FNT ACT NAME SYS STAMP}
 	    unset ::Options
 	    Init
 	}
@@ -3842,7 +3842,7 @@ proc ::tkchat::SetFont { fontString } {
     foreach { family size } $fontString break
     set ::Options(Font,-family) $family
     set ::Options(Font,-size) $size
-    foreach font [font names] {
+    foreach font {FNT ACT NAME SYS STAMP} {
 	font configure $font -family $family -size $size
     }
     return
@@ -3850,7 +3850,7 @@ proc ::tkchat::SetFont { fontString } {
 
 proc ::tkchat::ChangeFont {opt val} {
     set ::Options(Font,$opt) $val
-    foreach font [font names] {
+    foreach font {FNT ACT NAME SYS STAMP} {
 	font configure $font $opt $val
     }
 }

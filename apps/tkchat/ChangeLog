@@ -1,3 +1,10 @@
+2004-09-08  Kevin Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl (::tkchat::debug, ::tkchat::SetFont,
+	::tkchat::ChangeFont): Changed the code to not trample on the
+	fonts belonging to the style, but only the named fonts that tkchat
+	uses.
+	
 2004-09-08  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: fixed a version problem with tile from ActiveTcl
