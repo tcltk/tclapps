@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.41 2002/03/15 14:03:11 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.42 2002/03/15 14:15:48 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1463,7 +1463,7 @@ proc ::tkchat::userPost {} {
         "/*" {
             # possible command
             switch -exact -- $msg {
-                "/smile" - "/smiles" - "smiley" - "smileys" {
+                "/smile" - "/smiles" - "/smiley" - "/smileys" {
                     ::tkchat::ShowSmiles
                 }
                 default  {
