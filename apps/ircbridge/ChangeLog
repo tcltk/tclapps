@@ -1,0 +1,5 @@
+2003-01-29  David N. Welton  <davidw@dedasys.com>
+
+	* Added ircbridge to CVS.  There are several people interested in
+	  contributing to development efforts, so this seemed like an apt
+	  place to put it.
