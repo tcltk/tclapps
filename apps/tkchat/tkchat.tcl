@@ -67,7 +67,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.205 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.206 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -99,7 +99,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.205 2004/11/08 13:08:20 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.206 2004/11/08 13:23:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3491,8 +3491,8 @@ proc ::tkchat::logonScreen {} {
 	label .logon.ljsrv -text "Jabber server:port" 
 	entry .logon.ejsrv -textvar Options(JabberServer)
 	entry .logon.ejprt -textvar Options(JabberPort) -width 5
-	checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
-              -var Options(UseJabberPoll) 
+	#checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
+        #      -var Options(UseJabberPoll) 
         if {$have_tls} {
             checkbutton .logon.rjabberssl -text "Use Jabber SSL" \
                 -var Options(UseJabberSSL) -underline 0
@@ -3539,7 +3539,7 @@ proc ::tkchat::logonScreen {} {
         if {$have_tls} {
             grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
         }
-	grid x          .logon.rjabberpoll -    -in $lf -sticky w -pady 3
+	#grid x          .logon.rjabberpoll -    -in $lf -sticky w -pady 3
 	grid x          .logon.atc         -    -in $lf -sticky w -pady 3
 	grid x          x              .logon.f -in $lf -sticky e -pady 4
 
@@ -3592,7 +3592,7 @@ proc ::tkchat::joptSet {args} {
     global Options
     set state [expr {$Options(UseJabber) ? "normal" : "disabled"}]
     set jwidgets {
-        .logon.rjabberssl .logon.rjabberpol .logon.rjabberpoll
+        .logon.rjabberssl .logon.rjabberpoll
         .logon.ljsrv .logon.ejsrv .logon.ejprt
     }
     foreach w $jwidgets {

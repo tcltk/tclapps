@@ -1,5 +1,8 @@
 2004-11-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Remove the Jabber HTTP polling checkbox. This can
+	be uncommented if polling is ever made to work.
+	
 	* tkchat.tcl: Fix for a bug in some tile installations for the
 	#1061218 patch. Should be more robust.
 
