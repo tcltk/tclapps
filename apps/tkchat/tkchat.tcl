@@ -36,6 +36,7 @@ catch {
 }
 
 
+
 # We need Tk 8.3.2 to get -state options for [label]s
 if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
     if {![package vsatisfies $tk_patchLevel 8.3.2]} {
@@ -65,14 +66,15 @@ if {[llength [info command ::tk::label]] < 1} {
 }
 
 # Under windows, we can use DDE to open urls
-if {$tcl_platform(platform) == "windows"} {
+if {$tcl_platform(platform) == "windows"
+    && $tcl_platform(os) ne "Windows CE"} {
     package require dde
 }
 
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.235 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.236 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.235 2004/11/25 11:34:20 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.236 2004/11/26 10:07:33 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1871,7 +1873,8 @@ proc ::tkchat::CreateGUI {} {
 	    -command {
 		if {$::tkchat::_console} { tkcon show } else { tkcon hide }
 	    }
-    } elseif {[string compare "unix" $::tcl_platform(platform)]} {
+    } elseif { $::tcl_platform(platform) ne "unix" &&
+	[llength [info commands console]] > 0 } {
 	$m entryconfig "Console" -state normal
 	console eval {
 	    bind .console <Map> {
@@ -1994,7 +1997,11 @@ proc ::tkchat::CreateGUI {} {
     grid columnconfigure . 0 -weight 1
     grid columnconfigure .btm 1 -weight 1
 
-    wm geometry . $Options(Geometry)
+    if { $::tcl_platform(os) eq "Windows CE" } {
+	wm geometry . 240x300+0+0
+    } else {
+	wm geometry . $Options(Geometry)
+    }
     wm deiconify .
 
     if {$UsePane} {
@@ -4039,7 +4046,12 @@ proc ::tkchat::Init {args} {
     # Set the 'Hardcoded' Options:
     set Options(JabberResource) tkchat
     set Options(JabberLogs) "http://tclers.tk/conferences/tcl"
-    set Options(JabberConference) tcl@tach.tclers.tk    
+    set Options(JabberConference) tcl@tach.tclers.tk
+    
+    if { $::tcl_platform(os) eq "Windows CE" } {
+	# Disable history loading on wince
+	set Options(HistoryLines) 0
+    }
     
     set Options(Offset) 50
     catch {unset Options(FetchToken)}
@@ -6457,6 +6469,24 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport ssl} 
         error "proxy connect failed: $block"
     }
     return $sock
+}
+
+# -------------------------------------------------------------------------
+# Windows CE specific code.
+
+if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} {
+    set ::tkchat::wince_fixes 1
+    # Work around for socket problem with sockets. ("select 10022")
+    # Not quite there yet...
+    proc tkchat::WinCE_Accept {channel peer port} {
+	log::log debug "WinCE work around accepted connection $channel $peer $port"
+    }
+    if { [catch {
+	socket -server ::tkchat::WinCE_Accept 12345    
+        set ::tkchat::wince_clientchan [socket 127.0.0.1 12345]
+    }] } {
+	log::log debug "Error during WinCE fix init: $::errorInfo"
+    }    
 }
 
 # -------------------------------------------------------------------------
