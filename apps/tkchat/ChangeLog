@@ -1,5 +1,10 @@
 2004-02-20  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
 
+	* tkchat.tcl:  Incorporated the options from the wiki gtklook page
+	with a couple of changes. This produces a somewhat more modern
+	look on X. Pretty similar to the 'Griffinized' look from the Tk
+	revitalization project.
+
 	* tkchat.tcl:  Added a Preferences->Options dialog with stuff to 
 	set the preferred browser. This should help under unix.
 

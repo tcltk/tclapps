@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.141 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.142 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.141 2004/02/20 09:52:34 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.142 2004/02/20 11:58:12 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2193,7 +2193,7 @@ proc ::tkchat::CreateGUI {} {
     bind .tMsg <Key-Tab> {::tkchat::nickComplete ; break}
     button .post -text "Post" -command ::tkchat::userPost
     #button .refresh -text "Refresh" -command {pause off}
-    menubutton .mb -indicator on -relief raised -bd 2 -pady 4 \
+    menubutton .mb -indicator on -pady 4 \
           -menu .mb.mnu -textvar Options(MsgTo)
     menu .mb.mnu -tearoff 0
     .mb.mnu add command -label "All Users" \
@@ -5199,7 +5199,7 @@ proc ::tkchat::EditOptions {} {
     set dlg [toplevel .options]
     wm title $dlg "Tkchat Options"
     
-    set bf [labelframe $dlg.bf -text "Preferred browser"]
+    set bf [labelframe $dlg.bf -text "Preferred browser" -padx 1 -pady 1]
     message $bf.m -aspect 600 -text {
         Provide the command used to launch your web browser. For
         instance /opt/bin/mozilla or xterm -e links. The URL to
@@ -5236,6 +5236,57 @@ proc ::tkchat::EditOptions {} {
 
     destroy $dlg
     unset EditOptions
+}
+
+# -------------------------------------------------------------------------
+# Make this app under X look a bit more GNOME like.
+# See http://mini.net/tcl/gtklook
+#
+if {[tk windowingsystem] == "x11"} {
+    
+    set defaultColor #dcdad5
+    set activeFG     #ffffff
+    set activeBG     #4a6984
+    set troughColor  #bdb6ad
+
+    option add *background $defaultColor widgetDefault
+    option add *borderWidth 1 widgetDefault
+    option add *highlightThickness 0
+    option add *troughColor $troughColor
+    option add *activeBorderWidth 1 widgetDefault
+    option add *selectBorderWidth 1 widgetDefault
+    option add *font -adobe-helvetica-medium-r-normal-*-12-*-*-*-*-*-*
+
+    option add *Listbox.background white
+    option add *Listbox.selectBorderWidth 0
+    option add *Listbox.selectForeground $activeFG
+    option add *Listbox.selectBackground $activeBG
+
+    option add *Entry.background white
+    option add *Entry.foreground black
+    option add *Entry.selectBorderWidth 0
+    option add *Entry.selectForeground $activeFG
+    option add *Entry.selectBackground $activeBG
+
+    option add *Text.background white
+    option add *Text.selectBorderWidth 0
+    option add *Text.selectForeground $activeFG
+    option add *Text.selectBackground $activeBG
+
+    option add *Menu.activeBackground $activeBG
+    option add *Menu.activeForeground $activeFG
+    option add *Menu.activeBorderWidth 0
+    option add *Menu.highlightThickness 0
+    option add *Menu.borderWidth 2
+
+    option add *Menubutton.activeBackground $activeBG
+    option add *Menubutton.activeForeground $activeFG
+    option add *Menubutton.activeBorderWidth 0
+    option add *Menubutton.highlightThickness 0
+    option add *Menubutton.borderWidth 0
+
+    option add *Labelframe.borderWidth 2
+    option add *Frame.borderWidth 2
 }
 
 # -------------------------------------------------------------------------
