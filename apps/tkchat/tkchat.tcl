@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.251 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.252 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.251 2004/12/11 01:36:35 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.252 2004/12/13 11:00:49 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4990,13 +4990,42 @@ proc ::tkchat::UserInfoFetch {jid} {
 }
 
 proc ::tkchat::UserInfoFetchDone {jid jlib type xmllist} {
+    log::log debug "UserInfoFetchDone jid=$jid type=$type '$xmllist'"
+    
+    set uivar [namespace current]::ui_$jid
+    upvar #0 $uivar UI    
     set ::xmllist $xmllist
     if {[catch {
-        if {[string equal $type "result"]} {
-            UserInfoParse $jid $xmllist
-        } else {
-            log::log debug "eek"
-        }
+	switch $type {
+	    result {
+	        after cancel $UI(after)
+		UserInfoParse $jid $xmllist
+	    }
+	    error {
+	        after cancel $UI(after)
+		set errType [lindex $xmllist 0]
+		set errMsg [lindex $xmllist 1]
+		switch $errType {
+		    item-not-found {
+			# The UserInfoDialog will take care of displaying
+			# the not found message.
+		    }
+		    default {
+			addSystem "error while getting userinfo: $errType '$errMsg'"		
+		    }
+		}
+		# Not really a timeout, but this makes the dialog code continue
+		# and use the right if branches
+		set UI(timeout) 1
+	    }
+	    default {
+	        after cancel $UI(after)
+		log::log debug "eek, unknown type $type!"
+		# Not really a timeout, but this makes the dialog code continue
+		# and use the right if branches
+		set UI(timeout) 1
+	    }
+	}
     } err]} { log::log error "ERROR UserInfoFetchDone: $err" }
 }
 
@@ -5082,12 +5111,19 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     upvar #0 $uivar UI
     if {![info exists UI]} {
         set UI(after) [after 5000 [list array set $uivar {timeout 1}]]
+	addSystem "Requesting user info for $jid..."
         UserInfoFetch $jid
         tkwait variable $uivar
         after cancel $UI(after)
         unset UI(after)
+    } else {
+	addSystem "Still waiting for a vcard from the server..."
+	# Reentry during timeout period.
+	return	
     }
-    if {[info exists UI(timeout)]} {
+    if {[info exists UI(timeout)] && ![string equal [::tkjabber::jid !resource $jid] \
+             [::tkjabber::jid !resource $::tkjabber::myId]]} {
+	# Not available, and not the users own vcard.
         log::log debug "cleanup as no UI"
         unset $uivar
         addSystem "No info available for $jid"
@@ -5931,7 +5967,7 @@ proc tkjabber::SendAuth { } {
     set myId [$jabber send_auth $username $Options(JabberResource) [namespace current]::LoginCB \
 	-digest [sha1::sha1 $conn(id)$password]]
         
-    #tkchat::addSystem "Logged in as $myId"
+    log::log debug "SendAuth: Logged in as $myId"
 
     update idletasks
     
@@ -6428,11 +6464,33 @@ proc tkjabber::MucEnterCB {mucName type args} {
 proc ::tkjabber::userinfo {nick} {
     variable jabber
     variable conference
-
+    variable roster
+    
     if {[string match "/userinfo *" $nick]} {
         set nick [string range $nick 10 end]
     }
-    ::tkchat::UserInfoDialog $conference/$nick
+    if { [string first @ $nick] == -1 } {
+	# No @ in the nick, assume someone from the conference:
+	
+	# Try to get the real jid for the user from the conference roster.	
+	set x [$roster getx $conference/$nick muc#user]
+	set item [wrapper::getchildswithtag $x item]
+	if {[llength $item] > 0} {
+	    set jid [wrapper::getattribute \
+			    [lindex $item 0] jid]
+	    # vcard requests must be made without the resource part:
+	    regexp {([^/]+)/(.+)} $jid -> jid res
+	} else {
+	    # Not online, perhaps...
+	    # Default to the current server
+	    set jid $nick@$::Options(JabberServer)
+	}		
+	::tkchat::UserInfoDialog $jid
+    } else {
+	# A full jid was specified. Use that.
+	::tkchat::UserInfoDialog $nick
+    }
+    
 }
 
 proc tkjabber::msgSend { msg args } {
@@ -6448,7 +6506,7 @@ proc tkjabber::msgSend { msg args } {
     }
 
     if { [string match "/userinfo *" $msg] } {
-        userinfo $msg
+        after idle [list [namespace current]::userinfo $msg]
 	return
     }
 

@@ -1,3 +1,7 @@
+2004-12-13  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Bug fixes for UserInfo. 
+
 2004-12-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Support UserInfo via the Jabber vcard iq.
