@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.70 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.71 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.70 2002/09/27 14:19:29 dgp Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.71 2002/10/29 15:36:07 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1072,7 +1072,7 @@ proc addMessage {clr nick str} {
     checkAlert NORMAL $nick $str
     $w config -state normal
     $w insert end "$nick\t" [list NICK NICK-$nick]
-    if {[string equal $nick clock]} {
+    if {[string equal $nick clock] || [string equal $nick tick]} {
         .txt insert end "[formatClock $str] " [list NICK-$nick MSG]
     } else {
         foreach {str url} [parseStr $str] {
