@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.145 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.146 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.145 2004/03/12 08:01:50 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.146 2004/03/15 14:55:51 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1931,12 +1931,25 @@ proc ::tkchat::nickComplete {} {
 
 proc ::tkchat::CreateGUI {} {
     global Options
+
+    # Pick an enhanced Tk style.
+    set done 0
+    if {([string match "as*" $Options(Style)] || $Options(Style) eq "any")
+        && ![catch {package require as::style}]} {
+        as::style::init
+        set done 1
+    }
+    if {!$done
+        && ([string match "g*" $Options(Style)] || $Options(Style) eq "any")
+        && [tk windowingsystem] == "x11"} {
+        gtklook_style_init
+    }
     
     wm title . "Tcl'ers Chat"
     wm withdraw .
     wm protocol . WM_DELETE_WINDOW [namespace origin quit]
 
-    createFonts
+    catch {createFonts}
 
     menu .mbar
     . config -menu .mbar
@@ -3990,6 +4003,7 @@ proc ::tkchat::Init {args} {
 	timeout		30000
 	Emoticons	1
 	AnimEmoticons	0
+        Style           {any}
 	Popup,USERINFO	1
 	Popup,WELCOME	0
 	Popup,MEMO	1
@@ -4038,12 +4052,13 @@ proc ::tkchat::Init {args} {
     set nologin 0
     while {[string match -* [set option [lindex $args 0]]]} {
         switch -exact -- $option {
-            -nologin  { set nologin 1 }
-            -loglevel { LogLevelSet [Pop args 1] }
+            -nologin   { set nologin 1 }
+            -style     { set Options(Style) [Pop args 1] }
+            -loglevel  { LogLevelSet [Pop args 1] }
             -- { Pop args ; break }
             default {
                 return -code error "bad option \"$option\":\
-                    must be one of -nologin, -loglevel or --."
+                    must be one of -nologin, -style, -loglevel or --."
             }
         }
         Pop args
@@ -5243,6 +5258,8 @@ proc ::tkchat::EditOptions {} {
             set EditOptions(BROWSER) {}
         }
     }
+    
+    set EditOptions(Style) $Options(Style)
 
     set dlg [toplevel .options]
     wm withdraw $dlg
@@ -5267,12 +5284,33 @@ proc ::tkchat::EditOptions {} {
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
+    set sf [labelframe $dlg.sf -text "Tk style" -padx 1 -pady 1]
+    message $sf.m -aspect 600 \
+        -text "The Tk style selection available here will apply when you \
+           next restart tkchat."
+    radiobutton $sf.as -text "ActiveState" -underline 0 \
+        -variable ::tkchat::EditOptions(Style) -value as_style
+    radiobutton $sf.gtk -text "GTK look" -underline 0 \
+        -variable ::tkchat::EditOptions(Style) -value gtklook
+    radiobutton $sf.any -text "Any" -underline 1 \
+        -variable ::tkchat::EditOptions(Style) -value any
+    
+    if {[catch {package require as::style}]} {
+        $sf.as configure -state disabled
+    }
+    
+    grid $sf.m - - -sticky news
+    grid $sf.as $sf.gtk $sf.any -sticky news
+    grid rowconfigure $bf 0 -weight 1
+    grid columnconfigure $bf 0 -weight 1
+
     button $dlg.ok -text OK \
         -command [list set ::tkchat::EditOptions(Result) 1]
     button $dlg.cancel -text Cancel \
         -command [list set ::tkchat::EditOptions(Result) 0]
 
     grid $bf - -sticky news -padx 2 -pady 2
+    grid $sf - -sticky news -padx 2 -pady 2
     grid $dlg.ok $dlg.cancel -sticky e
     grid rowconfigure $dlg 0 -weight 1
     grid columnconfigure $dlg 0 -weight 1
@@ -5289,6 +5327,10 @@ proc ::tkchat::EditOptions {} {
 
     if {$EditOptions(Result) == 1} {
         set Options(BROWSER) $EditOptions(BROWSER)
+
+        if {$Options(Style) ne $EditOptions(Style)} {
+            set Options(Style)   $EditOptions(Style)
+        }
     }
 
     destroy $dlg
@@ -5296,11 +5338,14 @@ proc ::tkchat::EditOptions {} {
 }
 
 # -------------------------------------------------------------------------
-# Make this app under X look a bit more GNOME like.
-# See http://mini.net/tcl/gtklook
+
+# Try and adjust the Tk style.
+# If we can find the ActiveState look&feel package then lets use that
+# otherwise we have something that was modified from the Gtklook page
+# of the wiki: http://mini.net/tcl/gtklook
 #
-if {[tk windowingsystem] == "x11"} {
-    
+
+proc gtklook_style_init {} {
     set defaultColor #dcdad5
     set activeFG     #ffffff
     set activeBG     #4a6984

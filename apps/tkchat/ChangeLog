@@ -1,3 +1,10 @@
+2004-03-15  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+
+	* tkchat.tcl: Added support for the ActiveState Tk style package
+	posted by Jeff Hobbs to tcl-core. If this can be found then we
+	will try and use it, subject to user control via the
+	Preferences->Options dialog settings.
+
 2004-03-12  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Sort the user lists, separately for IRC and chat
