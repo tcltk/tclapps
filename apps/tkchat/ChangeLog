@@ -1,3 +1,8 @@
+2004-08-16  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Adjusted checkNick so it doesn't make the nick
+	column width too wide if SomeoneHasAReallyLongNickLikeSomeIrcUsers.
+
 2004-08-13  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Added a [catch] to checkPage to prevent it from

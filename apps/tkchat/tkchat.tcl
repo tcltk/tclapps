@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.172 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.173 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.172 2004/08/13 08:40:57 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.173 2004/08/16 16:37:28 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1345,10 +1345,17 @@ proc ::tkchat::parseStr {str} {
 
 proc ::tkchat::checkNick {nick clr} {
     global Options
-
+        
     set wid [expr {[font measure NAME $nick] + 10}]
-    if {$wid > $Options(Offset)} {
+    if {$wid > $Options(Offset)} {	
         set Options(Offset) $wid
+	
+	# Maybe limit the nick column width a bit...
+	set max [expr {[font measure NAME [string repeat X 12]]+10}]
+	if { $Options(Offset) > $max } {
+	    set Options(Offset) $max
+	}
+	
 	# Set tabs appropriate for STAMP visibility
 	StampVis
     }
