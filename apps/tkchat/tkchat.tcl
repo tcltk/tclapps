@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.27 2001/12/06 18:23:22 hartweg Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.28 2001/12/06 18:45:02 hartweg Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1554,7 +1554,7 @@ proc tkchat::ChangeColors {} {
     grid $t.l3    -       -    - -padx 1 -pady 3 -sticky ew
     grid $t.f     -       -    - -padx 1 -pady 5 -sticky news
     grid $t.f2    -       -    - -padx 1 -pady 10 -sticky news
-    grid rowconfigure $t 3 -weight 1
+    grid rowconfigure $t 2 -weight 1
     grid columnconfigure $t 3 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
