@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.112 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.113 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.112 2003/09/11 20:24:32 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.113 2003/09/15 00:37:15 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -381,6 +381,10 @@ proc ::tkchat::LoadHistoryLines {} {
 
     log::log debug LoadHistoryLines
 
+    # mask the alerts
+    set alerts [array get Options Alert,*]
+    foreach {alert value} $alerts { set Options($alert) 0 }
+
     set count 0
     foreach {nick msg} $Options(FinalList) {
         addMessage "" $nick $msg HISTORY
@@ -389,7 +393,12 @@ proc ::tkchat::LoadHistoryLines {} {
     }
     set Options(FinalList) [lrange $Options(FinalList) $count end]
 
+    # Restore the alerts
+    array set Options $alerts
+
     if {$Options(FinalList) == {}} {
+        log::log debug "History loading completed."
+        .txt configure -state normal
         .txt delete "HISTORY + 1 char" "HISTORY + 1 line"
         .txt insert "HISTORY + 1 char" \
             "+++++++++++++++++++++ End Of History +++++++++++++++++++++\n"
