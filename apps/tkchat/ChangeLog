@@ -1,7 +1,8 @@
 2003-08-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fix a problem with the event bindings when not
-	showing the online users pane.
+	showing the online users pane. 
+	* tkchat.tcl: Also in the saveRC function which prevented exiting.
 
 2003-08-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
