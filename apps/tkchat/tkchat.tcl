@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.134 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.135 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.134 2004/02/04 00:25:55 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.135 2004/02/05 14:22:37 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1228,9 +1228,9 @@ proc ::tkchat::checkNick {nick clr} {
         .txt config -tabs [list $wid l]
         .txt tag configure MSG -lmargin2 $wid
     }
-    if {"$clr" == ""} {
+    if {$clr == ""} {
         set clr [getColor $nick]
-        if {"$clr" == ""} {
+        if {$clr == ""} {
             set clr [getColor MainFG]
         }
     }
@@ -1242,11 +1242,19 @@ proc ::tkchat::checkNick {nick clr} {
         set Options(Color,$nick,Which) Web
         ::tkchat::NickVisMenu
     }
-    if {[string compare $Options(Color,$nick,Web) $clr]} {
+    if {![info exists Options(Color,$nick,Web)] ||
+        [string compare $Options(Color,$nick,Web) $clr]} {
         # new color
         set Options(Color,$nick,Web) $clr
         set Options(Color,$nick,Inv) [::tkchat::invClr $clr]
-        .txt tag configure NICK-$nick -foreground "#[getColor $nick]"
+        if {![info exists Options(Color,$nick,Mine)]} {
+            set Options(Color,$nick,Mine) [getColor MainFG]
+        }
+        set clr [getColor $nick]
+        if {$clr == ""} { set clr [getColor MainFG] }
+        if {[catch {
+            .txt tag configure NICK-$nick -foreground "#$clr"
+        } msg]} { log::log debug "checkNick: \"$msg\"" }
     }
 }
 
@@ -3254,7 +3262,13 @@ proc ::tkchat::applyColors {} {
     .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
     .txt tag configure found -background "#[getColor SearchBG]"
     foreach nk $Options(NickList) {
-        .txt tag config NICK-$nk -foreground "#[getColor $nk]"
+        set clr [getColor $nk]
+        if {$clr == ""} {
+            set clr [getColor MainFG]
+        }
+        if {[catch {
+            .txt tag config NICK-$nk -foreground "#$clr"
+        } msg]} { log::log debug "applyColors: \"$msg\"" }
     }
 }
 

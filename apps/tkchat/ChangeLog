@@ -1,3 +1,8 @@
+2004-02-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Some fixes and catches in the color handling to deal 
+	with tcllib bug #891024.
+
 2004-02-03  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl (::tkchat::Init): change default LogLevel to 'notice'
