@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.119 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.120 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.119 2003/09/20 00:25:27 schwarzkopf Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.120 2003/09/20 20:37:36 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4274,7 +4274,7 @@ proc ::tkchat::UserInfoDialog {} {
     set et [text $e.text -height 6 -bd 1 -background white]
     set es [scrollbar $e.scroll -bd 1 -command [list $et yview]]
     $et configure -yscrollcommand [list $es set]
-    $et insert 0.0 $UserInfo(stuff)
+    catch {$et insert 0.0 $UserInfo(stuff)}
     grid configure $et $es -sticky news
     grid rowconfigure $e 0 -weight 1
     grid columnconfigure $e 0 -weight 1
@@ -4345,13 +4345,13 @@ proc ::tkchat::UserInfoParseCallback {tag slash param text} {
     switch -exact -- $tag {
         INPUT {
             array set params {}
-            foreach pair [eval list [UserInfoFix $param]] {
-                set p [split $pair =]
-                set params([string toupper [lindex $p 0]]) [lindex $p 1]
+	    foreach {- key value} [regexp -all -inline \
+		    {([A-Z]+)="([^""]*)"} $param] {
+		set params([string toupper $key]) $value
             }
             if {[info exists params(NAME)]} {
-                set UserInfo([string trim $params(NAME) "\""]) \
-                    [string trim $params(VALUE) "\""]
+                set UserInfo($params(NAME)) \
+			[::htmlparse::mapEscapes $params(VALUE)]
             }
         }
         TEXTAREA {
@@ -4360,21 +4360,6 @@ proc ::tkchat::UserInfoParseCallback {tag slash param text} {
             }
         }
     }
-}
-
-proc ::tkchat::UserInfoFix {s} {
-    set r ""
-    set slash 0
-    set quote 0
-    for {set n 0} {$n < [string length $s]} {incr n} {
-        set c [string index $s $n]
-        switch -exact -- $c {
-            "\"" { set quote [expr {$quote ? 0 : 1}] }
-            " "  { if {$quote} {append r "\\"} }
-        }
-        append r $c
-    }
-    return $r
 }
 
 proc ::tkchat::UserInfoSend {} {

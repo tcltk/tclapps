@@ -1,3 +1,8 @@
+2003-09-20  Donal K. Fellows  <dkf@users.sf.net>
+
+	* tkchat.tcl (UserInfoDialog,UserInfoParseCallback): Made code
+	robust enough to deal with semi-malicious user info.
+
 2003-09-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added a dialog for editing the user details stored
