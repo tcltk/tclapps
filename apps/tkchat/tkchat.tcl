@@ -68,7 +68,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.200 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.201 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.200 2004/11/05 23:57:32 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.201 2004/11/07 17:40:49 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -285,7 +285,13 @@ proc ::tkchat::GetHistLogIdx {szary} {
     array set ary {}
     set loglist {}
     # get list of available logs
-    set url "$Options(URLlogs)/?M=D"
+    if { $Options(UseJabber) } {
+	# Jabber logs
+	set url "$Options(JabberLogs)/?pattern=*.tcl"
+    } else {
+	# Webchat logs
+	set url "$Options(URLlogs)/?M=D"
+    }
     set tok [::http::geturl $url \
 		 -headers [buildProxyHeaders]]
     errLog "History Fetch: status was\
@@ -302,10 +308,21 @@ proc ::tkchat::GetHistLogIdx {szary} {
 		    regsub {/\?M=D} $Options(URLlogs) {} Options(URLlogs)
 		    set loglist [::tkchat::GetHistLogIdx ary]
 		} else {
-		    set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
+		    if { $Options(UseJabber) } {
+			set RE {<A HREF="([0-9\-%d]+\.tcl)">.*\s([0-9]+) bytes}
+		    } else {
+			set RE {<A HREF="([0-9-]+\.txt)">.*\s([0-9]+k)}
+		    }
 		    foreach line [split [::http::data $tok] \n] {
+			puts "$RE $line"
 			if { [regexp  -- $RE $line -> logname size] } {
-			    set loglist [linsert $loglist 0 $logname]
+			    if { $Options(UseJabber) } {
+				set logname [string map {"%2d" -} $logname]
+				set size [expr { $size / 1024 }]k
+				lappend loglist $logname
+			    } else {
+				set loglist [linsert $loglist 0 $logname]
+			    }
 			    set ary($logname) $size
 			}
 		    }
@@ -319,10 +336,18 @@ proc ::tkchat::GetHistLogIdx {szary} {
 	}
     }
     ::http::cleanup $tok
-    return $loglist
+    # Show a max of 7 days worth of logs
+    return [lrange $loglist end-6 end]
 }
 proc ::tkchat::ParseHistLog {log} {
     global Options
+
+    if { $Options(UseJabber) } {
+	# Jabber logs
+	set url "$Options(JabberLogs)/$log"
+    } else {
+        set url "$Options(URLlogs)/$log"
+    }
 
     set retList {}    
     set MsgRE {^\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+?\[([^\]]+)\]\s+([^:]+):?\s*(.*)$}
@@ -331,7 +356,6 @@ proc ::tkchat::ParseHistLog {log} {
     
     set logTime 0
     # fetch log
-    set url "$Options(URLlogs)/$log"
     log::log info "History: Fetch log \"$url\""
     set tok [::http::geturl $url \
                    -headers [buildProxyHeaders]]
@@ -339,46 +363,54 @@ proc ::tkchat::ParseHistLog {log} {
     errLog "History: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
         ok {
-            set logdata [split  [::http::data $tok] \n]
-            set lastnick ""
-            set lastdata ""
-            foreach line $logdata {
-                #log::log debug "History Parse: $line"
-		if { [regexp -- $TimeRE $line -> weekday month day time year] } {
-		    # the regexp makes sure the format is correct and
-		    # lets us insert the server timezone (CEST)
-		    set logTime [clock scan "$weekday $month $day $time CEST $year"]
-		} else {		    
-		    set logTime 0
-		}
-		
-                if {[regexp -- $MsgRE $line -> type nick data]} {
-                    if {[string length $lastnick]>0} {
-                        lappend retList $logTime $lastnick $lastdata
-                    }
-                    # only show messages - don't care about enter/exit/new user
-                    # crap
-                    if {[string equal $type MSG]} {
-			#but we _do_ care about ircbridge joins/leaves:
-			if {[regexp -nocase -- $ircRE $line -> inick iaction]} {
-			    updateIrcUsers $inick $iaction
+	    if { $Options(UseJabber) } {
+		# Jabber logs
+		set I [interp create -safe]
+		interp alias $I msg {} ::tkjabber::ParseLogMsg
+		$I eval [::http::data $tok]
+		set retList [tkjabber::LogMsgLines]
+	    } else {
+		set logdata [split  [::http::data $tok] \n]
+		set lastnick ""
+		set lastdata ""
+		foreach line $logdata {
+		    #log::log debug "History Parse: $line"
+		    if { [regexp -- $TimeRE $line -> weekday month day time year] } {
+			# the regexp makes sure the format is correct and
+			# lets us insert the server timezone (CEST)
+			set logTime [clock scan "$weekday $month $day $time CEST $year"]
+		    } else {		    
+			set logTime 0
+		    }
+		    
+		    if {[regexp -- $MsgRE $line -> type nick data]} {
+			if {[string length $lastnick]>0} {
+			    lappend retList $logTime $lastnick $lastdata
+			}
+			# only show messages - don't care about enter/exit/new user
+			# crap
+			if {[string equal $type MSG]} {
+			    #but we _do_ care about ircbridge joins/leaves:
+			    if {[regexp -nocase -- $ircRE $line -> inick iaction]} {
+				updateIrcUsers $inick $iaction
+				set lastnick ""
+				set lastdata ""
+			    } else {
+				set lastnick $nick
+				set lastdata $data
+			    }
+			} else {
 			    set lastnick ""
 			    set lastdata ""
-			} else {
-			    set lastnick $nick
-			    set lastdata $data
 			}
-                    } else {
-                        set lastnick ""
-                        set lastdata ""
-                    }
-                } else {
-                    append lastdata "\n$line"
-                }
-            }
-            if {[string length $lastnick]>0} {
-                lappend retList $logTime $lastnick $lastdata
-            }
+		    } else {
+			append lastdata "\n$line"
+		    }
+		}
+		if {[string length $lastnick]>0} {
+		    lappend retList $logTime $lastnick $lastdata
+		}
+	    }
         }
         reset {
             errLog "History fetch was reset."
@@ -458,8 +490,14 @@ proc ::tkchat::LoadHistory {} {
 	    } else {
 		set FinalList [concat $new $FinalList]
 	    }
-	    if {[expr {[llength $FinalList]/2}] >= $Options(HistoryLines)} {
-		break
+	    if { $Options(UseJabber) } {
+		if { [::tkjabber::HistoryLines] >= $Options(HistoryLines) } {
+		    break
+		}
+	    } else {
+		if {[expr {[llength $FinalList]/2}] >= $Options(HistoryLines)} {
+		    break
+		}
 	    }
 	}
     }
@@ -474,7 +512,12 @@ proc ::tkchat::LoadHistory {} {
     }
 
     set Options(FinalList) $FinalList
-    LoadHistoryLines
+    
+    if { $Options(UseJabber) } {
+	::tkjabber::LoadHistoryLines
+    } else {
+	LoadHistoryLines
+    }
 
     .txt config -state normal
     .txt see end
@@ -1920,7 +1963,7 @@ proc ::tkchat::addSystem {str {mark end}} {
 # by setting Options(hideTraffic)
 # Always add tehse to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
-proc ::tkchat::addTraffic {who action {mark end}} {
+proc ::tkchat::addTraffic {who action {mark end} {timestamp 0} } {
     global Options
 
     variable ::tkchat::MSGS
@@ -1936,7 +1979,7 @@ proc ::tkchat::addTraffic {who action {mark end}} {
     } else {
         set msg "$who has $action the chat!!"
     }
-    ::tkchat::InsertTimestamp .txt "" $mark
+    ::tkchat::InsertTimestamp .txt "" $mark $timestamp
     .txt insert $mark "\t$msg\n" [list MSG SYSTEM TRAFFIC]
     .txt config -state disabled
     if {$Options(AutoScroll)} { .txt see $mark }
@@ -4546,9 +4589,8 @@ proc ::tkchat::Init {args} {
     set Options(URLchk)	 $::tkchat::HOST/cgi-bin/chatter.cgi
     set Options(URLlogs) $::tkchat::HOST/tchat/logs
     
-    set Options(JabberServer) scheffers.net	
+    set Options(JabberServer) all.tclers.tk	
     set Options(JabberPort) 5222
-    set Options(JabberResource) tkchat
 
     foreach {name clr} { MainBG FFFFFF MainFG 000000 SearchBG FF8C44} {
 	set Options(Color,$name,Web)   $clr
@@ -4565,6 +4607,12 @@ proc ::tkchat::Init {args} {
 	      [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
 	catch {source $rcfile}
     }
+
+    # Set the 'Hardcoded' Options:
+    set Options(JabberResource) tkchat
+    set Options(JabberLogs) "http://tclers.tk/conferences/tcl"
+    set Options(JabberConference) tcl@tach.tclers.tk    
+    
     set Options(Offset) 50
     catch {unset Options(FetchToken)}
     catch {unset Options(OnlineToken)}
@@ -6122,6 +6170,8 @@ namespace eval tkjabber {
     variable conn
     variable myId ""
     variable RunRegistration 0
+    
+    variable HistoryLines {}
 
     variable conference tcl@tach.tclers.tk
 
@@ -6526,6 +6576,7 @@ proc tkjabber::MucEnterCB {mucName type args} {
 	}
 	available {
 	    #tkchat::addSystem  "MucEnter: type=$type, args='$args'"
+	    tkchat::LoadHistory
 	}
 	default {
 	    tkchat::addSystem  "MucEnter: type=$type, args='$args'"
@@ -6630,6 +6681,72 @@ proc ::tkjabber::setTopic { newtopic } {
     
     $jabber send_message $conference -subject $newtopic -type groupchat
     
+}
+
+proc ::tkjabber::ParseLogMsg { when nick msg args } {
+    variable HistoryLines
+    lappend HistoryLines [list $when $nick $msg]
+    if { [llength $args] > 0 } {
+	log::log warning "Log incorrect log format."
+    }   
+    log::log debug "[clock format $when] $nick :: $msg"
+}
+
+proc ::tkjabber::HistoryLines { } {
+    variable HistoryLines
+    return [llength $HistoryLines]
+}
+
+proc ::tkjabber::LoadHistoryLines {} {
+    global Options
+    variable HistoryLines
+
+    set state [.txt cget -state]
+    .txt configure -state normal
+
+    log::log debug tkjabber-LoadHistoryLines
+
+    # mask the alerts
+    set alerts [array get Options Alert,*]
+    foreach {alert value} $alerts { set Options($alert) 0 }
+
+    if {![info exists Options(FinalList)]} {set Options(FinalList) {}}
+
+    set count 0
+    foreach entry $HistoryLines {
+	set time [lindex $entry 0]
+	set nick [lindex $entry 1]
+	set msg [lindex $entry 2]
+	
+	if { [string equal $nick ""] && [string match "* has left" $msg] } {
+	    tkchat::addTraffic [lindex [split $msg] 0] left HISTORY $time
+	} elseif {[string equal $nick ""] && [string match "* has become available" $msg] } {
+	    tkchat::addTraffic [lindex [split $msg] 0] entered HISTORY $time
+	} elseif { [string match "/me *" $msg] } {
+	    tkchat::addAction "" $nick [string range $msg 4 end] HISTORY $time
+	} else {
+            tkchat::addMessage "" $nick $msg HISTORY $time
+	}
+        incr count 
+        if {$count > 35 } { break }
+    }
+    .txt see end
+    set HistoryLines [lrange $HistoryLines $count end]
+
+    # Restore the alerts
+    array set Options $alerts
+
+    if {$HistoryLines == {}} {
+        log::log debug "History loading completed."
+        .txt configure -state normal
+        .txt delete "HISTORY + 1 char" "HISTORY + 1 line"
+        .txt insert "HISTORY + 1 char" \
+            "+++++++++++++++++++++ End Of History +++++++++++++++++++++\n"
+    } else {
+        after idle [list after 0 ::tkjabber::LoadHistoryLines]
+    }
+
+    .txt configure -state $state
 }
 
 # -------------------------------------------------------------------------
