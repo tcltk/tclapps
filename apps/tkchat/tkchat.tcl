@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.38 2002/03/15 02:33:43 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.39 2002/03/15 02:57:26 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -917,33 +917,38 @@ proc addMessage {clr nick str} {
 	    lappend tags URL URL-[incr ::URLID]
 	    $w tag bind URL-$::URLID <1> [list gotoURL $url]
 	}
-	if {$Options(emoticons)} {
-	    variable ::tkchat::img
-	    variable ::tkchat::img::re
-	    set i 0
-	    foreach match [regexp -inline -all -indices $re $str] {
-		foreach {start end} $match {break}
-		set emot [string range $str $start $end]
-		if {[info exists img($emot)]} {
-		    $w insert end [string range $str $i [expr {$start-1}]] \
-			    $tags
-		    $w image create end -image ::tkchat::img::$img($emot)
-		} else {
-		    $w insert end [string range $str $i $end] $tags
-		}
-		set i [expr {$end+1}]
-	    }
-	    if {$i <= [string length $str]} {
-		$w insert end [string range $str $i end] $tags
-	    }
-	} else {
-	    # no emoticons?  perish the thought ...
-	    $w insert end "$str " $tags
-	}
+	tkchat::Insert $w $str $tags
     }
     $w insert end "\n"
     $w config -state disabled
     if {$Options(AutoScroll)} { $w see end }
+}
+
+proc tkchat::Insert {w str tags} {
+    global Options
+    if {$Options(emoticons)} {
+	variable ::tkchat::img
+	variable ::tkchat::img::re
+	set i 0
+	foreach match [regexp -inline -all -indices $re $str] {
+	    foreach {start end} $match {break}
+	    set emot [string range $str $start $end]
+	    if {[info exists img($emot)]} {
+		$w insert end [string range $str $i [expr {$start-1}]] \
+			$tags
+		$w image create end -image ::tkchat::img::$img($emot)
+	    } else {
+		$w insert end [string range $str $i $end] $tags
+	    }
+	    set i [expr {$end+1}]
+	}
+	if {$i <= [string length $str]} {
+	    $w insert end [string range $str $i end] $tags
+	}
+    } else {
+	# no emoticons?  perish the thought ...
+	$w insert end "$str " $tags
+    }
 }
 
 proc tkchat::Hook {do type cmd} {
@@ -1089,13 +1094,12 @@ proc addAction {clr nick str} {
     } else {
 	foreach {str url} [parseStr $str] {
 	    #set str [string map [list "\n" "\n\t"] $str]
-	    if {[string equal $url ""]} {
-		.txt insert end "$str " [list MSG NICK-$nick ACTION]
-	    } else {
-		.txt insert end "$str " \
-                      [list MSG NICK-$nick ACTION URL URL-[incr ::URLID]]
+	    set tags [list MSG NICK-$nick ACTION]
+	    if {$url != ""} {
+		lappend tags URL URL-[incr ::URLID]
 		.txt tag bind URL-$::URLID <1> [list gotoURL $url]
 	    }
+	    tkchat::Insert .txt $str $tags
 	}
     }
     .txt insert end "\n"
@@ -1889,7 +1893,7 @@ proc tkchat::ChangeFont {opt val} {
     }
 }
 
-    namespace eval ::tkchat::img {} ; # create img namespace
+namespace eval ::tkchat::img {} ; # create img namespace
 proc ::tkchat::Smile {} {
     catch {unset img}
     catch {unset imgre}
