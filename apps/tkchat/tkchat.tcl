@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.150 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.151 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.150 2004/03/16 09:30:10 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.151 2004/03/16 10:23:41 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5265,12 +5265,12 @@ proc ::tkchat::EditOptions {} {
     wm title $dlg "Tkchat Options"
 
     set bf [labelframe $dlg.bf -text "Preferred browser" -padx 1 -pady 1]
-    message $bf.m -aspect 600 -text {
-        Provide the command used to launch your web browser. For
-        instance /opt/bin/mozilla or xterm -e links. The URL to
-        be opened will be appended to the command string and for
-        mozilla-type browsers we will call the -remote option to
-        try to use a previously existing browser.}
+    message $bf.m -justify left -width 320 \
+        -text "Provide the command used to launch your web browser. For\
+        instance /opt/bin/mozilla or xterm -e links. The URL to\
+        be opened will be appended to the command string and for\
+        mozilla-type browsers we will call the -remote option to\
+        try to use a previously existing browser."
     entry $bf.e -textvariable ::tkchat::EditOptions(BROWSER)
     button $bf.b -text "..."  -command {
         if {[set file [tk_getOpenFile]] != {}} {
@@ -5284,7 +5284,7 @@ proc ::tkchat::EditOptions {} {
     grid columnconfigure $bf 0 -weight 1
 
     set sf [labelframe $dlg.sf -text "Tk style" -padx 1 -pady 1]
-    message $sf.m -aspect 600 \
+    message $sf.m -justify left -width 320 \
         -text "The Tk style selection available here will apply when you \
            next restart tkchat."
     radiobutton $sf.as -text "ActiveState" -underline 0 \
