@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.225 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.226 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.225 2004/11/18 06:14:36 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.226 2004/11/18 10:43:22 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2394,6 +2394,9 @@ proc ::tkchat::CreateGUI {} {
 	-command [namespace origin logonScreen]
     $m add command -label "Save Options" -underline 0 \
 	-command [namespace origin saveRC]
+    $m add separator
+    $m add command -label "Open Whiteboard" -underline 5 \
+	-command [namespace origin whiteboard_open]
     $m add separator
     $m add command -label "Exit" -underline 1 -command [namespace origin quit]
 
@@ -4825,6 +4828,7 @@ proc ::tkchat::Init {args} {
             -theme     { set Options(Theme) [Pop args 1] }
             -loglevel  { LogLevelSet [Pop args 1] }
             -useragent { set Options(UserAgent) [Pop args 1] }
+	    -conference { set Options(JabberConference) [Pop args 1] }
             -jabberserver {
                 set j [split [Pop args 1] :]
                 if {[llength $j] > 0} {
@@ -6372,6 +6376,74 @@ proc gtklook_style_init {} {
 
     option add *Dialog.msg.font GtkLookDialogFont
 }
+# -------------------------------------------------------------------------
+# Whiteboard
+
+proc tkchat::whiteboard_eval { wbitem color } {
+    if { ![winfo exists .wb] } {
+	whiteboard_open
+    }
+    set ::wbentry $wbitem
+    
+    catch {
+        interp eval .wbinterp $::wbentry
+    }
+}
+
+proc tkchat::wbtransmit {w id} {
+    set attrs [list xmlns tcl.tk:whiteboard color $::Options(MyColor)]
+
+    set wbitem ".wb.c create line [string map {.0 {}} [$w coords $id]]"
+
+    set xlist [list [wrapper::createtag x -attrlist $attrs -chdata $wbitem]]
+    
+    $tkjabber::jabber send_message $tkjabber::conference -body "/me draws on the whiteboard." -type groupchat -xlist $xlist
+    
+    .wb.e selection range 0 end
+}
+
+proc tkchat::whiteboard_clear { } {
+    set attrs [list xmlns tcl.tk:whiteboard color $::Options(MyColor)]
+
+    set wbitem ".wb.c delete all"
+
+    set xlist [list [wrapper::createtag x -attrlist $attrs -chdata $wbitem]]
+    
+    $tkjabber::jabber send_message $tkjabber::conference -body "/me clears the whiteboard." -type groupchat -xlist $xlist
+    
+    .wb.e selection range 0 end
+         
+}
+ 
+proc tkchat::whiteboard_open {} {
+    if { !$::Options(UseJabber) } {
+	tk_messageBox -message "The whiteboard only works in jabber mode. Sorry"
+	return
+    }
+    
+    if { ![winfo exists .wb] } {
+	set wb [toplevel .wb]
+
+	entry $wb.e -textvar ::wbentry -bg white -width 80
+	bind $wb.e <Return> {interp eval .wbinterp $::wbentry}
+	set white_board [canvas $wb.c -bg white -width 350 -height 300]
+	button $wb.bclear -text "clear" -command ::tkchat::whiteboard_clear
+	bind $wb.c <1> {set entry ""; set id [%W create line %x %y %x %y]}
+	bind $wb.c <B1-Motion> {%W coords $id [concat [%W coords $id] %x %y]}
+	bind $wb.c <ButtonRelease-1> {::tkchat::wbtransmit %W $id}
+	grid $wb.e $wb.bclear -sticky new
+	grid $wb.c - -sticky new
+	#pack $wb.e $wb.c -fill both -expand 1
+	
+	catch {
+	    interp create -safe .wbinterp
+	    interp alias .wbinterp .wb.c {} .wb.c
+	}
+    } else {
+	focus .wb	
+    }
+}
+
 
 # -------------------------------------------------------------------------
 # Jabber handling
@@ -6410,9 +6482,12 @@ proc tkjabber::connect { } {
     variable browser    
     variable socket 
     variable conn
-    variable reconnect 
+    variable reconnect
+    variable conference
     global Options
     
+    set conference $Options(JabberConference)
+        
     if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
 	set keepalive_seconds 30
     } else {
@@ -6634,6 +6709,10 @@ proc tkjabber::MsgCB {jlibName type args} {
 		    array set tkchatAttr [wrapper::getattrlist $x]		    
 		    set color [wrapper::getattribute $x color]
 		}
+		"tcl.tk:whiteboard" {		    
+		    tkchat::whiteboard_eval [wrapper::getcdata $x] [wrapper::getattribute $x color]
+		    return
+		}
 	    }		    
 	}
     }	    
@@ -6688,7 +6767,7 @@ proc tkjabber::MsgCB {jlibName type args} {
 			    set from "<[string trim [string range $m(-body) 0 $pos]]>"
 			    incr pos
 			    set m(-body) "/me [string range $m(-body) $pos end]"				
-			}
+			} 			
 	    	    }
 		    if { [string match "/nolog*" $m(-body)] } {
 			set m(-body) [string trim [string range $m(-body) 6 end]]
@@ -6702,7 +6781,7 @@ proc tkjabber::MsgCB {jlibName type args} {
 			tkchat::addMessage $color $from $m(-body) end $ts $opts
 		    }
 		} else {
-		    tkchat::addSystem "Got a message I do not understand from $from:\n$args"
+		    #tkchat::addSystem "Got a message I do not understand from $from:\n$args"
 		}
 	    }
 	}
