@@ -22,7 +22,7 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
-package require http 2		; # core Tcl
+package require -exact http 2.4.5		; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.131 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.132 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.131 2004/01/14 14:39:26 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.132 2004/01/15 22:11:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2294,14 +2294,10 @@ proc ::tkchat::MakeScrolledWidget {w args} {
     for {set n 0} {[winfo exists $parent.f$n]} {incr n} {}
     set f [frame $parent.f$n]
     set vs [$sbcmd $f.vs -orient vertical -command [list $w yview]]
-    set hs [$sbcmd $f.hs -orient horizontal -command [list $w xview]]
-    $w configure \
-        -yscrollcommand [list [namespace origin ScrolledWidgetSet] $vs] \
-        -xscrollcommand [list [namespace origin ScrolledWidgetSet] $hs]
+    $w configure -yscrollcommand [list $vs set]
     raise $w $f
 
     grid configure $w $vs -in $f -sticky news
-    grid configure $hs -  -in $f -sticky news
     grid rowconfigure $f 0 -weight 1
     grid columnconfigure $f 0 -weight 1
 

@@ -1,3 +1,8 @@
+2004-01-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed (hopefully) a bug in the online-users
+	scrollbar. I'm pretty sure its to do with the auto-remove feature.
+
 2004-01-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Quiten errors in checkDone. If an error occurs,
