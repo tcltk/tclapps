@@ -1,3 +1,7 @@
+2004-11-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* apps/ijbridge/*: Added Jabber-IRC bridge code.
+
 2003-03-11  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
 
 	* apps/dtp/*: Added the DocTools Processor, an application for
