@@ -1,3 +1,9 @@
+2005-02-25  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* asteroids.tcl: add options to the main menu to control game
+	loop, sound and color.  Removed menu and put About on main menu.
+	Made all items respond to mouse.
+
 2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* asteroids.tcl: introduce a sense of scaling, to allow the game

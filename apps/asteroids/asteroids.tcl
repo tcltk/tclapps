@@ -2,11 +2,13 @@
 #
 # Asteroids.tcl - Tcl remake of the Atari arcade game classic
 # Jeff Godfrey, Feb-2005
+# Updates by Jeff Hobbs
 #
 #############################################################################
 
 package require Tk 8.4
 
+set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.6 2005/02/26 03:28:53 hobbs Exp $"}
 set ::DIR [file dirname [info script]]
 
 proc main {} {
@@ -15,7 +17,7 @@ proc main {} {
     calcMotionVectors
     buildUI
     bindGameKeys
-    showMenu
+    showMainMenu
     loadHighScores
     updateScore
     updateLives
@@ -33,8 +35,11 @@ proc initVars {} {
 	missile     green
 	rock        white
 	text        white
+	textlink    yellow
 	flame       red
     }
+    # backup in case we switch off color
+    array set ::ORIGCLR [array get ::CLR]
 
     set sw [winfo screenwidth .]
     set sh [winfo screenheight .]
@@ -102,13 +107,6 @@ proc initVars {} {
 
 proc buildUI {{root .}} {
     set base [expr {($root eq ".") ? "" : $root}]
-    # --- menu
-    option add *Menu.tearoff 0
-    set m [menu $base.m]
-    $root configure -menu $m
-    menu $m.help
-    $m add cascade -menu .m.help -label "Help" -underline 0
-    $m.help add command -label About -under 0 -command About
 
     set w   $::globals(screenWidth)
     set h   $::globals(screenHeight)
@@ -125,6 +123,7 @@ proc buildUI {{root .}} {
 
     set c [canvas .c1 -width $w -height $h -bg black \
 	       -highlightthickness 0 -bd 0]
+    set ::C $c
     $c xview moveto 0 ; $c yview moveto 0
     $c create text $off $y -tag score -anchor w \
 	-fill $::CLR(text) -font largeFont
@@ -133,12 +132,29 @@ proc buildUI {{root .}} {
     $c create text 2 [expr {$h - 2}] -fill $::CLR(text) -tag fps -anchor sw \
 	-font smallFont
 
+    $c bind hyper <Enter> {
+	$::C itemconfigure current -fill $::CLR(textlink)
+    }
+    $c bind hyper <Leave> {
+	$::C itemconfigure current -fill $::CLR(text)
+    }
+    $c bind hyper <1> { doLink $::C current }
+
     wm title . "Asteroids"
     pack $c
     focus -force $c
     wm protocol . WM_DELETE_WINDOW appExit
     # Don't allow resizing until it doesn't something natural
     wm resizable . 0 0
+}
+
+proc doLink {c item} {
+    set tags [$c gettags $item]
+    set idx [lsearch -glob $tags link:*]
+    if {$idx != -1} {
+	set action [string range [lindex $tags $idx] 5 end]
+	$action
+    }
 }
 
 proc appExit {} {
@@ -152,30 +168,33 @@ proc gameOver {} {
 }
 
 proc bindNavKeys {mode} {
+    set keys {N n E e H h A a C c G g S s}
     if {$mode eq "menu"} {
 	bind . <KeyPress-Escape> {}
 	bind . <KeyPress-N> newGame
 	bind . <KeyPress-n> newGame
 	bind . <KeyPress-E> appExit
 	bind . <KeyPress-e> appExit
-	bind . <KeyPress-H> displayHighScores
-	bind . <KeyPress-h> displayHighScores
+	bind . <KeyPress-H> showHighScores
+	bind . <KeyPress-h> showHighScores
+	bind . <KeyPress-A> aboutMenu
+	bind . <KeyPress-a> aboutMenu
+	bind . <KeyPress-C> switchColor
+	bind . <KeyPress-c> switchColor
+	bind . <KeyPress-G> switchGame
+	bind . <KeyPress-g> switchGame
+	if {$::globals(sndOK)} {
+	    bind . <KeyPress-S> switchSound
+	    bind . <KeyPress-s> switchSound
+	}
     } elseif {$mode eq "highScores"} {
-	bind . <KeyPress-Escape> showMenu
-	bind . <KeyPress-N> {}
-	bind . <KeyPress-n> {}
-	bind . <KeyPress-E> {}
-	bind . <KeyPress-e> {}
-	bind . <KeyPress-H> {}
-	bind . <KeyPress-h> {}
+	# empty menu bindings
+	foreach key $keys { bind . <KeyPress-$key> {} }
+	bind . <KeyPress-Escape> showMainMenu
     } elseif {$mode eq "game"} {
-	bind . <KeyPress-Escape> {}
-	bind . <KeyPress-N> {}
-	bind . <KeyPress-n> {}
-	bind . <KeyPress-E> {}
-	bind . <KeyPress-e> {}
-	bind . <KeyPress-H> {}
-	bind . <KeyPress-h> {}
+	# empty menu bindings
+	foreach key $keys { bind . <KeyPress-$key> {} }
+	bind . <KeyPress-Escape> { pauseGame }
     }
 }
 
@@ -207,41 +226,40 @@ proc checkHighScore {} {
 	set ::_name ""
 	cleanHighScores
 	saveHighScores
-	displayHighScores
+	showHighScores
     } else {
-	showMenu
+	showMainMenu
     }
 }
 
-proc displayHighScores {} {
+proc showHighScores {} {
     bindNavKeys highScores
     loadHighScores
-    .c1 delete menu
+    set c $::C
+    $c delete menu
     set scoreString ""
     set count 0
     set h  $::globals(screenHeight)
     set fh [expr {[font metrics largeFont -linespace] + 5}]
-    set yLoc [expr {($h / 2) - (([llength $::globals(highScores)] / 2) * $fh)}]
+    set y  [expr {($h / 2) - (([llength $::globals(highScores)] / 2) * $fh)}]
     foreach scoreSet $::globals(highScores) {
 	foreach {name score} $scoreSet {
 	    incr count
 	    set score [format %07d $score]
-	    .c1 create text [expr {300*$::SCALE}] $yLoc \
+	    $c create text [expr {300*$::SCALE}] $y \
 		-text "${count}." -anchor e \
-		-font largeFont -fill $::CLR(text) -tag highScore
-	    .c1 create text [expr {320*$::SCALE}] $yLoc \
+		-font largeFont -fill $::CLR(text) -tag menu
+	    $c create text [expr {320*$::SCALE}] $y \
 		-text $name -anchor w \
-		-font largeFont -fill $::CLR(text) -tag highScore
-	    .c1 create text [expr {460*$::SCALE}] $yLoc \
+		-font largeFont -fill $::CLR(text) -tag menu
+	    $c create text [expr {460*$::SCALE}] $y \
 		-text $score -anchor w \
-		-font largeFont -fill $::CLR(text) -tag highScore
-	    incr yLoc $fh
+		-font largeFont -fill $::CLR(text) -tag menu
+	    incr y $fh
 	}
     }
 
-    .c1 create text [expr {400*$::SCALE}] $yLoc \
-	-text "Press \[Escape\] to return to Menu" \
-	-anchor c -font smallFont -fill $::CLR(text) -tag highScore
+    addEscape $c [expr {400*$::SCALE}] $y
 }
 
 proc loadHighScores {} {
@@ -270,16 +288,108 @@ proc saveHighScores {} {
     close $fileID
 }
 
-proc showMenu {} {
-    .c1 delete rock
-    .c1 delete highScore
+proc randomRocks {} {
+    set c .c1
+    $c delete rock menu
     addRock 1 4
     addRock 2 4
     addRock 3 4
-    .c1 create text [expr {400*$::SCALE}] [expr {250*$::SCALE}] \
-	-text "\[ N \] ew Game\n\n\[ H \] igh Scores\n\n\[ E \] xit" \
-	-tags menu -anchor c -font largeFont -fill $::CLR(text)
+}
+
+proc showMainMenu {} {
+    set c $::C
+    randomRocks
+    set actions {
+	"\[ N \] ew Game"      newGame
+	"\[ H \] igh Scores"   showHighScores
+	"\[ A \] bout"         aboutMenu
+	"\[ E \] xit"          appExit
+	""                     ""
+	"\[ C \] olor (on)"    switchColor
+	"\[ G \] ame loop (Hobbs)" switchGame
+    }
+    if {$::globals(sndOK)} {
+	lappend actions "\[ S \] ound (on)" switchSound
+    }
+
+    set fh [expr {[font metrics largeFont -linespace] + 3}]
+    set y  [expr {($::globals(screenHeight) / 2)
+		  - ([llength $actions]/2/2 * $fh)}]
+    foreach {name action} $actions {
+	if {$name ne ""} {
+	    $c create text [expr {300*$::SCALE}] $y \
+		-text $name -tags [list hyper link:$action menu] \
+		-anchor w -font largeFont -fill $::CLR(text)
+	}
+	incr y $fh
+    }
     bindNavKeys menu
+}
+
+proc aboutMenu {} {
+    set c $::C
+    $c delete menu
+    $c create text [expr {400*$::SCALE}] [expr {300*$::SCALE}] \
+	-text "Asteroids\n\nJeff Godfrey, et al\nFebruary 2005" \
+	-anchor c -font largeFont -fill $::CLR(text) -tag menu
+
+    addEscape $c [expr {400*$::SCALE}] [expr {500*$::SCALE}]
+    bindNavKeys highScores
+}
+
+proc addEscape {c x y} {
+    $c create text $x $y -text "\[ESC\] Main Menu" \
+	-tags [list hyper link:showMainMenu menu] \
+	-anchor c -font smallFont -fill $::CLR(text)
+}
+
+proc switchGame {} {
+    set c $::C
+    if {$::globals(gameOn) == 0} {
+	# We are already switching
+	return
+    }
+    set ::globals(gameOn) 0
+    set txt [$c itemcget link:switchGame -text]
+    # swap from whatever the current loop is
+    if {[string match "*(Hobbs)*" $txt]} {
+	interp alias {} gameLoop {} gameLoopGodfrey
+    } else {
+	interp alias {} gameLoop {} gameLoopHobbs
+    }
+    $c itemconfigure link:switchGame \
+	-text [string map {Godfrey Hobbs Hobbs Godfrey} $txt]
+    # We need to ensure we start this afer the other loop has stopped
+    after 150 {
+	set ::globals(gameOn) 1
+	gameLoop [clock clicks -milliseconds]
+    }
+}
+
+proc switchColor {} {
+    set c $::C
+    set txt [$c itemcget link:switchColor -text]
+    if {[string match "*(on)*" $txt]} {
+	# turn color off
+	foreach clr [array names ::CLR] { set ::CLR($clr) white }
+    } else {
+	# turn color on
+	array set ::CLR [array get ::ORIGCLR]
+    }
+    $c itemconfigure link:switchColor -text [string map {on off off on} $txt]
+}
+
+proc switchSound {} {
+    set c $::C
+    set txt [$c itemcget link:switchSound -text]
+    if {[string match "*(on)*" $txt]} {
+	# turn sound off
+	proc sndPlay {snd} {}
+    } else {
+	# turn sound on
+	proc sndPlay {snd} {$snd play}
+    }
+    $c itemconfigure link:switchSound -text [string map {on off off on} $txt]
 }
 
 proc newGame {} {
@@ -291,6 +401,16 @@ proc newGame {} {
     updateScore
     updateLives
     nextLevel
+}
+
+proc pauseGame {} {
+    # hmmm, what to do here ?
+    # right now, it's new game ...
+    heartBeatOff
+    set ::globals(shipExists) 0
+    set ::globals(lives) 0
+    .c1 delete all
+    showMainMenu
 }
 
 proc updateScore {{incrScore 0}} {
@@ -320,9 +440,7 @@ proc updateLives {{incrLives 0}} {
 }
 
 proc nextLevel {} {
-    .c1 delete rock
-    .c1 delete missile
-    .c1 delete level
+    .c1 delete rock missile level
     incr ::globals(level)
     drawNumber 730 30 $::globals(level) level
     addRock 1 [expr {3 + $::globals(level)}]
@@ -374,7 +492,7 @@ proc updateFPS {} {
 #     This is not CPU friendly, as it just cranks the game as fast as it can
 #     inside a while loop, though it seems to provide a good
 #     "gaming experience"
-proc gameLoop0 {time} {
+proc gameLoopGodfrey {time} {
     set ::TIGHTLOOP 1
     set timeBefore $::globals(timeStart)
     set timeAfter $::globals(timeStart)
@@ -403,9 +521,9 @@ proc gameLoop0 {time} {
 #     initial testing, it seems to provide basically the same feel as the
 #     original loop.  I don't know how it holds up under varying CPU loads,
 #     slower systems, etc...
-proc gameLoop1 {time} {
-    set ::TIGHTLOOP 0
+proc gameLoopHobbs {time} {
     if {$::globals(gameOn)} {
+	set ::TIGHTLOOP 0
 	set now [clock clicks -milliseconds]
 	set delta [expr {$now - $time}]
 	if {$delta} {
@@ -417,8 +535,8 @@ proc gameLoop1 {time} {
     }
 }
 
-# Rename either gameLoop0 or gameLoop1 to the *real* gameLoop
-rename gameLoop1 gameLoop
+# Make one the real gameLoop
+interp alias {} gameLoop {} gameLoopHobbs
 
 proc nextFrame {timeSlice} {
     set screenHeight $::globals(screenHeight)
@@ -490,7 +608,7 @@ proc nextFrame {timeSlice} {
 	set ray [.c1 create line $xCen $yCen $xPrev $yPrev]
 	foreach rock [.c1 find withtag "rock"] {
 	    set overlapList [eval .c1 find overlapping [.c1 bbox $rock]]
-	    if {[lsearch $overlapList $ray] >= 0} {
+	    if {[lsearch -exact $overlapList $ray] >= 0} {
 		# --- we've got a hit
 		killRock $rock $timeSlice
 		.c1 delete $shot
@@ -625,11 +743,10 @@ proc nextFrame {timeSlice} {
 	foreach {xmin ymin xmax ymax} [.c1 bbox ship] {break}
 	foreach item [.c1 find overlapping $xmin $ymin $xmax $ymax] {
 	    set tagList [.c1 gettags $item]
-	    if {[lsearch $tagList rock] >= 0} {
+	    if {[lsearch -exact $tagList rock] >= 0} {
 		killRock $item $timeSlice
 		addWreckage $timeSlice
-		.c1 delete ship
-		.c1 delete flame
+		.c1 delete ship flame
 		set ::globals(shipExists) 0
 		updateLives -1
 		after 3000 addShip
@@ -836,10 +953,10 @@ proc addRock {type {num 1} {xLoc ""} {yLoc ""}} {
 	    set yCen [expr {($ymax + $ymin) / 2}]
 	    rotateItem .c1 $obj $xCen $yCen [random 360]
 	    if {$xLoc eq "" || $num > 1} {
-		set xLoc [random [expr {600 * $::SCALE}]]
+		set xLoc [random [expr {700 * $::SCALE}]]
 	    }
 	    if {$yLoc eq "" || $num > 1} {
-		set yLoc [random [expr {400 * $::SCALE}]]
+		set yLoc [random [expr {500 * $::SCALE}]]
 	    }
 	    .c1 move $obj $xLoc $yLoc
 	    if {$type != 1} {break}
@@ -852,7 +969,7 @@ proc addRock {type {num 1} {xLoc ""} {yLoc ""}} {
 	    set yMin [expr {$yCen - $offset}]
 	    set yMax [expr {$yCen + $offset}]
 	    set overlap [.c1 find overlapping $xMin $yMin $xMax $yMax]
-	    if {[lsearch $overlap $obj] >= 0} {
+	    if {[lsearch -exact $overlap $obj] >= 0} {
 		.c1 delete $obj
 	    } else {
 		break
@@ -968,10 +1085,4 @@ proc heartBeatOff {} {
     after cancel {heartBeat 1}
 }
 
-proc About {} {
-    set msg "Asteroids\n\nJeff Godfrey          \nFebruary, 2005"
-    tk_messageBox -title About -message $msg
-}
-
 main
-
