@@ -1,0 +1,31 @@
+# Jabber-IRC bridge configuration file
+#
+# This file setup up the login conditions and the endpoints for the bridge.
+# You should rename this file ijbridge.conf and give suitable settings
+# of your own. 
+#
+# Note: you need to configure nearly all the settings given in this file.
+#
+# Comments begin with # and blank lines are ignored. 
+# No additional options are permitted.
+
+# Jabber connection information
+#
+JabberServer   YOUR.JABBER.SERVER
+JabberPort     5222
+JabberResource ijbridge
+JabberUser     VALIDJABBERUSERID
+JabberPassword VALIDJABBERPASSWORD
+
+# Details for the Jabber conference room to join to.
+#
+Conference      ROOM@CONFERENCE.JABBER.SERVERk
+ConferenceNick  ijchain
+
+# IRC connection details
+#
+IrcServer      IRC.SERVER.NAME
+IrcPort        6667
+IrcUser        IRCNICK
+IrcChannel     #IRCCHANNEL
+

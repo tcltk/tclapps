@@ -1,0 +1,22 @@
+[manpage_begin ijbridge 1 1.0.0]
+[copyright {2004, Pat Thoyts}]
+[titledesc {Jabber-IRC bridge}]
+[require Tcl 8.4]
+[require jlib 2.0]
+[require sha1 1.0]
+[require irc  0.4]
+[description]
+[para]
+
+This application creates a bridge linking a Jabber Multi-User
+conference with an IRC channel. All messages on each side of the
+bridge are copied across the bridge.
+
+
+
+[see_also ircbridge(1)]
+[section AUTHORS]
+Pat Thoyts
+
+[keywords jabber {rfc 3920} {rfc 3921}]
+[manpage_end]
