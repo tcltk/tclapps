@@ -5,7 +5,9 @@
 #
 #############################################################################
 
-package require Tk
+package require Tk 8.4
+
+set ::DIR [file dirname [info script]]
 
 proc main {} {
     initVars
@@ -20,6 +22,106 @@ proc main {} {
 
     after 1000 updateFPS
     gameLoop [clock clicks -milliseconds]
+}
+
+proc initVars {} {
+
+    # This adds a bit of color - all white is traditional
+    array set ::CLR {
+	dust        yellow
+	ship        lightblue
+	shiplife    white
+	missile     green
+	rock        white
+	text        white
+	flame       red
+    }
+
+    set ::globals(gameOn) 1
+    set ::globals(level) 0
+    set ::globals(score) 0
+    set ::globals(lives) 3
+    set ::globals(timeStart) [clock clicks -milliseconds]
+    set ::globals(frameCount) 0
+    set ::globals(screenWidth)  800
+    set ::globals(screenHeight) 600
+    set ::globals(highScoreFile) [file join $::DIR "asteroids_hs.txt"]
+
+    set ::globals(lifeEvery) 10000  ;# new life every 10000 pts
+    set ::globals(nextLife) $::globals(lifeEvery)
+    set ::globals(newMissileOK) 1
+    set ::globals(shipExists) 0
+    set ::globals(hyperOK) 1
+
+    set ::globals(sndThrust) 0
+    set ::globals(beatDelay) 750
+    set ::globals(sndOK) 0
+
+    set ::globals(shipCoords) [list 0 -11 -7 11 -3 7 3 7 7 11 0 -11]
+    set ::globals(flameCoords) [list -2 7 0 12 2 7 -2 7]
+    # --- Large rock coords
+    set ::globals(rockCoords,1) {-39 -25 -33 -8 -38 21 -23 25 -13 39 24 \
+				     34 38 7 33 -15 38 -31 16 -39 -4 -34 -16 -39}
+    set ::globals(rockCoords,2) {-32 35 -4 32 24 38 38 23 31 -4 38 -25 14 \
+				     -39 -28 -31 -39 -16 -31 4 -38 22}
+    set ::globals(rockCoords,3) {12 -39 -2 -26 -28 -37 -38 -14 -21 9 -34 \
+				     34 -6 38 35 23 21 -14 36 -25}
+    # --- Medium rock coords
+    set ::globals(rockCoords,4) {-7 -19 -19 -15 -12 -5 -19 0 -19 13 -9 19 \
+				     12 16 18 11 13 6 19 -1 16 -17}
+    set ::globals(rockCoords,5) {9 -19 18 -8 7 0 15 15 -7 13 -16 17 -18 3 \
+				     -13 -6 -16 -17}
+    set ::globals(rockCoords,6) {2 18 18 10 8 0 18 -13 6 -18 -17 -14 -10 \
+				     -3 -13 15}
+    # --- Small rock coords
+    set ::globals(rockCoords,7) {-8 -8 -5 -1 -8 3 0 9 8 4 8 -5 1 -9}
+    set ::globals(rockCoords,8) {-6 8 1 4 8 7 10 -1 4 -10 -8 -6 -4 0}
+    set ::globals(rockCoords,9) {-8 -9 -5 -2 -8 5 6 8 9 6 7 -3 9 -9 0 -7}
+
+    set ::numbers(0) [list -7 -10 -7 10 7 10 7 -10 -7 -10]
+    set ::numbers(1) [list 0 -10 0 10]
+    set ::numbers(2) [list -7 -10 7 -10 7 0 -7 0 -7 10 7 10]
+    set ::numbers(3) [list -7 -10 7 -10 7 10 -7 10 7 10 7 0 -7 0]
+    set ::numbers(4) [list -7 -10 -7 0 7 0 7 -10 7 10]
+    set ::numbers(5) [list -7 10 7 10 7 0 -7 0 -7 -10 7 -10]
+    set ::numbers(6) [list -7 -10 -7 10 7 10 7 0 -7 0]
+    set ::numbers(7) [list -7 -10 7 -10 7 10]
+    set ::numbers(8) [list -7 -10 7 -10 7 10 -7 10 -7 -10 -7 0 7 0]
+    set ::numbers(9) [list 7 0 -7 0 -7 -10 7 -10 7 10]
+}
+
+proc buildUI {{root .}} {
+    set base [expr {($root eq ".") ? "" : $root}]
+    # --- menu
+    option add *Menu.tearoff 0
+    set m [menu $base.m]
+    $root configure -menu $m
+    menu $m.help
+    $m add cascade -menu .m.help -label "Help" -underline 0
+    $m.help add command -label About -under 0 -command About
+
+    set w $::globals(screenWidth)
+    set h $::globals(screenHeight)
+
+    font create largeFont -family Arial -size 20
+    font create smallFont -family Arial -size 10
+
+    set c [canvas .c1 -width $w -height $h -bg black \
+	       -highlightthickness 0 -bd 0]
+    $c xview moveto 0 ; $c yview moveto 0
+    $c create text 20 30 -tag score -anchor w \
+	-fill $::CLR(text) -font largeFont
+    $c create text 780 30 -tag level -anchor e \
+	-fill $::CLR(text) -font largeFont
+    $c create text 2 2 -fill $::CLR(text) -tag fps -anchor nw \
+	-font smallFont
+
+    wm title . "Asteroids"
+    pack $c
+    focus -force $c
+    wm protocol . WM_DELETE_WINDOW appExit
+    # Don't allow resizing until it doesn't something natural
+    wm resizable . 0 0
 }
 
 proc appExit {} {
@@ -94,31 +196,32 @@ proc checkHighScore {} {
 	showMenu
     }
 }
-proc displayHighScores {} {
 
+proc displayHighScores {} {
     bindNavKeys highScores
     loadHighScores
     .c1 delete menu
     set scoreString ""
     set count 0
+    set fh [expr {[font metrics largeFont -linespace] + 5}]
     set yLoc [expr {(($::globals(screenHeight) / 2) - \
-			 (([llength $::globals(highScores)] / 2) * 30))}]
+			 (([llength $::globals(highScores)] / 2) * $fh))}]
     foreach scoreSet $::globals(highScores) {
 	foreach {name score} $scoreSet {
 	    incr count
 	    set score [format %07d $score]
 	    .c1 create text 300 $yLoc -text "${count}." -anchor e \
-		-font {Arial 14} -fill white -tag highScore
+		-font largeFont -fill $::CLR(text) -tag highScore
 	    .c1 create text 320 $yLoc -text $name -anchor w \
-		-font {Arial 14} -fill white -tag highScore
+		-font largeFont -fill $::CLR(text) -tag highScore
 	    .c1 create text 460 $yLoc -text $score -anchor w \
-		-font {Arial 14} -fill white -tag highScore
-	    incr yLoc 30
+		-font largeFont -fill $::CLR(text) -tag highScore
+	    incr yLoc $fh
 	}
     }
 
-    .c1 create text 400 500 -text "Press \[Escape\] to return to Menu" \
-	-anchor c -font {Arial 14} -fill white -tag highScore
+    .c1 create text 400 $yLoc -text "Press \[Escape\] to return to Menu" \
+	-anchor c -font smallFont -fill $::CLR(text) -tag highScore
 }
 
 proc loadHighScores {} {
@@ -153,9 +256,9 @@ proc showMenu {} {
     addRock 1 4
     addRock 2 4
     addRock 3 4
-    .c1 create text 400 250 -anchor c  \
+    .c1 create text 400 250 -tags menu -anchor c \
 	-text "\[ N \] ew Game\n\n\[ H \] igh Scores\n\n\[ E \] xit" \
-	-fill white -font {Arial 14} -tags menu
+	-fill $::CLR(text) -font largeFont
     bindNavKeys menu
 }
 
@@ -171,7 +274,6 @@ proc newGame {} {
 }
 
 proc updateScore {{incrScore 0}} {
-
     incr ::globals(score) $incrScore
 
     # --- did our hero earn another ship?
@@ -188,8 +290,8 @@ proc updateLives {{incrLives 0}} {
     .c1 delete life
     incr ::globals(lives) $incrLives
     for {set i 1} {$i <= $::globals(lives)} {incr i} {
-	set obj [.c1 create polygon $::globals(shipCoords) -outline white \
-		     -fill "" -tag life]
+	set obj [.c1 create polygon $::globals(shipCoords) -tag life \
+		     -outline $::CLR(shiplife) -fill ""]
 	.c1 move $obj [expr {20 + ($i * 18)}] 65
     }
 }
@@ -220,85 +322,10 @@ proc drawNumber {xloc yloc val tag} {
     for {set i [llength $digitList]; incr i -1} {$i >= 0} {incr i -1} {
 	incr count
 	set digit [lindex $digitList $i]
-	set item [.c1 create line $::numbers($digit) -fill white -tags $tag]
+	set item [.c1 create line $::numbers($digit) -tags $tag \
+		      -fill $::CLR(text)]
 	.c1 move $item [expr {$xloc - ($count * 19)}] $yloc
     }
-}
-
-proc initVars {} {
-    set ::globals(gameOn) 1
-    set ::globals(level) 0
-    set ::globals(score) 0
-    set ::globals(lives) 3
-    set ::globals(timeStart) [clock clicks -milliseconds]
-    set ::globals(frameCount) 0
-    set ::globals(screenWidth)  800
-    set ::globals(screenHeight) 600
-    set ::globals(highScoreFile) \
-	[file join [file dirname [info script]] "asteroids_hs.txt"]
-
-    set ::globals(lifeEvery) 10000  ;# new life every 10000 pts
-    set ::globals(nextLife) $::globals(lifeEvery)
-    set ::globals(newMissileOK) 1
-    set ::globals(shipExists) 0
-    set ::globals(hyperOK) 1
-
-    set ::globals(sndThrust) 0
-    set ::globals(beatDelay) 750
-    set ::globals(sndOK) 0
-
-    set ::globals(shipCoords) [list 0 -11 -7 11 -3 7 3 7 7 11 0 -11]
-    set ::globals(flameCoords) [list -2 7 0 12 2 7 -2 7]
-    # --- Large rock coords
-    set ::globals(rockCoords,1) {-39 -25 -33 -8 -38 21 -23 25 -13 39 24 \
-				     34 38 7 33 -15 38 -31 16 -39 -4 -34 -16 -39}
-    set ::globals(rockCoords,2) {-32 35 -4 32 24 38 38 23 31 -4 38 -25 14 \
-				     -39 -28 -31 -39 -16 -31 4 -38 22}
-    set ::globals(rockCoords,3) {12 -39 -2 -26 -28 -37 -38 -14 -21 9 -34 \
-				     34 -6 38 35 23 21 -14 36 -25}
-    # --- Medium rock coords
-    set ::globals(rockCoords,4) {-7 -19 -19 -15 -12 -5 -19 0 -19 13 -9 19 \
-				     12 16 18 11 13 6 19 -1 16 -17}
-    set ::globals(rockCoords,5) {9 -19 18 -8 7 0 15 15 -7 13 -16 17 -18 3 \
-				     -13 -6 -16 -17}
-    set ::globals(rockCoords,6) {2 18 18 10 8 0 18 -13 6 -18 -17 -14 -10 \
-				     -3 -13 15}
-    # --- Small rock coords
-    set ::globals(rockCoords,7) {-8 -8 -5 -1 -8 3 0 9 8 4 8 -5 1 -9}
-    set ::globals(rockCoords,8) {-6 8 1 4 8 7 10 -1 4 -10 -8 -6 -4 0}
-    set ::globals(rockCoords,9) {-8 -9 -5 -2 -8 5 6 8 9 6 7 -3 9 -9 0 -7}
-
-    set ::numbers(0) [list -7 -10 -7 10 7 10 7 -10 -7 -10]
-    set ::numbers(1) [list 0 -10 0 10]
-    set ::numbers(2) [list -7 -10 7 -10 7 0 -7 0 -7 10 7 10]
-    set ::numbers(3) [list -7 -10 7 -10 7 10 -7 10 7 10 7 0 -7 0]
-    set ::numbers(4) [list -7 -10 -7 0 7 0 7 -10 7 10]
-    set ::numbers(5) [list -7 10 7 10 7 0 -7 0 -7 -10 7 -10]
-    set ::numbers(6) [list -7 -10 -7 10 7 10 7 0 -7 0]
-    set ::numbers(7) [list -7 -10 7 -10 7 10]
-    set ::numbers(8) [list -7 -10 7 -10 7 10 -7 10 -7 -10 -7 0 7 0]
-    set ::numbers(9) [list 7 0 -7 0 -7 -10 7 -10 7 10]
-}
-
-proc buildUI {} {
-    # --- menu
-    menu .m -tearoff 0
-    . configure -menu .m
-    menu .m.help -tearoff 0
-    .m add cascade -menu .m.help -label "Help" -underline 0
-    .m.help add command -label About -under 0 -command About
-
-    canvas .c1 -width $::globals(screenWidth) \
-	-height $::globals(screenHeight) -bg black
-    .c1 create text 20 30 -fill white -anchor w -tag score -font {Arial 20}
-    .c1 create text 780 30 -fill white -anchor e -tag level -font {Arial 20}
-    label .l1 -textvariable ::globals(fps)
-
-    wm title . "Asteroids"
-    pack .c1
-    pack .l1 -fill x -expand 1
-    focus -force .c1
-    wm protocol . WM_DELETE_WINDOW appExit
 }
 
 proc calcMotionVectors {} {
@@ -312,7 +339,8 @@ proc calcMotionVectors {} {
 proc updateFPS {} {
     set timeNow [clock clicks -milliseconds]
     set elapsedTime [expr {($timeNow - $::globals(timeStart)) / 1000.0}]
-    set ::globals(fps) [expr {$::globals(frameCount) / $elapsedTime}]
+    set fps [expr {$::globals(frameCount) / $elapsedTime}]
+    .c1 itemconfigure fps -text $fps
     after 500 updateFPS
 }
 
@@ -367,7 +395,6 @@ proc gameLoop1 {time} {
 rename gameLoop1 gameLoop
 
 proc nextFrame {timeSlice} {
-
     set screenHeight $::globals(screenHeight)
     set screenWidth  $::globals(screenWidth)
 
@@ -432,9 +459,9 @@ proc nextFrame {timeSlice} {
 	#     that on a slow computer, a missile may be on one side of a
 	#     target in one frame, and be on the other side in the next frame,
 	#     without ever having triggered a collision.  To fix this, we'll
-	#     create a line between the current missile position and the previous
+	#     create a line between the current missile position and the last
 	#     position and see if the line intersects any asteroids...
-	set ray [.c1 create line $xCen $yCen $xPrev $yPrev -fill white]
+	set ray [.c1 create line $xCen $yCen $xPrev $yPrev]
 	foreach rock [.c1 find withtag "rock"] {
 	    set overlapList [eval .c1 find overlapping [.c1 bbox $rock]]
 	    if {[lsearch $overlapList $ray] >= 0} {
@@ -516,8 +543,8 @@ proc nextFrame {timeSlice} {
 		}
 	    }
 	    set maxPerFrame [expr {$::ship(velocityMax) * $timeSlice}]
-	    set newDelta [expr {$::ship(velocityMax) / ($::ship(thrust) / \
-							    $timeSlice / $timeSlice)}]
+	    set newDelta [expr {$::ship(velocityMax) /
+				($::ship(thrust) / $timeSlice / $timeSlice)}]
 	    set intDir [expr {int($dir)}]
 	    set xVector $::vector(x,$intDir)
 	    set yVector $::vector(y,$intDir)
@@ -614,7 +641,11 @@ proc nextFrame {timeSlice} {
     }
 
     # --- draw the frame
-    update
+    if {$::TIGHTLOOP} {
+	update
+    } else {
+	update idle
+    }
 }
 
 proc killRock {rock timeSlice} {
@@ -642,14 +673,13 @@ proc killRock {rock timeSlice} {
 proc addDust {xLoc yLoc timeSlice} {
     for {set i 0} {$i <= 8} {incr i} {
 	set dustSpeed [expr {30 + [random 30]}]
-	set ang [expr {int([random 360])}]
-	set obj [.c1 create rectangle $xLoc $yLoc $xLoc $yLoc \
-		     -outline white -fill white -tag dust]
-	set ::dust($obj,xDelta) [expr {$::vector(x,$ang) * $dustSpeed * \
-					   $timeSlice}]
-	set ::dust($obj,yDelta) [expr {$::vector(y,$ang) * $dustSpeed * \
-
-				       $timeSlice}]
+	set ang [random 360]
+	set obj [.c1 create rectangle $xLoc $yLoc $xLoc $yLoc -tag dust \
+		     -outline $::CLR(dust) -fill $::CLR(dust)]
+	set ::dust($obj,xDelta) \
+	    [expr {$::vector(x,$ang) * $dustSpeed * $timeSlice}]
+	set ::dust($obj,yDelta) \
+	    [expr {$::vector(y,$ang) * $dustSpeed * $timeSlice}]
 	# --- calculate the approximate number of frames in 1/2 second
 	#     this will be the life of our dust particle
 	set ::dust($obj,life) [expr {int(1/$timeSlice)}]
@@ -660,16 +690,17 @@ proc addWreckage {timeSlice} {
     set wreckageSpeed 25
     set coordList [.c1 coords ship]
     for {set i 0} {$i < [llength $coordList] - 2} {incr i} {
-	set ang [expr {int([random 360])}]
+	set ang [random 360]
 	set xs [lindex $coordList $i]
 	set ys [lindex $coordList [expr {$i + 1}]]
 	set xe [lindex $coordList [expr {$i + 2}]]
 	set ye [lindex $coordList [expr {$i + 3}]]
-	set obj [.c1 create line $xs $ys $xe $ye -fill white -tag wreckage]
-	set ::wreckage($obj,xDelta) [expr {$::vector(x,$ang) * \
-					       $wreckageSpeed * $timeSlice}]
-	set ::wreckage($obj,yDelta) [expr {$::vector(y,$ang) * \
-					       $wreckageSpeed * $timeSlice}]
+	set obj [.c1 create line $xs $ys $xe $ye -tag wreckage \
+		     -fill $::CLR(ship)]
+	set ::wreckage($obj,xDelta) \
+	    [expr {$::vector(x,$ang) * $wreckageSpeed * $timeSlice}]
+	set ::wreckage($obj,yDelta) \
+	    [expr {$::vector(y,$ang) * $wreckageSpeed * $timeSlice}]
 	set ::wreckage($obj,life) [expr {int(1.5/$timeSlice)}]
 	incr i
     }
@@ -685,11 +716,12 @@ proc addMissile {timeSlice} {
     set ang [expr {int($::ship(direction))}]
     set xs  [expr {$::ship(xCen) + $::vector(x,$ang) * 16}]
     set ys  [expr {$::ship(yCen) + $::vector(y,$ang) * 16}]
-    set obj [.c1 create rectangle $xs $ys $xs $ys -outline white -fill white -tag heroMissile]
-    set ::missile($obj,xDelta) [expr {$::vector(x,$ang) * $missileSpeed * \
-					  $timeSlice}]
-    set ::missile($obj,yDelta) [expr {$::vector(y,$ang) * $missileSpeed * \
-					  $timeSlice}]
+    set obj [.c1 create rectangle $xs $ys $xs $ys -tag heroMissile \
+		 -outline $::CLR(missile) -fill $::CLR(missile)]
+    set ::missile($obj,xDelta) \
+	[expr {$::vector(x,$ang) * $missileSpeed * $timeSlice}]
+    set ::missile($obj,yDelta) \
+	[expr {$::vector(y,$ang) * $missileSpeed * $timeSlice}]
     set ::missile($obj,xCen) $xs
     set ::missile($obj,yCen) $ys
     set ::missile($obj,life) [expr {int(1.2/$timeSlice)}]
@@ -720,31 +752,31 @@ proc addShip {} {
 	return
     }
 
-    set obj [.c1 create polygon $::globals(shipCoords) -outline white \
-		 -fill "" -tag ship]
+    set obj [.c1 create polygon $::globals(shipCoords) -tag ship \
+		 -outline $::CLR(ship) -fill ""]
     .c1 move $obj $screenXCen $screenYCen
-    set obj [.c1 create polygon $::globals(flameCoords) -outline white \
-		 -fill "" -state hidden -tag flame]
+    set obj [.c1 create polygon $::globals(flameCoords) -tag flame \
+		 -outline $::CLR(flame) -fill "" -state hidden]
     .c1 move $obj $screenXCen $screenYCen
-    set ::ship(direction) 90
-    set ::ship(flameOn) 0
-    set ::ship(flameTimer) 0 ; # flicker the flame every 5 frames
-    set ::ship(rotSpeed) 270 ; # degrees per second
-    set ::ship(velocity) 0 ; # pixels per second
-    set ::ship(xCen) $screenXCen
-    set ::ship(yCen) $screenYCen
-    set ::ship(xDelta) 0
-    set ::ship(yDelta) 0
-    set ::ship(velocityMax) 250 ; # pixels per second
-    set ::ship(velocityDecay) 3 ; # ship takes 3 seconds to stop from full speed
-    set ::ship(thrust) .75      ; # ship takes 1 second to reach full speed
+    set ::ship(direction)     90
+    set ::ship(flameOn)       0
+    set ::ship(flameTimer)    0   ; # flicker the flame every 5 frames
+    set ::ship(rotSpeed)      270 ; # degrees per second
+    set ::ship(velocity)      0   ; # pixels per second
+    set ::ship(xCen)          $screenXCen
+    set ::ship(yCen)          $screenYCen
+    set ::ship(xDelta)        0
+    set ::ship(yDelta)        0
+    set ::ship(velocityMax)   250 ; # pixels per second
+    set ::ship(velocityDecay) 3   ; # ship takes 3 secs to stop from full speed
+    set ::ship(thrust)        .75 ; # ship takes .75 secs to reach full speed
     set ::globals(shipExists) 1
 }
 
 proc addRock {type {num 1} {xLoc ""} {yLoc ""}} {
     for {set i 1} {$i <= $num} {incr i} {
 	set coordList \
-            $::globals(ro\ckCoords,[expr {([random 3] + 1) + (3 * ($type - 1))}])
+            $::globals(rockCoords,[expr {[random 3] + 1 + (3 * ($type - 1))}])
 	set xVel [expr {10 + [random 40] + \
 			    ($type * ([random 40] + 1)) + \
 			    ($::globals(level) * ([random 5] + 1))}]
@@ -757,8 +789,8 @@ proc addRock {type {num 1} {xLoc ""} {yLoc ""}} {
 	if {[random 2]} {set rotation -$rotation}
 	# --- don't set a rock on top of the ship
 	while {1} {
-	    set obj [.c1 create polygon $coordList -outline white \
-			 -fill "" -tag rock]
+	    set obj [.c1 create polygon $coordList -tag rock \
+			 -outline $::CLR(rock) -fill ""]
 	    foreach {xmin ymin xmax ymax} [.c1 bbox $obj] {break}
 	    set xCen [expr {($xmax + $xmin) / 2}]
 	    set yCen [expr {($ymax + $ymin) / 2}]
@@ -854,8 +886,10 @@ proc testForSounds {} {
     if {[catch {package require snack}]} return
 
     # --- load the sounds if available
-    foreach {snd file} [list sndShot shot.wav sndExplosion explosion.wav \
-			    sndThrust thrust.wav sndBeat1 beat1.wav sndBeat2 beat2.wav] {
+    foreach {snd file} {
+	sndShot shot.wav sndExplosion explosion.wav
+	sndThrust thrust.wav sndBeat1 beat1.wav sndBeat2 beat2.wav
+    } {
 	if {[file readable $file]} {
 	    sound $snd -file $file
 	} else {

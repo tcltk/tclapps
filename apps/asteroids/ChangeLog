@@ -1,5 +1,8 @@
 2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
+	* asteroids.tcl: introduce named fonts, colors for items.
+	Move the FPS label into the canvas, other code cleanup.
+
 	* asteroids.tcl: Updated version from the wiki with the following:
 	- Added a second version of the "gameLoop" proc, provided by Jeff
 	  Hobbs.  The original version is not CPU friendly as it just runs
