@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.166 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.167 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.166 2004/06/23 20:33:39 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.167 2004/06/29 20:48:38 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1296,7 +1296,26 @@ proc ::tkchat::parseStr {str} {
     if {[string length $str]} {
 	lappend sList [stripStr $str] ""
     }
-    return $sList
+    set out {}
+    # Assume any 6-digit sequence is a SF bug id and make URLs for them
+    foreach {str url} $sList {
+	if {[string length $url]} {
+	    lappend out $str $url
+	    continue
+	}
+	while {[regexp -- {^(.*?)(\m[0-9]{6}\M)(.*?)$} $str -> pre id post]} {
+	    if {[string length $pre]} {
+		lappend out $pre ""
+	    }
+	    set url "http://sourceforge.net/support/tracker.php?aid=$id"
+	    lappend out $id $url
+	    set str $post
+	}
+	if {[string length $str]} {
+	    lappend out $str ""
+	}
+    }
+    return $out
 }
 
 proc ::tkchat::checkNick {nick clr} {
@@ -1309,7 +1328,7 @@ proc ::tkchat::checkNick {nick clr} {
 	# Stamps visible
 	set wid_tstamp [expr {[font measure NAME "\[88:88\]"] + 5}]
     }
-    set wid [expr {[font measure NAME $nick] + 10}]    
+    set wid [expr {[font measure NAME $nick] + 10}]
     if {$wid > $Options(Offset)} {
 	#log::log debug "Offset: $wid_tstamp, $wid > $Options(Offset)"
         set Options(Offset) $wid
