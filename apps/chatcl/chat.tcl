@@ -82,7 +82,7 @@ proc chatinput_html {} {
 	<!--
     }
     if {!$query(norefresh)} {
-	P {parent.main.location.reload();\n}
+	P {parent.main.location.reload();}
     }
     P {
 	document.forms[0].msg.focus();
