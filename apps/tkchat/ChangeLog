@@ -3,6 +3,8 @@
 	* tkchat.tcl: Remove the stupid /nolog prefix from the message
 	body. It's already an attribute of the message.
 	Use a 'real' uri for tkchat namespace attributes.
+	Fix use of SSL when people have it in their Options but can't find
+	the package anymore.
 
 2004-11-26  Pascal Scheffers  <pascal@scheffers.net>
 

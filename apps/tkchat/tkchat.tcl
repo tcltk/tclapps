@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.237 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.238 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.237 2004/12/01 02:09:09 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.238 2004/12/01 02:22:06 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5692,13 +5692,15 @@ proc tkjabber::connect { } {
 	openStream
 	
     } else {
+        set have_tls [expr {[package provide tls] != {}}]
         if {$Options(UseProxy) && [string length $Options(ProxyHost)] > 0} {
             set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
                             $Options(JabberServer) $Options(JabberPort) \
                             $Options(UseJabberSSL)]
-        } elseif $Options(UseJabberSSL) {
+        } elseif {$have_tls && $Options(UseJabberSSL)} {
             set socket [tls::socket $Options(JabberServer) $Options(JabberPort)]
         } else {
+            if {$Options(JabberPort) == 5223} {incr Options(JabberPort) -1}
             set socket [socket $Options(JabberServer) $Options(JabberPort)]
         }
         $jabber setsockettransport $socket
