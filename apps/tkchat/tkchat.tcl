@@ -39,13 +39,15 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 # Deal with 'tile' support.
 # We sometimes need to _really_ use the Tk widgets at the moment...
 #
-rename ::label ::tk::label
-rename ::radiobutton ::tk::radiobutton
-if {![catch {package require tile 0.4}]} {
-    namespace import -force tile::*
-} else {
-    interp alias {} label {} ::tk::label
-    interp alias {} radiobutton {} ::tk::radiobutton
+catch {
+    rename ::label ::tk::label
+    rename ::radiobutton ::tk::radiobutton
+    if {![catch {package require tile 0.4}]} {
+        namespace import -force tile::*
+    } else {
+        interp alias {} label {} ::tk::label
+        interp alias {} radiobutton {} ::tk::radiobutton
+    }
 }
 
 
@@ -57,7 +59,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.159 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.160 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -84,7 +86,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.159 2004/05/13 12:40:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.160 2004/05/14 14:33:31 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2483,6 +2485,7 @@ proc ::tkchat::About {} {
         "/google <text>\t\topen a google query for <text> in web browser\n" {} \
         "/googlefight <word> <word>\tperform a google fight between two words or phrases (in quotes)\n" {} \
         "/tip:<NUM>\t\topen the specified TIP document in web browser\n" {} \
+        "/wiki <text>\t\tdo a wiki query with the remainder of the line\n" {} \
         "/bug ?group? ?tracker? id\topen a sourceforge tracker item in browser\n" {} \
         "/noisy ?<nick>? ?<minutes>?\tToggle <nick> noisy for x minutes (default 5)\n" {} \
 	"\t\t\tmessages from noisy users are not diplayed.\n" {} \
@@ -2884,6 +2887,10 @@ proc ::tkchat::userPost {} {
                 }
                 {^/bug[: ]} {
                     doBug [split $msg ": "]
+                }
+                {^/wiki[: ]} {
+                    set q [http::formatQuery [string range $msg 6 end]]
+                    gotoURL http://purl.org/tcl/wiki/$q
                 }
                 {^/google\s} {
                     set msg [string range $msg 8 end]

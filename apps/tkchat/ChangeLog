@@ -1,3 +1,7 @@
+2004-05-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added /wiki command for Colin (the lazybones).
+
 2004-05-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:  Cleanup the taskbar icon on application exit.
