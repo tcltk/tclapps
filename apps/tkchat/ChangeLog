@@ -1,3 +1,8 @@
+2003-10-08  Pascal Scheffers  <pascal@scheffers.net>
+	
+	* tkchat.tcl: Updated irc online users listing by asking ircbridge
+	for 'onlineusers' automatically after login. 
+	
 2003-09-26  Pascal Scheffers for Joe Mistachkin <joe@mistachkin.com>
 		
 	* tkchat.tcl: Several bug fixes for the /alias system

@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.127 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.128 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.127 2003/09/26 08:10:29 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.128 2003/10/08 10:56:59 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -532,6 +532,7 @@ proc ::tkchat::logonDone {tok} {
             } else {
                 if {[catch {pause off} err]} { errLog $err }
                 ::tkchat::DoAnim
+		::tkchat::msgSend "/msg ircbridge onlineusers"
             }
         }
 	reset	{ errLog "User reset logon operation" }
@@ -929,10 +930,10 @@ proc ::tkchat::updateNames {rawHTML} {
     set exp {<A HREF="(.+?)".*?>(.+?)</A>}
     .mb.mnu delete 0 end
     .mb.mnu add command -label "All Users" \
-          -command [list ::tkchat::MsgTo "All Users"]
+	-command [list ::tkchat::MsgTo "All Users"]
     set Options(OnLineUsers) {}
     foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
-        lappend Options(OnLineUsers) $name
+	lappend Options(OnLineUsers) $name
 	# NOTE : the URL's don't work because of the & in them
 	# doesn't work well when we exec the call to browsers
 	# and if we follow spec and escape them with %26 then
@@ -940,12 +941,13 @@ proc ::tkchat::updateNames {rawHTML} {
 	# just do an inline /userinfo when they are clicked
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
 	.names tag bind URL-$::URLID <1> \
-              "set ::tkchat::UserClicked 1;\
+	    "set ::tkchat::UserClicked 1;\
                [list ::tkchat::msgSend "/userinfo $name"]"
 	incr i
 	.mb.mnu add command -label $name \
-              -command [list ::tkchat::MsgTo $name]
-    }
+	    -command [list ::tkchat::MsgTo $name]
+    }    
+
     foreach name $ircOnlineUsers {
         lappend Options(OnLineUsers) $name
 	.names insert end "$name" [list NICK] "\n"
@@ -1647,20 +1649,61 @@ proc ::tkchat::showInfo {title str} {
     pack $t.close -side right
 }
 
+proc ::tkchat::doIrcBridgeWhisper { clr name str } {
+    variable ircOnlineUsers
+    set str [string trim $str]
+    set what [lindex [split $str ":"] 0] 
+    switch -- $what {
+	onlineusers {
+	    set tmp [string range $str [expr [string first : $str]+1] end]
+	    set ircOnlineUsers [split [string trim $tmp] " "]
+	    addSystem "Users on IRC: $ircOnlineUsers"
+	}
+	default {
+	    addAction $clr $name " whispers: $str"
+	}
+    }
+}
+
+proc ::tkchat::didIrcBridgeWhisper { clr name str } {
+    variable ircOnlineUsers
+    global Options
+
+    set str [string trim $str]
+    switch -glob -- $str {
+	onlineusers* {
+	    addSystem "Asking ircbridge for online users..."
+	}
+	default {
+	    addAction $clr $Options(Username) \
+		" whispered to [string range $name 2 end]: $str"
+	}
+    }
+}
+
 proc ::tkchat::addHelp {clr name str} {
     global Options
 
     if {[lsearch -exact $Options(NickList) $name] >= 0} {
-	# this is an incoming private message
-	addAction $clr $name " whispers: $str"
+	if { [string equal $name "ircbridge"] } {
+	    doIrcBridgeWhisper $clr $name $str	    
+	} else {
+	    # this is an incoming private message	
+	    addAction $clr $name " whispers: $str"	    
+	}
 	return
     }
     if {[string match "->*" $name]} {
-	# an outgoing private message
-	addAction $clr $Options(Username) \
-              " whispered to [string range $name 2 end]: $str"
+	if { [string equal $name "->ircbridge"] } {
+	    didIrcBridgeWhisper $clr $name $str
+	} else {
+	    # an outgoing private message
+	    addAction $clr $Options(Username) \
+		" whispered to [string range $name 2 end]: $str"
+	}
 	return
     }
+
 
     if {[string equal $name "USERINFO"]} {
         set tag USERINFO
