@@ -1,9 +1,9 @@
-############################################################################
+#############################################################################
 #
 # Asteroids.tcl - Tcl remake of the Atari arcade game classic
 # Jeff Godfrey, Feb-2005
 #
-############################################################################
+#############################################################################
 
 package require Tk
 
@@ -19,7 +19,7 @@ proc main {} {
     updateLives
 
     after 1000 updateFPS
-    gameLoop
+    gameLoop [clock clicks -milliseconds]
 }
 
 proc appExit {} {
@@ -70,11 +70,13 @@ proc checkHighScore {} {
 	wm title $w "New High Score!"
 	wm resizable $w 0 0
 	set l [label $w.label -text "Name:"]
-	set e [entry  $w.entry -textvar _name -width 30]
-	set b [button $w.btnOK -text OK -width 12 -command {set _res $_name}]
+	set e [entry  $w.entry -textvar ::_name -width 30]
+	set b [button $w.btnOK -text OK -width 12 \
+		   -command {set _res ""}]
 	grid   $l $e -sticky news -padx 4 -pady 2
 	grid   $b -column 1 -sticky e -padx 4 -pady 2
 	bind $w <Return> [list $w.btnOK invoke]
+	bind $w <Destroy> {set _res ""}
 	$e selection range 0 end
 	$e icursor 0
 	focus -force $e
@@ -82,7 +84,9 @@ proc checkHighScore {} {
 	grab set $w
 	vwait _res
 	destroy $w
-	lappend ::globals(highScores) [list $::_res $::globals(score)]
+	if {$::_name eq ""} {set ::_name "Unknown"}
+	lappend ::globals(highScores) [list $::_name $::globals(score)]
+	set ::_name ""
 	cleanHighScores
 	saveHighScores
 	displayHighScores
@@ -167,8 +171,17 @@ proc newGame {} {
 }
 
 proc updateScore {{incrScore 0}} {
+
     incr ::globals(score) $incrScore
-    .c1 itemconfigure score -text [format "%06d" $::globals(score)]
+
+    # --- did our hero earn another ship?
+    if {$::globals(score) >= $::globals(nextLife)} {
+	updateLives 1
+	incr ::globals(nextLife) $::globals(lifeEvery)
+    }
+
+    .c1 delete score
+    drawNumber 150 30 $::globals(score) score
 }
 
 proc updateLives {{incrLives 0}} {
@@ -184,10 +197,12 @@ proc updateLives {{incrLives 0}} {
 proc nextLevel {} {
     .c1 delete rock
     .c1 delete missile
+    .c1 delete level
     incr ::globals(level)
-    .c1 itemconfigure level -text "Level $::globals(level)"
+    drawNumber 730 30 $::globals(level) level
     addRock 1 [expr {3 + $::globals(level)}]
     if {!$::globals(shipExists)} {after 1000 addShip}
+
     # --- speed up the heartbeat...
     if {$::globals(sndOK)} {
 	if {$::globals(beatDelay) > 200} {
@@ -195,6 +210,18 @@ proc nextLevel {} {
 	}
 	heartBeatOff
 	heartBeat 0
+    }
+}
+
+# --- draw integer value using vectors (very Asteroids like...)
+proc drawNumber {xloc yloc val tag} {
+    set digitList [split $val ""]
+    set count 0
+    for {set i [llength $digitList]; incr i -1} {$i >= 0} {incr i -1} {
+	incr count
+	set digit [lindex $digitList $i]
+	set item [.c1 create line $::numbers($digit) -fill white -tags $tag]
+	.c1 move $item [expr {$xloc - ($count * 19)}] $yloc
     }
 }
 
@@ -210,6 +237,8 @@ proc initVars {} {
     set ::globals(highScoreFile) \
 	[file join [file dirname [info script]] "asteroids_hs.txt"]
 
+    set ::globals(lifeEvery) 10000  ;# new life every 10000 pts
+    set ::globals(nextLife) $::globals(lifeEvery)
     set ::globals(newMissileOK) 1
     set ::globals(shipExists) 0
     set ::globals(hyperOK) 1
@@ -238,15 +267,34 @@ proc initVars {} {
     set ::globals(rockCoords,7) {-8 -8 -5 -1 -8 3 0 9 8 4 8 -5 1 -9}
     set ::globals(rockCoords,8) {-6 8 1 4 8 7 10 -1 4 -10 -8 -6 -4 0}
     set ::globals(rockCoords,9) {-8 -9 -5 -2 -8 5 6 8 9 6 7 -3 9 -9 0 -7}
+
+    set ::numbers(0) [list -7 -10 -7 10 7 10 7 -10 -7 -10]
+    set ::numbers(1) [list 0 -10 0 10]
+    set ::numbers(2) [list -7 -10 7 -10 7 0 -7 0 -7 10 7 10]
+    set ::numbers(3) [list -7 -10 7 -10 7 10 -7 10 7 10 7 0 -7 0]
+    set ::numbers(4) [list -7 -10 -7 0 7 0 7 -10 7 10]
+    set ::numbers(5) [list -7 10 7 10 7 0 -7 0 -7 -10 7 -10]
+    set ::numbers(6) [list -7 -10 -7 10 7 10 7 0 -7 0]
+    set ::numbers(7) [list -7 -10 7 -10 7 10]
+    set ::numbers(8) [list -7 -10 7 -10 7 10 -7 10 -7 -10 -7 0 7 0]
+    set ::numbers(9) [list 7 0 -7 0 -7 -10 7 -10 7 10]
 }
 
 proc buildUI {} {
+    # --- menu
+    menu .m -tearoff 0
+    . configure -menu .m
+    menu .m.help -tearoff 0
+    .m add cascade -menu .m.help -label "Help" -underline 0
+    .m.help add command -label About -under 0 -command About
+
     canvas .c1 -width $::globals(screenWidth) \
 	-height $::globals(screenHeight) -bg black
     .c1 create text 20 30 -fill white -anchor w -tag score -font {Arial 20}
     .c1 create text 780 30 -fill white -anchor e -tag level -font {Arial 20}
-    label .l1 -textvariable ::fps
+    label .l1 -textvariable ::globals(fps)
 
+    wm title . "Asteroids"
     pack .c1
     pack .l1 -fill x -expand 1
     focus -force .c1
@@ -264,11 +312,16 @@ proc calcMotionVectors {} {
 proc updateFPS {} {
     set timeNow [clock clicks -milliseconds]
     set elapsedTime [expr {($timeNow - $::globals(timeStart)) / 1000.0}]
-    set ::fps [expr {$::globals(frameCount) / $elapsedTime}]
+    set ::globals(fps) [expr {$::globals(frameCount) / $elapsedTime}]
     after 500 updateFPS
 }
 
-proc gameLoop {} {
+# --- original gameloop
+#     This is not CPU friendly, as it just cranks the game as fast as it can
+#     inside a while loop, though it seems to provide a good
+#     "gaming experience"
+proc gameLoop0 {time} {
+    set ::TIGHTLOOP 1
     set timeBefore $::globals(timeStart)
     set timeAfter $::globals(timeStart)
     while {$::globals(gameOn)} {
@@ -279,11 +332,39 @@ proc gameLoop {} {
 	    nextFrame $timeSlice
 	    incr ::globals(frameCount)
 	}
+	# --- make sure we've used at least 10 ms for the current frame.
+	#     otherwise, the timeslice value is *so* small, that some of the
+	#     animation scaling tends to go whacky...
+	#     This has the effect of limiting the max FPS to 100
 	while {$timeAfter - $timeBefore < 10} {
 	    set timeAfter [clock clicks -milliseconds]
 	}
     }
 }
+
+# --- modified game loop (provided by Jeff Hobbs)
+#     This is a modification of the original gameloop code (above) that still
+#     uses the event loop for processing (no while loop).  Because the event
+#     loop is being used, it tends to be much more CPU friendly.  In my
+#     initial testing, it seems to provide basically the same feel as the
+#     original loop.  I don't know how it holds up under varying CPU loads,
+#     slower systems, etc...
+proc gameLoop1 {time} {
+    set ::TIGHTLOOP 0
+    if {$::globals(gameOn)} {
+	set now [clock clicks -milliseconds]
+	set delta [expr {$now - $time}]
+	if {$delta} {
+	    set timeSlice [expr {$delta / 1000.0}]
+	    nextFrame $timeSlice
+	    incr ::globals(frameCount)
+	}
+	after 5 [list gameLoop $now]
+    }
+}
+
+# Rename either gameLoop0 or gameLoop1 to the *real* gameLoop
+rename gameLoop1 gameLoop
 
 proc nextFrame {timeSlice} {
 
@@ -764,7 +845,7 @@ proc bindGameKeys {} {
 }
 
 proc testForSounds {} {
-    # --- define sndPlay as a no-op procs case we don't have the required
+    # --- define sndPlay as a no-op proc in case we don't have the required
     #     sound support
 
     proc sndPlay {snd} {}
@@ -789,6 +870,7 @@ proc testForSounds {} {
     set ::globals(sndOK) 1
 }
 
+# --- manage the heartbeat sound
 proc heartBeat {count} {
     if {$count == 0} {
 	set snd sndBeat1
@@ -801,9 +883,15 @@ proc heartBeat {count} {
     after $::globals(beatDelay) heartBeat $count
 }
 
+# --- cancel the heartbeat sound
 proc heartBeatOff {} {
     after cancel {heartBeat 0}
     after cancel {heartBeat 1}
+}
+
+proc About {} {
+    set msg "Asteroids\n\nJeff Godfrey          \nFebruary, 2005"
+    tk_messageBox -title About -message $msg
 }
 
 main

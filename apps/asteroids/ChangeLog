@@ -1,5 +1,22 @@
 2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
+	* asteroids.tcl: Updated version from the wiki with the following:
+	- Added a second version of the "gameLoop" proc, provided by Jeff
+	  Hobbs.  The original version is not CPU friendly as it just runs
+	  the game as fast as it can inside a "while" loop.  Jeff H's mod
+	  uses the event loop for processing, and tends to place a much
+	  lighter load on the CPU.  Immediately below the two gameLoop procs
+	  (gameLoop0 and gameLoop1), you'll need to decide which one you
+	  want to use and "rename" one of them to gameLoop. Currently,
+	  Jeff H's loop is being used.  If you have any animation problems
+	  with either loop, try the other one.  Both seem to provide a
+	  similar experience.
+	- Score and level info is now *drawn* for a more authentic look
+	- Extra ship every 10,000 points
+	- Added "Help | About" menu
+	- Fixed bug when "High Score" dialog is closed using window decoration
+
 	* beat1.wav, beat2.wav, explosion.wav, shot.wav, thrust.wav:
 	* asteroids.tcl: Initial import of asteroids by Jeff Godfrey from
 	wiki page http://wiki.tcl.tk/13601
+
