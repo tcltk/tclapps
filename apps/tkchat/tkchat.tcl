@@ -37,7 +37,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.31 2002/02/01 21:52:04 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.32 2002/02/02 00:53:13 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -205,7 +205,9 @@ proc tkchat::GetHistLogIdx {szary} {
         }
         reset { errLog "User reset post operation" }
         timeout { errLog "History Fetch timed out." }
-        error {  tk_messageBox -message "History Fetch error: [:http::error $tok]" }
+        error {
+	    tk_messageBox -message "History Fetch error: [::http::error $tok]"
+	}
     }
     ::http::cleanup $tok
     return $loglist
@@ -302,7 +304,7 @@ proc tkchat::LoadHistory {} {
             grab $t
             tkwait window $t
             foreach log [lrange $loglist $HistQueryNum end] {
-                if [catch {ParseHistLog $log} new] {
+                if {[catch {ParseHistLog $log} new]} {
                     puts "ERROR: $new"
                 } else {
                     set FinalList [concat $FinalList $new]
@@ -315,7 +317,7 @@ proc tkchat::LoadHistory {} {
         for {set idx [expr {[llength $loglist] - 1}]} {$idx >= 0} {incr idx -1} {
             # fetch log
             set log [lindex $loglist $idx]
-            if [catch {ParseHistLog $log} new] {
+            if {[catch {ParseHistLog $log} new]} {
                 puts "ERROR: $new"
             } else {
                 set FinalList [concat $new $FinalList]
@@ -747,7 +749,7 @@ proc addNewLines {input} {
 		lappend helpLines $text
 		set inHelp 0
 		if {$helpName == "USERINFO"} {
-                    if ($UserClicked) {
+                    if {$UserClicked} {
                         set UserInfoCmd [list addHelp $helpColor $helpName [join $helpLines \n]]
                     }
 		} else {
@@ -1456,7 +1458,7 @@ proc logonScreen {} {
 	grid .logon.lpw .logon.epw - -sticky ew
 	grid x .logon.rpw  - -sticky w -pady 3 -pady 3
 	grid x .logon.atc  - -sticky w -pady 3
-	grid .logon.ok - .logon.cn -sticky {} -pady 10
+	grid .logon.ok - .logon.cn -pady 10
 	wm resizable .logon 0 0
     }
     optSet
@@ -1751,9 +1753,9 @@ proc saveRC {} {
 	}
 	if {![catch {open $rcfile w 0600} fd]} {
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
-	    puts $fd "array set Options {"
+	    puts $fd "array set Options \{"
 	    puts $fd [join $oplist "\n"]
-	    puts $fd "}"
+	    puts $fd "\}"
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	    close $fd
 	}
