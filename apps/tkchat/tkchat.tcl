@@ -16,9 +16,13 @@
 ############################################################
 # \
       exec wish "$0" ${1+"$@"}
-if {[info exists scripdoc::self]} {
-    # Enable functionality as a scripted document
-    lappend auto_path [file join $scripdoc::self lib]
+
+if {[package present starkit]} {
+    package provide app-tkchat 1.63
+}
+
+if {![info exists env(PATH)]} {
+    set env(PATH) .
 }
 
 package require http		; # core Tcl
@@ -43,7 +47,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.63 2002/08/08 09:05:36 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.64 2002/08/13 12:02:46 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
