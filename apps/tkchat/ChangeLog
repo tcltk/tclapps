@@ -4,7 +4,7 @@
 	latest version of the web service, and fixed the key binding to
 	invoke it.
 	* tkchat.tcl: Changed the visual appearance of /nolog messages to
-	be faded to 60%, and in the same font (cursive by default) as
+	be faded to 60%, and in the same font (italic by default) as
 	actions.
 
 2004-11-09  Pascal Scheffers  <pascal@scheffers.net>
