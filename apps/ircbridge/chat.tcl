@@ -24,9 +24,10 @@ namespace eval chat {
     # set the configuration options
     array set Options {
 	Username	"ircbridge"
-	Password	"ponte"
-	URL		http://purl.org/mini/cgi-bin/chat.cgi
-        URL2		http://purl.org/mini/cgi-bin/chat2.cgi
+	Password	""
+	KillPassword    "shutupanddie"
+	URL		http://mini.net/cgi-bin/chat.cgi
+        URL2		http://mini.net/cgi-bin/chat2.cgi
 	MyColor		000000
 	Refresh		20
 	ChatLogFile	""
@@ -34,6 +35,7 @@ namespace eval chat {
 	errLog		stderr
 	timeout		30000
     }
+
 }
 
 # Check the HTTP response for redirecting URLs. - PT
@@ -110,7 +112,7 @@ proc chat::msgDone {tok} {
 
 proc chat::logonChat {{retry 0}} {
     variable Options
-    ::log::log debug "Logon to $Options(URL2)"
+    ::log::log notice "Logon to $Options(URL2) as $Options(Username)"
     set qry [::http::formatQuery \
                    action       login \
                    name         $Options(Username) \
@@ -382,6 +384,9 @@ proc chat::addNewLines {input} {
         set line [::htmlparse::mapEscapes $line]
         ::log::log debug "new line: '$line'"
         if {[regexp -nocase -- $RE(Whisper) $line -> nick line]} {
+	    if { [string match "*hey $Options(KillPassword)*" $line] } {
+		exit
+	    }
             if {$nick == $Options(Username)} continue
             set last {addWhisper $nick $line}
         } elseif {[regexp -nocase -- $RE(Message) $line -> nick line]} {
@@ -413,6 +418,13 @@ proc chat::Init {} {
     }
     catch {unset Options(FetchToken)}
     catch {unset Options(OnlineToken)}
+
+    if { [info exists ::chatPassword] } {
+	set Options(Password) $::chatPassword
+    }
+    if { [info exists ::KillPassword] } {
+	set Options(KillPassword) $::KillPassword
+    }
 
     array set RE {
         Message {^\000(\S+?): (.+)$}

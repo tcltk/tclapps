@@ -6,7 +6,7 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.8 2003/10/21 09:01:40 afaupell Exp $
+# $Id: bridge.tcl,v 1.9 2004/03/11 11:48:13 pascalscheffers Exp $
 
 # There's a lot that could be added here.
 
@@ -17,6 +17,11 @@ set auto_path "[file dirname [info script]] $auto_path"
 package require irc 0.4
 package require chat
 
+# Source the rc file if it exists. Use this file to set ::chatPassword
+# and ::KillPassword to the correct values.
+if { [file exists ~/.ircbridge] } {
+    source ~/.ircbridge
+}
 
 # Called when someone does something like leave or join.
 
@@ -230,6 +235,7 @@ proc client::connect {cn server port} {
     $cn user $nick localhost domain "Tcl'ers Chat connector - See: http://mini.net/tcl/6248"
     $cn nick $nick
     ping
+    ::log::log notice "Connected to $server"
 }
 
 proc client::ping {} {
