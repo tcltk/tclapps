@@ -1,3 +1,8 @@
+2002-07-26  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::Init): Fixed handling of http_proxy
+	environment variable.
+
 2002-07-25  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::Smile): Added icons for coffee (LP), food
