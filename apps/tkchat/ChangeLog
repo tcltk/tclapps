@@ -1,7 +1,7 @@
 2002-07-25  Reinhard Max  <max@suse.de>
 
-	* tkchat.tcl (::tkchat::Smile): Added icons for coffee (LP), and
-	food (|O|).
+	* tkchat.tcl (::tkchat::Smile): Added icons for coffee (LP), food
+	(|O|), and znooze (zzz).
 
 2002-07-19  Reinhard Max  <max@suse.de>
 
