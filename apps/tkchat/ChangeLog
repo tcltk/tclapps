@@ -1,3 +1,8 @@
+2001-10-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: added Retrieve menu item
+	* tkchat.tcl: implemented HTTP Redirect following
+	
 2001-10-10  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: used direct IP of mini.net to combat dns problems.
