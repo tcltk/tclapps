@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.269 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.270 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.269 2005/03/22 01:42:45 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.270 2005/04/04 15:40:30 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -293,6 +293,22 @@ proc ::tkchat::checkForRedirection {tok optionName} {
     }
     return 0
 }
+
+
+proc ::tkchat::ShowStatusPage {} {
+    set url http://mini.net/tcl/status_tclers.tk
+    if {[catch {::http::geturl $url -headers [buildProxyHeaders] \
+                    -command [list ::tkchat::fetchurldone \
+                                  ::tkchat::ShowStatusPage2]} msg]} {
+        addSystem "Unable to obtain status page from $url" end ERROR
+    }
+}
+
+proc ::tkchat::ShowStatusPage2 {tok} {
+    # parse and display
+}
+
+
 
 proc ::tkchat::GetHistLogIdx {url} {
     if {[catch {::http::geturl $url -headers [buildProxyHeaders] \
@@ -6153,7 +6169,6 @@ proc tkjabber::SendAuth { } {
     set ress $Options(JabberResource)
 
     if {[info command ::jlib::havesasl] ne "" && [::jlib::havesasl]} {
-        log::log debug "SASL GO"
         jlib::auth_sasl $jabber $user $ress $pass \
             [namespace origin OnSaslFinish]
     } else {
@@ -6579,6 +6594,23 @@ proc tkjabber::RegisterCB {jlibName type theQuery} {
 	    update idletasks
 	    SendAuth
 	}
+        error {
+            set reason [lindex $theQuery 0]
+            if {$reason eq "internal-server-error"} {
+                # We got here when the server was crashed but with the 
+                # jabber daemon still in memory. It would accept connections
+                # but would not authenticate.
+                #
+                # FIX ME: We could go and lookup a wiki status page and 
+                # display that here.
+            }
+
+            set msg $theQuery
+            if {[llength $msg] > 1} {
+                set msg [lindex $msg 1]
+            }
+            tkchat::addSystem "Failed to register this account: $msg" end ERROR
+        }
 	default {
 	    tkchat::addSystem "MyRegisterProc: type=$type, theQuery='$theQuery'"
 	}
@@ -6597,17 +6629,23 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
     global Options
     log::log debug "LoginCB: type=$type, theQuery='$theQuery'"
 
-    #set conference tcl@conference.kroc.tk
     switch -- $type {
 	error {
-	    if { [lindex $theQuery 0] eq "not-authorized" || \
-		$theQuery eq "{} {}" } {
+	    if { [lindex $theQuery 0] eq "not-authorized" \
+                     || $theQuery eq "{} {}" } {
 		if { ![tkchat::registerScreen] } {
 		    return
 		}
 		
-		$jabber register_set $Options(Username) $Options(Password) [namespace current]::RegisterCB  \
-		  -name $Options(Fullname) -email $Options(Email)
+                set cmd [namespace current]::RegisterCB
+                if {[info exists Options(Fullname)]} {
+                    lappend cmd -name $Options(Fullname)
+                }
+                if {[info exists Options(Email)]} {
+                    lappend cmd -email $Options(Email)
+                }
+                eval [linsert $cmd 0 $jabber \
+                          register_set $Options(Username) $Options(Password)]
 		
 		tkchat::addSystem "Registering username."
 		update idletasks
