@@ -1,3 +1,8 @@
+2004-02-20  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+
+	* tkchat.tcl:  Added a Preferences->Options dialog with stuff to 
+	set the preferred browser. This should help under unix.
+
 2004-02-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added Mozilla Firefox into the list of possible DDE

@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.140 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.141 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.140 2004/02/11 16:07:41 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.141 2004/02/20 09:52:34 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1967,6 +1967,8 @@ proc ::tkchat::CreateGUI {} {
 	    -command "::tkchat::ChooseFont"
     $m add command -label "User details ..." -underline 0 \
 	    -command tkchat::UserInfoDialog
+    $m add command -label "Options ..." -underline 0 \
+            -command ::tkchat::EditOptions
     
     $m add separator
 
@@ -4980,9 +4982,9 @@ proc ::tkchat::UserInfoSendDone {tok} {
 proc ::tkchat::BookmarkInit {} {
     # FIX ME: need to make a better image :)
     image create photo ::tkchat::img::bookmark -format GIF \
-        -data {R0lGODlhEAAQAJEAANnZ2QAAAAD//////yH5BAEAAAAALAAAAAAQABAAAAJC
-            hI+pyxTfCD6S/CDYAST/YACC5KMFQJB8tAAIko8WAEHy0QIgSD5aAATJRwuA
-            oVA+xgAMLZRvMQNAM+PbzBB8TN0sADs=}
+        -data {R0lGODlhEAAQAMIAANnZ2QAAAAD//////wlnuglnuglnuglnuiH5BAEAAAMA
+            LAAAAAAQABAAAAMpOLrc/jDIKV8QOOPQrv6c4n2gSJLheG7mmqXu28bhoKLd
+            WjMUBf3AXwIAOw==}
 
     menu .mbar.mm -tearoff 0
     .mbar.mm add command -label "Set Bookmark" -accelerator Ctrl-F2 \
@@ -5178,6 +5180,63 @@ proc ::tkchat::nickIsNoisy { nick } {
     return 0
 }
 
+# -------------------------------------------------------------------------
+
+proc ::tkchat::EditOptions {} {
+    global Options
+    variable EditOptions
+    array set EditOptions {Result -1}
+    if {[info exists Options(BROWSER)]} {
+        set EditOptions(BROWSER) $Options(BROWSER)
+    } else {
+        if {[info exists Options(NETSCAPE)]} {
+            set EditOptions(BROWSER) $Options(NETSCAPE)
+        } else {
+            set EditOptions(BROWSER) {}
+        }
+    }
+
+    set dlg [toplevel .options]
+    wm title $dlg "Tkchat Options"
+    
+    set bf [labelframe $dlg.bf -text "Preferred browser"]
+    message $bf.m -aspect 600 -text {
+        Provide the command used to launch your web browser. For
+        instance /opt/bin/mozilla or xterm -e links. The URL to
+        be opened will be appended to the command string and for
+        mozilla-type browsers we will call the -remote option to
+        try to use a previously existing browser.}
+    entry $bf.e -textvariable ::tkchat::EditOptions(BROWSER)
+    button $bf.b -text "..."  -command {
+        if {[set file [tk_getOpenFile]] != {}} {
+            set ::tkchat::EditOptions(BROWSER) $file
+        }
+    }
+
+    grid $bf.m - -sticky news
+    grid $bf.e $bf.b -sticky news
+    grid rowconfigure $bf 0 -weight 1
+    grid columnconfigure $bf 0 -weight 1
+
+    button $dlg.ok -text OK \
+        -command [list set ::tkchat::EditOptions(Result) 1]
+    button $dlg.cancel -text Cancel \
+        -command [list set ::tkchat::EditOptions(Result) 0]
+
+    grid $bf - -sticky news -padx 2 -pady 2
+    grid $dlg.ok $dlg.cancel -sticky e
+    grid rowconfigure $dlg 0 -weight 1
+    grid columnconfigure $dlg 0 -weight 1
+
+    tkwait variable ::tkchat::EditOptions(Result)
+
+    if {$EditOptions(Result) == 1} {
+        set Options(BROWSER) $EditOptions(BROWSER)
+    }
+
+    destroy $dlg
+    unset EditOptions
+}
 
 # -------------------------------------------------------------------------
 
