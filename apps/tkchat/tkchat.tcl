@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.148 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.149 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.148 2004/03/16 08:14:36 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.149 2004/03/16 09:04:53 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5288,7 +5288,7 @@ proc ::tkchat::EditOptions {} {
         -variable ::tkchat::EditOptions(Style) -value gtklook
     radiobutton $sf.any -text "Any" -underline 1 \
         -variable ::tkchat::EditOptions(Style) -value any
-    radiobutton $sf.any -text "Tk default" -underline 0 \
+    radiobutton $sf.def -text "Tk default" -underline 0 \
         -variable ::tkchat::EditOptions(Style) -value tk
     
     if {[catch {package require as::style}]} {
@@ -5296,7 +5296,7 @@ proc ::tkchat::EditOptions {} {
     }
     
     grid $sf.m - - - -sticky news
-    grid $sf.as $sf.gtk $sf.any -sticky news
+    grid $sf.as $sf.gtk $sf.any $sf.def -sticky news
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
