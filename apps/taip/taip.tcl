@@ -100,7 +100,12 @@ proc doit {{root .} {constrained 1}} {
     bind $root <Triple-1> { exit }
 }
 
-set ::DIR [file dirname [info script]]
+set f [info script]
+while {[file type $f] eq "link"} {
+    set f [file join [file dirname $f] [file readlink $f]]
+}
+set ::DIR [file dirname $f]
+unset f
 
 if {!$tcl_interactive} {
     doit .
