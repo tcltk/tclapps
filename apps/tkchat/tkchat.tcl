@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.182 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.183 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.182 2004/09/19 00:40:37 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.183 2004/09/19 01:37:47 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1479,7 +1479,7 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0}} {
 	    }
 
 	    if {[string equal $truenick "ijchain"]
-                || ![string equal $truenick "ijbridge"]} {
+                || [string equal $truenick "ijbridge"]} {
 		# ijchain is a Jabber to IRC link.
 		if {[regexp {&lt;(.*?)&gt; (.*)$} $str -> truenick msg]} {
 		    set nick "<$truenick>"
@@ -2183,10 +2183,10 @@ proc ::tkchat::CreateGUI {} {
     $m add separator
 
     if {[package provide tile] != {}} {
-        if {[info commands tile::availableThemes] != {}} {
-            set themes [tile::availableThemes]
+        if {[llength [info commands ::tile::availableThemes]] > 0} {
+            set themes [lsort [tile::availableThemes]]
         } else {
-            set themes [style theme names]
+            set themes [lsort [style theme names]]
         }
 	$m add cascade -label "Tk themes" -menu [menu $m.themes -tearoff 0]
 	foreach theme $themes {
@@ -2510,7 +2510,8 @@ proc ::tkchat::CreateGUI {} {
 proc ::tkchat::SetTheme {theme} {
     global Options
     catch {
-        if {[package vsatisfies [package provide tile] 0.4]} {
+        #was: package vsatisfies [package provide tile] 0.4
+        if {[llength [info command ::tile::setTheme]] > 0} {
             tile::setTheme $theme
         } else {
             style theme use $theme

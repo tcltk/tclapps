@@ -1,6 +1,8 @@
 2004-09-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Add user set-able value to fade too.
+	(::tkchat::addMessage): Fixed dumb bug that meant messages from
+	ircbridge with <xyz> would yield xyz as the sender. 
 
 2004-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
