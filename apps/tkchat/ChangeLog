@@ -1,3 +1,9 @@
+2004-02-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: added a /googlefight command word. 
+	Try /googlefight word1 word2.  Changed the app-tkchat package
+	regexp for Joe Mistachkin to support low version numbers.
+
 2003-02-09  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Removed the system messages that were displayed
 	when asking for onlineusers to the ircbridge

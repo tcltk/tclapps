@@ -23,6 +23,7 @@ if {![info exists env(PATH)]} {
 }
 
 package require http 2		; # core Tcl
+package require msgcat          ; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
@@ -42,7 +43,8 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.138 $}]
+package provide app-tkchat \
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.139 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.138 2004/02/09 13:36:19 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.139 2004/02/09 23:43:32 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -922,6 +924,9 @@ proc ::tkchat::updateNames {rawHTML} {
     global Options
     variable ::tkchat::ircOnlineUsers
 
+    set scrollcmd [.names cget -yscrollcommand]
+    .names configure -yscrollcommand {}
+
     # Delete all URL-* tags to prevent a huge memory leak
     foreach tagname [.names tag names] {
         if {[string match URL-* $tagname]} {
@@ -962,6 +967,7 @@ proc ::tkchat::updateNames {rawHTML} {
     }
 
     .names insert 1.0 "$i Users Online\n\n" TITLE
+    .names configure -yscrollcommand $scrollcmd
     .names config -state disabled
 }
 
@@ -2353,7 +2359,7 @@ proc ::tkchat::About {} {
     wm transient $w .
     wm title $w "About TkChat $rcsVersion"
     button $w.b -text Dismiss -command [list wm withdraw $w]
-    text $w.text -height 25 -bd 1 -width 100
+    text $w.text -height 30 -bd 1 -width 100
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
     $w.text tag config center -justify center
@@ -2367,20 +2373,23 @@ proc ::tkchat::About {} {
         "/msg <nick> <text>\t\tsend private message to user <nick>\n" {} \
         "/userinfo <nick>\t\tdisplay registered information for user <nick>\n" {} \
         "/google <text>\t\topen a google query for <text> in web browser\n" {} \
+        "/googlefight <word> <word>\tperform a google fight between two words or phrases (in quotes)\n" {} \
         "/tip:<NUM>\t\topen the specified TIP document in web browser\n" {} \
         "/bug ?group? ?tracker? id\topen a sourceforge tracker item in browser\n" {} \
+        "/noisy ?<nick>? ?<minutes>?\tToggle <nick> noisy for x minutes (default 5)\n" {} \
+	"\t\t\tmessages from noisy users are not diplayed.\n" {} \
+	"\t\t\tNot specifying a nick will give you a list of noisy users.\n" {} \
+        "/see <mark>\t\tgoto named mark or index (eg: bookmark1 end 0.0)\n" {} \
+	"/alias <name> <type> <body>\ttype is 'proc' or 'script',\
+          type proc takes exactly one argument.\n\
+          \t\t\te.g: /alias foo script addSystem \"test!\"\n" {} \
+	"\t\t\t     /alias foo proc thisProc\n" {} \
+	"\t\t\t     proc thisProc { arguments } { addSystem \$arguments }\n" {} \
+	"/unalias <pattern>\t\t/unalias f*\n" {} \
+        "Searching\n" h1 \
         "/?<text>\t\t\tsearch the chat buffer for matching text.\
          Repeating the command will progress\n\t\t\tto the previous match\n" {} \
         "/!\t\t\tclear the previous search result\n" {} \
-        "/see <mark>\t\tgoto named mark or index (eg: bookmark1 end 0.0)\n" {} \
-	"/alias <name> <type> <body>\t\ttype is 'proc' or 'script', type proc\n" {} \
-	"\t\ttakes exactly one argument.\n\t\t/alias foo script addSystem \"test!\"\n" {} \
-	"\t\t/alias foo proc thisProc\n" {} \
-	"\t\tproc thisProc { arguments } { addSystem \$arguments }\n" {} \
-	"/unalias <pattern>\t\t/unalias f*\n" {} \
-        "/noisy ?<nick>? ?<minutes>?\t\tToggle <nick> noisy for x minutes (default 5)\n" {} \
-	"\t\tmessages from noisy users are not diplayed.\n" {} \
-	"\t\tNot specifying a nick will give you a list of noisy users.\n" {} 
 
 	
 
@@ -2788,6 +2797,21 @@ proc ::tkchat::userPost {} {
 		{^/noisy\s?} {
 		    noisyUser $msg
 		}
+                {^/googlefight\s?} {
+                    set q {http://www.googlefight.com/cgi-bin/compare.pl}
+                    set n 1
+                    foreach word [lrange $msg 1 end] {
+                        append q [expr {($n == 1) ? "?" : "&"}]
+                        append q q$n=$word
+                        incr n
+                    }
+                    if {[string match fr_* [msgcat::mclocale]]} {
+                        append q &langue=fr
+                    } else {
+                        append q &langue=us
+                    }
+                    gotoURL $q
+                }
                 default  {
                     if {![checkAlias $msg]} then {
                         # might be server command - pass it on
