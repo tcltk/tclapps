@@ -1,3 +1,9 @@
+2001-09-27  Don Porter  <dgp@users.sourceforge.net>
+
+	* tkchat.tcl:  Fixed ability to click and follow URLs on
+	Unix.  Worked around Tcl Bug 219372.  Generalized for more
+	browser command variations.  [Bug 465768]
+
 2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: create add message hook for 'say'

@@ -608,25 +608,28 @@ proc gotoURL {url} {
     } else {
 	# assume a raw url
     }
-    global tcl_platform env
+    global tcl_platform Options
     # this code from  http://mini.net/tcl/557.html
     switch $tcl_platform(platform) {
 	"unix" {
 	    expr {
-		[info exists env(BROWSER)]
-		|| [findExecutable netscape	env(BROWSER)]
-		|| [findExecutable iexplorer	env(BROWSER)]
-		|| [findExecutable $env(NETSCAPE)	env(BROWSER)]
-		|| [findExecutable lynx		env(BROWSER)]
+		[info exists Options(BROWSER)]
+		|| [findExecutable netscape	Options(BROWSER)]
+		|| [findExecutable iexplorer	Options(BROWSER)]
+		|| [findExecutable $Options(NETSCAPE)	Options(BROWSER)]
+		|| [findExecutable lynx		Options(BROWSER)]
 	    }
 	    # lynx can also output formatted text to a variable
 	    # with the -dump option, as a last resort:
 	    # set formatted_text [ exec lynx -dump $url ] - PSE
-	    if {[catch {exec $env(BROWSER) -remote $url}]} {
-		# perhaps browser doesn't understand -remote flag
-		if {[catch {exec $env(BROWSER) $url &} emsg]} {
-		    tk_messageBox -message \
-			    "Error displaying $url in browser\n$emsg"
+	    if {[catch {exec $Options(BROWSER) -remote $url}]} {
+		# -remote argument might need formatting as a command
+	        if {[catch {exec $Options(BROWSER) -remote openURL($url)}]} {
+		    # perhaps browser doesn't understand -remote flag
+		    if {[catch {exec $Options(BROWSER) $url &} emsg]} {
+		        tk_messageBox -message \
+			        "Error displaying $url in browser\n$emsg"
+		    }
 		}
 	    }
 	}
@@ -1008,7 +1011,9 @@ proc scroll_set {sbar f1 f2} {
 }
 
 proc init {} {
-    global Options
+    global Options env
+    catch {set Options(BROWSER) $env(BROWSER)}
+    catch {set Options(NETSCAPE) $env(NETSCAPE)}
     set ::URLID 0
     # set intial defaults
     set ::tkchat::pause 0
