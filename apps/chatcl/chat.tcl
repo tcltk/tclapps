@@ -6,6 +6,8 @@
 
 encoding system utf-8
 package require Tclx
+source common.tcl
+getquery
 source config.tcl
 
 # HTML Part
@@ -371,7 +373,7 @@ proc chat {} { # Chatprocedure: show Messages
 
 proc postmsg {} {
 
-    global query data_dir data_msg_file query message_limit
+    global env query data_dir data_msg_file query message_limit
 
     set chatfile [split [readfile $data_dir/$data_msg_file] "\n"]
 
@@ -407,7 +409,7 @@ proc postmsg {} {
 		[cat "<FONT COLOR=\"$query(color)\"><B>" \
 		     "$query(name)</B>: $query(msg)</FONT>\n"]
 	}
-	LOG 3 "\[MSG\] $query(name): $query(msg)"
+	LOG 3 MSG "$query(name): $query(msg)"
     }
     header
     if {$query(noframes) == 1} {
@@ -634,7 +636,7 @@ proc clean_old_nicks {nr_of_days} {
 	postprivatemsg $query(name) "CLEAN_OLD_NICKS" \
 	    "$chat_msg(17): $removed_users_names<BR>"
 
-	LOG 1 "\[CLEAN_OLD_NICKS\] $chat_msg(17): $removed_users_names"
+	LOG 1 CLEAN_OLD_NICKS "$chat_msg(17): $removed_users_names"
     }
 }
 
@@ -653,7 +655,7 @@ proc remove_nick {nick} { # $_[0] = nick to remove
 	rm_memoentry $nick
 	postprivatemsg $query(name) "REMOVE_NICK" \
 	    "$chat_msg(6) $nick $chat_msg(19)"
-	LOG 1 "\[REMOVE_NICK\] $nick $chat_msg(19)"
+	LOG 1 REMOVE_NICK "$nick $chat_msg(19)"
     } else {
 	postprivatemsg $query(name) "REMOVE_NICK" \
 	    "$chat_msg(6) $nick $chat_msg(20)"
@@ -867,9 +869,3 @@ proc ip {nick} {
 
 action;	# Fuehrt je nach action variable gegebene sub aus
         # action im FORM definieren!
-
-exit;
-
-# END Main Part
-#
-##############################

@@ -6,6 +6,8 @@
 
 encoding system utf-8
 package require Tclx
+source common.tcl
+getquery
 source config.tcl
 
 # HTML Part
@@ -438,9 +440,9 @@ proc login {} { # Loginprozedur
 }
 
 proc enterchat {} {
-    global env query script_name header chatframes_html
+    global query script_name header chatframes_html
     # LOG ACTION
-    LOG 2 "[clock format [clock seconds]] $env(REMOTE_ADDR) \[LOGIN\] $query(name)"
+    LOG 2 LOGIN $query(name)
     if {$query(noframes) == 1} {
 	P {Location: $script_name?action=chatnoframes_html&name=$query(name)&} \
 	    {password=$query(password)&color=$query(color)&} \
@@ -528,7 +530,7 @@ proc create_nick {} { # neuen nick anlegen + weiterleiten zum chat
     }
 
     # LOG ACTION
-    LOG 1 "$localtime $env(REMOTE_ADDR) \[NEW USER\] $query(name) <$query(email)>"
+    LOG 1 NEW USER "$query(name) <$query(email)>"
     
     header
     user_error_html $chat2_msg(9) $chat2_msg(10)
@@ -642,7 +644,7 @@ proc setuserinfo {} {
     } else {
 	lappend ui [joinsemi $userinfo]
     }
-    puts stderr [joinsemi $userinfo]
+    # puts stderr [joinsemi $userinfo]
     writefile "$data_dir/$data_userinfo_file" [join $ui "\n"]
 
     header

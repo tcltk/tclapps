@@ -1,0 +1,10 @@
+2004-07-15  Reinhard Max  <max@suse.de>
+
+	* ChangeLog:  added
+	
+	* config.tcl: Split common.tcl from config.tcl to separate code
+	* common.tcl: from config data.
+	
+	* chat.tcl:   Taking account for the config/common split.
+	* chat2.tcl:
+
