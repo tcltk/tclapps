@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.102 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.103 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.102 2003/07/27 21:10:17 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.103 2003/07/27 21:36:31 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1965,7 +1965,7 @@ proc ::tkchat::About {} {
     regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
 
     # don't cache this window - of user reloads on the fly
-    # we want to make sure it displays latest greates info!
+    # we want to make sure it displays latest greatest info!
     catch {destroy .about}
 
     set w [toplevel .about -class dialog]
@@ -1973,15 +1973,26 @@ proc ::tkchat::About {} {
     wm transient $w .
     wm title $w "About TkChat $rcsVersion"
     button $w.b -text Dismiss -command [list wm withdraw $w]
-    text $w.text -height 9 -bd 1 -width 60
+    text $w.text -height 18 -bd 1 -width 100
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
     $w.text tag config center -justify center
     $w.text tag config title -justify center -font {Courier -18 bold}
+    $w.text tag config h1 -justify left -font {Sans -12 bold}
     $w.text insert 1.0 "About TkChat v$rcsVersion" title \
           "\n\nCopyright (C) 2001 Bruce B Hartweg <brhartweg@bigfoot.com>" \
-          center \
-          "\n$rcsid"
+          center "\n$rcsid\n\n" center
+
+    $w.text insert end "Commands\n" h1 \
+        "/msg <nick> <text>\t\tsend private message to user <nick>\n" {} \
+        "/userinfo <nick>\t\tdisplay registered information for user <nick>\n" {} \
+        "/google <text>\t\topen a google query for <text> in web browser\n" {} \
+        "/tip:<NUM>\t\topen the specified TIP document in web browser\n" {} \
+        "/bug ?group? ?tracker? id\topen a sourceforge tracker item in browser\n" {} \
+        "/?<text>\t\t\tsearch the chat buffer for matching text.\
+         Repeating the command will progress\n\t\t\tto the previous match\n" {} \
+        "/!\t\t\tclear the previous search result\n" {}
+
     $w.text config -state disabled
     wm deiconify $w
     

@@ -7,6 +7,8 @@
 
 	* tkchat.tcl (::tkchat::userPost): Add a /google command to launch
 	google queries with the remaining text.
+
+	* tkchat.tcl (::tkchat::About): Added help text for the commands.
 	
 2003-07-17  Jeff Hobbs  <jeffh@ActiveState.com>
 
