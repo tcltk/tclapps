@@ -1,6 +1,6 @@
 2004-11-23  Reinhard Max  <max@suse.de>
 
-	* tkchat.tcl (::tkchat::Debug): Some more fixed for reload script.
+	* tkchat.tcl: Reload/Restart should work again now.
 
 2004-11-23  Pascal Scheffers  <pascal@scheffers.net>
 
