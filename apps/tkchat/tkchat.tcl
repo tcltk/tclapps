@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.254 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.255 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.254 2004/12/14 16:29:08 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.255 2004/12/17 09:45:30 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5851,6 +5851,10 @@ namespace eval tkjabber {
     Variable nickTries 0 ;# The number of times I tried to solve a nick conflict
     Variable baseNick "" ;# used when trying to solve a nick conflict.
     Variable grabNick "" ;# grab this nick when it becomes available.
+    
+    Variable ignoreNextNick ""
+    # If the next entry is by this nick, don't display it (for nick changes.)
+    
     Variable roster ""
     Variable browser ""
     Variable socket ""
@@ -6039,11 +6043,13 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
     variable conference
     variable members
     variable grabNick
+    variable ignoreNextNick
     
     switch -- $what {
 	presence {
 	    array set p $args
 	    set action ""
+            set newnick ""
 	    # online/away/offline, etc.
 	    set status online
 	    if { [info exists p(-show)] } {
@@ -6071,8 +6077,36 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
                     }
 		}
 		unavailable {
-		    set action left
-		    set status offline		    
+                    set nickchange 0
+                    set action left
+                    set status offline
+
+                    if {[info exists p(-x)]} {
+                        # Check for nickname change
+                        foreach child $p(-x) {
+                            set ns [wrapper::getattribute $child xmlns]
+                            if {[string equal $ns \
+                                     "http://jabber.org/protocol/muc#user"]} {                                
+                                set status_elem [wrapper::getchildswithtag $child status]
+                                if { [llength $status_elem]==0 } {
+                                    # Not a nickname change.
+                                    continue
+                                }                                 
+                                set status_code [wrapper::getattribute [lindex $status_elem 0] code]
+                                if { $status_code eq "303" } {
+                                    # nickname change!
+                                    set item [wrapper::getchildswithtag $child item]
+                                    if {[llength $item] > 0} {
+                                        set nickchange 1
+                                        set action nickchange
+                                        set newnick [wrapper::getattribute \
+                                                        [lindex $item 0] nick]
+                                        break
+                                    }                                    
+                                }                                
+                            }
+                        }                        
+                    }                    
                     if {[info exists members($p(-resource))]} {
                         unset members($p(-resource))
                     }
@@ -6080,7 +6114,8 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 		    if { $p(-resource) eq $grabNick } {			
 			after idle tkjabber::setNick $grabNick
 			set grabNick ""
-		    }		    
+		    }
+                    
 		}		
 	    }
 	    if { $jid ne $conference } {
@@ -6096,9 +6131,18 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 	    }	    
 	    
 	    # Much more interesting info available in array ...
-	    
-	    tkchat::addTraffic $p(-resource) $action
-	    
+            
+            if { $action eq "nickchange" } {
+                tkchat::addSystem "In a fit of schizophrenia, $p(-resource) would like to be known as $newnick."
+                set ignoreNextNick $newnick
+            } else {                
+                if { !($action eq "entered" && $ignoreNextNick eq $p(-resource)) } {
+                    # if not the ignore nick:
+                    tkchat::addTraffic $p(-resource) $action
+                }
+                # Always reset ignoreNextNick!
+                set ignoreNextNick ""
+            }
 	    tkchat::updateJabberNames    
 	}
 	default {

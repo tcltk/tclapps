@@ -1,3 +1,7 @@
+2004-12-17  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Schizophrenia is supported again.
+        
 2004-12-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Put some of the http error handling code back in so
