@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.144 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.145 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.144 2004/02/27 16:05:23 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.145 2004/03/12 08:01:50 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -892,7 +892,6 @@ proc tkchat::updateIrcUsers { who what } {
 	joins {
 	    if { $userNo == -1 } {
 		lappend ircOnlineUsers $who
-		set ircOnlineUsers [lsort -dictionary $ircOnlineUsers]
 	    }	    
 	}
 	leaves {
@@ -934,7 +933,7 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
 
 proc ::tkchat::updateNames {rawHTML} {
     global Options
-    variable ::tkchat::ircOnlineUsers
+    variable ircOnlineUsers
 
     set scrollcmd [.names cget -yscrollcommand]
     .names configure -yscrollcommand {}
@@ -955,6 +954,10 @@ proc ::tkchat::updateNames {rawHTML} {
 	-command [list ::tkchat::MsgTo "All Users"]
     set Options(OnLineUsers) {}
     foreach {full url name} [regexp -nocase -all -inline -- $exp $rawHTML] {
+	lappend tmp [list $full $url $name]
+    }
+    foreach person [lsort -dictionary -index 2 $tmp] {
+	foreach {full url name} $person break
 	lappend Options(OnLineUsers) $name
 	# NOTE : the URL's don't work because of the & in them
 	# doesn't work well when we exec the call to browsers
@@ -968,9 +971,10 @@ proc ::tkchat::updateNames {rawHTML} {
 	incr i
 	.mb.mnu add command -label $name \
 	    -command [list ::tkchat::MsgTo $name]
-    }    
+    }
+    .mb.mnu add separator
 
-    foreach name $ircOnlineUsers {
+    foreach name [lsort -dictionary $ircOnlineUsers] {
         lappend Options(OnLineUsers) $name
 	.names insert end "$name" [list NICK] "\n"
 	incr i
