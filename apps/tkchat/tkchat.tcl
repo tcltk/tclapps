@@ -1266,8 +1266,6 @@ proc ::tkchat::Init {} {
     # set intial defaults
     set ::tkchat::pause 0
     array set Options {
-	URL		$::tkchat::HOST/cgi-bin/chat.cgi
-	URL2		$::tkchat::HOST/cgi-bin/chat2.cgi
 	UseProxy	0
 	ProxyHost	""
 	ProxyPort	""
@@ -1286,6 +1284,8 @@ proc ::tkchat::Init {} {
 	Font,-size	-12
 	MaxLines	500
     }
+    set Options(URL)	$::tkchat::HOST/cgi-bin/chat.cgi
+    set Options(URL2)	$::tkchat::HOST/cgi-bin/chat2.cgi
     foreach {name clr} { MainBG FFFFFF MainFG 000000 } {
 	set Options(Color,$name,Web)   $clr
 	set Options(Color,$name,Mine)  $clr
@@ -1299,9 +1299,9 @@ proc ::tkchat::Init {} {
 	##
 	## TEMPORARY WORK-AROUND FOR MINI.NET DNS PROBLEMS
 	##
-	regsub -- {^http://mini.net} $Options(URL) \
+	regsub -- {^http://mini\.net} $Options(URL) \
 		$::tkchat::HOST Options(URL)
-	regsub -- {^http://mini.net} $Options(URL2) \
+	regsub -- {^http://mini\.net} $Options(URL2) \
 		$::tkchat::HOST Options(URL2)
     }
     set Options(Offset) 50
