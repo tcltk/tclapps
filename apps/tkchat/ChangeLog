@@ -1,3 +1,8 @@
+2004-02-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added Mozilla Firefox into the list of possible DDE
+	accessible browsers and cleared a problem with commas over DDE.
+
 2004-02-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: added a /googlefight command word. 

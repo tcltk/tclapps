@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.139 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.140 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.139 2004/02/09 23:43:32 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.140 2004/02/11 16:07:41 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1504,6 +1504,10 @@ proc ::tkchat::gotoURL {url} {
 	"unix" {
 	    expr {
                   [info exists Options(BROWSER)]
+                  || [findExecutable mozilla	Options(BROWSER)]
+                  || [findExecutable mozilla-firefox	Options(BROWSER)]
+                  || [findExecutable mozilla-firebird	Options(BROWSER)]
+                  || [findExecutable konqueror	Options(BROWSER)]
                   || [findExecutable netscape	Options(BROWSER)]
                   || [findExecutable iexplorer	Options(BROWSER)]
                   || [findExecutable $Options(NETSCAPE)	Options(BROWSER)]
@@ -1527,9 +1531,12 @@ proc ::tkchat::gotoURL {url} {
 	    }
 	}
 	"windows" {
+            # DDE uses commas to separate command parts
+            set url [string map {, %2c} $url]
+
             # See if we can use dde and an existing browser.
             set handled 0
-            foreach app {{Mozilla Firebird} Mozilla Netscape IExplore} {
+            foreach app {Firefox {Mozilla Firebird} Mozilla Netscape IExplore} {
                 if {[set srv [dde services $app WWW_OpenURL]] != {}} {
                     if {[catch {dde execute $app WWW_OpenURL $url} msg]} {
                         log::log debug "dde exec $app failed: \"$msg\""
@@ -1544,8 +1551,8 @@ proc ::tkchat::gotoURL {url} {
 	    # a '^' will escape it. See http://wiki.tcl.tk/557 for more info. 
             if {! $handled} {
                 if {[string compare $tcl_platform(os) "Windows NT"] == 0} { 
-                    set url [string map {& ^&} $url] 
-                } 
+                    set url [string map {& ^&} $url]
+                }
                 if {[catch {eval exec [auto_execok start] [list $url] &} emsg]} {
                     tk_messageBox -message \
                         "Error displaying $url in browser\n$emsg"
