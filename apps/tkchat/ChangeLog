@@ -1,3 +1,11 @@
+2003-07-28  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added paned window support for the Online users
+	window.
+	
+	* tkchat.tcl: Use tk::PlaceWindow for dialog placement (+ fix to
+	Tk this results in correct placement with multiple win32 desktops).
+
 2003-07-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (addMessage): Fix for the Jabber bridge nick handling.
@@ -9,6 +17,8 @@
 	google queries with the remaining text.
 
 	* tkchat.tcl (::tkchat::About): Added help text for the commands.
+
+	* tkchat.tcl (::thchat::ShowSmilies): Add {} to expr body.
 	
 2003-07-17  Jeff Hobbs  <jeffh@ActiveState.com>
 

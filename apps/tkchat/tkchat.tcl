@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.103 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.104 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.103 2003/07/27 21:36:31 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.104 2003/07/28 19:59:27 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1507,7 +1507,19 @@ proc createFonts {} {
 }
 
 proc ::tkchat::displayUsers {} {
-    if {$::Options(DisplayUsers)} { grid .names } else { grid remove .names }
+    if {[winfo exists .pane]} {
+        if {$::Options(DisplayUsers)} {
+            .pane add .names -sticky news
+        } else {
+            .pane forget .names
+        }
+    } else {
+        if {$::Options(DisplayUsers)} {
+            grid .names
+        } else {
+            grid remove .names
+        }
+    }
 }
 
 proc findCommonRoot { words } {
@@ -1857,6 +1869,14 @@ proc ::tkchat::CreateGUI {} {
     $m add cascade -label "Translate Selection" -underline 0 -menu [menu $m.tr]
 
     # main display
+    if {[info command ::panedwindow] != {} && $Options(UsePane)} {
+        set UsePane 1
+        panedwindow .pane -sashpad 4 -sashrelief ridge
+        frame .txtframe
+    } else {
+        set UsePane 0
+    }
+
     text .txt -background "#[getColor MainBG]" \
           -foreground "#[getColor MainFG]" \
           -font FNT -relief sunken -bd 2 -wrap word \
@@ -1910,9 +1930,21 @@ proc ::tkchat::CreateGUI {} {
     bind .txt <Button-5>   {.txt yview scroll   1 units}
 
     # using explicit rows for restart
-    grid .txt .sbar .names -sticky news -padx 1 -pady 2
-    grid configure .sbar -sticky ns
-    grid .btm              -sticky news -columnspan 3
+    if {$UsePane} {
+        .txt configure -width 10
+        .names configure -width 10
+        grid .txt .sbar -in .txtframe -sticky news -padx 1 -pady 2
+        grid columnconfigure .txtframe 0 -weight 1
+        grid rowconfigure .txtframe 0 -weight 1
+        .pane add .txtframe -sticky news
+        .pane add .names -sticky news
+        grid .pane -sticky news -padx 1 -pady 2
+        grid .btm  -sticky news
+    } else {
+        grid .txt .sbar .names -sticky news -padx 1 -pady 2
+        grid configure .sbar -sticky ns
+        grid .btm              -sticky news -columnspan 3
+    }
     grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
     grid configure .eMsg .mb -sticky ew
 
@@ -1920,11 +1952,22 @@ proc ::tkchat::CreateGUI {} {
     grid columnconfigure . 0 -weight 1
     grid columnconfigure .btm 1 -weight 1
 
-    # call this to activate the option on whether the users should be shown
-    displayUsers
-
     wm geometry . $Options(Geometry)
     wm deiconify .
+
+    if {$UsePane} {
+        update
+        if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2} {
+            eval [list .pane sash place 0] $Options(Pane)
+        } else {
+            set w [expr {([winfo width .pane] * 4) / 5}]
+            set coord [.pane sash coord 0]
+            .pane sash place 0 $w [lindex $coord 1]
+        }
+    }
+
+    # call this to activate the option on whether the users should be shown
+    displayUsers
 }
 
 proc ::tkchat::DoVis {tag} {
@@ -1994,8 +2037,8 @@ proc ::tkchat::About {} {
         "/!\t\t\tclear the previous search result\n" {}
 
     $w.text config -state disabled
+    catch {::tk::PlaceWindow $w widget .}
     wm deiconify $w
-    
 }
 
 proc ::tkchat::userPost {} {
@@ -2704,6 +2747,9 @@ proc saveRC {} {
     if {[info exists ::env(HOME)]} {
 	set rcfile [file join $::env(HOME) .tkchatrc]
         set Options(Geometry) [wm geometry .]
+        if {[winfo exists .pane]} {
+            set Options(Pane) [.pane sash coord 0]
+        }
 	array set tmp [array get Options]
 	set ignore {
             History FetchTimerID OnlineTimerID
@@ -2734,10 +2780,14 @@ proc saveRC {} {
 proc scroll_set {sbar f1 f2} {
     global Options
     $sbar set $f1 $f2
-    if {[string equal "$f1$f2" "01"]} {
+    if {[string equal "$f1$f2" "01"]} {        
 	grid remove $sbar
     } else {
-	grid $sbar
+        if {[winfo exists .pane]} {
+            grid $sbar -in .txtframe
+        } else {
+            grid $sbar
+        }
     }
     set Options(AutoScroll) [string equal $f2 1]
 }
@@ -3166,11 +3216,12 @@ proc ::tkchat::ShowSmiles {} {
             lappend tmp($e) $i
         }
         toplevel $t
+        catch {::tk::PlaceWindow $t widget .}
         wm title $t "Available Emoticons"
         wm protocol $t WM_DELETE_WINDOW [list wm withdraw $t]
         set txt [text $t.txt -background black -foreground white \
                        -font NAME -tabs {1.5i l 2.0i l} \
-                       -height [expr [llength [image names]] + 5]]
+                       -height [expr {[llength [image names]] + 5}]]
         foreach image [lsort [image names]] {
             set name [lindex [split $image :] end]
             $txt insert end "$name\t"
@@ -3210,6 +3261,8 @@ proc ::tkchat::Init {} {
 	History		{}
 	AutoScroll	0
 	Geometry	600x500+0+0
+        Pane            {520 2}
+        UsePane         1
 	Font,-family	Helvetica
 	Font,-size	-12
 	MaxLines	500
