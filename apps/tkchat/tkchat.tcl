@@ -44,11 +44,17 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 # We sometimes need to _really_ use the Tk widgets at the moment...
 #
 catch {
+    rename ::entry ::tk::entry
     rename ::label ::tk::label
     rename ::radiobutton ::tk::radiobutton
     if {![catch {package require tile 0.4}]} {
-	namespace import -force tile::*
+        if {[package vsatisfies [package provide tile] 0.5]} {
+            namespace import -force ttk::*
+        } else {
+            namespace import -force tile::*
+        }
     } else {
+        interp alias {} entry {} ::tk::entry
 	interp alias {} label {} ::tk::label
 	interp alias {} radiobutton {} ::tk::radiobutton
     }
@@ -62,7 +68,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.197 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.198 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -94,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.197 2004/11/03 09:03:04 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.198 2004/11/05 23:06:34 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5038,7 +5044,7 @@ namespace eval ::dkfFontSel {
 	frame $w.sample
 	grid $w.sample -row 8 -column 1 -columnspan 7 -sticky nsew
 	grid propagate $w.sample 0
-        entry $w.sample.text
+        ::tk::entry $w.sample.text
         catch {
             $w.sample.text configure -background [$w.sample cget -background]
         }
@@ -5555,8 +5561,9 @@ proc ::tkchat::UserInfoSendDone {tok} {
 # At some point I want to support multiple icons for nochat/chat/alert.
 #
 proc ::tkchat::WinicoInit {} {
-    catch {
+    if {![catch {
         package require Winico
+    }]} {
         variable TaskbarIcon
         set icofile [file join [file dirname [info script]] tkchat.ico]
         if {[file exists $icofile]} {
@@ -6630,4 +6637,3 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport ssl} 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
 }
-
