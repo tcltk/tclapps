@@ -1,3 +1,9 @@
+2005-02-27  Jeff Godfrey <jeff_godfrey@pobox.com>
+
+    * asteroids.tcl:
+    - General code formatting and alignment cleanup
+    - Added game Pause function, bound to "P" and "p"
+
 2005-02-25  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* asteroids.tcl: add options to the main menu to control game
