@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.255 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.256 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.255 2004/12/17 09:45:30 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.256 2004/12/22 19:02:31 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2856,17 +2856,18 @@ proc ::tkchat::logonScreen {} {
 	checkbutton .logon.rpw -text "Remember Chat Password" \
               -var Options(SavePW) -underline 0
         frame .logon.fjsrv
-	label .logon.ljsrv -text "Jabber server:port" 
+	label .logon.ljsrv -text "Jabber server:port" -underline 0
 	entry .logon.ejsrv -textvar Options(JabberServer)
 	entry .logon.ejprt -textvar Options(JabberPort) -width 5
-	label .logon.ljres -text "Jabber resource" 
+	label .logon.ljres -text "Jabber resource" -underline 3
 	entry .logon.ejres -textvar Options(JabberResource)
 	#checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
         #      -var Options(UseJabberPoll) 
         if {$have_tls} {
             checkbutton .logon.rjabberssl -text "Use Jabber SSL" \
-                -var Options(UseJabberSSL) -underline 0 \
+                -var Options(UseJabberSSL) -underline 2 \
                 -command ::tkjabber::TwiddlePort
+            bind .logon <Alt-e> {.logon.rjabberssl invoke}
         }
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect) \
             -underline 5
@@ -2889,6 +2890,8 @@ proc ::tkchat::logonScreen {} {
         bind .logon <Alt-a> {focus .logon.epw}
         bind .logon <Alt-r> {.logon.rpw invoke}
         bind .logon <Alt-c> {.logon.atc invoke}
+        bind .logon <Alt-j> {focus .logon.ejsrv}
+        bind .logon <Alt-b> {focus .logon.ejres}
 
 	trace variable Options(UseProxy)  w [namespace origin optSet]
 	trace variable Options(SavePW)    w [namespace origin optSet]
@@ -2904,8 +2907,8 @@ proc ::tkchat::logonScreen {} {
 	grid .logon.lnm .logon.enm  -           -in $lf -sticky ew -pady 5
 	grid .logon.lpw .logon.epw  -           -in $lf -sticky ew
 	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
-	grid x        .logon.ljres .logon.ejres -in $lf -sticky w -pady 3
 	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
+	grid x        .logon.ljres .logon.ejres -in $lf -sticky w -pady 3
         if {$have_tls} {
             grid x .logon.rjabberssl -          -in $lf -sticky w -pady 3
         }
@@ -5621,6 +5624,11 @@ proc ::tkchat::EditOptions {} {
     if {[catch {package require as::style}]} {
         $sf.as configure -state disabled
     }
+
+    bind $dlg <Alt-a> [list $sf.as invoke]
+    bind $dlg <Alt-g> [list $sf.gtk invoke]
+    bind $dlg <Alt-n> [list $sf.any invoke]
+    bind $dlg <Alt-t> [list $sf.def invoke]
     
     grid $sf.m - - - -sticky news
     grid $sf.as $sf.gtk $sf.any $sf.def -sticky news
@@ -5646,15 +5654,18 @@ proc ::tkchat::EditOptions {} {
         #[expr {int([wm attributes . -alpha] * 100)}]
         $gf.alpha configure -command [namespace origin SetAlpha]
 
+        bind $dlg <Alt-h> [list $gf.face invoke]
+        bind $dlg <Alt-r> [list focus $gf.alpha]
+
         grid $gf.fade   - $gf.fadelimit $gf.pct x -sticky w
         grid $gf.alabel $gf.alpha - - - -sticky we
         grid configure $gf.alabel -pady {20 0} -sticky w
         grid columnconfigure $gf 4 -weight 1
     }
 
-    button $dlg.ok -text OK \
+    button $dlg.ok -text OK -underline 0 -default active \
         -command [list set ::tkchat::EditOptions(Result) 1]
-    button $dlg.cancel -text Cancel \
+    button $dlg.cancel -text Cancel -underline 0 \
         -command [list set ::tkchat::EditOptions(Result) 0]
 
     grid $bf - -sticky news -padx 2 -pady 2
@@ -5668,6 +5679,8 @@ proc ::tkchat::EditOptions {} {
 
     bind $dlg <Return> [list $dlg.ok invoke]
     bind $dlg <Escape> [list $dlg.cancel invoke]
+    bind $dlg <Alt-o>  [list focus $dlg.ok]
+    bind $dlg <Alt-c>  [list focus $dlg.cancel]
     focus $bf.e
 
     wm resizable $dlg 0 0
