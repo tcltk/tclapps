@@ -8,7 +8,7 @@
 #
 # Copyright 1997, 1998 by Neil Winton. All rights reserved.
 #
-# RCS: @(#) $Id: hexplode.tcl,v 1.1 2001/11/07 22:30:33 hobbs Exp $
+# RCS: @(#) $Id: hexplode.tcl,v 1.2 2003/10/24 22:42:09 andreas_kupries Exp $
 #
 # You may copy, modify and distribute this program freely -- but please
 # retain the above copyright statement and don't pretend that you wrote it!
@@ -565,16 +565,16 @@ proc configGame {} {
 
 	    label .config.players.lb$player -text "$PlayerColour($player)" \
 		-bg $PlayerColour($player)
-	    grid .config.players.lb$player -col 0 -row $player -sticky ew
+	    grid .config.players.lb$player -column 0 -row $player -sticky ew
 
 	    # Checkbox to enable/disable player
 
 	    checkbutton .config.players.cb$player -variable PlayerState($player)
-	    grid .config.players.cb$player -col 1 -row $player
+	    grid .config.players.cb$player -column 1 -row $player
 
 	    # Option menu to select strategy
 	    tk_optionMenu .config.players.om$player PlayerStrategy($player) human loader exploder avoider cornered gobbler chooser
-	    grid .config.players.om$player -col 2 -row $player -sticky ew
+	    grid .config.players.om$player -column 2 -row $player -sticky ew
 	}
 	grid columnconfigure .config.players 2 -minsize 2.5c
 	pack $p -side top -expand yes -fill both -ipadx 2 -ipady 2
