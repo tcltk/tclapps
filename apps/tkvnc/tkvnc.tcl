@@ -5,8 +5,9 @@ exec wish "$0" ${1+"$@"}
 # Greg Baker's VNC viewer written in pure Tcl (using Tk for a GUI).
 # (c)  Greg Baker,  Ifost  <gregb@ifost.org.au>
 # Changes 2003 Copyright (c) Jeff Hobbs <jeff@hobbs.org>
+# Changes 2003 Copyright (c) Miguel Sofer <msofer@users.sf.net>
 #
-# Current status (9 Jan 2003).  
+# Status (9 Jan 2003).  
 #  - DES encryption (i.e. authentication) is not implemented.  Therefore,
 #    you can't connect to something that was started with Unix vncserver,
 #    only Unix Xvnc -rfbport ... directly would work
@@ -22,6 +23,11 @@ exec wish "$0" ${1+"$@"}
 #  - no support for ClientCutText (but ServerCutText is OK)
 #  - Big-endian-ness is hard coded.  This is obviously a bit of a problem
 #    on x86 platforms!
+#
+# Status (16 Jan 2003)
+#  - DES still not implemented
+#  - all standard encodings seem to work properly
+#  - still works only at 8-bit color depth
 #
 # The easiest way to test this is on your unix server do:
 #  Xvnc :1 -geometry 800x600 -depth 8 &
@@ -189,8 +195,8 @@ proc ::vnc::SetEncodings {chan} {
     set ENC($RRE)      ::vnc::RRERectEncoding
     set ENC($CoRRE)    ::vnc::CoRRERectEncoding
     set ENC($HEXTILE)  ::vnc::HextileRectEncoding
-    set encodings_prefs [list $RAW $COPYRECT $HEXTILE $CoRRE $RRE]
-    #set encodings_prefs [list $COPYRECT $HEXTILE $RAW $CoRRE $RRE]
+    #set encodings_prefs [list $RAW $COPYRECT $HEXTILE $CoRRE $RRE]
+    set encodings_prefs [list $COPYRECT $HEXTILE $CoRRE $RRE $RAW]
     set num_prefs [llength $encodings_prefs]
     puts -nonewline $chan [binary format cc 2 0]; # add padding
     puts -nonewline $chan [binary format S $num_prefs]
@@ -375,61 +381,109 @@ proc ::vnc::RawEncoding {chan x y width height} {
     }
 }
 
+# or maybe this?
+proc ::vnc::RawEncoding {chan x y width height} {
+    variable SCREEN
+    variable PIXELS
+    variable BINARY_FORMAT_FOR_PIXELS
+    variable BYTES_PER_PIXEL
+
+    set bytes [expr {$width*$height*$BYTES_PER_PIXEL}]
+    if {!$bytes} { return }
+    binary scan [read $chan $bytes] $BINARY_FORMAT_FOR_PIXELS$bytes rectwords
+
+    set idx 0
+    set endIdx $width
+    set y_max [expr {$y + $height}]
+
+    while {$y < $y_max} {
+	set line_data {}
+	while {$idx < $endIdx} {
+	    lappend line_data $PIXELS([lindex $rectwords $idx])
+	    incr idx
+	}
+	$SCREEN put [list $line_data] -to $x $y
+	set idx $endIdx
+	incr endIdx $width
+	incr y
+	if {!($y%8)} { update idletasks } 
+    }
+}
+
 
 proc ::vnc::CopyRectEncoding  {chan x_start y_start width height} {
+    variable SCREEN
+    variable SCREENBUF
     set src_x [read_binary $chan S 2]
     set src_y [read_binary $chan S 2]
-    variable SCREEN
-    $SCREEN copy $SCREEN \
-	-from $src_x $src_y [expr {$src_x + $width}] [expr {$src_y + $height}]\
-	-to $x_start $y_start
+
+    #
+    # As the copying is done line-by-line, we need to take care not
+    # to overwrite the still-uncopied data when copying downwards
+    #
+
+    if {$src_y > $y_start} {
+	$SCREEN copy $SCREEN \
+		-from $src_x $src_y [expr {$src_x + $width}] [expr {$src_y + $height}]\
+		-to $x_start $y_start
+    } else {
+	# Copy to an intermediate buffer to avoid overwriting
+	$SCREENBUF copy $SCREEN \
+		-from $src_x $src_y [expr {$src_x + $width}] [expr {$src_y + $height}] \
+		-to 0 0
+	$SCREEN copy $SCREENBUF \
+		-from 0 0 $width $height \
+		-to $x_start $y_start
+    }    
 }
 
 
 proc ::vnc::RRERectEncoding {chan x_start y_start width height} {
+    variable SCREEN
     set num_subrects [read_binary $chan I 4]
     set bg [ReadSinglePixelColour $chan]
-    SolidBlockFill $bg $x_start $y_start $width $height
+    $SCREEN put $bg -to $x_start $y_start \
+	    [expr {$x_start + $width}] [expr {$y_start + $height}] 
     for {set i 0} {$i < $num_subrects} {incr i} {
 	set colour [ReadSinglePixelColour $chan]
-	set x [expr {[read_binary $chan S 2] & 0xFFFF}]
-	set y [expr {[read_binary $chan S 2] & 0xFFFF}]
+	set x [expr {$x_start + ([read_binary $chan S 2] & 0xFFFF)}]
+	set y [expr {$y_start + ([read_binary $chan S 2] & 0xFFFF)}]
 	set w [expr {[read_binary $chan S 2] & 0xFFFF}]
 	set h [expr {[read_binary $chan S 2] & 0xFFFF}]
-	SolidBlockFill $colour $x $y $w $h
+	$SCREEN put $colour -to $x $y [expr {$x + $w}] [expr {$y + $h}] 
     }
 }
 
 proc ::vnc::CoRRERectEncoding {chan x_start y_start width height} {
+    variable SCREEN
     set num_subrects [read_binary $chan I 4]
     set bg [ReadSinglePixelColour $chan]
-    SolidBlockFill $bg $x_start $y_start $width $height
+    $SCREEN put $bg -to $x_start $y_start \
+	    [expr {$x_start + $width}] [expr {$y_start + $height}] 
     for {set i 0} {$i < $num_subrects} {incr i} {
 	set colour [ReadSinglePixelColour $chan]
-	set x [expr {[read_binary $chan c 1] & 0xFF}]
-	set y [expr {[read_binary $chan c 1] & 0xFF}]
+	set x [expr {$x_start + ([read_binary $chan c 1] & 0xFF)}]
+	set y [expr {$y_start + ([read_binary $chan c 1] & 0xFF)}]
 	set w [expr {[read_binary $chan c 1] & 0xFF}]
 	set h [expr {[read_binary $chan c 1] & 0xFF}]
-	SolidBlockFill $colour \
-	    [expr {$x_start + $x}] [expr {$y_start + $y}] $w $h
+	$SCREEN put $colour -to $x $y [expr {$x + $w}] [expr {$y + $h}] 
     }
-
 }
 
 proc ::vnc::HextileRectEncoding {chan x_start y_start width height} {
     variable fg_colour
     variable bg_colour
+    variable SCREEN
     for {set tile_y 0} {$tile_y < $height} {incr tile_y 16} {
+	set y [expr {$y_start + $tile_y}]
+	set h  [expr {$tile_y + 16 > $height ? ($height - $tile_y) : 16 }]
 	for {set tile_x 0} {$tile_x < $width} {incr tile_x 16} {
-	    set tile_start_x [expr {$x_start + $tile_x}]
-	    set tile_start_y [expr {$y_start + $tile_y}]
-	    set tile_width   [expr {$tile_x + 16 > $width ? ($width - $tile_x + 16) : 16 }]
-	    set tile_height  [expr {$tile_y + 16 > $height ? ($height - $tile_y + 16) : 16 }]
+	    set x [expr {$x_start + $tile_x}]
+	    set w [expr {$tile_x + 16 > $width ? ($width - $tile_x) : 16 }]
 	    set subencoding [read_binary $chan c 1]	    
 	    if {$subencoding & 1} {
 		# Raw hextile
-		RawEncoding $chan $tile_start_x $tile_start_y \
-		    $tile_width $tile_height
+		RawEncoding $chan $x $y $w $h
 		continue
 	    }
 	    if {$subencoding & 2} {
@@ -446,8 +500,7 @@ proc ::vnc::HextileRectEncoding {chan x_start y_start width height} {
 	    } else {
 		set subrects_count 0
 	    }
-	    SolidBlockFill $bg_colour \
-		$tile_start_x $tile_start_y $tile_width $tile_height
+	    $SCREEN put $bg_colour -to $x $y [expr {$x + $w}] [expr {$y + $h}] 
 
 	    set subrects_coloured [expr {$subencoding & 16}]
 	    set colour $fg_colour
@@ -457,15 +510,14 @@ proc ::vnc::HextileRectEncoding {chan x_start y_start width height} {
 		}
 		set x_and_y [expr {([read_binary $chan c 1] + 0x100) % 0x100}]
 		set w_and_h [expr {([read_binary $chan c 1] + 0x100) % 0x100}]
-		set subrect_x [expr {$tile_start_x + ($x_and_y >> 4)}]
-		set subrect_y [expr {$tile_start_y + ($x_and_y & 15)}]
-		set subrect_width  [expr {1 + ($w_and_h >> 4)}]
-		set subrect_height [expr {1 + ($w_and_h & 15)}]
-		SolidBlockFill $colour \
-		    $subrect_x $subrect_y $subrect_width $subrect_height
+		set subrect_x [expr {$x + ($x_and_y >> 4)}]
+		set subrect_y [expr {$y + ($x_and_y & 15)}]
+		set subrect_w [expr {1 + ($w_and_h >> 4)}]
+		set subrect_h [expr {1 + ($w_and_h & 15)}]
+		$SCREEN put $colour -to $subrect_x $subrect_y \
+			[expr {$subrect_x + $subrect_w}] [expr {$subrect_y + $subrect_h}] 
 	    }
 	}
-	update idletasks
     }    
 }
 
@@ -473,23 +525,6 @@ proc ::vnc::HextileRectEncoding {chan x_start y_start width height} {
 ######################################################################
 # Utility functions used by other procs
 ######################################################################
-
-
-proc ::vnc::SolidBlockFill {colour x y width height} {
-    variable SCREEN
-    if {$width == 1 && $height == 1} {
-	puts [time {$SCREEN put $colour -to $x $y}]
-	return
-    }
-    # Build up the one line of color, then repeat for as many lines as needed
-    for {set i 0} {$i < $width} {incr i} {
-	lappend line $colour
-    }
-    for {set i 0} {$i < $height} {incr i} {
-	lappend rowdata $line
-    }
-    $SCREEN put $rowdata -to $x $y
-}
 
 proc ::vnc::ReadSinglePixelColour {chan} {
     variable PIXELS
@@ -512,13 +547,13 @@ proc ::vnc::FillOutPixelCache {} {
     if {$BITS_PER_PIXEL != 8} {
 	return -code error "Have to change the loop parameters here" 
     } 
-    for {set pixel -255} {$pixel < 256} {incr pixel} { 
+    for {set pixel -128} {$pixel < 128} {incr pixel} { 
 	set rcomponent   [expr {($pixel >> $rshift) & $rmax}]
-	set red_to_255   [expr {int(255.0 * $rcomponent / (1.0 * $rmax+1))}]
+	set red_to_255   [expr {(255 * $rcomponent) / $rmax}]
 	set gcomponent   [expr {($pixel >> $gshift) & $gmax}]
-	set green_to_255 [expr {int(255.0 * $gcomponent / (1.0 * $gmax+1))}]
+	set green_to_255 [expr {(255 * $gcomponent) / $gmax}]
 	set bcomponent   [expr {($pixel >> $bshift) & $bmax}]
-	set blue_to_255  [expr {int(255.0 * $bcomponent / (1.0 * $bmax+1))}]
+	set blue_to_255  [expr {(255 * $bcomponent) / $bmax}]
 	set PIXELS($pixel) \
 	    [format "#%02X%02X%02X" $red_to_255 $green_to_255 $blue_to_255]
     }
@@ -624,6 +659,7 @@ proc ::vnc::InitUI {root} {
     variable ROOT   $root
     variable CANVAS $base.screen
     variable SCREEN [image create photo]
+    variable SCREENBUF [image create photo]
 
     $SCREEN blank
 
