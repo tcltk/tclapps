@@ -593,8 +593,8 @@ proc ::vnc::UpdateUI {{chan {}}} {
 	bind $CANVAS <Motion>        {}
 	bind $CANVAS <ButtonPress>   {}
 	bind $CANVAS <ButtonRelease> {}
-	bind all <KeyPress>          {}
-	bind all <KeyRelease>        {}
+	bind $ROOT   <KeyPress>      {}
+	bind $ROOT   <KeyRelease>    {}
 	return
     }
 
@@ -610,8 +610,8 @@ proc ::vnc::UpdateUI {{chan {}}} {
     bind $CANVAS <Motion>        [list ::vnc::PointerEvent $chan move %x %y]
     bind $CANVAS <ButtonPress>   [list ::vnc::PointerEvent $chan down %x %y %b]
     bind $CANVAS <ButtonRelease> [list ::vnc::PointerEvent $chan up %x %y %b]
-    bind all <KeyPress>          [list ::vnc::KeyEvent $chan %N]
-    bind all <KeyRelease>        [list ::vnc::KeyEvent $chan %N 0]
+    bind $ROOT   <KeyPress>      [list ::vnc::KeyEvent $chan %N]
+    bind $ROOT   <KeyRelease>    [list ::vnc::KeyEvent $chan %N 0]
 }
 
 proc ::vnc::InitUI {root} {
