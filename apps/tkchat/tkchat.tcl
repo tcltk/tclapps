@@ -43,7 +43,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.61 2002/07/26 14:32:18 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.62 2002/07/31 08:49:30 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2837,6 +2837,7 @@ proc ::dict.leo.org::init {} {
     toplevel $w
     wm withdraw $w
     bind $w <Button-3> {wm withdraw [winfo toplevel %W]}
+    wm protocol $w WM_DELETE_WINDOW [list wm withdraw $w]
     frame $w.main
     frame  $w.top
     entry  $w.top.ent -bg white -textvariable [namespace current]::Query
