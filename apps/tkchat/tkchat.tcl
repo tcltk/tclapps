@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.118 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.119 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.118 2003/09/19 22:06:49 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.119 2003/09/20 00:25:27 schwarzkopf Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4265,12 +4265,13 @@ proc ::tkchat::UserInfoDialog {} {
                             photo_url "Picture URL" icq_uin "ICQ uin"} {
         set l [label $f.l$key -text $text -anchor nw]
         set e [entry $f.e$key \
-                   -textvariable [namespace current]::UserInfo($key) -bd 1]
+                   -textvariable [namespace current]::UserInfo($key) \
+                   -bd 1 -background white]
         grid configure $l $e -sticky news -padx 1 -pady 1
     }    
     set l [label $f.lstuff -text "Anything else" -anchor nw]
     set e [frame $f.estuff -bd 0]
-    set et [text $e.text -height 6 -bd 1]
+    set et [text $e.text -height 6 -bd 1 -background white]
     set es [scrollbar $e.scroll -bd 1 -command [list $et yview]]
     $et configure -yscrollcommand [list $es set]
     $et insert 0.0 $UserInfo(stuff)
