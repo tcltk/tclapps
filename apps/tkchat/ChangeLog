@@ -1,3 +1,9 @@
+2004-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::Retrieve): Bug #1030051. Be more careful
+	not to overwrite the current script if we fail to get something
+	sensible from the web request.
+
 2004-09-08  Kevin Kenny  <kennykb@acm.org>
 
 	* tkchat.tcl (::tkchat::debug, ::tkchat::SetFont,

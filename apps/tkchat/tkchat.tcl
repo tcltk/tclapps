@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.177 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.178 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.177 2004/09/16 19:33:49 kennykb Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.178 2004/09/18 18:27:18 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -208,16 +208,27 @@ proc ::tkchat::Retrieve {} {
 	set token [::http::geturl $HEADUrl \
 		       -headers [buildProxyHeaders] -timeout 30000]
 	::http::wait $token
-	set code [catch {
-	    if {[::http::status $token] == "ok"} {
-		set fid [open $file w]
-		fconfigure $fid -translation binary
-		set data [::http::data $token]
-		puts -nonewline $fid $data
-		close $fid
-		regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $data -> rcsVersion
-	    }
-	} err]
+        if {[string equal [::http::status $token] "ok"] && \
+                [::http::status $token] == 200} {
+            set code [catch {
+                set data [::http::data $token]
+                if {[string length $data] < 1} {
+                    return -code error "Document was empty"
+                }
+                set fid [open $file w]
+                fconfigure $fid -translation binary
+                puts -nonewline $fid $data
+                close $fid
+                regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $data -> rcsVersion
+            } err]
+        } else {
+            set code 1
+            set err [::http::error $token]
+            if {[string length $err] < 1} {
+                set err [http::data $token]
+            }
+        }
+
 	::http::cleanup $token
 
 	if {$code} {
