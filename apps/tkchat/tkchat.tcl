@@ -22,7 +22,7 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
-package require http           ; # core Tcl
+package require http 2		; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.111 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.112 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.111 2003/09/11 15:30:21 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.112 2003/09/11 20:24:32 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -254,7 +254,7 @@ proc ::tkchat::ParseHistLog {log} {
             set lastnick ""
             set lastdata ""
             foreach line $logdata {
-                log::log debug "History Parse: $line"
+                #log::log debug "History Parse: $line"
                 if {[regexp -- $MsgRE $line -> type nick data]} {
                     if {[string length $lastnick]>0} {
                         lappend retList $lastnick $lastdata
@@ -361,7 +361,8 @@ proc ::tkchat::LoadHistory {} {
     # Set a mark for the history insertion point.
     set pos "[.txt index end] - 1 line"
     .txt config -state normal
-    .txt insert end "+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
+    .txt insert end \
+        "+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
     .txt mark set HISTORY $pos
 
     set Options(FinalList) $FinalList
@@ -384,9 +385,8 @@ proc ::tkchat::LoadHistoryLines {} {
     foreach {nick msg} $Options(FinalList) {
         addMessage "" $nick $msg HISTORY
         incr count 2
-        if {$count > 200} { break }
+        if {$count > 100} { break }
     }
-    set len [llength $Options(FinalList)]
     set Options(FinalList) [lrange $Options(FinalList) $count end]
 
     if {$Options(FinalList) == {}} {
@@ -1669,7 +1669,7 @@ proc ::tkchat::CreateGUI {} {
     
     wm title . "Tcl'ers Chat"
     wm withdraw .
-    wm protocol . WM_DELETE_WINDOW quit
+    wm protocol . WM_DELETE_WINDOW [namespace origin quit]
 
     createFonts
 
@@ -1700,9 +1700,10 @@ proc ::tkchat::CreateGUI {} {
 	    -command { pause $::tkchat::pause }
     $m add command -label "Logout" -underline 0 \
 	    -command [namespace origin logonScreen]
-    $m add command -label "Save Options" -underline 0 -command saveRC
+    $m add command -label "Save Options" -underline 0 \
+        -command [namespace origin saveRC]
     $m add separator
-    $m add command -label "Exit" -underline 1 -command quit
+    $m add command -label "Exit" -underline 1 -command [namespace origin quit]
 
     ## Preferences/Edit Menu
     ##
@@ -2281,7 +2282,8 @@ proc ::tkchat::logonScreen {} {
 	checkbutton .logon.atc -text "Auto-connect" -var Options(AutoConnect)
 	button .logon.ok -text "Logon" -command "set LOGON 1" -width 8 -underline 0
         bind .logon <Alt-l> {focus .logon.ok}
-	button .logon.cn -text "Quit" -command quit -width 8 -underline 0
+	button .logon.cn -text "Quit" -width 8 -underline 0 \
+            -command [namespace origin quit]
         bind .logon <Alt-q> {focus .logon.cn}
 	trace variable Options(UseProxy) w [namespace origin optSet]
 	trace variable Options(SavePW) w [namespace origin optSet]
@@ -2745,16 +2747,16 @@ proc ::tkchat::OpenErrorLog {opt} {
     }
 }
 
-proc quit {} {
+proc ::tkchat::quit {} {
     set q "Are you sure you want to quit?"
     set a [tk_messageBox -type yesno -message $q]
     if {[string equal $a "yes"]} {
-	saveRC
+	::tkchat::saveRC
 	exit
     }
 }
 
-proc saveRC {} {
+proc ::tkchat::saveRC {} {
     global Options
     if {[info exists ::env(HOME)]} {
 	set rcfile [file join $::env(HOME) .tkchatrc]
@@ -2764,7 +2766,7 @@ proc saveRC {} {
         }
 	array set tmp [array get Options]
 	set ignore {
-            History FetchTimerID OnlineTimerID
+            History FetchTimerID OnlineTimerID FinalList
             FetchToken OnlineToken ProxyPassword
             URL URL2 URLlogs errLog ChatLogChannel PaneUsersWidth
         }
