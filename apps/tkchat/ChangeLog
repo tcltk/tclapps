@@ -1,3 +1,7 @@
+2004-10-14  Pascal Scheffers  <pascal@scheffers.net>
+        * tkchat.tcl: Initial work to change the chat server to Jabber. Lots of
+        changes all over the place.
+
 2004-10-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Modified the startup to avoid multiple http requests
