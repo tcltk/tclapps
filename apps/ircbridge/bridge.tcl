@@ -6,7 +6,7 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.9 2004/03/11 11:48:13 pascalscheffers Exp $
+# $Id: bridge.tcl,v 1.10 2004/03/26 16:06:30 pascalscheffers Exp $
 
 # There's a lot that could be added here.
 
@@ -16,6 +16,13 @@ set auto_path "[file dirname [info script]] $auto_path"
 # This requires the irc module from CVS.
 package require irc 0.4
 package require chat
+
+# Some config defaults:
+
+set ::irc_server irc.debian.org
+set ::irc_port 6667
+set ::irc_user ircbridge
+set ::irc_channel \#tcl
 
 # Source the rc file if it exists. Use this file to set ::chatPassword
 # and ::KillPassword to the correct values.
@@ -44,6 +51,10 @@ proc chat::addAction {nick str} {
 # Whispers from tkchat chatusers:
 proc chat::addWhisper {nick str} {
 
+    if { $nick eq "WELCOME" } {
+	::log::log debug "Welcome message: $str"
+	return
+    }
 
     set str [string range $str 0 end-1]
     set cmd [split [string trim $str] " "]
@@ -288,7 +299,7 @@ if { [lindex $argv 0] eq "-d" } {
 }
 
 set onlineircusers [list]
-client::create irc.debian.org 6667 ircbridge \#tcl
+client::create $::irc_server $::irc_port $::irc_user $::irc_channel
 ::chat::Init
 
 vwait forever

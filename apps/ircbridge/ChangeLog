@@ -1,5 +1,11 @@
 2004-03-11  Pascal Scheffers  <pascal@scheffers.net>
 	
+	* bridge.tcl: Fixed a /msg loop for welcome messages, added config
+	options for irc server, port, nick and channel.
+	* chat.tcl: Added chatter2.cgi support to cut chat-lag
+	
+2004-03-11  Pascal Scheffers  <pascal@scheffers.net>
+	
 	* bridge.tcl: Added ~/.ircbridge sourcing
 	* chat.tcl: Added killpassword safeguard and chatpassword
 	

@@ -28,14 +28,18 @@ namespace eval chat {
 	KillPassword    "shutupanddie"
 	URL		http://mini.net/cgi-bin/chat.cgi
         URL2		http://mini.net/cgi-bin/chat2.cgi
+        URLchatter	http://mini.net/cgi-bin/chatter2.cgi
 	MyColor		000000
 	Refresh		20
 	ChatLogFile	""
-	LogLevel	notice
+	LogLevel	debug
 	errLog		stderr
 	timeout		30000
     }
 
+    variable chatter_cgi ""
+    variable chatter_stamp 0
+    
 }
 
 # Check the HTTP response for redirecting URLs. - PT
@@ -124,7 +128,7 @@ proc chat::logonChat {{retry 0}} {
 }
 
 proc chat::logonDone {tok} {
-    ::log::log debug "Logon: status was [::http::status $tok] [::http::code $tok]"
+    ::log::log notice "Logon: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
             if {[checkForRedirection $tok URL2]} {
@@ -132,6 +136,7 @@ proc chat::logonDone {tok} {
                 logonChat 1
                 return
             }
+	    startChatterCheck
 
             if {[catch {pause off} err]} { ::log::log error "pause off: $err" }
             ::chat::DoAnim
@@ -448,4 +453,90 @@ proc chat::Init {} {
     ::log::lvSuppress $Options(LogLevel) 0
 
     logonChat
+}
+
+
+proc chat::startChatterCheck {} {
+    variable Options
+    variable chatter_cgi
+    if { $chatter_cgi ne "" } {
+	fileevent $chatter_cgi readable {}
+	fileevent $chatter_cgi writable {}
+	catch {
+	    close $chatter_cgi 
+	}
+	set chatter_cgi ""
+    }
+
+    regexp {(.+)://([^/]+)(.+)} $Options(URLchatter) -> proto host path
+
+    set chatter_cgi [socket -async $host 80]
+
+    fileevent $chatter_cgi writable [list ::chat::verifyChatter $chatter_cgi]
+
+}
+
+proc chat::verifyChatter {s} {
+    variable chatter_cgi
+    variable chatter_stamp
+    variable Options
+
+    set msg [fconfigure $s -error]
+    if {$msg ne ""} {	
+	close $s
+	if { $chatter_cgi eq $s } {
+	    set chatter_cgi ""
+	}
+	after 20000 ::chat::startChatterCheck
+	::log::log debug "verifyChatter failed: $msg"
+
+    }
+    if { [catch {fconfigure $s -peername}] } {
+	close $s
+	if { $chatter_cgi eq $s } {
+	    set chatter_cgi ""
+	}
+
+	::log::log debug "verifyChatter failed: $::errorInfo"
+	# Wait a short while and retry
+	after 20000 ::chat::startChatterCheck	
+    }
+    
+    fconfigure $s -blocking 0 -buffering line
+
+    regexp {(.+)://([^/]+)(.+)} $Options(URLchatter) -> proto host path
+    
+    ::log::log debug "verifyChatter: Asking for stamp $chatter_stamp"
+
+    puts $s "GET $path?$chatter_stamp\nHost: $host\nUser-Agent: IrcBridge\n\n"
+
+    fileevent $s writable {}
+    fileevent $s readable ::chat::readChatter
+
+    ::log::log debug "verifyChatter: waiting..."
+
+}
+
+proc chat::readChatter {} {
+    variable chatter_cgi
+    variable chatter_stamp
+    variable Options
+    
+    set d $chatter_stamp
+    while { ![eof $chatter_cgi] && $d ne "" } {
+	set d [gets $chatter_cgi]
+	if { $d ne "" } {
+	    set chatter_stamp $d
+	}
+    }
+    if { [eof $chatter_cgi] } {
+	::log::log debug "readChatter: EOF!"
+	close $chatter_cgi
+	set chatter_cgi ""	
+	after 1000 startChatterCheck
+    }
+
+    ::log::log debug "readChatter: '$chatter_stamp'"
+
+    fetchPage
 }
