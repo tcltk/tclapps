@@ -68,7 +68,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.202 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.203 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.202 2004/11/07 19:58:40 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.203 2004/11/07 20:37:54 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1596,10 +1596,12 @@ proc ::tkchat::checkAlert {msgtype nick str} {
     }
 }
 
-proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0}} {
+proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}} {
     global Options
     variable map
     set w .txt
+
+    array set opts $extraOpts
 
     if {[string equal $nick "ircbridge"]} {
 	if {[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
@@ -1654,7 +1656,11 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0}} {
             foreach cmd [array names ::tkchat::MessageHooks] {
                 eval $cmd [list $str $url]
             }
-            set tags [list MSG NICK-$nick]
+	    if { [info exists opts(nolog)] } {
+		set tags [list MSG NICK-$nick NOLOG]
+	    } else {
+		set tags [list MSG NICK-$nick]		
+	    }
             if {$url != ""} {
                 lappend tags URL URL-[incr ::URLID]
                 $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
@@ -1917,10 +1923,11 @@ proc ::tkchat::formatClock {str} {
     return $out
 }
 
-proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0}} {
+proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0} {extraOpts ""}} {
     global Options
     checkNick $nick $clr
     checkAlert ACTION $nick $str
+    array set opts $extraOpts
     .txt config -state normal
     ::tkchat::InsertTimestamp .txt $nick $mark $timestamp
     .txt insert $mark "   * $nick " [list NICK NICK-$nick]
@@ -1928,7 +1935,11 @@ proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0}} {
         .txt insert $mark "[formatClock $str] " [list NICK-$nick ACTION]
     } else {
 	foreach {str url} [parseStr $str] {
-	    set tags [list MSG NICK-$nick ACTION]
+	    if { [info exists opts(nolog)] } {
+		set tags [list MSG NICK-$nick ACTION NOLOG]
+	    } else {
+		set tags [list MSG NICK-$nick ACTION]		
+	    }
 	    if {$url != ""} {
 		lappend tags URL URL-[incr ::URLID]
 		.txt tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
@@ -2570,6 +2581,7 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure INFO -lmargin2 50
     .txt tag configure NICK -font NAME
     .txt tag configure ACTION -font ACT
+    .txt tag configure NOLOG -font ACT -foreground #aaaaaa
     .txt tag configure SYSTEM -font SYS
     .txt tag configure STAMP -font STAMP
     .txt tag configure URL -underline 1
@@ -6376,10 +6388,17 @@ proc tkjabber::MsgCB {jlibName type args} {
 		}		
 	    } else {		
 		if { [info exists m(-body)] > 0 } {
+		    set opts {}
+		    set color ""
+		    set nolog [string match "/nolog*" $m(-body)] 
+		    if { $nolog } {
+			set m(-body) [string trim [string range $m(-body) 6 end]]
+			lappend opts nolog 1
+		    }
 		    if { [string range $m(-body) 0 3] eq "/me " } {
-			tkchat::addAction "" $from [string range $m(-body) 4 end] end $ts
+			tkchat::addAction $color $from [string range $m(-body) 4 end] end $ts $opts
 		    } else {		    
-			tkchat::addMessage "" $from $m(-body) end $ts 
+			tkchat::addMessage $color $from $m(-body) end $ts $opts
 		    }
 		} else {
 		    tkchat::addSystem "Got a message I do not understand from $from:\n$args"
