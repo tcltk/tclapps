@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.216 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.217 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.216 2004/11/15 19:37:36 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.217 2004/11/16 09:21:05 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -443,7 +443,9 @@ proc ::tkchat::LoadHistory {} {
     global Options
 
     # hook in the translation menu initialization (background function)
-    babelfishInit
+    if {$Options(UseBabelfish)} {
+        babelfishMenu
+    }
 
     set FinalList {}
     if {$Options(HistoryLines) == 0} {
@@ -1100,6 +1102,16 @@ proc ::tkchat::babelfishInitDone {tok} {
         }
     } else {
         log::log debug "babelfish received no data"
+    }
+}
+
+proc ::tkchat::babelfishMenu {} {
+    set menu .mbar.help
+    if {![winfo exists ${menu}.tr]} {
+        $menu entryconfigure 1 \
+            -menu [menu ${menu}.tr] \
+            -label "Translate selection" 
+        ::tkchat::babelfishInit
     }
 }
 
@@ -2598,7 +2610,8 @@ proc ::tkchat::CreateGUI {} {
     ##
     set m .mbar.help
     $m add command -label About... -underline 0 -command tkchat::About
-    $m add cascade -label "Translate Selection" -underline 0 -menu [menu $m.tr]
+    $m add cascade -label "Translate Selection" -underline 0 \
+        -command [list [namespace current]::babelfishMenu]
 
     # main display
     if {[info command ::panedwindow] != {} && $Options(UsePane)} {
@@ -4741,6 +4754,7 @@ proc ::tkchat::Init {args} {
 	Alert,NORMAL	     1
 	Alert,ACTION	     1
         WhisperIndicatorColor #ffe0e0
+        UseBabelfish         0
     }
     catch {set Options(BROWSER) $env(BROWSER)}
     set Options(URL)	 $::tkchat::HOST/cgi-bin/chat.cgi

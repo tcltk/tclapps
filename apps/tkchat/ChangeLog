@@ -1,3 +1,8 @@
+2004-11-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Babelfish is now only initialized if the user clicks
+	on the Translate selection menu item. 
+
 2004-11-15  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: jabber: logoff now works correctly; colors for ijchain
