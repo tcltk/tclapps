@@ -1,3 +1,8 @@
+2003-03-10  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Removed the Refresh button, and narrowed the other
+	buttons to leave more room for the entry widget.
+
 2003-03-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Applied two patched from Pascal Scheffers - one for

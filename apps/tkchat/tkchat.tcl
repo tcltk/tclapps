@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.87 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.88 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.87 2003/03/10 13:20:06 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.88 2003/03/10 13:42:43 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1725,7 +1725,7 @@ proc ::tkchat::CreateGUI {} {
     grid .txt .sbar .names -sticky news -padx 1 -pady 2
     grid configure .sbar -sticky ns
     grid .btm              -sticky news -columnspan 3
-    grid .ml .eMsg .post .refresh .mb -in .btm -sticky ews -padx 2 -pady 2
+    grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
     grid configure .eMsg .mb -sticky ew
 
     grid rowconfigure    . 0 -weight 1
