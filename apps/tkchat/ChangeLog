@@ -1,6 +1,7 @@
 2004-11-17  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: jabber: fix ~ in URL recognition regexp.
+	* tkchat.tcl: reformat jabber MsgCB to remove redundant code.
 
 2004-11-16  Pascal Scheffers  <pascal@scheffers.net>
 

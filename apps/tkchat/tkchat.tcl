@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.220 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.221 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.220 2004/11/17 10:03:13 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.221 2004/11/17 20:31:27 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6606,46 +6606,37 @@ proc tkjabber::MsgCB {jlibName type args} {
     variable topic
     
     log::log debug "|| MsgCB > type=$type, args=$args"
-    switch -- $type {
-	chat {
-	    array set m $args
-	    set ts 0
-	    set from $m(-from)
-            regexp {([^/]+)/(.+)} $m(-from) -> conf from
-	    if { [info exists m(-x)] } {
-		foreach x $m(-x) {
-		    if { [wrapper::getattribute $x xmlns] eq "jabber:x:delay" } {
-			set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
-			if { $ts eq "" } {
-			    set ts 0
-			}
-			break
+    
+    set color ""
+    set ts 0
+    
+    array set m $args
+    if { [info exists m(-x)] } {
+	foreach x $m(-x) {
+	    switch [wrapper::getattribute $x xmlns] {
+		"jabber:x:delay" {
+		    set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
+		    if { $ts eq "" } {
+			set ts 0
 		    }
 		}
-	    }
+		"tcl.tk:tkchat" {
+		    array set tkchatAttr [wrapper::getattrlist $x]		    
+		    set color [wrapper::getattribute $x color]
+		}
+	    }		    
+	}
+    }	    
+
+    switch -- $type {
+	chat {
+	    set from $m(-from)
+            regexp {([^/]+)/(.+)} $m(-from) -> conf from
 	    tkchat::addAction "" $from " whispers: $m(-body)" end $ts
 	}
 	groupchat {
-	    array set m $args
-	    set ts 0
-	    set color ""
 	    set from $m(-from)
             regexp {([^/]+)/(.+)} $m(-from) -> conf from
-	    if { [info exists m(-x)] } {
-		foreach x $m(-x) {
-		    switch [wrapper::getattribute $x xmlns] {
-			"jabber:x:delay" {
-			    set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
-			    if { $ts eq "" } {
-			        set ts 0
-			    }
-			}
-			"tcl.tk:tkchat" {
-			    set color [wrapper::getattribute $x color]
-			}
-		    }		    
-		}
-	    }	    
 	    set msg ""
 	    if { [info exists m(-subject)] } {
 		# changing topic.
@@ -6682,9 +6673,10 @@ proc tkjabber::MsgCB {jlibName type args} {
 			    set m(-body) "/me [string range $m(-body) $pos end]"				
 			}
 	    	    }
-		    set nolog [string match "/nolog*" $m(-body)] 
-		    if { $nolog } {
+		    if { [string match "/nolog*" $m(-body)] } {
 			set m(-body) [string trim [string range $m(-body) 6 end]]
+			lappend opts nolog 1
+		    } elseif { [info exists tkchatAttr(nolog)] && $tkchatAttr(nolog) } {
 			lappend opts nolog 1
 		    }
 		    if { [string range $m(-body) 0 3] eq "/me " } {
@@ -6698,25 +6690,12 @@ proc tkjabber::MsgCB {jlibName type args} {
 	    }
 	}
 	normal {
-	    array set m $args
-	    set ts 0
 	    set conf ""
 	    set from $m(-from)
             regexp {([^/]+)/(.+)} $m(-from) -> conf from
 	    if { $conf ne $conference } {
 		set from $m(-from)
 	    }	    
-	    if { [info exists m(-x)] } {
-		foreach x $m(-x) {
-		    if { [wrapper::getattribute $x xmlns] eq "jabber:x:delay" } {
-			set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
-			if { $ts eq "" } {
-			    set ts 0
-			}
-			break
-		    }
-		}
-	    }
 	    set msg ""
 	    if { [info exists m(-subject)] } {
 		lappend msg "Subject: $m(-subject)"
@@ -6732,7 +6711,6 @@ proc tkjabber::MsgCB {jlibName type args} {
 	    #tkchat::addMessage ""  "Subject: $m(-subject)\n$m(-body)" end $ts
 	}
 	error {
-	    array set m $args
 	    if { [info exists m(-error)] } {
 		switch -- [lindex $m(-error) 0] {
 		    405 {
@@ -6746,7 +6724,6 @@ proc tkjabber::MsgCB {jlibName type args} {
 	    }	    
 	}
 	#get {
-	    array set m $args
 	    if { [info exists m(-query)] } {
 		log::log debug "Jabber query\n$args"
 		array set iq $m(-query)		
