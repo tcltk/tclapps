@@ -57,7 +57,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.156 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.157 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -84,7 +84,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.156 2004/04/29 14:37:30 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.157 2004/04/29 14:45:34 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5143,6 +5143,8 @@ proc ::tkchat::WinicoCallback {msg icn} {
         WM_LBUTTONDOWN {
             if {[wm state .] == "withdrawn"} {
                 wm deiconify .
+                ResetMessageCounter
+                WinicoChatHook
             } else {
                 wm withdraw .
             }
