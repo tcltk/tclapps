@@ -43,23 +43,22 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 # Deal with 'tile' support.
 # We sometimes need to _really_ use the Tk widgets at the moment...
 #
-catch {
-    # BUG : Entry renaming doesn't work with activetcl 8.4.6.1
-    #rename ::entry ::tk::entry
-    rename ::label ::tk::label
-    rename ::radiobutton ::tk::radiobutton
-    if {![catch {package require tile 0.4}]} {
-        if {[package vsatisfies [package provide tile] 0.5]} {
-            namespace import -force ttk::*
-        } else {
-            namespace import -force tile::*
-        }
+foreach cmd {label radiobutton entry} {
+    rename ::$cmd ::tk::$cmd
+}
+if {![catch {package require tile 0.4}]} {
+    if {[namespace exists ::ttk]} {
+        namespace import -force ttk::*
     } else {
-        #interp alias {} entry {} ::tk::entry
-	interp alias {} label {} ::tk::label
-	interp alias {} radiobutton {} ::tk::radiobutton
+        namespace import -force tile::*
     }
 }
+foreach cmd {label radiobutton entry} {
+    if {[llength [info command ::$cmd]] < 1} {
+        interp alias {} ::$cmd {} ::tk::$cmd
+    }
+}
+
 # Under windows, we can use DDE to open urls
 if {$tcl_platform(platform) == "windows"} {
     package require dde
@@ -68,7 +67,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.204 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.205 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -100,7 +99,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.204 2004/11/08 10:41:57 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.205 2004/11/08 13:08:20 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
