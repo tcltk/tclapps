@@ -1,3 +1,9 @@
+2003-03-13  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Fixed a small bug for double-tab. Changed the look
+	of the suggested completions for double-tab. Previous completion
+	suggestions will now disappear when a new one is shown and after
+	about five seconds.
+
 2003-03-12  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Added ::tkchat::nickComplete and <Key-Tab> bindings

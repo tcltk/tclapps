@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.92 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.93 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.92 2003/03/12 20:42:04 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.93 2003/03/13 08:43:42 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1468,6 +1468,16 @@ proc findCommonRoot { words } {
     return $word
 }
 
+proc ::tkchat::deleteCompletions { } {    
+    .txt config -state normal
+    set range [.txt tag nextrange NICKCOMPLETE 0.0]
+    while { [llength $range] > 0 } {
+	.txt delete [lindex $range 0] [lindex $range 1]
+	set range [.txt tag nextrange NICKCOMPLETE [lindex $range 0]]
+    }
+    .txt config -state disabled
+}
+
 proc ::tkchat::nickComplete {} {
     #Bound to <Key-Tab> in the message entry widgets .eMsg and .tMsg
     #It will do nickname completion a'la bash command completion
@@ -1475,15 +1485,12 @@ proc ::tkchat::nickComplete {} {
     #not the users' online one. Which is too unreliable IMO. 
     global Options
     variable lastCompletion
-    
+
     set nicks [list]
     foreach key [array names Options "Visibility,NICK-*"] {
 	set nick [string range $key [string length "Visibility,NICK-"] end]
-	
 	set nick [string map {< "" > ""} $nick]
-
-	lappend nicks $nick
-	
+	lappend nicks $nick	
     }
     set nicks [lsort -dictionary $nicks]
 
@@ -1512,13 +1519,27 @@ proc ::tkchat::nickComplete {} {
 	    set lastCompletion ""
 	}
 	default {
-	    if { [clock seconds]-2 > [lindex $lastCompletion 0] } {
-		set lastCompletion ""
-	    }
-	    set match [findCommonRoot $matches]
-	    if { [string equal [lindex $lastCompletion 1] $match] && \
-		     [string length $match] > 0 } {	
-		addSystem "Completions: $matches"
+	    set match [findCommonRoot $matches]	    
+	    deleteCompletions
+	    if { [llength $lastCompletion] > 0 } { 
+		if { [clock seconds]-2 > [lindex $lastCompletion 0] } {
+		    set lastCompletion ""
+		}
+		if { [string equal [lindex $lastCompletion 1] $match] && \
+			 [string length $match] > 0 } {	
+		    .txt config -state normal
+		    .txt insert end "Completions: $matches\n" [list MSG NICKCOMPLETE]
+		    .txt config -state disabled
+		    if {$Options(AutoScroll)} { .txt see end }
+		    after 5500 {
+			if { [llength $::tkchat::lastCompletion] > 0 } {
+			    if { [clock seconds]-4 < [lindex $::tkchat::lastCompletion 0] } {
+				return
+			    }
+			}
+			::tkchat::deleteCompletions
+		    }
+		}
 	    }
 	    set lastCompletion [list [clock seconds] $match]
 	    bell	    
