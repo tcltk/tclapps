@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.181 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.182 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.181 2004/09/19 00:35:58 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.182 2004/09/19 00:40:37 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4250,9 +4250,9 @@ proc ::tkchat::Init {args} {
 	AnimEmoticons	0
         Style           {any}
         Theme           {}
-        Transparency    1.0
+        Transparency    100
         AutoFade        0
-        AutoFadeLimit   50
+        AutoFadeLimit   80
 	Popup,USERINFO	1
 	Popup,WELCOME	0
 	Popup,MEMO	1
@@ -5611,7 +5611,6 @@ proc ::tkchat::FadeCancel {} {
 }
 
 proc ::tkchat::FocusInHandler {w args} {
-    log::log debug "FocusInHandler $w $args ($::Options(AutoFade))"
     FadeCancel
 }
 proc ::tkchat::FocusOutHandler {w args} {
