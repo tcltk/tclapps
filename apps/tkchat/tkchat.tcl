@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.80 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.81 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.80 2003/02/28 13:16:42 kennykb Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.81 2003/03/05 21:57:39 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -169,7 +169,7 @@ proc ::tkchat::Retrieve {} {
 proc checkForRedirection {tok optionName} {
     global Options
     set ncode [::http::ncode $tok]
-    if {[expr {$ncode == 302 || $ncode == 301}]} {
+    if {[expr {$ncode == 302 || $ncode == 301 || $ncode == 307}]} {
         upvar \#0 $tok state
         array set meta $state(meta)
         if {[info exists meta(Location)]} {
