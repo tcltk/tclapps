@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.180 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.181 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.180 2004/09/18 22:52:14 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.181 2004/09/19 00:35:58 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4252,6 +4252,7 @@ proc ::tkchat::Init {args} {
         Theme           {}
         Transparency    1.0
         AutoFade        0
+        AutoFadeLimit   50
 	Popup,USERINFO	1
 	Popup,WELCOME	0
 	Popup,MEMO	1
@@ -5572,9 +5573,11 @@ proc ::tkchat::nickIsNoisy { nick } {
 # n must be from 1 to 100.
 #
 proc ::tkchat::SetAlpha {n} {
+    global Options
     if {[lsearch [wm attributes .] -alpha] != -1} {
         if {$n < 1} {set n 1}
         if {$n > 100} {set n 100}
+        set Options(Transparency) $n
         wm attributes . -alpha [expr {$n / 100.0}]
         # Work around a but when transitioning from opaque to
         # any transparent value the toplevel becomes topmost.
@@ -5587,7 +5590,7 @@ proc ::tkchat::FadeAlpha {} {
     if {$Options(AutoFade)} {
         variable FadeId
         set alpha [wm attributes . -alpha]
-        if {$alpha > 0.5} {
+        if {($alpha * 100) > $Options(AutoFadeLimit)} {
             wm attributes . -alpha [expr {$alpha - 0.01}]
             set FadeId [after 200 [namespace origin FadeAlpha]]
         }
@@ -5596,23 +5599,25 @@ proc ::tkchat::FadeAlpha {} {
 
 proc ::tkchat::FadeCancel {} {
     global Options
-    if {$Options(AutoFade)} {
+    if {$Options(AutoFade) == 0} {
+        set n [expr {$Options(Transparency) / 100.0}]
+        after idle [list wm attributes . -alpha $n]
+    } else {
         variable FadeId
         catch {after cancel $FadeId}
         catch {unset FadeId}
         catch {wm attributes . -alpha 0.999}
-    } else {
-        catch {wm attributes . -alpha $Options(Transparency)}
     }
 }
 
 proc ::tkchat::FocusInHandler {w args} {
-    log::log debug "FocusInHandler $w $args"
+    log::log debug "FocusInHandler $w $args ($::Options(AutoFade))"
     FadeCancel
 }
 proc ::tkchat::FocusOutHandler {w args} {
-    log::log debug "FocusOuthandler $w $args"
-    FadeAlpha
+    if {[string length [focus]] == 0} {
+        after idle [namespace origin FadeAlpha]
+    }
 }
 
 proc ::tkchat::EditOptions {} {
@@ -5625,9 +5630,10 @@ proc ::tkchat::EditOptions {} {
         set EditOptions(BROWSER) {}
     }
 
-    set EditOptions(Style) $Options(Style)
-    set EditOptions(AutoFade) $Options(AutoFade)
-    set EditOptions(Transparency) $Options(Transparency)
+    set EditOptions(Style)         $Options(Style)
+    set EditOptions(AutoFade)      $Options(AutoFade)
+    set EditOptions(AutoFadeLimit) $Options(AutoFadeLimit)
+    set EditOptions(Transparency)  $Options(Transparency)
 
     if {[winfo exists .options]} {destroy .options}
     set dlg [toplevel .options -class dialog]
@@ -5693,15 +5699,21 @@ proc ::tkchat::EditOptions {} {
         if {[info command tscale] != {}} {
             set scale tscale
         }
-        checkbutton $gf.fade -text "Fade when not active" -underline 2 \
+        checkbutton $gf.fade -text "When not active, fade to " -underline 2 \
             -variable ::tkchat::EditOptions(AutoFade)
+        spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
+            -textvariable ::tkchat::EditOptions(AutoFadeLimit)
+        label $gf.pct -text "%"
         label $gf.alabel -text Transparency
         $scale $gf.alpha -from 1 -to 100 -orient horizontal
-        $gf.alpha set [expr {int([wm attributes . -alpha] * 100)}]
+        $gf.alpha set $EditOptions(Transparency)
+        #[expr {int([wm attributes . -alpha] * 100)}]
         $gf.alpha configure -command [namespace origin SetAlpha]
-        pack $gf.fade -side top -fill x -anchor w
-        pack $gf.alabel -side left
-        pack $gf.alpha -side left -fill x -expand 1 -pady {0 16} -padx 2
+
+        grid $gf.fade   - $gf.fadelimit $gf.pct x -sticky w
+        grid $gf.alabel $gf.alpha - - - -sticky we
+        grid configure $gf.alabel -pady {20 0} -sticky w
+        grid columnconfigure $gf 4 -weight 1
     }
 
     button $dlg.ok -text OK \
@@ -5722,24 +5734,24 @@ proc ::tkchat::EditOptions {} {
     bind $dlg <Escape> [list $dlg.cancel invoke]
     focus $bf.e
 
+    wm resizable $dlg 0 0
     catch {::tk::PlaceWindow $dlg widget .}
     wm deiconify $dlg
-    wm resizable $dlg 0 0
 
     tkwait variable ::tkchat::EditOptions(Result)
 
     if {$EditOptions(Result) == 1} {
         set Options(BROWSER) $EditOptions(BROWSER)
-
-        if {![string equal $Options(Style) $EditOptions(Style)]} {
-            set Options(Style)   $EditOptions(Style)
+        foreach property {Style AutoFade AutoFadeLimit} {
+            if {![string equal $Options($property) $EditOptions($property)]} {
+                set Options($property) $EditOptions($property)
+            }
         }
-        if {![string equal $Options(AutoFade) $EditOptions(AutoFade)]} {
-            set Options(AutoFade)   $EditOptions(AutoFade)
-        }
-        if {![string equal $Options(Transparency) $EditOptions(Transparency)]} {
-            set Options(Transparency)   $EditOptions(Transparency)
-        }
+    } else {
+        # This one is the reverse of the other dialog properties. In this case
+        # the Options copy is the one always updated and the EditOptions value
+        # is the backup.
+        set Options(Transparency) $EditOptions(Transparency)
     }
 
     destroy $dlg
