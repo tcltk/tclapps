@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.79 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.80 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.79 2003/02/25 21:46:35 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.80 2003/02/28 13:16:42 kennykb Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3710,7 +3710,7 @@ namespace eval ::dkfFontSel {
     }
 
 }
-namespace import ::dkfFontSel::dkf_chooseFont
+namespace import -force ::dkfFontSel::dkf_chooseFont
 
 # -------------------------------------------------------------------------
 # Tracing variables
