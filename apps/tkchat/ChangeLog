@@ -1,3 +1,8 @@
+2003-02-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::Init): Fix mishandling of the http_proxy
+	environment variable and support Perl-ish url style value.
+
 2003-02-18  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Applied a fix from Donal K Fellows, that closes a

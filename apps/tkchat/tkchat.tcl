@@ -22,7 +22,7 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
-package require http		; # core Tcl
+package require http 2          ; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.78 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.79 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.78 2003/02/18 15:33:59 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.79 2003/02/25 21:46:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1918,7 +1918,7 @@ proc showExtra {} {
     .tMsg delete 1.0 end
     .tMsg insert end [.eMsg get]
 }
-proc logonScreen {} {
+proc ::tkchat::logonScreen {} {
     global Options LOGON
     pause on 0
     if {![winfo exists .logon]} {
@@ -2927,9 +2927,13 @@ proc ::tkchat::Init {} {
 	    ::http::config -proxyhost $Options(ProxyHost) \
 		-proxyport $Options(ProxyPort)
 	} elseif {[info exists ::env(http_proxy)]} {
-	    regexp {([[:alnum:].-]+):(\d+)} \
-		$::env(http_proxy) -> proxyHost proxyPort
-	    http::config -proxyhost $proxyHost -proxyport $proxyPort
+	    if {[regexp {(?:http://)?([[:alnum:].-]+)(?::(\d+))?} \
+                     $::env(http_proxy) -> \
+                     Options(ProxyHost) \
+                     Options(ProxyPort)]} {
+                http::config -proxyhost $Options(ProxyHost) \
+                    -proxyport $Options(ProxyPort)
+            }
 	}
     }
     ChangeFont -family $Options(Font,-family)
