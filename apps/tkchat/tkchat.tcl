@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.178 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.179 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.178 2004/09/18 18:27:18 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.179 2004/09/18 20:00:58 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5559,6 +5559,22 @@ proc ::tkchat::nickIsNoisy { nick } {
 }
 
 # -------------------------------------------------------------------------
+
+# Tk 8.5a2+ can now do a global transparency on supported platforms (Win2K
+# and WinXP.
+# n must be from 1 to 100.
+#
+proc ::tkchat::SetAlpha {n} {
+    if {[lsearch [wm attributes .] -alpha] != -1} {
+        if {$n < 1} {set n 1}
+        if {$n > 100} {set n 100}
+        wm attributes . -alpha [expr {$n / 100.0}]
+        # Work around a but when transitioning from opaque to
+        # any transparent value the toplevel becomes topmost.
+        raise .options
+    }
+}
+
 proc ::tkchat::EditOptions {} {
     global Options
     variable EditOptions
@@ -5601,8 +5617,10 @@ proc ::tkchat::EditOptions {} {
 
     if {[package vcompare [package provide Tcl] 8.3] == 0} {
         set sf [frame $dlg.sf]
+        set gf [frame $dlg.gf]
     } else {
         set sf [labelframe $dlg.sf -text "Tk style" -padx 1 -pady 1]
+        set gf [labelframe $dlg.gf -text "Gimmiks"  -padx 1 -pady 1]
     }
     message $sf.m -justify left -width 320 \
         -text "The Tk style selection available here will apply when you \
@@ -5625,6 +5643,22 @@ proc ::tkchat::EditOptions {} {
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
+    # Gimmicks section.
+    set gimmicks 0
+    if {[lsearch [wm attributes .] -alpha] != -1} {
+        set gimmicks 1
+        set scale scale
+        if {[info command tscale] != {}} {
+            set scale tscale
+        }
+        label $gf.alabel -text Transparency
+        $scale $gf.alpha -from 1 -to 100 -orient horizontal
+        $gf.alpha set [expr {int([wm attributes . -alpha] * 100)}]
+        $gf.alpha configure -command [namespace origin SetAlpha]
+        pack $gf.alabel -side left
+        pack $gf.alpha -side left -fill x -expand 1 -pady {0 16} -padx 2
+    }
+
     button $dlg.ok -text OK \
         -command [list set ::tkchat::EditOptions(Result) 1]
     button $dlg.cancel -text Cancel \
@@ -5632,6 +5666,9 @@ proc ::tkchat::EditOptions {} {
 
     grid $bf - -sticky news -padx 2 -pady 2
     grid $sf - -sticky news -padx 2 -pady 2
+    if {$gimmicks} {
+        grid $gf - -sticky news -padx 2 -pady 2
+    }
     grid $dlg.ok $dlg.cancel -sticky e
     grid rowconfigure $dlg 0 -weight 1
     grid columnconfigure $dlg 0 -weight 1
