@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.143 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.144 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.143 2004/02/27 09:33:33 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.144 2004/02/27 16:05:23 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -420,6 +420,8 @@ proc ::tkchat::LoadHistoryLines {} {
     # mask the alerts
     set alerts [array get Options Alert,*]
     foreach {alert value} $alerts { set Options($alert) 0 }
+
+    if {![info exists Options(FinalList)]} {set Options(FinalList) {}}
 
     set count 0
     foreach {nick msg} $Options(FinalList) {
@@ -2111,17 +2113,17 @@ proc ::tkchat::CreateGUI {} {
     ## Debug Menu
     ##
     set m .mbar.dbg
-    $m add comman -label "Reload Script" -underline 0 \
+    $m add comman -label "Reload script" -underline 0 \
           -command [list ::tkchat::Debug reload]
-    $m add comman -label "Restart Script" -underline 2 \
+    $m add comman -label "Restart script" -underline 2 \
           -command [list ::tkchat::Debug restart]
-    $m add comman -label "Retrieve Script" -underline 2 \
+    $m add comman -label "Retrieve script" -underline 2 \
           -command [list ::tkchat::Debug retrieve]
-    $m add comman -label "Evaluate Selection" -underline 1 \
+    $m add comman -label "Evaluate selection" -underline 1 \
           -command [list ::tkchat::Debug evalSel]
-    $m add comman -label "Allow Remote Control" -underline 0 \
+    $m add comman -label "Allow remote control" -underline 0 \
           -command [list ::tkchat::Debug server]
-    $m add comman -label "Purge Chat Window" -underline 0 \
+    $m add comman -label "Reload history" -underline 7 \
           -command [list ::tkchat::Debug purge]
     $m add separator
     $m add cascade -label "Error Logging" -underline 0 \
@@ -5307,6 +5309,7 @@ if {[tk windowingsystem] == "x11"} {
     option add *activeBorderWidth 1 widgetDefault
     option add *selectBorderWidth 1 widgetDefault
     option add *font -adobe-helvetica-medium-r-normal-*-12-*-*-*-*-*-*
+    #option add *font {Helvetica 12}
 
     option add *Button.highlightThickness 1
     option add *Checkbutton.highlightThickness 1
@@ -5326,7 +5329,7 @@ if {[tk windowingsystem] == "x11"} {
     option add *Text.background white
     option add *Text.selectBorderWidth 0
     option add *Text.selectForeground $activeFG
-    option add *Text.selectBackground $activeBG
+    option add *Text.selectBackground $troughColor
 
     option add *Menu.activeBackground $activeBG
     option add *Menu.activeForeground $activeFG
