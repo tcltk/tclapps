@@ -6,9 +6,10 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.5 2003/10/08 08:21:36 davidw Exp $
+# $Id: bridge.tcl,v 1.6 2003/10/08 10:11:44 pascalscheffers Exp $
 
 # There's a lot that could be added here.
+
 
 set auto_path "[file dirname [info script]] $auto_path"
 
@@ -33,6 +34,30 @@ proc chat::addMessage {nick str} {
 
 proc chat::addAction {nick str} {
     Send "PRIVMSG $::client::channel :* $nick $str"
+}
+
+# Whispers from tkchat chatusers:
+proc chat::addWhisper {nick str} {
+
+
+    set str [string range $str 0 end-1]
+    set cmd [split [string trim $str] " "]
+
+    if { [string match "->*" $nick] } {
+	::log::log debug "Whispered to [string range $nick 2 end]"
+	return
+    }
+
+    ::log::log debug "$nick whispered '$str'"
+
+    switch -glob -- [lindex $cmd 0] {
+	onlineusers {
+	    chat::msgSend "/msg $nick onlineusers: $::onlineircusers"
+	}
+	default {
+	    chat::msgSend "/msg $nick I don't understand '$str'"
+	}
+    }
 }
 
 proc chat::addHelp {name str} {
@@ -107,6 +132,16 @@ proc client::create { server port nk chan } {
         }
     }
 
+    $cn registerevent 353 {
+	#List of online users sent on channel join
+	::log::log debug "UsersOnline [msg]"
+	set ::onlineircusers [split [string trim [msg]] " "]
+	set item [lsearch $::onlineircusers ircbridge]
+	if { $item > -1 } {
+	    set ::onlineircusers [lreplace $::onlineircusers $item $item]
+	}
+    }
+
     $cn registerevent defaultcmd {
 	::log::log debug "[action] [msg]"
     }
@@ -122,13 +157,20 @@ proc client::create { server port nk chan } {
     $cn registerevent PART {
 	if { [target] == $client::channel && [who] != $client::nick } {
 	    chat::msgSend "*** [who] leaves"
+	    set item [lsearch $::onlineircusers [who]]
+	    if { $item > -1 } {
+		set ::onlineircusers [lreplace $::onlineircusers $item $item]
+	    }
 	}
+	
     }
 
     $cn registerevent JOIN {
 	if { [who] != $client::nick } {
 	    chat::msgSend "*** [who] joins"
+	    lappend ::onlineircusers [who]
 	}
+
     }
 
     $cn registerevent QUIT {
@@ -182,6 +224,42 @@ proc bgerror {args} {
     ::log::log error "BGERROR: $args"
     ::log::log error "ERRORINFO: $errorInfo"
 }
+
+#Stuff for daemon[ize] see http://wiki.tcl.tk/deamon
+
+proc shutdown {} {
+    # no cleanup needed.
+    exit
+}
+
+proc daemonize {} {
+    close stdin
+    close stdout
+    close stderr
+    if {[fork]} {exit 0}
+    id process group set
+    if {[fork]} {exit 0}
+    set fd [open /dev/null r]
+    set fd [open /dev/null w]
+    set fd [open /dev/null w]
+    cd /
+    umask 022
+    return [id process]
+}
+
+
+#Daemonize?
+if { [lindex $argv 0] eq "-d" } {
+    package require Tclx
+
+    daemonize
+
+    signal ignore  SIGHUP
+    signal unblock {QUIT TERM}
+    signal trap    {QUIT TERM} shutdown    
+}
+
+set onlineircusers [list]
 
 client::create irc.debian.org 6667 ircbridge \#tcl
 client::connect $client::cn

@@ -1,4 +1,10 @@
-2003-06-26  Pascal Scheffers  <pascal@scheffers.net>
+2003-10-07  Pascal Scheffers  <pascal@scheffers.net>
+	
+	* bridge.tcl: Added code to [daemonize] the bridge (uses Tclx)
+	* bridge.tcl, chat.tcl: Added support for onlineusers tracking and
+	listing with the 'onlineusers' whisper from a webchat user.
+
+2003-10-07  Pascal Scheffers  <pascal@scheffers.net>
 	
 	* pkgIndex.tcl: Added so the bridge runs straight from CVS
 

@@ -380,7 +380,10 @@ proc chat::addNewLines {input} {
     set last {}
     foreach line $input {
         ::log::log debug "new line: '$line'"
-        if {[regexp -nocase -- $RE(Message) $line -> nick line]} {
+        if {[regexp -nocase -- $RE(Whisper) $line -> nick line]} {
+            if {$nick == $Options(Username)} continue
+            set last {addWhisper $nick $line}
+        } elseif {[regexp -nocase -- $RE(Message) $line -> nick line]} {
             if {$nick == "tick" || $nick == $Options(Username)} continue
             set last {addMessage $nick $line}
         } elseif {[regexp -nocase -- $RE(Help) $line -> nick line]} {
@@ -419,6 +422,7 @@ proc chat::Init {} {
 
     array set RE {
         Message {^\000(\S+?): (.+)$}
+        Whisper {^\000\[([^\]]+)\] (.+)$}
         Help    {^\000\[(.+?)\]\s+(.*)$}
         Action  {^\000\*\s+(\S+) (.+)$}
         Traffic {^\000(\S+)\s+has (entered|left) the chat$}
