@@ -1,3 +1,10 @@
+2003-09-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Speed up the appearance of history loading by doing
+	all the work in idle events. Injects the history at a HISTORY mark
+	so that the current messages are visible while the full history is
+	still loading.
+
 2003-08-25  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl (::tkchat::doBug): simplify with URL that finds bug

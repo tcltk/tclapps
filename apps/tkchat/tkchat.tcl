@@ -22,7 +22,7 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
-package require http 2          ; # core Tcl
+package require http           ; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.110 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.111 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -53,7 +53,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.110 2003/08/25 17:01:10 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.111 2003/09/11 15:30:21 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -358,14 +358,48 @@ proc ::tkchat::LoadHistory {} {
 	}
     }
 
-    foreach {nick msg} $FinalList {
-        addMessage "" $nick $msg
-    }
+    # Set a mark for the history insertion point.
+    set pos "[.txt index end] - 1 line"
     .txt config -state normal
-    .txt insert end "+++++++++++++++++++++ End Of History +++++++++++++++++++++\n"
+    .txt insert end "+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
+    .txt mark set HISTORY $pos
+
+    set Options(FinalList) $FinalList
+    LoadHistoryLines
+
     .txt config -state normal
     .txt see end
 }
+
+
+proc ::tkchat::LoadHistoryLines {} {
+    global Options
+
+    set state [.txt cget -state]
+    .txt configure -state normal
+
+    log::log debug LoadHistoryLines
+
+    set count 0
+    foreach {nick msg} $Options(FinalList) {
+        addMessage "" $nick $msg HISTORY
+        incr count 2
+        if {$count > 200} { break }
+    }
+    set len [llength $Options(FinalList)]
+    set Options(FinalList) [lrange $Options(FinalList) $count end]
+
+    if {$Options(FinalList) == {}} {
+        .txt delete "HISTORY + 1 char" "HISTORY + 1 line"
+        .txt insert "HISTORY + 1 char" \
+            "+++++++++++++++++++++ End Of History +++++++++++++++++++++\n"
+    } else {
+        after idle [list after 0 ::tkchat::LoadHistoryLines]
+    }
+
+    .txt configure -state $state
+}
+
 
 proc msgSend {str {user ""}} {
     global Options
@@ -1113,7 +1147,7 @@ proc checkAlert {msgtype nick str} {
     }
 }
 
-proc addMessage {clr nick str} {
+proc addMessage {clr nick str {mark end}} {
     global Options
     variable map
     set w .txt
@@ -1121,8 +1155,8 @@ proc addMessage {clr nick str} {
     checkAlert NORMAL $nick $str
     $w config -state normal
     if {[string equal $nick "clock"] || [string equal $nick "tick"]} {
-	$w insert end "$nick\t" [list NICK NICK-$nick]
-        .txt insert end "[formatClock $str] " [list NICK-$nick MSG]
+	$w insert $mark "$nick\t" [list NICK NICK-$nick]
+        $w insert $mark "[formatClock $str] " [list NICK-$nick MSG]
     } else {
 	if {[string equal $nick "ircbridge"]} {
 	    if {[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
@@ -1142,15 +1176,15 @@ proc addMessage {clr nick str} {
 		
 		#Probably obsolete regexp now ircbridge parses CTCPs:
 		if { [regexp {^ACTION (.+)} $str -> action] } {
-		    addAction $clr "<$nick>" [string range $action 0 end-1]
+		    addAction $clr "<$nick>" [string range $action 0 end-1] $mark
 		} else {
-		    $w insert end "<$nick>\t" [list NICK NICK-$nick]
+		    $w insert $mark "<$nick>\t" [list NICK NICK-$nick]
 		}
 	    } elseif {[regexp {^\* ([^ ]+) (.*)$} $str -> truenick msg] } {
-		addAction $clr "<$truenick>" $msg		      
+		addAction $clr "<$truenick>" $msg $mark
 	    }
 	} else {
-	    $w insert end "$nick\t" [list NICK NICK-$nick]
+	    $w insert $mark "$nick\t" [list NICK NICK-$nick]
 	}
         foreach {str url} [parseStr $str] {
             foreach cmd [array names ::tkchat::MessageHooks] {
@@ -1161,15 +1195,15 @@ proc addMessage {clr nick str} {
                 lappend tags URL URL-[incr ::URLID]
                 $w tag bind URL-$::URLID <1> [list gotoURL $url]
             }
-            tkchat::Insert $w $str $tags $url
+            tkchat::Insert $w $str $tags $url $mark
         }
     }
-    $w insert end "\n" [list NICK NICK-$nick]
+    $w insert $mark "\n" [list NICK NICK-$nick]
     $w config -state disabled
     if {$Options(AutoScroll)} { $w see end }
 }
 
-proc ::tkchat::Insert {w str tags {url ""}} {
+proc ::tkchat::Insert {w str tags {url ""} {mark end}} {
     global Options
     set str [string map {"\n" "\n\t"} $str]
     # Don't do emoticons on URLs
@@ -1181,23 +1215,23 @@ proc ::tkchat::Insert {w str tags {url ""}} {
 	    foreach {start end} $match {break}
 	    set emot [string range $str $start $end]
 	    if {[info exists IMG($emot)]} {
-		$w insert end [string range $str $i [expr {$start-1}]] $tags
-                set idx [$w index "end -1 char"]
-		$w image create end -image ::tkchat::img::$IMG($emot)
+		$w insert $mark [string range $str $i [expr {$start-1}]] $tags
+                set idx [$w index "$mark -1 char"]
+		$w image create $mark -image ::tkchat::img::$IMG($emot)
                 foreach tg $tags {
                     $w tag add $tg $idx
                 }
 	    } else {
-		$w insert end [string range $str $i $end] $tags
+		$w insert $mark [string range $str $i $end] $tags
 	    }
 	    set i [expr {$end+1}]
 	}
 	if {$i <= [string length $str]} {
-	    $w insert end [string range $str $i end] $tags
+	    $w insert $mark [string range $str $i end] $tags
 	}
     } else {
 	# no emoticons?  perish the thought ...
-	$w insert end $str $tags
+	$w insert $mark $str $tags
     }
 }
 
@@ -1361,14 +1395,14 @@ proc formatClock {str} {
     return $out
 }
 
-proc addAction {clr nick str} {
+proc addAction {clr nick str {mark end}} {
     global Options
     checkNick $nick $clr
     checkAlert ACTION $nick $str
     .txt config -state normal
-    .txt insert end "    * $nick " [list NICK NICK-$nick]
+    .txt insert $mark "    * $nick " [list NICK NICK-$nick]
     if {[string equal $nick clock]} {
-        .txt insert end "[formatClock $str] " [list NICK-$nick ACTION]
+        .txt insert $mark "[formatClock $str] " [list NICK-$nick ACTION]
     } else {
 	foreach {str url} [parseStr $str] {
 	    set tags [list MSG NICK-$nick ACTION]
@@ -1376,27 +1410,27 @@ proc addAction {clr nick str} {
 		lappend tags URL URL-[incr ::URLID]
 		.txt tag bind URL-$::URLID <1> [list gotoURL $url]
 	    }
-	    tkchat::Insert .txt $str $tags $url
+	    tkchat::Insert .txt $str $tags $url $mark
 	}
     }
-    .txt insert end "\n" [list NICK-$nick ACTION]
+    .txt insert $mark "\n" [list NICK-$nick ACTION]
     .txt config -state disabled
-    if {$Options(AutoScroll)} { .txt see end }
+    if {$Options(AutoScroll)} { .txt see $mark }
 }
 
-proc addSystem {str} {
+proc addSystem {str {mark end}} {
     global Options
     .txt config -state normal
-    .txt insert end "\t$str\n" [list MSG SYSTEM]
+    .txt insert $mark "\t$str\n" [list MSG SYSTEM]
     .txt config -state disabled
-    if {$Options(AutoScroll)} { .txt see end }
+    if {$Options(AutoScroll)} { .txt see $mark }
 }
 
 # Add notification of user entering or leaving. We can hide these notifications
 # by setting Options(hideTraffic)
 # Always add tehse to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
-proc addTraffic {who action} {
+proc addTraffic {who action {mark end}} {
     global Options
 
     variable ::tkchat::MSGS
@@ -1412,9 +1446,9 @@ proc addTraffic {who action} {
     } else {
         set msg "$who has $action the chat!!"
     }
-    .txt insert end "\t$msg\n" [list MSG SYSTEM TRAFFIC]
+    .txt insert $mark "\t$msg\n" [list MSG SYSTEM TRAFFIC]
     .txt config -state disabled
-    if {$Options(AutoScroll)} { .txt see end }
+    if {$Options(AutoScroll)} { .txt see $mark }
 }
 
 proc addUnknown {str} {
