@@ -7,9 +7,9 @@
 	Also changed the history loading to ensure we always load above
 	any current chat text.
 	Added a scrollbar to the smilies display dialog.
-	
 	* tkchat.tcl: Fixed a delay in positioning the panedwindow sash on
 	startup.
+	* tkchat.tcl: Grr. Stupid typo.
 
 2004-10-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
