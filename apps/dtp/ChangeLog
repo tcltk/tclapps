@@ -1,3 +1,6 @@
 2003-03-11  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
 
+	* lib/app-assemble/assemble.tcl: Added the subcommand 'assemble'
+	* lib/app-assemble/pkgIndex.tcl: described in 'WRAPPING.txt'.
+
 	* Initial import of the doctools processor.
