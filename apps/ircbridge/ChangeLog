@@ -1,6 +1,7 @@
 2003-01-30  David N. Welton  <davidw@dedasys.com>
 
-	* chat.tcl: Added tclsh startup.
+	* bridge.tcl: This file is the one that starts everything up.
+	  Removed startup #!/bin/sh stuff from chat.tcl.
 
 2003-01-29  David N. Welton  <davidw@dedasys.com>
 

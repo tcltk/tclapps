@@ -1,8 +1,12 @@
+#!/bin/sh
+# the next line restarts using tclsh \
+    exec tclsh "$0" "$@"
+
 # bridge.tcl -- bridge between Tcl Chat and IRC.
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.1 2003/01/30 06:46:43 davidw Exp $
+# $Id: bridge.tcl,v 1.2 2003/01/31 02:21:36 davidw Exp $
 
 # There's a lot that could be added here.
 
