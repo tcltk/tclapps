@@ -1,3 +1,14 @@
+2001-11-07  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* apps/biorythm/biorythm.tcl: written by Ken Corey
+	* apps/breakout/breakout.tcl: written by Donal Fellows
+	* apps/clock/timer.tcl: written by Jeff Hobbs
+	* apps/frogger/frogger.tcl: written by Donal Fellows
+	* apps/gameset/gameset.tcl: written by Stephen Uhler
+	* apps/hexplode/hexplode.tcl: written by Neil Winton
+	Added to app collection from my old archives of fun, simple apps
+	written by others.
+
 2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* ChangeLog,README,license.terms:
