@@ -15,36 +15,25 @@
 ############################################################
 
 package require http		; # core Tcl
-package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 
-package provide chat 0.1
+package provide chat 0.2
 
-namespace eval ::chat {
-    variable MessageHooks
-    array set MessageHooks {}
-
-    # this is http://mini.net - but that recently had a dns problem
-    variable HOST http://purl.org/mini
-    variable DEBUG 1
-}
-
-proc chat::vputs {args} {
-    variable DEBUG
-    if {$DEBUG} {
-	set name [lindex [info level -1] 0]
-	if {[llength $args]} {
-	    log::log debug "$name: $args"
-	} else {
-	    log::log debug "CALLED $name"
-	}
+namespace eval chat {
+    # set the configuration options
+    array set Options {
+	Username	"ircbridge"
+	Password	"ponte"
+	URL		http://purl.org/mini/cgi-bin/chat.cgi
+        URL2		http://purl.org/mini/cgi-bin/chat2.cgi
+	MyColor		000000
+	Refresh		20
+	ChatLogFile	""
+	LogLevel	notice
+	errLog		stderr
+	timeout		30000
     }
-}
-
-proc chat::errLog {args} {
-    log::logMsg [join $args]
-    update idletasks
 }
 
 # Check the HTTP response for redirecting URLs. - PT
@@ -64,7 +53,7 @@ proc chat::checkForRedirection {tok optionName} {
 
 proc chat::msgSend {str {user ""}} {
     variable Options
-    errLog "Send to $Options(URL)"
+    ::log::log debug "Send to $Options(URL)"
     set qry [::http::formatQuery \
                    action	postmsg \
                    name	$Options(Username) \
@@ -82,23 +71,23 @@ proc chat::msgSend {str {user ""}} {
               -command chat::msgDone
     } msg]} {
         set delay [expr {$Options(Refresh) * 1000 / 2}]
-        errLog "Retrying msgSend after $delay: $msg"
+        ::log::log notice "Retrying msgSend after $delay: $msg"
         after $delay [list chat::msgSend $str $user]
     }
 }
 
 proc chat::msgDone {tok} {
     variable Options
-    errLog "Post: status was [::http::status $tok] [::http::code $tok]"
+    ::log::log debug "Post: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
             if {[::http::ncode $tok] == 500} {
                 if {[info exists Options(msgSend_Retry)]} {
                     set msg "Posting error: retry failed: [::http::code $tok]"
-                    log::log error $msg
+                    ::log::log error $msg
                     unset Options(msgSend_Retry)
                 } else {
-                    log::log error "Post error: [::http::code $tok] - need to retry"
+                    ::log::log error "Post error: [::http::code $tok] - need to retry"
                     set Options(msgSend_Retry) 1
                     # FRINK: nocheck
                     after idle [list ::http::geturl $Options(URL) \
@@ -107,13 +96,13 @@ proc chat::msgDone {tok} {
                 }
             } else {
                 checkForRedirection $tok URL
-                if {[catch {fetchPage} err]} { errLog "fetchPage: $err" }
+                if {[catch {fetchPage} err]} { ::log::log error "fetchPage: $err" }
             }
         }
-	reset { errLog "User reset post operation" }
-	timeout { errLog "Message Post timed out" }
+	reset { ::log::log warning "User reset post operation" }
+	timeout { ::log::log warning "Message Post timed out" }
 	error {
-	    log::log error "Message Post Errored: [::http::error $tok]"
+	    ::log::log error "Message Post Errored: [::http::error $tok]"
 	}
     }
     ::http::cleanup $tok
@@ -121,19 +110,19 @@ proc chat::msgDone {tok} {
 
 proc chat::logonChat {{retry 0}} {
     variable Options
-    errLog "Logon to $Options(URL2)"
+    ::log::log debug "Logon to $Options(URL2)"
     set qry [::http::formatQuery \
                    action       login \
                    name         $Options(Username) \
                    password     $Options(Password)]
 
-    http::geturl $Options(URL2) \
+    ::http::geturl $Options(URL2) \
 	-query $qry \
 	-command chat::logonDone
 }
 
 proc chat::logonDone {tok} {
-    errLog "Logon: status was [::http::status $tok] [::http::code $tok]"
+    ::log::log debug "Logon: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
             if {[checkForRedirection $tok URL2]} {
@@ -142,12 +131,12 @@ proc chat::logonDone {tok} {
                 return
             }
 
-            if {[catch {pause off} err]} { errLog $err }
+            if {[catch {pause off} err]} { ::log::log error "pause off: $err" }
             ::chat::DoAnim
         }
-	reset	{ errLog "User reset logon operation" }
-	timeout	{ log::log error "Logon timed out" }
-	error	{ log::log error "Logon Error: [::http::error $tok]" }
+	reset	{ ::log::log warning "User reset logon operation" }
+	timeout	{ ::log::log error "Logon timed out" }
+	error	{ ::log::log error "Logon Error: [::http::error $tok]" }
     }
     ::http::cleanup $tok
 }
@@ -162,7 +151,7 @@ proc chat::logoffChat {} {
 }
 
 proc chat::logoffDone {tok} {
-    errLog "Logoff: status was [::http::status $tok][::http::code $tok]"
+    ::log::log debug "Logoff: status was [::http::status $tok][::http::code $tok]"
     # don't really care if this works or not
     ::http::cleanup $tok
 }
@@ -176,7 +165,7 @@ proc chat::pause {pause {notify 1}} {
 	catch {::http::reset $Options(FetchToken)}
 	catch {::http::reset $Options(OnlineToken)}
 	if {$notify} {
-	    log::log notice "The session is paused"
+	    ::log::log notice "The session is paused"
 	}
     } else {
 	fetchPage
@@ -192,7 +181,7 @@ proc chat::fetchPage {} {
 	return
     }
 
-    errLog "fetchPage from $Options(URL)"
+    ::log::log debug "fetchPage from $Options(URL)"
 
     after cancel $Options(FetchTimerID)
     set Options(FetchTimerID) -1
@@ -213,7 +202,7 @@ proc chat::fetchPage {} {
         # If the http connection failed and we caught it then we probably
         # are not connected to the network. Keep trying - maybe we are moving
         # our laptop or something :)
-        errLog "Fetch error: $msg"
+        ::log::log error "Fetch error: $msg"
         if {!$::chat::pause} {
             set Options(FetchTimerID) \
                   [after [expr {$Options(Refresh) * 1000}] chat::fetchPage]
@@ -229,8 +218,7 @@ proc chat::fetchDone {tok} {
         if {[string equal $tok $Options(FetchToken)]} {
             unset Options(FetchToken)
         } else {
-            errLog "Fetch Command finished with token $tok" \
-                  "expected $Options(FetchToken)"
+            ::log::log info "Fetch Command finished with token $tok expected $Options(FetchToken)"
             unset Options(FetchToken)
         }
     }
@@ -238,7 +226,7 @@ proc chat::fetchDone {tok} {
 	set Options(FetchTimerID) \
               [after [expr {$Options(Refresh) * 1000}] chat::fetchPage]
     }
-    errLog "Fetch: status was [::http::status $tok] [::http::code $tok]"
+    ::log::log debug "Fetch: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
             if {[checkForRedirection $tok URL]} {
@@ -246,16 +234,16 @@ proc chat::fetchDone {tok} {
                 fetchPage
                 return
             }
-	    if {[catch {parseData [::http::data $tok]} err]} { errLog "parseData: $err" }
+	    if {[catch {parseData [::http::data $tok]} err]} { ::log::log error "parseData: $err" }
 	}
 	reset - Reset - RESET {
-	    errLog "Reset called while updating the chat page."
+	    ::log::log warning "Reset called while updating the chat page."
 	}
 	timeout - Timeout - TIMEOUT {
-	    errLog "Timeout occurred while updating the chat page."
+	    ::log::log warning "Timeout occurred while updating the chat page."
 	}
 	error - Error - ERROR {
-	    errLog "fetchPage error: [::http::error $tok]"
+	    ::log::log error "fetchPage error: [::http::error $tok]"
 	}
     }
     ::http::cleanup $tok
@@ -284,7 +272,7 @@ proc chat::onlinePage {} {
                                         -query $qry \
                                         -command chat::onlineDone]
     } msg]} {
-        errLog "Fetch error: $msg"
+        ::log::log error "Fetch error: $msg"
         if {!$::chat::pause} {
             set Options(FetchTimerID) \
                   [after [expr {$Options(Refresh) * 1000}] chat::onlinePage]
@@ -298,8 +286,7 @@ proc chat::onlineDone {tok} {
         if {[string equal $tok $Options(OnlineToken)]} {
             unset Options(OnlineToken)
         } else {
-            errLog "Online Command finished with token $tok" \
-                  "expected $Options(OnlineToken)"
+            ::log::log info "Online Command finished with token $tok expected $Options(OnlineToken)"
             unset Options(OnlineToken)
         }
     }
@@ -307,7 +294,7 @@ proc chat::onlineDone {tok} {
 	set Options(OnlineTimerID) \
               [after [expr {$Options(Refresh) * 1000}] chat::onlinePage]
     }
-    errLog "Online: status was [::http::status $tok] [::http::code $tok]"
+    ::log::log debug "Online: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
             if {[checkForRedirection $tok URL]} {
@@ -317,173 +304,96 @@ proc chat::onlineDone {tok} {
             }
 	}
 	reset {
-	    errLog "Reset called while retrieving the online page."
+	    ::log::log warning "Reset called while retrieving the online page."
 	}
 	timeout {
-	    errLog "Retrieval of the online users information timed out."
+	    ::log::log warning "Retrieval of the online users information timed out."
 	}
 	error {
-	    errLog "onlinePage error: [::http::error $tok]"
+	    ::log::log error "onlinePage error: [::http::error $tok]"
 	}
     }
     ::http::cleanup $tok
 }
 
-
 proc chat::parseData {rawHTML} {
-    variable Options
-    # get body of data
-    set clr ""
-    if {[regexp -nocase -- \
-               {<BODY.*?(?:BGColor=.([[:xdigit:]]{6}?))?>(.*?)<A\s+NAME="end">.*?</BODY>} \
-               $rawHTML -> clr body]} {
-	# split into "lines"
-	set dataList {}
-	foreach item [::textutil::splitx [string trim $body] \
-                            {[\s\n]*<BR>\n*}] {
-	    set item [string trimright $item]
-	    if {[string length $item]} {
-		lappend dataList $item
-	    }
-	}
+    if {[regexp -nocase -- {<BODY[^>]*>(.*)</BODY>} [string map {\n ""} $rawHTML] -> body]} {
+        regsub -all -nocase {<B>} $body "\000" body
+        regsub -all -nocase {<BR>} $body "\n" body
+        set body [stripStr $body]
+	set dataList [split $body "\n"]
+	# remove empty lines
+	while {[set pos [lsearch $dataList {}]] > -1} {
+            set dataList [lreplace $dataList $pos $pos]
+        }
+        #puts "[join $dataList \n]"
+        #puts ""
+        #puts ""
 	set newList [getRecentLines $dataList]
 	addNewLines $newList
     } else {
-	errLog "No BODY found in HTML page"
+	::log::log error "No BODY found in HTML page"
     }
+}
+
+proc chat::compareList {a b} {
+    foreach x $a y $b {
+        if {![string equal $x $y]} {return 0}
+    }
+    return 1
 }
 
 proc chat::getRecentLines {input} {
     variable Options
-    set Found 0
-    set mark 0
-    set end [lindex $Options(History) end]
-    set len [llength $Options(History)]
-    while {[set idx [lsearch -exact [lrange $input $mark end] $end]] >= 0} {
-	set num [expr {$mark + $idx}]
-	set back [expr {$len - $num - 1}]
-	set l1 [join [lrange $input 0 $num] +]
-	set l2 [join [lrange $Options(History) $back end] +]
-	set mark [incr num]
-	if {[string equal $l1 $l2]} {
-	    set Found $mark
-	}
-	update idletasks
+    set a [expr {[llength $input] - 3}]
+    set b [expr {$a + 2}]
+    set end [lrange $Options(History) end-2 end]
+    while {$a >= 0} {
+        if {[compareList $end [lrange $input $a $b]]} {
+            return [lrange $input [expr {$b + 1}] end]
+        }
+        incr a -1
+        incr b -1
     }
-    return [lrange $input $Found end]
-}
-
-set UserClicked 0
-array set RE {
-    HelpStart {^<FONT COLOR="(.+?)"><B>\[(.+?)\]</B>(.*)$}
-    MultiStart {^<FONT COLOR="(.+?)"><B>(\S+?)</B>:(.*?)$}
-    SectEnd {^(.*)</FONT>$}
-    Color {^<FONT COLOR="(.+?)">(.*?)</FONT>$}
-    Message {^<B>(\S+?)</B>:(.+?)$}
-    Help {^<B>\[(.+?)\]</B>(.*)$}
-    Action {^<B>\*\s+(\S+)\s+(.+)</B>$}
-    Traffic {^<B>\s*(\S+)\s+has (entered|left) the chat</B>$}
-    System {^<B>(.*)</B>$}
+    return $input
 }
 
 proc chat::addNewLines {input} {
     variable Options
     variable InitialDump
-    global RE UserClicked
+    variable RE
 
     # Add the input to the history.  It's OK to do this before processing.
     eval [list lappend Options(History)] $input
 
-    # Restrict the History size as specified
-    if {[llength $Options(History)] > 500} {
-        # Unless someone does a HUGE amount
-        # of /help & /userinfo stuff this should
-        # be plenty long to match against an entire
-        # page worth of data
-        set Options(History) [lrange $Options(History) end-499 end]
-    }
-
-    set inHelp 0
-    set inMsg 0
-    set UserInfoCmd [list]
+    # Restrict the History size
+    # 200 lines should be plenty
+    set Options(History) [lrange $Options(History) end-199 end]
 
     # This is needed so that the initial dump of stuff doesn't get
     # output to IRC.
-
-    if { $InitialDump == 0 } {
-	set InitialDump 1
+    if { [info exists InitialDump] } {
+	unset InitialDump
 	return
     }
 
+    set last {}
     foreach line $input {
-	# see if color is defined & strip it off
-	if {[regexp -nocase -- $RE(Color) $line -> clr text]} {
-	    set line $text
-	    set color $clr
-	} else {
-	    set color ""
-	}
-	# check what kind of line it is
-	if {$inHelp} {
-	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
-		lappend helpLines $text
-		set inHelp 0
-		if {$helpName == "USERINFO"} {
-                    if {$UserClicked} {
-                        set UserInfoCmd [list addHelp $helpColor $helpName [join $helpLines \n]]
-                    }
-		} else {
-                    addHelp $helpColor $helpName [join $helpLines \n]
-		}
-	    } else {
-		lappend helpLines [string trimright $line]
-	    }
-	} elseif {$inMsg} {
-	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
-		lappend msgLines [string trimright $text]
-		set inMsg 0
-		if { $InitialDump == 1 } {
-		    addMessage $nick [join $msgLines \n]
-		}
-	    } else {
-		lappend msgLines [string trimright $line]
-	    }
-	} else {
-            log::log debug $line
-
-	    if {[regexp -nocase -- $RE(HelpStart) $line -> clr name str]} {
-		set inHelp 1
-		set helpColor $clr
-		set helpName $name
-		set helpLines [list $str]
-	    } elseif {[regexp -nocase -- $RE(MultiStart) $line \
-			   -> clr name str]} {
-		set inMsg 1
-		set nickColor $clr
-		set nick $name
-		set msgLines [string trimright $str]
-	    } elseif {[regexp -nocase -- $RE(Message) $line -> nick str]} {
-		if { $InitialDump == 1 } {
-		    addMessage $nick [join [string trim $str]]
-		}
-	    } elseif {[regexp -nocase -- $RE(Help) $line -> name str]} {
-		addHelp $color $name [string trim $str]
-	    } elseif {[regexp -nocase -- $RE(Action) $line -> nick str]} {
-		addAction $color $nick $str
-	    } elseif {[regexp -nocase -- $RE(System) $line -> str]} {
-                if {[regexp -nocase -- $RE(Traffic) $line -> who action]} {
-                    addTraffic $who $action
-		} else {
-		    addSystem $str
-		}
-	    } else {
-		errLog "Didn't recognize - '$line' - assume help"
-		addHelp $color "" [string trim $line]
-	    }
-	}
+        ::log::log debug "new line: '$line'"
+        if {[regexp -nocase -- $RE(Message) $line -> nick line]} {
+            if {$nick == "tick" || $nick == $Options(Username)} continue
+            set last {addMessage $nick $line}
+        } elseif {[regexp -nocase -- $RE(Help) $line -> nick line]} {
+            set last {addHelp $nick $line}
+        } elseif {[regexp -nocase -- $RE(Action) $line -> nick line]} {
+            if {$nick == $Options(Username)} continue
+            set last {addAction $nick $line}
+        } elseif {[regexp -nocase -- $RE(Traffic) $line -> nick line]} {
+            if {$nick == $Options(Username)} continue
+            set last {addTraffic $nick $line}
+        }
+        eval $last
     }
-
-    eval $UserInfoCmd
 }
 
 proc chat::stripStr {str} {
@@ -493,125 +403,39 @@ proc chat::stripStr {str} {
     return [::htmlparse::mapEscapes $tmp]
 }
 
-proc chat::parseStr {str} {
-    # get href info return list of str link pairs
-    set sList {}
-    while {[regexp -nocase -- {^(.*?)<A.*?HREF="(.+?)".*?>(.*?)</A>(.*?)$} \
-                  $str -> pre url link post]} {
-	if {[string length $pre]} {
-	    lappend sList [stripStr $pre] ""
-	}
-	lappend sList [stripStr $link] $url
-	set str $post
-    }
-    if {[string length $str]} {
-	lappend sList [stripStr $str] ""
-    }
-    return $sList
-}
-
-proc chat::Hook {do type cmd} {
-    switch -glob -- $type {
-	msg - mes* { set var [namespace current]::MessageHooks }
-	default {
-	    return -code error "unknown hook type \"$type\": must be\
-		    message"
-	}
-    }
-    switch -exact -- $do {
-	add	{
-            # FRINK: nocheck
-            set ${var}($cmd) {}
-        }
-	remove	{
-            # FRINK: nocheck
-            catch {unset -- ${var}($cmd)}
-        }
-	default	{
-	    return -code error "unknown hook action \"$type\": must be\
-		    add or remove"
-	}
-    }
-}
-
-proc chat::findExecutable {progname varname} {
-    upvar 1 $varname result
-    set progs [auto_execok $progname]
-    if {[llength $progs]} {
-	set result [lindex $progs 0]
-    }
-    return [llength $progs]
-}
-
-proc chat::formatClock {str} {
-    variable Options
-    set out [stripStr $str]
-    if {[regexp -- {^[\s:]*(\d+)} $out -> ticks]} {
-        set cmd [list clock format $ticks -gmt $Options(TimeGMT)]
-        if {![string equal $Options(TimeFormat) ""]} {
-            lappend cmd -format $Options(TimeFormat)
-        }
-        set out [eval $cmd]
-    }
-    return $out
-}
-
-proc chat::addUnknown {str} {
-    variable Options
-}
-
 proc chat::Init {} {
     variable Options
     variable InitialDump 0
+    variable pause 0
+    variable RE
     global env
-    set ::URLID 0
-    # set intial defaults
-    set ::chat::pause 0
-    set ::chat::eCURR 0
-    set ::chat::eHIST ""
     array set Options {
-	Username	"ircbridge"
-	Password	"ponte"
-	SavePW		0
-	MyColor		000000
 	FetchTimerID	-1
 	OnlineTimerID	-1
-	AutoConnect	0
-	Refresh		20
-	NickList	{}
 	History		{}
-	AutoScroll	0
-	MaxLines	500
-	ChatLogFile	""
-	LogFile		""
-	LogLevel	info
-	errLog		stderr
-	hideTraffic	0
-	TimeFormat	"At the tone, the time is %H:%M on %A %d %b %Y"
-	TimeGMT		0
-	HistoryLines	-1
-	timeout		30000
-	Visibility,USERINFO  1
-	Visibility,WELCOME   1
-	Visibility,MEMO	     1
-	Visibility,HELP	     1
-	Alert,SOUND	     0
-	Alert,RAISE	     1
-	Alert,ALL	     0
-	Alert,ME	     1
-	Alert,TOPIC	     1
-	Alert,NORMAL	     1
-	Alert,ACTION	     1
     }
-    set Options(URL)	$::chat::HOST/cgi-bin/chat.cgi
-    set Options(URL2)	$::chat::HOST/cgi-bin/chat2.cgi
-    set Options(URLlogs) $::chat::HOST/tchat/logs
-
-    set Options(Offset) 50
     catch {unset Options(FetchToken)}
     catch {unset Options(OnlineToken)}
-    set Options(History) {}
-    set Options(OnLineUsers) {}
+
+    array set RE {
+        Message {^\000(\S+?): (.+)$}
+        Help    {^\000\[(.+?)\]\s+(.*)$}
+        Action  {^\000\*\s+(\S+) (.+)$}
+        Traffic {^\000(\S+)\s+has (entered|left) the chat$}
+    }
+
+    # set up logging
+    set fh $Options(errLog)
+    if {$fh != "stderr" && $fh != "stdout"} {
+        if {[catch {open $Options(errLog) a} fh]} {
+            puts stderr "Could not open log file $Options(errLog): $fh"
+            exit
+        }
+    }
+    ::log::lvChannelForall $fh
+    ::log::lvSuppressLE emergency 0
+    ::log::lvSuppressLE $Options(LogLevel)
+    ::log::lvSuppress $Options(LogLevel) 0
 
     logonChat
 }

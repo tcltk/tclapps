@@ -6,7 +6,7 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.3 2003/02/28 23:59:48 davidw Exp $
+# $Id: bridge.tcl,v 1.4 2003/06/26 09:20:33 davidw Exp $
 
 # There's a lot that could be added here.
 
@@ -16,59 +16,107 @@ set auto_path "[file dirname [info script]] $auto_path"
 package require irc 0.3
 package require chat
 
-proc chat::addHelp {clr name str} {
-    puts "HELP: $clr $name $str"
-}
-
 
 # Called when someone does something like leave or join.
 
 proc chat::addTraffic {who action} {
-    variable Options
-    if { $who != $Options(Username) } {
-	$client::cn privmsg "#tcl" "*** $who [::htmlparse::mapEscapes $action]"
-    }
+    Send "PRIVMSG $::client::channel :*** $who $action"
+}
+
+# Called when a new message from Tcler's Chat is to be handled.
+
+proc chat::addMessage {nick str} {
+    Send "PRIVMSG $::client::channel :<$nick> $str"
+}
+
+# Called when a new action (/me) from Tcler's Chat is to be handled. 
+
+proc chat::addAction {nick str} {
+    Send "PRIVMSG $::client::channel :* $nick $str"
+}
+
+proc chat::addHelp {name str} {
+    #puts "HELP: $name $str"
 }
 
 
-# Called when a new message from Tcler's Chat is to be handled. 
-
-proc chat::addMessage {nick str} {
+proc chat::Send {str} {
     variable Options
-    if { ($nick != $Options(Username)) && ($nick != "tick") } {
-	foreach line [split [::htmlparse::mapEscapes $str] "\n"] {
-	    $client::cn privmsg \#tcl "<$nick> $line"
-	}
+    variable Limit
+    # if we are over the sending limit just push line into the queue
+    if { $Limit(queue) != "" } {
+        ::log::log debug "appending to queue"
+        lappend Limit(queue) $str
+        return
     }
+    # count the number of lines per second
+    if { ([clock seconds] - $Limit(last)) < 1 } {
+        incr Limit(lines)
+        ::log::log debug "lines: $Limit(lines)"
+    } else {
+        # remember the last time we sent a line
+        set Limit(last) [clock seconds]
+        set Limit(lines) 0
+    }
+    # if we are over the line limit kick off the queued sends
+    if { $Limit(lines) > 4 } {
+        ::log::log info "flood started"
+        lappend Limit(queue) $str
+        after 1000 chat::SendFromQueue
+        return
+    }
+    $client::cn send $str
+}
+
+# Processes the queue created when we try to addMessage too fast
+
+proc chat::SendFromQueue {} {
+    variable Options
+    variable Limit
+    # return if the queue is empty
+    if { [set str [lindex $Limit(queue) 0]] == "" } {
+        set Limit(last) 0
+        ::log::log info "flood ended"
+        return
+    }
+    set Limit(queue) [lreplace $Limit(queue) 0 0]
+    ::log::log debug "sending from queue"
+    $client::cn send $str
+    # send next line
+    after 1000 chat::SendFromQueue
 }
 
 namespace eval client {}
 
-proc client::connect { nk } {
-    variable cn
-    variable channel
-    variable nick $nk
-    set channel \#tcl
-    set cn [::irc::connection irc.debian.org 6667]
-    set ns [namespace qualifiers $cn]
+# create a server connection and set up associated events
 
-    $cn registerevent PING {
-	network send "PONG [msg]"
+proc client::create { server port nk chan } {
+    variable cn
+    variable channel $chan
+    variable nick $nk
+    set cn [::irc::connection $server $port]
+
+    $cn registerevent 001 {
+        set ::client::nick [who]
+        cmd-join $::client::channel
     }
 
-    $cn registerevent 376 {
+    $cn registerevent 433 {
+        if { [lindex [additional] 0] == $::client::nick } {
+            cmd-send "NICK [string trim $::client::nick 0123456789][string range [expr rand()] end-2 end]"
+        }
     }
 
     $cn registerevent defaultcmd {
-	puts "[action] [msg]"
+	::log::log debug "[action] [msg]"
     }
 
     $cn registerevent defaultnumeric {
-	puts "[action] XXX [target] XXX [msg]"
+	::log::log debug "[action] XXX [target] XXX [msg]"
     }
 
     $cn registerevent defaultevent {
-	puts "[action] XXX [who] XXX [target] XXX [msg]"
+	::log::log debug "[action] XXX [who] XXX [target] XXX [msg]"
     }
 
     $cn registerevent PART {
@@ -78,7 +126,6 @@ proc client::connect { nk } {
     }
 
     $cn registerevent JOIN {
-	puts "JOIN [who] [target]"
 	if { [who] != $client::nick } {
 	    chat::msgSend "*** [who] joins"
 	}
@@ -91,24 +138,53 @@ proc client::connect { nk } {
     }
 
     $cn registerevent PRIVMSG {
-#	puts "PRIVMSG [who] [action] [target] [msg]"
-	if { [target] == $client::channel && [who] != $client::nick} {
-	    chat::msgSend "[who] says: [msg]"
+	if { [target] == $client::channel } {
+	    if { [string match "\001*\001" [msg]] } {
+	        if { [regexp {^\001ACTION (.+)\001$} [msg] -> msg] } {
+	            chat::msgSend "* [who] $msg"
+	        }
+	    } else {
+	        chat::msgSend "[who] says: [msg]"
+	    }
 	}
     }
-
-    $cn registerevent KICK {
-	puts "[who] KICKed [target 1] from [target] : [msg]"
+    
+    $cn registerevent EOF {
+        ::client::connect $::client::cn
     }
 
-    $cn connect
-
-    $cn user $nick localhost "IRC/Tcl'ers Chat connector - See: http://mini.net/tcl/6248"
-    $cn nick $nick
-    $cn join $channel
+    return $cn
 }
 
-client::connect ircbridgetest
+
+# connect to the server and register
+
+proc client::connect {cn} {
+    variable ::chat::Limit
+    variable nick
+    # set up variable for rate limiting
+    array set Limit [list last [clock seconds] queue {} lines 0]
+    $cn connect
+    $cn user $nick localhost domain "Tcl'ers Chat connector - See: http://mini.net/tcl/6248"
+    $cn nick $nick
+    ping
+}
+
+proc client::ping {} {
+    variable cn
+    $cn serverping
+    after cancel [namespace current]::ping
+    after 20000 [namespace current]::ping
+}
+
+proc bgerror {args} {
+    global errorInfo
+    ::log::log error "BGERROR: $args"
+    ::log::log error "ERRORINFO: $errorInfo"
+}
+
+client::create irc.debian.org 6667 ircbridge \#tcl
+client::connect $client::cn
 ::chat::Init
 
 vwait forever
