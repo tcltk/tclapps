@@ -1,3 +1,7 @@
+2001-11-09  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added a little humo(u)r to entry/exit messages.
+
 2001-11-05  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tkchat.tcl: corrected gridding in Options dialog

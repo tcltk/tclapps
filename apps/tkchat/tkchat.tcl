@@ -38,7 +38,22 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.19 2001/11/05 20:45:23 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.20 2001/11/09 20:00:29 hobbs Exp $}
+
+    variable MSGS
+    set MSGS(entered) [list \
+	    "%user% has entered the chat!" \
+	    "Out of a cloud of smoke, %user% appears!" \
+	    "%user% saunters in." \
+	    "%user% is feeling chatty!" \
+	    ]
+    set MSGS(left) [list \
+	    "%user% has left the chat!" \
+	    "In a cloud of smoke, %user% disappears!" \
+	    "%user% exits, stage left!" \
+	    "%user% doesn't want to talk to you anymore!" \
+	    "%user% macht wie eine Banane ..." \
+	    ]
 }
 
 set ::DEBUG 1
@@ -838,11 +853,20 @@ proc addSystem {str} {
 
 # Add notification of user entering or leaving. We can hide these notifications
 # by setting Options(hideTraffic)
+
 proc addTraffic {who action} {
     global Options
     if {! $Options(hideTraffic)} {
+	variable ::tkchat::MSGS
         .txt config -state normal
-        .txt insert end "\t$who has $action the chat!!\n" [list MSG SYSTEM]
+	if {[info exists MSGS($action)]} {
+	    set msg [string map -nocase [list %user% $who] \
+		    [lindex $MSGS($action) \
+		    [expr {int(rand()*[llength $MSGS($action)])}]]]
+	} else {
+	    set msg "$who has $action the chat!!"
+	}
+	.txt insert end "\t$msg\n" [list MSG SYSTEM]
         .txt config -state disabled
         if {$Options(AutoScroll)} { .txt see end }
     }
@@ -1588,7 +1612,7 @@ proc ::tkchat::Init {} {
         LogFile		""
         LogLevel        info
         errLog		stderr
-        hideTraffic     1
+        hideTraffic     0
         TimeFormat      "At the tone, the time is %H:%M on %A %d %b %Y"
         TimeGMT         0
     }
