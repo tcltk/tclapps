@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.243 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.244 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.243 2004/12/03 10:30:55 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.244 2004/12/03 14:32:19 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1697,13 +1697,6 @@ proc ::tkchat::CreateGUI {} {
 	$m add separator
     }
 
-    $m add cascade -label "Refresh Frequency" \
-	-menu [menu $m.refresh -tearoff 0] \
-	-underline 0
-    foreach s {15 30 45 60} {
-	$m.refresh add radiobutton -label "$s seconds" -val $s \
-	    -var Options(Refresh)
-    }
     $m add cascade -label "Max Window Buffer" \
 	-menu [menu $m.buffer -tearoff 0] \
 	-underline 3
@@ -1711,7 +1704,6 @@ proc ::tkchat::CreateGUI {} {
 	$m.buffer add radiobutton -label "$l lines" -val $l \
 	    -var Options(MaxLines) -underline 0
     }
-    $m add separator
     $m add cascade -label "Local Chat Logging" \
 	-menu [menu $m.chatLog -tearoff 0] \
 	-underline 0
