@@ -1,9 +1,15 @@
+2004-03-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Don't list the IRC users in the menubutton list. If
+	we ever fix it such that we can /msg to IRC then this can be
+	enabled but at the moment it's just noise.
+
 2004-03-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Removed the now redundant code using a NETSCAPE
 	environment variable. We have a dialog to set this now.
 
-2004-03-15  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+2004-03-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added support for the ActiveState Tk style package
 	posted by Jeff Hobbs to tcl-core. If this can be found then we

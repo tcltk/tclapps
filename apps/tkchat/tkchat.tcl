@@ -44,7 +44,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.149 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.150 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -69,7 +69,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.149 2004/03/16 09:04:53 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.150 2004/03/16 09:30:10 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -972,14 +972,19 @@ proc ::tkchat::updateNames {rawHTML} {
 	.mb.mnu add command -label $name \
 	    -command [list ::tkchat::MsgTo $name]
     }
-    .mb.mnu add separator
+
+    # If we ever fix ircbridge to be able to pass whispers to IRC users 
+    # from the web chat then we can uncomment this and the .mb.mnu add
+    # below. [PT]
+    #
+    #.mb.mnu add separator
 
     foreach name [lsort -dictionary $ircOnlineUsers] {
         lappend Options(OnLineUsers) $name
 	.names insert end "$name" [list NICK] "\n"
 	incr i
-	.mb.mnu add command -label $name \
-              -command [list set Options(MsgTo) $name]	
+	#.mb.mnu add command -label $name \
+        #      -command [list set Options(MsgTo) $name]	
     }
 
     .names insert 1.0 "$i Users Online\n\n" TITLE
