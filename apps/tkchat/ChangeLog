@@ -1,3 +1,8 @@
+2003-02-18  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Applied a fix from Donal K Fellows, that closes a
+	huge memleak in the "Users Online" window.
+
 2003-01-30  Kevin Kenny  <kennykb@users.sourceforge.net>
 
 	* apps/tkchat/tkchat.tcl: Fixed a bug in the color dialog
