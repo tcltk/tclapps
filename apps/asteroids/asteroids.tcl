@@ -1,3 +1,7 @@
+#!/bin/sh
+# The next line is executed by /bin/sh, but not tcl \
+exec wish "$0" ${1+"$@"}
+
 #############################################################################
 #
 # Asteroids.tcl - Tcl remake of the Atari arcade game classic
@@ -8,7 +12,7 @@
 
 package require Tk 8.4
 
-set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.10 2005/03/08 19:18:14 hobbs Exp $"}
+set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.11 2005/03/25 20:53:31 hobbs Exp $"}
 set ::DIR [file dirname [info script]]
 
 proc main {} {
