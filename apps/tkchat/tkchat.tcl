@@ -68,7 +68,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.201 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.202 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.201 2004/11/07 17:40:49 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.202 2004/11/07 19:58:40 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -366,7 +366,7 @@ proc ::tkchat::ParseHistLog {log} {
 	    if { $Options(UseJabber) } {
 		# Jabber logs
 		set I [interp create -safe]
-		interp alias $I msg {} ::tkjabber::ParseLogMsg
+		interp alias $I m {} ::tkjabber::ParseLogMsg
 		$I eval [::http::data $tok]
 		set retList [tkjabber::LogMsgLines]
 	    } else {
@@ -6683,13 +6683,14 @@ proc ::tkjabber::setTopic { newtopic } {
     
 }
 
-proc ::tkjabber::ParseLogMsg { when nick msg args } {
+proc ::tkjabber::ParseLogMsg { when nick msg opts args } {
     variable HistoryLines
-    lappend HistoryLines [list $when $nick $msg]
+    set time [clock scan ${when} -gmt 1]
+    lappend HistoryLines [list $time $nick $msg]
     if { [llength $args] > 0 } {
 	log::log warning "Log incorrect log format."
     }   
-    log::log debug "[clock format $when] $nick :: $msg"
+    log::log debug "[clock format $time] $nick :: $msg"
 }
 
 proc ::tkjabber::HistoryLines { } {

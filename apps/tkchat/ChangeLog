@@ -1,6 +1,8 @@
+
 2004-11-07  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Added jabber history loading
-
+	* tkchat.tcl: New history format
+	
 2004-11-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Merged in improvements for tile and winico handling
