@@ -11,7 +11,7 @@ namespace eval app-script {}
 
 set ::app-script::help(cmdline) {
 
-[call [cmd {@appname@}] [method getscript]]
+[call [cmd {@appname@}] [method script]]
 
 Returns a shell script stored in the application on [const stdout].
 }
