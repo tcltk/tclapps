@@ -6,7 +6,7 @@
 
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
 
-# $Id: bridge.tcl,v 1.6 2003/10/08 10:11:44 pascalscheffers Exp $
+# $Id: bridge.tcl,v 1.7 2003/10/10 08:01:36 pascalscheffers Exp $
 
 # There's a lot that could be added here.
 
@@ -168,7 +168,11 @@ proc client::create { server port nk chan } {
     $cn registerevent JOIN {
 	if { [who] != $client::nick } {
 	    chat::msgSend "*** [who] joins"
-	    lappend ::onlineircusers [who]
+
+	    if { [lsearch $::onlineircusers [who]] == -1 } {
+		lappend ::onlineircusers [who]
+	    }
+
 	}
 
     }

@@ -1,3 +1,7 @@
+2003-10-10  Pascal Scheffers  <pascal@scheffers.net>
+	
+	* bridge.tcl: slight improvement to onlineusers tracking
+
 2003-10-07  Pascal Scheffers  <pascal@scheffers.net>
 	
 	* bridge.tcl: Added code to [daemonize] the bridge (uses Tclx)
