@@ -1,3 +1,7 @@
+2003-09-26  Pascal Scheffers for Joe Mistachkin <joe@mistachkin.com>
+		
+	* tkchat.tcl: Several bug fixes for the /alias system
+
 2003-09-25  Pascal Scheffers for Joe Mistachkin <joe@mistachkin.com>
 		
 	* tkchat.tcl: Added dynamic command aliasses with /alias and

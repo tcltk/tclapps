@@ -42,7 +42,7 @@ if {$tcl_platform(platform) == "windows"} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.126 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.127 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -67,7 +67,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.126 2003/09/25 14:53:00 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.127 2003/09/26 08:10:29 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2414,8 +2414,12 @@ proc ::tkchat::processAliasCommand { msg } {
                     # skip over "/alias" in array...
                     set result [addAlias $msg_array(2) $msg_array(3) $msg_array(4)]
                 } else {
-    	              addSystem "wrong # args: must be /alias name type body"
-                    set result 0
+                    if {$msg_array(count) == 1} then {
+                        set result [listAliases]
+                    } else {
+    	                  addSystem "wrong # args: must be /alias name type body"
+                        set result 0
+                    }
                 }        
             }
         }
@@ -2474,7 +2478,7 @@ proc ::tkchat::removeAliases { name } {
     variable commandAliases
     
     set result 0; # we haven't removed any yet.
-    for {set index 0} {$index < [llength $commandAliases(names)]} {incr index} {
+    for {set index [expr {[llength $commandAliases(names)] - 1}]} {$index >= 0} {incr index -1} {
         set alias [lindex $commandAliases(names) $index]
 
         if {[string match $name $alias]} then {
@@ -2491,6 +2495,32 @@ proc ::tkchat::removeAliases { name } {
     }
 
     return $result
+}
+
+proc ::tkchat::listAliases {} {
+    # added by JJM 25/Sep/2003
+    variable commandAliases
+
+    addSystem "there are [llength $commandAliases(names)] aliases defined"
+
+    for {set index 0} {$index < [llength $commandAliases(names)]} {incr index} {
+        set name [lindex $commandAliases(names) $index]
+        set type [lindex $commandAliases(types) $index]
+        set body [lindex $commandAliases(bodies) $index]
+
+        if {$type == "proc"} then {
+            # show the whole thing, it's just a proc name.
+            set str $body
+        } else {
+            # only show first 80 characters of the script.
+            set str [string range $body 0 79]
+        }
+
+        addSystem "alias $name ($type) = \{$str\}"
+    }    
+
+    # we always list all aliases...
+    return 1
 }
 
 proc ::tkchat::findAlias { name } {
@@ -2521,12 +2551,19 @@ proc ::tkchat::checkAlias { msg } {
 
         switch -exact $command_type {
             "proc"  {                
+                set result 0; # default to "not handled". this MAY be changed by the [catch] below.
+
                 array set msg_array {}
                 # did we succeed in parsing into the array?
                 if {[parseString msg_array $msg " " 2]} then {
+                    # are there no arguments?
+                    if {$msg_array(count) == 1} then {
+                        set msg_array(2) ""
+                        incr msg_array(count)     
+                    }
+
                     # did we get exactly 2 arguments?
                     if {$msg_array(count) == 2} then {
-                        set result 0; # default to "not handled". this MAY be changed by the [catch] below.
                         #
                         # NOTE: This proc should return zero to indicate 
                         #       "not handled" and non-zero to indicate "handled".
@@ -2628,10 +2665,8 @@ proc ::tkchat::userPost {} {
                 {^/see\s} {
                     .txt see [lindex $msg 1]
                 }
-                {^/alias\s} {
-                    processAliasCommand $msg              
-                }
-                {^/unalias\s} {
+                {^/alias\s?}  -
+                {^/unalias\s?} {
                     processAliasCommand $msg              
                 }
                 default  {
