@@ -1,6 +1,6 @@
 2003-01-15  Jeff Hobbs  <jeffh@ActiveState.com>
 
-	* apps/tkvnc/tkchat.tcl: added to CVS.  Original author is
+	* apps/tkvnc/tkvnc.tcl: added to CVS.  Original author is
 	Greg Baker, updates by Jeff Hobbs.
 
 2001-11-07  Jeff Hobbs  <jeffh@ActiveState.com>
