@@ -2,6 +2,7 @@
 
 	* tkchat.tcl: jabber: fix ~ in URL recognition regexp.
 	* tkchat.tcl: reformat jabber MsgCB to remove redundant code.
+	* tkchat.tcl: allow sending to people not in the conference.
 
 2004-11-16  Pascal Scheffers  <pascal@scheffers.net>
 

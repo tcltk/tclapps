@@ -72,7 +72,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.221 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.222 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.221 2004/11/17 20:31:27 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.222 2004/11/17 21:15:14 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6498,7 +6498,7 @@ proc tkjabber::SendAuth { } {
     
     #set username tkchat
     #set password tkchat
-    
+    set Options(JabberResource) tkabber
     set myId [$jabber send_auth $username $Options(JabberResource) [namespace current]::LoginCB \
 	-digest [sha1::sha1 $conn(id)$password]]
         
@@ -6521,7 +6521,7 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
     switch -- $what {
 	presence {
 	    array set p $args
-	    
+	    set action ""
 	    # online/away/offline, etc.
 	    set status online
 	    if { [info exists p(-show)] } {
@@ -6533,10 +6533,18 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 		}
 		unavailable {
 		    set action left
-		}
+		    set status offline
+		}		
 	    }
 	    if { $jid ne $conference } {
-		tkchat::addTraffic $jid $action
+		set tstatus [string map {
+		    dnd "do not disturb"
+		    xa "away (idle)"
+		    chat "I want to chat"
+		    away "away"
+		} $status]
+
+		tkchat::addSystem "$jid has $action ($tstatus)"
 		return
 	    }	    
 	    
@@ -6631,8 +6639,15 @@ proc tkjabber::MsgCB {jlibName type args} {
     switch -- $type {
 	chat {
 	    set from $m(-from)
-            regexp {([^/]+)/(.+)} $m(-from) -> conf from
-	    tkchat::addAction "" $from " whispers: $m(-body)" end $ts
+            if { [regexp {([^/]+)/(.+)} $m(-from) -> conf name] } {
+		if { $conf eq $conference } {
+		    tkchat::addAction "" $name " whispers: $m(-body)" end $ts
+		} else {
+		    tkchat::addAction "" $from " whispers: $m(-body)" end $ts
+		}
+	    } else {
+		tkchat::addAction "" $from " whispers: $m(-body)" end $ts
+	    }
 	}
 	groupchat {
 	    set from $m(-from)
@@ -6909,7 +6924,8 @@ proc tkjabber::msgSend { msg args } {
     variable jabber
     variable roster
     variable conference
-
+    set users {}
+    
     array set opts {
 	-user {}
 	-xlist {}
@@ -6946,20 +6962,27 @@ proc tkjabber::msgSend { msg args } {
 	}
 	if {!$found } {	    
 	    log::log debug "Seaching roster. '$roster' [$roster getname $user] / [$roster getrosteritem $user/tkabber]"
-	    foreach user [$roster getusers -type available] {
-		log::log debug "Roster user: $user"
-		regexp {(.+?)@([^/])/(.+)} $person -> username host resource
-		if { $name eq $user } {
-		    set found 1
-		    break
+	    
+	    foreach presence [$roster getpresence $user] {
+		array set pres $presence
+		if { $pres(-resource) ne {} && $pres(-type) eq "available" } {
+		    log::log debug "Roster user: $user/$pres(-resource)"
+	    	    lappend users $user/$pres(-resource)
+    		    incr found 
+		    ::tkchat::addAction "" $::Options(Username) \
+		        " whispered to $user/$pres(-resource): $msg"		
 		}
+		unset pres
 	    }
 	    
 	}
 	if { !$found } {	    
 	    ::tkchat::addSystem "Unknown nick name '$user'"
 	    return
-	}
+	}    
+    }
+    if { [llength $users] == 0 } {
+	set users $user
     }
     
     # Example usage
@@ -6970,7 +6993,9 @@ proc tkjabber::msgSend { msg args } {
 
     set xlist [concat [list [wrapper::createtag x -attrlist $attrs]] $opts(-xlist)]
     
-    $jabber send_message $user -body $msg -type $type -xlist $xlist
+    foreach user $users {
+	$jabber send_message $user -body $msg -type $type -xlist $xlist
+    }
     #-xlist [wrapper::createtag x -attrlist {xmlns http://tcl.tk/tkchat foo bar}]
     
 }
