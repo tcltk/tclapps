@@ -1,3 +1,8 @@
+2004-11-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Added catch around the message callback and
+	generally try to deal with messages that have missing parts.
+
 2004-11-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Added lots of comments to all the Jabber

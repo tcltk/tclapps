@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.2 2004/11/16 00:51:58 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.3 2004/11/17 10:07:08 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -242,6 +242,11 @@ proc ::ijbridge::OnRoster {roster type {jid {}} args} {
 #	This is called to handle Jabber querys.
 #
 proc ::ijbridge::OnIq {token type args} {
+    if {[catch {eval [linsert $args 0 OnIqBody $token $type]} msg]} {
+        log::log error $msg
+    }
+}
+proc ::ijbridge::OnIqBody {token type args} {
     log::log debug "iq: $token $type $args"
     switch -exact -- $type {
         get {
@@ -262,12 +267,18 @@ proc ::ijbridge::OnIq {token type args} {
 #	are used as commands to the bridge.
 # 
 proc ::ijbridge::OnMessage {token type args} {
+    if {[catch {eval [linsert $args 0 OnMessageBody $token $type]} msg]} {
+        log::log error $msg
+    }
+}
+proc ::ijbridge::OnMessageBody {token type args} {
     variable Options
     variable conn
     switch -exact -- $type {
         groupchat {
             # xmit to irc
             log::log debug "groupchat --> $args"
+            array set a {-body {} -from {}}
             array set a $args
             set mynick [$conn(muc) mynick $Options(Conference)]
             set myid $Options(Conference)/$mynick
@@ -302,6 +313,7 @@ proc ::ijbridge::OnMessage {token type args} {
             }
         }
         chat {
+            array set a {-body {} -from {}}
             array set a $args
             log::log debug "chat --> $args"
             switch -glob -- $a(-body) {
