@@ -60,7 +60,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.185 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.186 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -87,7 +87,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.185 2004/10/13 02:32:05 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.186 2004/10/13 13:24:48 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2541,7 +2541,7 @@ proc ::tkchat::CreateGUI {} {
     if {$UsePane} {
 	update
 	if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2} {
-	    eval [list .pane sash place 0] $Options(Pane)
+	    eval [linsert $Options(Pane) 0 .pane sash place 0]
 	} else {
 	    set w [expr {([winfo width .pane] * 4) / 5}]
 	    set coord [.pane sash coord 0]
@@ -2551,6 +2551,7 @@ proc ::tkchat::CreateGUI {} {
 	    [expr {[winfo width .pane] - [lindex [.pane sash coord 0] 0]}]
 	bind .pane <Configure> [list [namespace origin PaneConfigure] %W %w]
 	bind .pane <Leave> [list [namespace origin PaneLeave] %W]
+        PaneConfigure .pane $w [winfo width .pane];# update the pane immediately.
     }
 
     # call this to activate the option on whether the users should be shown
