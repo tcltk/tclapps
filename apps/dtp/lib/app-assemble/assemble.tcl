@@ -65,41 +65,99 @@ proc ::app-assemble::Locate {tcllibdir module} {
 }
 
 proc ::app-assemble::GetTextutil {srcdir libdir} {
+    SetupModule $libdir textutil
 
-    set new [file join $libdir __textutil]
-    set old [file join $libdir textutil__]
-    set dst [file join $libdir textutil]
+    set srcfiles [glob -nocomplain -directory $srcdir *.tcl]
 
-    file mkdir $new
-    foreach src [glob -directory $srcdir *.tcl] {
-	file copy -force $src $new
+    if {[llength $srcfiles] == 0} {tools::usage "Textutil incomplete: No tcl scripts found"}
+
+    foreach {file label} {
+	pkgIndex.tcl {Package index is missing}
+	expander.tcl {Expander functionality is missing}
+    } {
+	if {[lsearch -glob $srcfiles *$file] < 0} {
+	    tools::usage "Textutil incomplete: $label"
+	}
     }
 
-    catch {file rename $dst $old}
-    file rename $new $dst
-    catch {file delete -force $old}
+    variable new
+    set tocopy [list]
+    foreach src $srcfiles {lappend tocopy [list $src [file join $new [file tail $src]]]}
+
+    CopyFiles $tocopy
+    FinishModule
     return
 }
 
 proc ::app-assemble::GetDoctools {srcdir libdir helpdir} {
-    set new [file join $libdir __doctools]
-    set old [file join $libdir doctools__]
-    set dst [file join $libdir doctools]
+    SetupModule $libdir doctools
+    variable new
 
+    set srcfiles    [glob -nocomplain -directory $srcdir *.tcl]
+    set fmttclfiles [glob -nocomplain -directory [file join $srcdir mpformats] *.tcl]
+    set fmtmsgfiles [glob -nocomplain -directory [file join $srcdir mpformats] *.msg]
+    set fmtfmtfiles [glob -nocomplain -directory [file join $srcdir mpformats] fmt.*]
+    set fmtidxfiles [glob -nocomplain -directory [file join $srcdir mpformats] idx.*]
+    set fmttocfiles [glob -nocomplain -directory [file join $srcdir mpformats] toc.*]
+    set docfiles    [glob -nocomplain -directory $srcdir doc*_*.man]
+
+    if {[llength $srcfiles]    == 0} {tools::usage "Tcllib/DocTools incomplete: No tcl scripts found"}
+    if {[llength $fmtidxfiles] == 0} {
+	tools::usage "DocTools: Indexer engines missing. This revision of the module is unuseable for dtp"
+    }
+    if {[llength $fmttocfiles] == 0} {
+	tools::usage "DocTools: TOC engines missing. This revision of the module is unuseable for dtp"
+    }
+    if {[llength $docfiles] == 0} {
+	tools::usage "DocTools: New 'format manpages' missing. This revision of the module is unuseable for dtp"
+    }
+
+    variable new
+    set tocopy [list]
+    foreach src $srcfiles    {lappend tocopy [list $src [file join $new [file tail $src]]]}
+    foreach src $docfiles    {lappend tocopy [list $src [file join $helpdir [file tail $src]]]}
+    foreach src $fmttclfiles {lappend tocopy [list $src [file join $new mpformats [file tail $src]]]}
+    foreach src $fmtmsgfiles {lappend tocopy [list $src [file join $new mpformats [file tail $src]]]}
+    foreach src $fmtfmtfiles {lappend tocopy [list $src [file join $new mpformats [file tail $src]]]}
+    foreach src $fmtidxfiles {lappend tocopy [list $src [file join $new mpformats [file tail $src]]]}
+    foreach src $fmttocfiles {lappend tocopy [list $src [file join $new mpformats [file tail $src]]]}
+
+    CopyFiles $tocopy
+    FinishModule
+    return
+}
+
+proc ::app-assemble::SetupModule {libdir module} {
+    variable new ; set new [file join $libdir __${module}]
+    variable old ; set old [file join $libdir ${module}__]
+    variable dst ; set dst [file join $libdir ${module}]
+
+    catch {file delete -force $new}
     file mkdir $new
-    foreach src [glob -directory $srcdir *.tcl] {
-	file copy -force $src $new
-    }
 
-    file copy -force [file join $srcdir mpformats] $new
+    return
+}
 
-    foreach src [glob -directory $srcdir doc*_*.man] {
-	file copy -force $src $helpdir
-    }
+proc ::app-assemble::FinishModule {} {
+    variable new
+    variable old
+    variable dst
 
-    catch {file rename $dst $old}
-    file rename $new $dst
+    catch {file rename        $dst $old}
+    file        rename        $new $dst
     catch {file delete -force $old}
+    return
+}
+
+proc ::app-assemble::CopyFiles {srcdstlist} {
+    foreach {item} $srcdstlist {
+	foreach {src dst} $item break
+	file mkdir [file dirname $dst]
+
+	puts "\tAssemble $src" ; # \t $dst""
+
+	file copy -force $src $dst
+    }
     return
 }
 

@@ -1,3 +1,12 @@
+2003-03-13  Andreas Kupries  <andreask@activestate.com>
+
+	* WRAPPING.txt: Clarified that an installed tcllib cannot be used.
+
+	* README.txt: Extended a bit to explain the application.
+
+	* lib/app-assemble/assemble.tcl: Made assemble more robust when
+	  used with unuseable versions of tcllib.
+
 2003-03-11  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
 
 	* lib/app-assemble/assemble.tcl: Added the subcommand 'assemble'

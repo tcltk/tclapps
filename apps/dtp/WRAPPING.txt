@@ -12,8 +12,9 @@ Only 2 steps are required
 
 1)   tclsh dtp.vfs/main.tcl assemble TCLLIB_DIR
 
-     In the command above TCLLIB_DIR refers to either a source
-     directory of tcllib, or an installation of tcllib
+     In the command above TCLLIB_DIR refers to a source
+     directory of tcllib. An installed tcllib cannot be
+     used !
 
      The 'assemble' command determines the locations of textutil and
      doctools and copies the relevant portions into the lib and help
