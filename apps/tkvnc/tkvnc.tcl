@@ -35,7 +35,7 @@ package require Tk 8.2
 
 # should use ::vnc namespace
 namespace eval ::vnc {
-    variable VERSION 1.1
+    variable VERSION 0.9.1
 
     variable PRIV
     array set PRIV {}
