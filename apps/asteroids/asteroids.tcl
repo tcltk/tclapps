@@ -8,7 +8,7 @@
 
 package require Tk 8.4
 
-set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.9 2005/03/03 00:54:17 jgodfrey Exp $"}
+set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.10 2005/03/08 19:18:14 hobbs Exp $"}
 set ::DIR [file dirname [info script]]
 
 proc main {} {
@@ -65,6 +65,8 @@ proc initVars {} {
     set ::globals(lifeEvery)     10000  ;# new life every 10000 pts
     set ::globals(nextLife)      $::globals(lifeEvery)
     set ::globals(newMissileOK)  1
+    set ::globals(numMissiles)   0
+    set ::globals(hitMissiles)   0
     set ::globals(shipExists)    0
     set ::globals(hyperOK)       1
     set ::globals(pause)         0
@@ -133,6 +135,8 @@ proc buildUI {{root .}} {
         -fill $::CLR(text) -font largeFont
     $c create text 2 [expr {$h - 2}] -fill $::CLR(text) -tag fps -anchor sw \
         -font smallFont
+    $c create text [expr {$w - 2}] [expr {$h - 2}] -fill $::CLR(text) \
+	-tag accuracy -anchor se -font smallFont
 
     $c bind hyper <Enter> {$::C itemconfigure current -fill $::CLR(textlink)}
     $c bind hyper <Leave> {$::C itemconfigure current -fill $::CLR(text)}
@@ -398,6 +402,8 @@ proc newGame {} {
     set ::globals(lives) 3
     set ::globals(score) 0
     set ::globals(level) 0
+    set ::globals(numMissiles) 0
+    set ::globals(hitMissiles) 0
     updateScore
     updateLives
     nextLevel
@@ -505,6 +511,11 @@ proc updateFPS {} {
     set elapsedTime [expr {($timeNow - $::globals(timeStart)) / 1000.0}]
     set fps [expr {$::globals(frameCount) / $elapsedTime}]
     .c1 itemconfigure fps -text [format "%.2f" $fps]
+    if {$::globals(numMissiles)} {
+	set accuracy [expr {(double($::globals(hitMissiles)) /
+			     $::globals(numMissiles)) * 100}]
+	.c1 itemconfigure accuracy -text [format "%.1f%%" $accuracy]
+    }
     after 500 updateFPS
 }
 
@@ -627,11 +638,12 @@ proc nextFrame {timeSlice} {
         #     position and see if the line intersects any asteroids...
         set ray [.c1 create line $xCen $yCen $xPrev $yPrev]
         foreach rock [.c1 find withtag "rock"] {
-            set overlapList [eval .c1 find overlapping [.c1 bbox $rock]]
+            set overlapList [eval [list .c1 find overlapping] [.c1 bbox $rock]]
             if {[lsearch -exact $overlapList $ray] >= 0} {
                 # --- we've got a hit
                 killRock $rock $timeSlice
                 .c1 delete $shot
+		incr ::globals(hitMissiles)
                 array unset ::missile "$shot,*"
                 break
             }
@@ -890,6 +902,7 @@ proc addMissile {timeSlice} {
     set ::missile($obj,xCen) $xs
     set ::missile($obj,yCen) $ys
     set ::missile($obj,life) [expr {int(1.2/$timeSlice)}]
+    incr ::globals(numMissiles)
     # --- limit firing of a new missile to every 100 ms
     after 100 {set ::globals(newMissileOK) 1}
 }
@@ -947,8 +960,8 @@ proc addShip {} {
 
 proc addRock {type {num 1} {xLoc ""} {yLoc ""}} {
     for {set i 1} {$i <= $num} {incr i} {
-        set coordList $::globals(rockCoords,[expr {[random 3] + 1 + \
-            (3 * ($type - 1))}])
+        set coordList \
+	    $::globals(rockCoords,[expr {[random 3] + 1 + (3 * ($type - 1))}])
         set speed [expr {40 * $::SCALE}]
         set xVel [expr {10 + [random $speed] + \
             ($type * ([random $speed] + 1)) + \
@@ -1026,35 +1039,20 @@ proc rotateItem {w tagOrId Ox Oy angle} {
 }
 
 proc bindGameKeys {} {
-
-    set LEFT_PRESS     "<KeyPress-Left>"
-    set LEFT_RELEASE   "<KeyRelease-Left>"
-    set RIGHT_PRESS    "<KeyPress-Right>"
-    set RIGHT_RELEASE  "<KeyRelease-Right>"
-    set THRUST_PRESS   "<KeyPress-Up>"
-    set THRUST_RELEASE "<KeyRelease-Up>"
-    set HYPER_PRESS    "<KeyPress-Down>"
-    set HYPER_RELEASE  "<KeyRelease-Down>"
-    set FIRE_PRESS     "<KeyPress-space>"
-    set FIRE_RELEASE   "<KeyRelease-space>"
-
-    bind . $LEFT_PRESS   {set ::keyStatus(LEFT) 1}
-    bind . $RIGHT_PRESS  {set ::keyStatus(RIGHT) 1}
-    bind . $THRUST_PRESS {set ::keyStatus(THRUST) 1}
-    bind . $FIRE_PRESS   {set ::keyStatus(FIRE) 1}
-    bind . $HYPER_PRESS  {set ::keyStatus(HYPER) 1}
-
-    bind . $LEFT_RELEASE   {set ::keyStatus(LEFT) 0}
-    bind . $RIGHT_RELEASE  {set ::keyStatus(RIGHT) 0}
-    bind . $THRUST_RELEASE {set ::keyStatus(THRUST) 0}
-    bind . $FIRE_RELEASE   {set ::keyStatus(FIRE) 0}
-    bind . $HYPER_RELEASE  {set ::keyStatus(HYPER) 0}
-
-    set ::keyStatus(LEFT) 0
-    set ::keyStatus(RIGHT) 0
-    set ::keyStatus(THRUST) 0
-    set ::keyStatus(FIRE) 0
-    set ::keyStatus(HYPER) 0
+    foreach {var evt key} {
+	LEFT    TurnLeft   Left
+	RIGHT   TurnRight  Right
+	THRUST  Thrust     Up
+	HYPER   Hyper      Down
+	FIRE    Fire       Return
+	FIRE    Fire       space
+    } {
+	bind . <<${evt}Start>> [list set ::keyStatus($var) 1]
+	bind . <<${evt}Stop>>  [list set ::keyStatus($var) 0]
+	event add <<${evt}Start>> "<KeyPress-${key}>"
+	event add <<${evt}Stop>>  "<KeyRelease-${key}>"
+	set ::keyStatus($var) 0
+    }
 }
 
 proc testForSounds {} {
@@ -1068,8 +1066,9 @@ proc testForSounds {} {
 
     # --- load the sounds if available
     foreach {snd file} {
-        sndShot shot.wav sndExplosion explosion.wav  sndThrust thrust.wav \
-        sndBeat1 beat1.wav sndBeat2 beat2.wav} {
+        sndShot shot.wav sndExplosion explosion.wav  sndThrust thrust.wav
+	sndBeat1 beat1.wav sndBeat2 beat2.wav
+    } {
        if {[file readable $file]} {
            sound $snd -file $file
        } else {
