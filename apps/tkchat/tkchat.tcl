@@ -74,7 +74,7 @@ if {$tcl_platform(platform) == "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.253 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.254 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -106,7 +106,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.253 2004/12/13 11:35:22 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.254 2004/12/14 16:29:08 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -538,6 +538,50 @@ proc ::tkchat::logonChat {{retry 0}} {
     
     # Logon to the jabber server.
     tkjabber::connect
+}
+
+# -------------------------------------------------------------------------
+# Error handling for http requests (history etc)
+
+# Display the error message returned when an HTTP request results
+# in an authentication error.
+# Do NOT clean up this token - that's the callers job.
+#
+proc ::tkchat::AuthenticationError {token {prefix ""}} {
+    log::log error "$prefix error: [http::code $token]"
+    variable msgtext ""
+    htmlparse::parse \
+        -cmd [list ::tkchat::ErrorMessageParse ::tkchat::msgtext] \
+        [http::data $token]
+    set msgtext [regsub -all -line "\n{1,}" $msgtext "\n"]
+    tk_messageBox \
+        -title [http::code $token] \
+        -icon warning \
+        -message $msgtext
+    unset msgtext
+}
+
+proc ::tkchat::ErrorMessageParse {varname tag end attr text} {
+    upvar #0 $varname v
+    set tag [string tolower $tag]
+    set end [string length $end]
+    if {[string equal $tag "hmstart"] && $end == 0} {
+        set v ""
+    } elseif {[string match "h*" $tag] && $end == 0} {
+        append v "\n$text"
+    } elseif {[string equal "p" $tag] && $end == 0} {
+        append v "\n$text"
+    } elseif {[string equal "pre" $tag] && $end == 0} {
+        append v "\n$text"
+    } elseif {[string equal "a" $tag]} {
+        append v "$text"
+    }
+}
+
+proc ::tkchat::HttpServerError {token {prefix ""}} {
+    set msg "$prefix error: [::http::code $token]"
+    log::log error $msg
+    tk_messageBox -message $msg
 }
 
 # -------------------------------------------------------------------------

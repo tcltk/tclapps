@@ -1,3 +1,8 @@
+2004-12-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Put some of the http error handling code back in so
+	we get a message when the history server is unavailable.
+
 2004-12-13  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: Bug fixes for UserInfo. 
