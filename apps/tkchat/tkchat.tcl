@@ -38,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.23 2001/11/14 16:09:09 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.24 2001/11/19 16:56:25 scfiead Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -540,8 +540,6 @@ proc addNewLines {input} {
 
     # Add the input to the history.  It's OK to do this before processing.
     eval [list lappend Options(History)] $input
-    # Only need enough history for matching new data.
-    set Options(History) [lrange $Options(History) end-60 end]
 
     set inHelp 0
     set inMsg 0

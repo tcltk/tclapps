@@ -1,3 +1,8 @@
+2001-11-19  Ryan Casey <scfiead@hotmail.com>
+
+	* tkchat.tcl: Fixed bug of lines being rewritten to the cha
+	window on every refresh.
+
 2001-11-14  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Added "Close" button to info windows.
