@@ -2,6 +2,8 @@
 
 	* tkchat.tcl: Tweaks to the unix look. Added mnemonic bindings to
 	the login dialog.
+	Changed the purge menu item to 'Reload history'.
+	Changed the text selection background color.
 
 2004-02-20  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
 
