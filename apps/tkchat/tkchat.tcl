@@ -69,7 +69,7 @@ if {$tcl_platform(platform) == "windows"} {
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.211 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.212 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -101,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.211 2004/11/10 19:57:43 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.212 2004/11/10 21:25:40 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1248,6 +1248,16 @@ proc ::tkchat::getColor {name} {
     return $clr
 }
 
+proc ::tkchat::fadeColor {color} {
+    if {[scan $color "%2x%2x%2x" r g b] == 3} {
+	foreach c {r g b} {
+	    set $c [expr {255 - int((255-[set $c])*.6)}]
+	}
+	set color [format "%02x%02x%02x" $r $g $b]
+    }
+    return $color
+}
+
 proc ::tkchat::parseData {rawHTML} {
     global Options
     # get body of data
@@ -1559,9 +1569,9 @@ proc ::tkchat::checkNick {nick clr} {
         }
         set clr [getColor $nick]
         if {$clr == ""} { set clr [getColor MainFG] }
-        if {[catch {
-            .txt tag configure NICK-$nick -foreground "#$clr"
-        } msg]} { log::log debug "checkNick: \"$msg\"" }
+	set nclr [fadeColor $clr]
+	.txt tag configure NICK-$nick -foreground "#$clr"
+	.txt tag configure NOLOG-$nick -foreground "#$nclr"
     }
 }
 
@@ -1686,9 +1696,9 @@ proc ::tkchat::addMessage {clr nick str {mark end} {timestamp 0} {extraOpts ""}}
                 eval $cmd [list $str $url]
             }
 	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NOLOG NICK-$nick]
+		set tags [list MSG NOLOG-$nick ACTION]
 	    } else {
-		set tags [list MSG NICK-$nick]		
+		set tags [list MSG NICK-$nick]
 	    }
             if {$url != ""} {
                 lappend tags URL URL-[incr ::URLID]
@@ -1965,7 +1975,7 @@ proc ::tkchat::addAction {clr nick str {mark end} {timestamp 0} {extraOpts ""}} 
     } else {
 	foreach {str url} [parseStr $str] {
 	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NOLOG NICK-$nick ACTION]
+		set tags [list MSG NOLOG-$nick ACTION]
 	    } else {
 		set tags [list MSG NICK-$nick ACTION]	
 	    }
@@ -2623,7 +2633,7 @@ proc ::tkchat::CreateGUI {} {
     .txt tag configure INFO -lmargin2 50
     .txt tag configure NICK -font NAME
     .txt tag configure ACTION -font ACT
-    .txt tag configure NOLOG -font ACT -background #eeeeee
+    .txt tag configure NOLOG -font ACT 
     .txt tag configure SYSTEM -font SYS
     .txt tag configure STAMP -font STAMP
     .txt tag configure URL -underline 1
