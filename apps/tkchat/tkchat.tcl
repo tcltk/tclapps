@@ -43,25 +43,25 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.37 2002/03/06 16:25:57 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.38 2002/03/15 02:33:43 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
-                             "%user% has entered the chat!" \
-                             "Out of a cloud of smoke, %user% appears!" \
-                             "%user% saunters in." \
-                             "%user% wanders in." \
-                             "%user% checks into the chat." \
-                             "%user% is feeling chatty!" \
-                            ]
+	    "%user% has entered the chat!" \
+	    "Out of a cloud of smoke, %user% appears!" \
+	    "%user% saunters in." \
+	    "%user% wanders in." \
+	    "%user% checks into the chat." \
+	    "%user% is feeling chatty!" \
+	    ]
     set MSGS(left) [list \
-                          "%user% has left the chat!" \
-                          "In a cloud of smoke, %user% disappears!" \
-                          "%user% exits, stage left!" \
-                          "%user% doesn't want to talk to you anymore!" \
-                          "%user% looks at the clock and dashes out the door" \
-                          "%user% macht wie eine Banane ..." \
-                         ]
+	    "%user% has left the chat!" \
+	    "In a cloud of smoke, %user% disappears!" \
+	    "%user% exits, stage left!" \
+	    "%user% doesn't want to talk to you anymore!" \
+	    "%user% looks at the clock and dashes out the door" \
+	    "%user% macht wie eine Banane ..." \
+	    ]
 }
 
 set ::DEBUG 1
@@ -99,12 +99,12 @@ proc buildProxyHeaders {} {
     global Options
     set auth {}
     if { $Options(UseProxy) \
-               && [info exists Options(ProxyUsername)] \
-               && $Options(ProxyUsername) != {} } {
+	    && [info exists Options(ProxyUsername)] \
+	    && $Options(ProxyUsername) != {} } {
 	set auth [list "Proxy-Authorization" \
-                        [concat "Basic" \
-                               [base64::encode \
-                                      $Options(ProxyUsername):$Options(ProxyPassword)]]]
+		[concat "Basic" \
+		[base64::encode \
+		$Options(ProxyUsername):$Options(ProxyPassword)]]]
     }
     return $auth
 }
@@ -121,13 +121,14 @@ proc tkchat::Retrieve {} {
     }
 
     set file [tk_getSaveFile -title "Save Latest TkChat to ..." \
-                    -defaultextension $defExt \
-                    -initialdir [file dirname $::argv0] \
-                    -initialfile [file tail $::argv0] \
-                    -parent . \
-                    -filetypes {{"Tcl Files" {.tcl .tk}} {"All Files" {*.*}}}]
+	    -defaultextension $defExt \
+	    -initialdir [file dirname $::argv0] \
+	    -initialfile [file tail $::argv0] \
+	    -parent . \
+	    -filetypes {{"Tcl Files" {.tcl .tk}} {"All Files" {*.*}}}]
     if {[string compare $file ""]} {
-	set token [::http::geturl $HEADUrl -headers [buildProxyHeaders] -timeout 30000]
+	set token [::http::geturl $HEADUrl \
+		-headers [buildProxyHeaders] -timeout 30000]
 	::http::wait $token
 	set code [catch {
 	    if {[::http::status $token] == "ok"} {
@@ -148,9 +149,9 @@ proc tkchat::Retrieve {} {
             log::log error $err
 	} else {
 	    set resource? [tk_messageBox -type yesno -icon info \
-                                 -title "Retrieved tkchat $rcsVersion" \
-                                 -message "Successfully retrieved v$rcsVersion.\
-                                   Do you want to reload from the new version?"]
+		    -title "Retrieved tkchat $rcsVersion" \
+		    -message "Successfully retrieved v$rcsVersion.\
+		    Do you want to reload from the new version?"]
 	    if {${resource?} == "yes"} {
 		uplevel \#0 [list source $file]
 		tk_messageBox -message "Script has been reloaded!"
@@ -185,7 +186,8 @@ proc tkchat::GetHistLogIdx {szary} {
     set url "$Options(URLlogs)/?M=D"
     set tok [::http::geturl $url \
                  -headers [buildProxyHeaders]]
-    errLog "History Fetch: status was [::http::status $tok] [::http::code $tok]"
+    errLog "History Fetch: status was\
+	    [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
         ok {
             if {[::http::ncode $tok] == 500} {
@@ -287,21 +289,22 @@ proc tkchat::LoadHistory {} {
             wm transient $t
             wm protocol $t WM_DELETE_WINDOW { }
             wm title $t "Load History From Logs"
-            pack [label $t.lbl -text "Please Select How far back you want to load"] \
-                  -expand 1 -fill both -pady 5
+            pack [label $t.lbl \
+		    -text "Please Select How far back you want to load"] \
+		    -expand 1 -fill both -pady 5
             set i 0
             variable HistQueryNum [llength $loglist]
             foreach l $loglist {
                 pack [radiobutton $t.rb$i -text "$l ($logsize($l))" \
-                            -val $i -var ::tkchat::HistQueryNum] \
-                      -anchor w -padx 15 -pady 0
+			-val $i -var ::tkchat::HistQueryNum] \
+			-anchor w -padx 15 -pady 0
                 incr i
             }
             pack [radiobutton $t.rb$i -text "None" \
-                        -val $i -var ::tkchat::HistQueryNum] \
-                  -anchor w -padx 15 -pady 0
+		    -val $i -var ::tkchat::HistQueryNum] \
+		    -anchor w -padx 15 -pady 0
             pack [button $t.ok -text Ok -command [list destroy $t] ] \
-                  -fill both -padx 5 -pady 10
+		    -fill both -padx 5 -pady 10
             catch {::tk::PlaceWindow $t widget .}
             wm deiconify $t
             tkwait visibility $t
@@ -345,21 +348,21 @@ proc msgSend {str {user ""}} {
     global Options
     errLog "Send to $Options(URL)"
     set qry [::http::formatQuery \
-                   action	postmsg \
-                   name	$Options(Username) \
-                   password	$Options(Password) \
-                   color	$Options(MyColor) \
-                   updatefrequency 600 \
-                   new_msg_on_top 0 \
-                   ls		"" \
-                   msg_to	$user \
-                   msg		$str \
-                  ]
+	    action	postmsg \
+	    name	$Options(Username) \
+	    password	$Options(Password) \
+	    color	$Options(MyColor) \
+	    updatefrequency 600 \
+	    new_msg_on_top 0 \
+	    ls		"" \
+	    msg_to	$user \
+	    msg		$str \
+	    ]
     if {[catch {
         ::http::geturl $Options(URL) \
-            -query [string map {%5f _} $qry] \
-            -headers [buildProxyHeaders] \
-            -command msgDone
+		-query [string map {%5f _} $qry] \
+		-headers [buildProxyHeaders] \
+		-command msgDone
     } msg]} {
         set delay [expr {$Options(Refresh) * 1000 / 2}]
         errLog "Retrying msgSend after $delay: $msg"
@@ -383,9 +386,9 @@ proc msgDone {tok} {
                     set Options(msgSend_Retry) 1
                     # FRINK: nocheck
                     after idle [list ::http::geturl $Options(URL) \
-                                      -query [set ${tok}(-query)] \
-                                      -headers [buildProxyHeaders] \
-                                      -command msgDone]
+			    -query [set ${tok}(-query)] \
+			    -headers [buildProxyHeaders] \
+			    -command msgDone]
                 }
             } else {
                 checkForRedirection $tok URL
@@ -396,7 +399,7 @@ proc msgDone {tok} {
 	timeout { errLog "Message Post timed out" }
 	error {
 	    tk_messageBox -message \
-                  "Message Post Errored: [::http::error $tok]"
+		    "Message Post Errored: [::http::error $tok]"
 	}
     }
     ::http::cleanup $tok
@@ -412,14 +415,14 @@ proc logonChat {} {
     global Options
     errLog "Logon to $Options(URL2)"
     set qry [::http::formatQuery \
-                   action       login \
-                   name         $Options(Username) \
-                   password     $Options(Password) \
-                  ]
+	    action       login \
+	    name         $Options(Username) \
+	    password     $Options(Password) \
+	    ]
     ::http::geturl $Options(URL2) \
-          -query $qry \
-          -headers [buildProxyHeaders] \
-          -command logonDone
+	    -query $qry \
+	    -headers [buildProxyHeaders] \
+	    -command logonDone
 }
 
 proc logonDone {tok} {
@@ -445,9 +448,9 @@ proc logoffChat {} {
     global Options
     set qry [::http::formatQuery action gotourl url chat.cgi]
     ::http::geturl $Options(URL2) \
-          -query $qry \
-          -headers [buildProxyHeaders] \
-          -command logoffDone
+	    -query $qry \
+	    -headers [buildProxyHeaders] \
+	    -command logoffDone
     logonScreen
 }
 
@@ -471,9 +474,9 @@ proc pause {pause {notify 1}} {
 		wm withdraw .pause
 		wm transient .pause .
 		pack [label .pause.m -text \
-                            "The session is paused,\nno updates will occur."]
+			"The session is paused,\nno updates will occur."]
 		button .pause.r -text "Resume" \
-                      -command { pause off ; wm withdraw .pause }
+			-command { pause off ; wm withdraw .pause }
 		pack .pause.r -padx 5 -pady 10
 		bind .pause <Destroy> [list pause off]
 	    }
@@ -500,19 +503,19 @@ proc fetchPage {} {
     after cancel $Options(FetchTimerID)
     set Options(FetchTimerID) -1
     set qry [::http::formatQuery \
-                   action	chat \
-                   name	$Options(Username) \
-                   password	$Options(Password) \
-                   color	$Options(MyColor) \
-                   updatefrequency 600 \
-                   new_msg_on_top 0 \
-                   ls		"" \
-                  ]
+	    action	chat \
+	    name	$Options(Username) \
+	    password	$Options(Password) \
+	    color	$Options(MyColor) \
+	    updatefrequency 600 \
+	    new_msg_on_top 0 \
+	    ls		"" \
+	    ]
     if {[catch {
         set Options(FetchToken) [::http::geturl $Options(URL) \
-                                     -query $qry \
-                                     -headers [buildProxyHeaders] \
-                                     -command fetchDone]
+		-query $qry \
+		-headers [buildProxyHeaders] \
+		-command fetchDone]
     } msg]} {
         # If the http connection failed and we caught it then we probably
         # are not connected to the network. Keep trying - maybe we are moving
@@ -520,7 +523,7 @@ proc fetchPage {} {
         errLog "Fetch error: $msg"
         if {!$::tkchat::pause} {
             set Options(FetchTimerID) \
-                [after [expr {$Options(Refresh) * 1000}] fetchPage]
+		    [after [expr {$Options(Refresh) * 1000}] fetchPage]
         }
     }
 }
@@ -534,13 +537,13 @@ proc fetchDone {tok} {
             unset Options(FetchToken)
         } else {
             errLog "Fetch Command finished with token $tok" \
-                "expected $Options(FetchToken)"
+		    "expected $Options(FetchToken)"
             unset Options(FetchToken)
         }
     }
     if {!$::tkchat::pause} {
 	set Options(FetchTimerID) \
-              [after [expr {$Options(Refresh) * 1000}] fetchPage]
+		[after [expr {$Options(Refresh) * 1000}] fetchPage]
     }
     errLog "Fetch: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
@@ -575,24 +578,24 @@ proc onlinePage {} {
     after cancel $Options(OnlineTimerID)
     set Option(OnlineTimerID) -1
     set qry [::http::formatQuery \
-                   action	stillalive \
-                   name	$Options(Username) \
-                   password	$Options(Password) \
-                   color	$Options(MyColor) \
-                   updatefrequency 600 \
-                   new_msg_on_top 0 \
-                   ls		"" \
-                  ]
+	    action	stillalive \
+	    name	$Options(Username) \
+	    password	$Options(Password) \
+	    color	$Options(MyColor) \
+	    updatefrequency 600 \
+	    new_msg_on_top 0 \
+	    ls		"" \
+	    ]
     if {[catch {
         set Options(OnlineToken) [::http::geturl $Options(URL) \
-                                      -query $qry \
-                                      -headers [buildProxyHeaders] \
-                                      -command onlineDone]
+		-query $qry \
+		-headers [buildProxyHeaders] \
+		-command onlineDone]
     } msg]} {
         errLog "Fetch error: $msg"
         if {!$::tkchat::pause} {
             set Options(FetchTimerID) \
-                [after [expr {$Options(Refresh) * 1000}] onlinePage]
+		    [after [expr {$Options(Refresh) * 1000}] onlinePage]
         }
     }
 }
@@ -604,13 +607,13 @@ proc onlineDone {tok} {
             unset Options(OnlineToken)
         } else {
             errLog "Online Command finished with token $tok" \
-                "expected $Options(OnlineToken)"
+		    "expected $Options(OnlineToken)"
             unset Options(OnlineToken)
         }
     }
     if {!$::tkchat::pause} {
 	set Options(OnlineTimerID) \
-              [after [expr {$Options(Refresh) * 1000}] onlinePage]
+		[after [expr {$Options(Refresh) * 1000}] onlinePage]
     }
     errLog "Online: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
@@ -653,7 +656,8 @@ proc updateNames {rawHTML} {
 	# the cgi script on the other end pukes so we will
 	# just do an inline /userinfo when they are clicked
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
-	.names tag bind URL-$::URLID <1> "set ::UserClicked 1 ; [list msgSend "/userinfo $name"]"
+	.names tag bind URL-$::URLID <1> \
+		"set ::UserClicked 1 ; [list msgSend "/userinfo $name"]"
 	incr i
 	.mb.mnu add command -label $name \
               -command [list set Options(MsgTo) $name]
@@ -873,7 +877,7 @@ proc checkNick {nick clr} {
     if {$wid > $Options(Offset)} {
         set Options(Offset) $wid
         .txt config -tabs [list $wid l]
-        .txt tag config MSG -lmargin2 [incr wid 20]
+        .txt tag configure MSG -lmargin2 [incr wid 20]
     }
     if {"$clr" == ""} {
         set clr [getColor $nick]
@@ -892,35 +896,54 @@ proc checkNick {nick clr} {
         # new color
         set Options(Color,$nick,Web) $clr
         set Options(Color,$nick,Inv) [invClr $clr]
-        .txt tag config NICK-$nick -foreground "#[getColor $nick]"
+        .txt tag configure NICK-$nick -foreground "#[getColor $nick]"
     }
 }
 
 proc addMessage {clr nick str} {
     global Options
     variable map
+    set w .txt
     checkNick $nick $clr
-    .txt config -state normal
-    .txt insert end $nick [list NICK NICK-$nick] "\t"
+    $w config -state normal
+    $w insert end $nick [list NICK NICK-$nick] "\t"
     foreach {str url} [parseStr $str] {
-	if {[string compare "unix" $::tcl_platform(platform)]} {
-	    regsub -all {:[-^]?\)} $str \u263a str
-	}
-	set str [string map [list "\n" "\n\t"] $str]
+	#set str [string map [list "\n" "\n\t"] $str]
 	foreach cmd [array names ::tkchat::MessageHooks] {
 	    eval $cmd [list $str $url]
 	}
-	if {$url == ""} {
-	    .txt insert end "$str " [list MSG NICK-$nick]
+	set tags [list MSG NICK-$nick]
+	if {$url != ""} {
+	    lappend tags URL URL-[incr ::URLID]
+	    $w tag bind URL-$::URLID <1> [list gotoURL $url]
+	}
+	if {$Options(emoticons)} {
+	    variable ::tkchat::img
+	    variable ::tkchat::img::re
+	    set i 0
+	    foreach match [regexp -inline -all -indices $re $str] {
+		foreach {start end} $match {break}
+		set emot [string range $str $start $end]
+		if {[info exists img($emot)]} {
+		    $w insert end [string range $str $i [expr {$start-1}]] \
+			    $tags
+		    $w image create end -image ::tkchat::img::$img($emot)
+		} else {
+		    $w insert end [string range $str $i $end] $tags
+		}
+		set i [expr {$end+1}]
+	    }
+	    if {$i <= [string length $str]} {
+		$w insert end [string range $str $i end] $tags
+	    }
 	} else {
-	    .txt insert end "$str " \
-                  [list MSG NICK-$nick URL URL-[incr ::URLID]]
-	    .txt tag bind URL-$::URLID <1> [list gotoURL $url]
+	    # no emoticons?  perish the thought ...
+	    $w insert end "$str " $tags
 	}
     }
-    .txt insert end "\n"
-    .txt config -state disabled
-    if {$Options(AutoScroll)} { .txt see end }
+    $w insert end "\n"
+    $w config -state disabled
+    if {$Options(AutoScroll)} { $w see end }
 }
 
 proc tkchat::Hook {do type cmd} {
@@ -1060,12 +1083,12 @@ proc addAction {clr nick str} {
     global Options
     checkNick $nick $clr
     .txt config -state normal
-    .txt insert end "\t* $nick " [list NICK NICK-$nick]
+    .txt insert end "    * $nick " [list NICK NICK-$nick]
     if {[string equal $nick clock]} {
         .txt insert end "[formatClock $str] " [list NICK-$nick ACTION]
     } else {
 	foreach {str url} [parseStr $str] {
-	    regsub -all "\n" $str "\n\t" str
+	    #set str [string map [list "\n" "\n\t"] $str]
 	    if {[string equal $url ""]} {
 		.txt insert end "$str " [list MSG NICK-$nick ACTION]
 	    } else {
@@ -1128,15 +1151,15 @@ proc showInfo {title str} {
     text $t.txt -cursor left_ptr -wrap word -height $height -font NAME
     pack $t.txt -expand 1 -fill both
     bind $t.txt <1> { focus %W }
-    $t.txt tag config URL -underline 1
+    $t.txt tag configure URL -underline 1
     $t.txt tag bind URL <Enter> [list $t.txt config -cursor hand2]
     $t.txt tag bind URL <Leave> [list $t.txt config -cursor left_ptr]
     foreach {str url} [parseStr $str] {
-	set str [string map [list "\n" "\n\t"] $str]
+	#set str [string map [list "\n" "\n\t"] $str]
 	if {$url == ""} {
-	    $t.txt insert end "$str "
+	    $t.txt insert end "$str " INFO
 	} else {
-	    $t.txt insert end "$str " [list URL URL-[incr ::URLID]]
+	    $t.txt insert end "$str " [list INFO URL URL-[incr ::URLID]]
 	    $t.txt tag bind URL-$::URLID <1> [list gotoURL $url]
 	}
     }
@@ -1169,7 +1192,7 @@ proc addHelp {clr name str} {
 	return
     }
     if {$clr != ""} {
-	.txt tag config HELP -foreground "#$clr"
+	.txt tag configure HELP -foreground "#$clr"
     }
     .txt config -state normal
     .txt insert end "$name\t" [list HELP NICK]
@@ -1256,8 +1279,10 @@ proc tkchat::CreateGUI {} {
     $m add separator
     $m add checkbutton -label "Hide Entry/Exit Messages" \
           -onval 1 -offval 0 -var Options(hideTraffic) -command {
-              .txt tag config TRAFFIC -elide $Options(hideTraffic)
+              .txt tag configure TRAFFIC -elide $Options(hideTraffic)
           }
+    $m add checkbutton -label "Use Emoticons" \
+          -onval 1 -offval 0 -var Options(emoticons)
     $m add cascade -label "Refresh Frequency" -menu [menu $m.refresh -tearoff 0]
     foreach s {15 30 45 60} {
         $m.refresh add radiobutton -label "$s seconds" -val $s \
@@ -1366,11 +1391,12 @@ proc tkchat::CreateGUI {} {
     menu .mb.mnu -tearoff 0
     .mb.mnu add command -label "All Users" \
           -command [list set Options(MsgTo) "All Users"]
-    .txt tag config MSG -lmargin2 50
-    .txt tag config NICK -font NAME
-    .txt tag config ACTION -font ACT
-    .txt tag config SYSTEM -font SYS
-    .txt tag config URL -underline 1
+    .txt tag configure MSG -lmargin2 50
+    .txt tag configure INFO -lmargin2 50
+    .txt tag configure NICK -font NAME
+    .txt tag configure ACTION -font ACT
+    .txt tag configure SYSTEM -font SYS
+    .txt tag configure URL -underline 1
     .txt tag bind URL <Enter> [list .txt config -cursor hand2]
     .txt tag bind URL <Leave> [list .txt config -cursor {}]
     .names tag config NICK -font NAME
@@ -1856,12 +1882,235 @@ proc tkchat::Debug {cmd args } {
     }
 }
 
-
 proc tkchat::ChangeFont {opt val} {
     set ::Options(Font,$opt) $val
     foreach font [font names] {
 	font configure $font $opt $val
     }
+}
+
+    namespace eval ::tkchat::img {} ; # create img namespace
+proc ::tkchat::Smile {} {
+    catch {unset img}
+    catch {unset imgre}
+    variable ::tkchat::img
+    array set imgre { :[-^]?\\( cry }
+    array set img { :-( cry :^( cry :( cry }
+    image create photo ::tkchat::img::cry -format GIF -data {
+	R0lGODlhDwAPANUAAP8AzeEDueQFvcUFp8kKq1AqdFJDkCQhUiIvaQASIQUr
+	SAAdMQEjOgBtqABqowJ5uj1ofwCf9QCI0QB/xAB9vwB7vQB3twB1swBzsQBw
+	rABhlAGb7QKo/gKU4gKFywWO18DAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAACAALAAAAAAPAA8AAAaa
+	QJBQiFAoGIehElRAeDqdTwVRWBqenGxkI7EYhgVPlgONSJ6YKgjRyXoSCQo8
+	M0GADpNIpANPVPoVDQcMH3oRHxAfGxMVFh4PCwwSG5QdEJRnExMXkU9QHQ8S
+	DxgZFRQYCwcYURIORkcKGhUaSQgUXbENDg4asXZMDWelFhcYF7xqIAYOF4zE
+	xxrJQk0OGQ0NGlRLQwcL3klKQQA7
+    }
+    array set imgre { 8[-^]?[\\|\\(] grrr }
+    array set img { 8-( grrr 8^( grrr 8( grrr 8-| grrr 8^| grrr 8| grrr }
+    image create photo ::tkchat::img::grrr -format GIF -data {
+	R0lGODlhDwAPANX/AMDAwM/RAMXHALGzAJKUAP//AOvrAOfnAObmAN/fANzc
+	ANfYANjYANXVAM7PAM7OAMrKAMDBAMHBAL29ALS1ALW1ALO0ALS0AK6vAK6u
+	AKytAKusAKysAKurAKqqAKmpAKOkAKSkAKKjAKChAJiZAJmZAJGSAJKSAJGR
+	AI2OAI6NAI6OAI2NAHd3AP///8PDwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAAaB
+	QIBQCCsWh0hAcfXxfFZHJCxlwjgCDgyKBRtON8VQAlTcpLpKUwV0JsBUIcqp
+	a6zb6y37x56HeUpGEAUQRiUeRR8PEQ8TBwYFCg8SD3swKxALHUYTDQgMEFBK
+	HBcwLy4vYQEaaFMCJEYiIzAboUQpHBkDFg8QKGdJS01PUUlKdUlBADs=
+    }
+    array set imgre { \\mLOL\\M LOL-anim }
+    array set img { LOL LOL-anim }
+    image create photo ::tkchat::img::LOL-anim -format GIF -data {
+	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
+	cyBXaXQAOw==
+    }
+    image create photo ::tkchat::img::mad -format GIF -data {
+	R0lGODlhDwAPALP/AMDAwEpKSjk5Kd7ehP//Y729QoSEKefnKa2tEEpKAISE
+	AK2tAL29AO/vAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAARlEEhZ0EJlalAW
+	+9+1IUqyNOiSKMtUMKzCNPAiI5LXKIfhw7TWCyUIHAqHgADFqMwaRYJUybQ8
+	fVKCj3l5HrLSQ3WIkg6kKBpOh/IZxEEJ4tNYnBh3Bi4XSnvwI38gIhsUFgh7ExEAOw==
+    }
+    array set imgre { :[-^]?[oO] oh }
+    array set img { :-o oh :^o oh :o oh :-O oh :^O oh :O oh }
+    image create photo ::tkchat::img::oh -format GIF -data {
+	R0lGODlhDwAPALMAAAAAABgYGGPG/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAPAA8AAAQyMEgJap04VMH5
+	xUAnelM4jgDlmcLWap3bsvIp1vaao+z+9pab6gYsxWQpUG+WKVmSkwgAOw==
+    }
+    array set imgre { :[-^]?\\) smile }
+    array set img { :-) smile :^) smile :) smile }
+    image create photo ::tkchat::img::smile -format GIF -data {
+	R0lGODlhDwAPAJEBAAAAAL+/v///AAAAACH5BAEAAAEALAAAAAAPAA8AAAIu
+	jA2Zx5EC4WIgWnnqvQBJLTyhE4khaG5Wqn4tp4ErFnMY+Sll9naUfGpkFL5DAQA7
+    }
+    array set imgre { :[-^]?D smile-big }
+    array set img { :-D smile-big :^D smile-big :D smile-big }
+    image create photo ::tkchat::img::smile-big -format GIF -data {
+	R0lGODlhEAAQALMAAAAAAKamAP//AP///wAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAQABAAAAQ/MEgJqp04VMF7
+	zUAnelPocSZKiWYqANrYyu5Io1a+ve0wAD7gD4fTWYivoHL4iiWFwNaqeFRN
+	bdZSjZfR5jIRADs=
+    }
+    array set imgre { <:[-^]?\\) smile-dork }
+    array set img { <:-) smile-dork <:^) smile-dork <:) smile-dork }
+    image create photo ::tkchat::img::smile-dork -format GIF -data {
+	R0lGODlhEQAfAKIEAP//AAAAAP///zMzM////wAAAAAAAAAAACH5BAEAAAQA
+	LAAAAAARAB8AAANhSLrcPi6uIGMQtLKL9RSdR3ChRmYmCKLSoJbWu1akyja1
+	LeVzLPc4WWB4U5wCgOTQQUQmn4CbE0plOYdPbHSSnWq3I6pYaRyLM9fxtaxs
+	flFeDCa7ycq9uC6eOW2bmiIeCQA7
+    }
+    array set imgre { 8[-^]?\\) smile-glasses }
+    array set img { 8-) smile-glasses 8^) smile-glasses 8) smile-glasses }
+    image create photo ::tkchat::img::smile-glasses -format GIF -data {
+	R0lGODlhFAAQALMAAAAAAAD/ANbWAP//AP///wAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAUABAAAARUMMgZgL00Tzu6
+	t9rmjV8ICGQKaOc1uivVEjTQATRhx9Wl17jfZUUUBHW33K4iORk5HyivIkCl
+	SFPnwIYtyarbIXfLqhp1uPF0Yx56TU7zM5QRryURADs=
+    }
+    image create photo ::tkchat::img::smile-tongue-anim -format GIF -data {
+	R0lGODlhDwAPAMQTAAAAADExAGMxAGNjAGNjMZxjAJycAJycMc6cAM7OAM7O
+	Mc7OY/8AMf/OAP//AP//Mf//Y///nP///wAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQFZAAT
+	ACwAAAAADwAPAAAIjQAnCBw4gMCAgQgHHoAQIQIEBQcSClzQ0CGEiwoSKmh4
+	8YFHjwgUXoQAAIDHkg8cFBCoYGRJBw5KQmgQkoBHBSlh6kzAk0CABwgCNNCp
+	M8CABAEINGgg4OjOAgEQJCAwAUGDAVizZk1gQODRARLCipXwdaCBBGDHHu2K
+	0IBWrFwlThhwlqdbuQMJ6JUYEAAh+QQFDAATACwDAAUACQAKAAAIRQAhQAAA
+	wIEDgg4UPDDI0EGCAA0aGgwgYEAChgkKBEgwoCODjgEMJBiJgAEDBCNTqhwp
+	cmUCAxMGtHw5YILNCQQCELgZEAAh+QQFDAATACwGAAkAAwAFAAAIDAAZCBxI
+	UGACBgkCAgAh+QQFDAATACwEAAQACAALAAAIQgAhCHzwYCCAgw4cHATwIKFD
+	BwkaPEwYYEAChwkKVBzAoOOAAAYSJOjIAIFIkSRPouwo0sAAAyRdTphJgAGB
+	mRMCAgAh+QQFDAATACwGAA0AAwACAAAICQATMEhAoGBAAAAh+QQFDAATACwG
+	AAsAAwADAAAICgATMEhAsGCCgAAAIfkEBQwAEwAsBQAJAAUAAwAACAwABwgc
+	mKDggAQEAwIAOw==
+    }
+    image create photo ::tkchat::img::smirk-glasses -format GIF -data {
+	R0lGODlhDwAPANX/AMDAwM/RAKepAJmbAI2PAICCAHp7AGxtAGlqAP//APr7
+	APX2APX1AOrqANzdANXVAM7OAMzNAMvMAMnKAMnJAMjIAMfHAMTFAMLDAMDB
+	ALu7ALi5ALe4ALa3ALe3ALGxALCwAKurAKqqAKenAKWmAKOkAKSkAKGiAKCg
+	AJ6fAJucAJqbAJubAJmaAJGSAI6PAI+PAIiIAIWGAIaGAIGCAIKCAICBAIGB
+	AGlpAFNTAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAAaG
+	QIBQqCsWh0hAkUZTrWpHpA4hi+lEmZMMpxvquEXUY2PMdZUzF8t0qVxKKsPR
+	SK/TD/VRHa9TwYwUCRRGLypFAxkeIQ8JjQ8WHBktSxogOhAMCgsNDhEaNF06
+	KQI6IxQSEw4BGClnOjYdBHQfGB0FZ0o3KSckIyQaKTe4RDo0LU6gw1J0SUEAOw==
+    }
+    array set imgre { :[-^]?[pP] tongue2 }
+    array set img { :-p tongue2 :^p tongue2 :p tongue2 :-P tongue2 :^P tongue2 :P tongue2 }
+    image create photo ::tkchat::img::tongue2 -format GIF -data {
+	R0lGODlhDwAPAMT/AMDAwFoAAJQAAK0AAM4QADkQAKUxAFI5EL21ADExKVpa
+	Ss7Oa///c/f3Y4SEKe/vSv//SrW1MXNzGK2tEPf3CBgYAGNjAIyMAKWlAM7O
+	AAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAAWHICCK0WRG
+	Ywo4Vpsh7aFOF4YgVIbt2BghGYuGQsRoLoiJCEipVCIQiERjeQEimQwlkVhE
+	HZVqpqSlOBQNRmORwGVMZciDQZcT35M4JN2I5t5YGRcZD4UPRBQWFygIGC0S
+	Dg4HBwUBFxckTIgEAwIDSSMTQGUEAgIGPSmiWS8GAqkqVyYTKCkhADs=
+    }
+    array set imgre { \\([-^]?: updown }
+    array set img { (: updown (^: updown (-: updown }
+    image create photo ::tkchat::img::updown -format GIF -data {
+	R0lGODlhDwAPALMAAAAAAFr/zv//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAPAA8AAAQwMEgJap04VMH5
+	xUAnelPoWaYAUN5orunoxnK31TOen3YK88CVRkdi4YQl2iejQWUiADs=
+    }
+    array set imgre { ;[-^]?\\) wink-anim }
+    array set img { ;-) wink-anim ;^) wink-anim ;) wink-anim }
+    image create photo ::tkchat::img::wink-anim -format GIF -data {
+	R0lGODlhDwAPAPcAAOD0AL/WAKu6AF9oAICMAERKALe3t11oAm57A6y7MaWz
+	L+//Y/H/Wer/N+j9M+j4MsfZL7jEMpWiKvD/cfD/SdnoMOz8NODvM73OMBwd
+	CfH/e8nbM+7/WyQnDTo9IwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAYALAAAAAAPAA8AAAinAA0IFNihYMGB
+	CA0UvECBQgMIBxF2YKhBw4QFDB5g6DCwQ4WGDRcscMAwAkeFFT6o/LDhgcoK
+	FTh22LCggQUMGzhYULmhQYKCDUSKrMigwgYHDyB2cJCRwYIJExg00HhhY4cH
+	FzxEaMiApAStVrcm8KAAAoYIXyVskCCzggMFHuLGlQDhJ8EEJCMkSKCgLAS2
+	HRVgMAqhcALAEjso0Hs4YkKFBk8ODAgAOw==
+    }
+    set ::tkchat::img::re "[join [array names imgre] |]"
 }
 
 proc tkchat::Init {} {
@@ -1894,6 +2143,7 @@ proc tkchat::Init {} {
         LogFile		""
         LogLevel        info
         errLog		stderr
+        emoticons	1
         hideTraffic     0
         TimeFormat      "At the tone, the time is %H:%M on %A %d %b %Y"
         TimeGMT         0
@@ -1916,7 +2166,7 @@ proc tkchat::Init {} {
 
     # load RC file if it exists
     if {[info exists ::env(HOME)] && \
-              [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
+	    [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
 	catch {source $rcfile}
     }
     set Options(Offset) 50
@@ -1946,14 +2196,15 @@ proc tkchat::Init {} {
 
     # build screen
     CreateGUI
+    Smile
     .txt tag config TRAFFIC -elide $Options(hideTraffic)
-    
+
     if {$Options(UseProxy)} {
 	::http::config -proxyhost $Options(ProxyHost) \
               -proxyport $Options(ProxyPort)
     }
-    ::tkchat::ChangeFont -family $Options(Font,-family)
-    ::tkchat::ChangeFont -size $Options(Font,-size)
+    ChangeFont -family $Options(Font,-family)
+    ChangeFont -size $Options(Font,-size)
 
     applyColors
     # connect
@@ -1967,4 +2218,3 @@ proc tkchat::Init {} {
 if {![info exists ::URLID]} {
     ::tkchat::Init
 }
-
