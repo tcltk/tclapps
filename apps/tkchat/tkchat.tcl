@@ -37,7 +37,7 @@ if {![catch {package vcompare $tk_patchLevel $tk_patchLevel}]} {
 
 package forget app-tkchat	;# Workaround until I can convince people
 				;# that apps are not packages.  :)  DGP
-package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.74 $}]
+package provide app-tkchat [regexp -inline {\d+\.\d+} {$Revision: 1.75 $}]
 
 namespace eval ::tkchat {
     # Everything will eventually be namespaced
@@ -48,7 +48,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.74 2003/01/15 19:38:37 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.75 2003/01/17 18:13:41 hobbs Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1077,7 +1077,7 @@ proc addMessage {clr nick str} {
         .txt insert end "[formatClock $str] " [list NICK-$nick MSG]
     } else {
 	if {[string equal $nick "ircbridge"] && \
-		[regexp {^(\w+) says: (.*)$} $str -> truenick msg]} {
+		[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
 	    # Use their true nick, but display bridge users as <$nick>
 	    # This allows people registered in both systems to appear
 	    # with the right color info.
