@@ -1,3 +1,8 @@
+2004-06-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Removed a number of 8.4+isms so that tkchat operates
+	with Tk8.3 again. Avoid eq and ne and use tk_windowingsystem.
+
 2004-06-04  Pascal Scheffers  <pascal@scheffers.net>
 	* tkchat.tcl: Added message timestamps and a visibility for them
 	option in the Visibility menu for them.
