@@ -38,7 +38,7 @@ namespace eval ::tkchat {
     variable HOST http://purl.org/mini
 
     variable HEADUrl {http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.21 2001/11/12 22:45:20 hobbs Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.22 2001/11/13 17:36:05 scfiead Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -437,7 +437,7 @@ proc updateNames {rawHTML} {
 	# the cgi script on the other end pukes so we will
 	# just do an inline /userinfo when they are clicked
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
-	.names tag bind URL-$::URLID <1> [list msgSend "/userinfo $name"]
+	.names tag bind URL-$::URLID <1> "set ::UserClicked 1 ; [list msgSend "/userinfo $name"]"
 	incr i
 	.mb.mnu add command -label $name \
 		-command [list set Options(MsgTo) $name]
@@ -523,6 +523,7 @@ proc getRecentLines {input} {
     return [lrange $input $Found end]
 }
 
+set UserClicked 0
 array set RE {
     HelpStart {^<FONT COLOR="(.+?)"><B>\[(.+?)\]</B>(.*)$}
     MultiStart {^<FONT COLOR="(.+?)"><B>(\S+?)</B>:(.*?)$}
@@ -535,7 +536,7 @@ array set RE {
     System {^<B>(.*)</B>$}
 }
 proc addNewLines {input} {
-    global Options RE
+    global Options RE UserClicked
 
     # Add the input to the history.  It's OK to do this before processing.
     eval [list lappend Options(History)] $input
@@ -544,6 +545,8 @@ proc addNewLines {input} {
 
     set inHelp 0
     set inMsg 0
+    set UserInfoCmd [list]
+
     foreach line $input {
 	# see if color is defined & strip it off
 	if {[regexp -nocase -- $RE(Color) $line -> clr text]} {
@@ -557,7 +560,13 @@ proc addNewLines {input} {
 	    if {[regexp -nocase -- $RE(SectEnd) $line -> text]} {
 		lappend helpLines $text
 		set inHelp 0
-		addHelp $helpColor $helpName [join $helpLines \n]
+		if {$helpName == "USERINFO"} {
+		  if ($UserClicked) {
+		    set UserInfoCmd [list addHelp $helpColor $helpName [join $helpLines \n]]
+		  }
+		} else {
+		  addHelp $helpColor $helpName [join $helpLines \n]
+		}
 	    } else {
 		lappend helpLines [string trimright $line]
 	    }
@@ -605,6 +614,9 @@ proc addNewLines {input} {
 	    }
 	}
     }
+
+    eval $UserInfoCmd
+    set UserClicked 0
 
     if { [.txt index end] > $Options(MaxLines) } {
 	.txt config -state normal
