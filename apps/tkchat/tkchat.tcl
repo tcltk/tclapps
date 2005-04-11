@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.271 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.272 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.271 2005/04/11 13:19:28 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.272 2005/04/11 17:23:48 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2171,7 +2171,7 @@ proc ::tkchat::CreateNewChatWindow { parent jid title } {
     
     wm geometry $parent 450x350+0+0
     wm protocol $parent WM_DELETE_WINDOW [list ::tkchat::DeleteChatWindow $parent $jid]
-    
+    bind $parent <FocusIn> [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
     return $parent.txt
 }
 
@@ -2699,8 +2699,11 @@ proc ::tkchat::userPostOneToOne {p jid} {
     set msg [string trim $str]
     
     tkjabber::msgSend $msg -tojid $jid -type chat
-    
-    tkchat::addMessage $p.txt "" $Options(Nickname) $msg end 0
+    if { [string match "/me *" $msg] } {
+	addAction $p.txt "" $Options(Nickname) [string range $msg 4 end]
+    } else {
+	tkchat::addMessage $p.txt "" $Options(Nickname) $msg end 0
+    }
     $p.eMsg delete 0 end
     $p.tMsg delete 1.0 end    
 }
@@ -7509,8 +7512,8 @@ proc tkjabber::getChatWidget { jid from } {
     global Options
     # Look in ChatWindows and maybe popup a new chat window
     if { [info exists ChatWindows(toplevel.$jid)] } {
-	if { ![string match "$ChatWindows(toplevel.$jid)*" [focus]] } {	    
-	    wm deiconify $ChatWindows(toplevel.$jid)
+	if { ![string match "$ChatWindows(toplevel.$jid)*" [focus]] } {
+	    wm title $ChatWindows(toplevel.$jid) "* $ChatWindows(title.$jid)" 
 	}	       
     }
     
@@ -7523,6 +7526,7 @@ proc tkjabber::getChatWidget { jid from } {
 	popup {
 	    set p [string map [list . "" @ "" / "" # _] $jid]
 	    set ChatWindows(toplevel.$jid) [toplevel .chat_$p]
+	    set ChatWindows(title.$jid) "$from <$jid>"
 	    set ChatWindows(txt.$jid) [tkchat::CreateNewChatWindow $ChatWindows(toplevel.$jid) $jid $from]
 	    focus $ChatWindows(toplevel.$jid).eMsg
 	    return $ChatWindows(txt.$jid)	
@@ -7539,7 +7543,7 @@ proc tkjabber::getChatWidget { jid from } {
 proc tkjabber::deleteChatWidget { jid } {
     variable ChatWindows
     
-    foreach item {txt toplevel} {
+    foreach item {txt toplevel title} {
 	if { [info exists ChatWindows($item.$jid)] } {
 	    unset ChatWindows($item.$jid)
 	}

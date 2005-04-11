@@ -4,6 +4,8 @@
         /chat <nick> msg will open a chat window, as will double clicking on
         the nick in the online users list; user info is now a right click
         action.
+        * tkchat.tcl: fix new message notify for private chats; fix /me in
+        private chats.
 
 2005-04-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
