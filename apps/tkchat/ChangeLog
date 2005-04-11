@@ -1,8 +1,9 @@
 2004-04-11  Pascal Scheffers  <pascal@scheffers.net>
 
-	* tkchat.tcl: one to one chat added; /msg now emits '-type normal'; /chat
-        <nick> msg will open a chat window, as will double clicking on the nick
-        in the online users list; user info is now a right click action.
+	* tkchat.tcl: one to one chat added; /msg now emits '-type normal';
+        /chat <nick> msg will open a chat window, as will double clicking on
+        the nick in the online users list; user info is now a right click
+        action.
 
 2005-04-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
@@ -92,7 +93,8 @@
 
 2004-12-08  Pascal Scheffers  <pascal@scheffers.net>
 
-	* tkchat.tcl: Prevent multiple reconnect timers running at the same time.
+	* tkchat.tcl: Prevent multiple reconnect timers running at the same
+        time.
 
 2004-12-08  Reinhard Max  <max@suse.de>
 
