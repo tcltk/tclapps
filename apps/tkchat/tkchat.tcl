@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.273 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.274 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.273 2005/04/12 14:33:12 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.274 2005/04/12 14:35:42 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5349,9 +5349,6 @@ proc ::tkchat::UserInfoAppendChild {xmllist tags child} {
         set xmllist [lreplace $xmllist 2 2 0]
     }
     return $xmllist
-}
-
-proc ::tkchat::UserInfoClose {w {jid ""} {save 0}} {
 }
 
 proc ::tkchat::UserInfoDialog {{jid {}}} {
