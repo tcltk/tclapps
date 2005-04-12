@@ -65,7 +65,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.272 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.273 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +97,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.272 2005/04/11 17:23:48 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.273 2005/04/12 14:33:12 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2169,7 +2169,7 @@ proc ::tkchat::CreateNewChatWindow { parent jid title } {
     grid columnconfigure $parent.btm 1 -weight 1
     wm title $parent "$title <$jid>"
     
-    wm geometry $parent 450x350+0+0
+    wm geometry $parent 450x350
     wm protocol $parent WM_DELETE_WINDOW [list ::tkchat::DeleteChatWindow $parent $jid]
     bind $parent <FocusIn> [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
     return $parent.txt
@@ -4228,7 +4228,7 @@ proc ::tkchat::Init {args} {
 	NickList	{}
 	History		{}
 	AutoScroll	0
-	Geometry	600x500+0+0
+	Geometry	600x500
         Pane            {520 2}
         UsePane         1
 	Font,-family	Helvetica
@@ -5349,6 +5349,9 @@ proc ::tkchat::UserInfoAppendChild {xmllist tags child} {
         set xmllist [lreplace $xmllist 2 2 0]
     }
     return $xmllist
+}
+
+proc ::tkchat::UserInfoClose {w {jid ""} {save 0}} {
 }
 
 proc ::tkchat::UserInfoDialog {{jid {}}} {

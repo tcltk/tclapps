@@ -1,3 +1,8 @@
+2005-04-12  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Removed explicit placement from geometry
+	settings. It's the windowmanager's job to place new windows.
+
 2004-04-11  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: one to one chat added; /msg now emits '-type normal';
