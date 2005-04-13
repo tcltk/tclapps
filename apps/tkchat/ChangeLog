@@ -1,3 +1,13 @@
+2004-04-13  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: removed askleo and babelfish bindings from private chat
+	windows. The private chat window now uses nick colors too (doesn't
+	update them properly, though). Added 'help' item to the help menu.
+	Added visibility option for away/online/dnd 'availability' messages.
+	Added user idle detection in win2k+ to do auto-away/xa, configurable in
+	the preferences menu (disabled by default). This requires an additional
+	(optional) extension (idle) to be available.
+
 2005-04-12  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Removed explicit placement from geometry

@@ -22,6 +22,10 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
+# For development, it is very convenient to be able to drop the extra
+# packages into the CVS tree:
+lappend ::auto_path [file join [file dirname [info script]] lib]
+
 package require Tcl 8.4         ; # core Tcl
 package require Tk  8.4		; # core Tk
 package require http 2		; # core Tcl
@@ -33,6 +37,20 @@ package require base64		; # tcllib
 
 catch {
     package require tls     ; # tls (optional)
+}
+
+package require sha1;               # tcllib
+package require jlib;               # jlib
+package require browse;             # jlib
+package require muc;                # jlib
+
+if { [catch {
+    # Optional idle detection
+    package require idle
+}] } {
+    # Not supported / available...    
+    namespace eval ::idle {}
+    proc ::idle::supported {} {return 0}    
 }
 
 # Deal with 'tile' support.
@@ -65,7 +83,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.274 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.275 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -97,7 +115,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.274 2005/04/12 14:35:42 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.275 2005/04/13 12:15:21 pascalscheffers Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -543,15 +561,6 @@ proc ::tkchat::logonChat {{retry 0}} {
         return
     }
 
-    # These package requires should be moved to the top of the script
-    # when jabber support matures.
-    lappend ::auto_path [file join [file dirname [info script]] lib]
-    package require sha1;               # tcllib
-    package require jlib;               # jlib
-    package require browse;             # jlib
-    package require muc;                # jlib	
-    #package require jlibhttp;          # jlib
-
     if {[info exists Options(JabberDebug)] && $Options(JabberDebug)} {
         set jlib::debug 2
     }
@@ -890,7 +899,7 @@ proc ::tkchat::parseStr {str} {
     return $out
 }
 
-proc ::tkchat::checkNick {nick clr} {
+proc ::tkchat::checkNick {txt nick clr} {
     global Options
 
     set wid [expr {[font measure NAME $nick] + 10}]
@@ -931,8 +940,8 @@ proc ::tkchat::checkNick {nick clr} {
         set clr [getColor $nick]
         if {$clr == ""} { set clr [getColor MainFG] }
 	if {[catch {
-	    .txt tag configure NICK-$nick -foreground "#$clr"
-	    .txt tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
+	    $txt tag configure NICK-$nick -foreground "#$clr"
+	    $txt tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
 	} msg]} then { log::log debug "nickCheck: \"$msg\"" }
     }
 }
@@ -1048,7 +1057,7 @@ proc ::tkchat::addMessage {w clr nick str {mark end} {timestamp 0} {extraOpts ""
     set displayNick $nick
     regexp {^<(.+)>$} $nick displayNick nick
 
-    checkNick $nick $clr
+    checkNick $w $nick $clr
     checkAlert NORMAL $nick $str
     $w config -state normal
     if {[string equal $nick "clock"] || [string equal $nick "tick"]} {
@@ -1332,7 +1341,7 @@ proc ::tkchat::formatClock {str} {
 
 proc ::tkchat::addAction {w clr nick str {mark end} {timestamp 0} {extraOpts ""}} {
     global Options
-    checkNick $nick $clr
+    checkNick $w $nick $clr
     checkAlert ACTION $nick $str
     array set opts $extraOpts
     $w config -state normal
@@ -1376,7 +1385,7 @@ proc ::tkchat::addSystem {w str {mark end} {tags {}}} {
     global Options
     
     $w config -state normal
-    ::tkchat::InsertTimestamp $w "" $mark
+    ::tkchat::InsertTimestamp $w "" $mark 0 $tags
     $w insert $mark "\t$str\n" [concat [list MSG SYSTEM] $tags]
     $w config -state disabled
     if {$Options(AutoScroll)} { $w see $mark }
@@ -1810,6 +1819,17 @@ proc ::tkchat::CreateGUI {} {
     $m.chat1to1 add radiobutton -label "Open in new tab" -val tabbed \
 	-var Options(OneToOne) -underline 12
 
+    $m add cascade -label "Auto Away" \
+	-menu [menu $m.aa -tearoff 0] \
+	-underline 0 \
+	-state [expr {[idle::supported] ? "normal" : "disabled"}]	
+    $m.aa add radiobutton -label "Disabled" -val -1 \
+	-var Options(AutoAway)
+    foreach time {5 10 15 20 30 45 60 90} {
+	$m.aa add radiobutton -label "After $time minutes" -val $time \
+	    -var Options(AutoAway)
+    }
+    
     $m add separator
     $m add checkbutton -label "Enable Whiteboard" -underline 0 \
 	-variable Options(EnableWhiteboard)
@@ -1845,7 +1865,8 @@ proc ::tkchat::CreateGUI {} {
 	WELCOME	 "Welcome"
 	HELP	 "Help"
 	USERINFO "User Info"
-	MEMO	 "Memo"	
+	MEMO	 "Memo"
+	AVAILABILITY "Away/Online status"
     } {
 	$m add checkbutton -label "Hide $text Messages" \
 	    -onval 1 -offval 0 \
@@ -1968,6 +1989,9 @@ proc ::tkchat::CreateGUI {} {
     ## Help Menu
     ##
     set m .mbar.help
+    $m add command -label "Help (wiki)..." -underline 0 \
+	-command [list [namespace current]::gotoURL http://wiki.tcl.tk/tkchat]
+    $m add separator
     $m add command -label About... -underline 0 -command tkchat::About
     $m add cascade -label "Translate Selection" -underline 0 \
         -command [list [namespace current]::babelfishMenu]
@@ -1982,6 +2006,9 @@ proc ::tkchat::CreateGUI {} {
     }
 
     CreateTxtAndSbar 
+    bind .txt <Button-3>   {::tkchat::babelfishMenuPost
+				[winfo pointerx %W] [winfo pointery %W]}
+    bind .txt <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
 
     # user display
     text .names -background "#[getColor MainBG]" \
@@ -2110,9 +2137,6 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     bind $txt <Down>	   [list $txt yview scroll  1 units]
     bind $txt <Button-4>   [list $txt yview scroll -1 units]
     bind $txt <Button-5>   [list $txt yview scroll  1 units]
-    bind $txt <Button-3>   {::tkchat::babelfishMenuPost
-				[winfo pointerx %W] [winfo pointery %W]}
-    bind $txt <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
 }
 
 proc ::tkchat::CreateNewChatWindow { parent jid title } {
@@ -2172,6 +2196,7 @@ proc ::tkchat::CreateNewChatWindow { parent jid title } {
     wm geometry $parent 450x350
     wm protocol $parent WM_DELETE_WINDOW [list ::tkchat::DeleteChatWindow $parent $jid]
     bind $parent <FocusIn> [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
+    applyColors $parent.txt
     return $parent.txt
 }
 
@@ -2871,11 +2896,13 @@ proc ::tkchat::userPost {{jid ""}} {
                 {^/away} - {^/afk} {
                     set status ""
                     regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
+		    set tkjabber::AutoAway -1
                     tkjabber::away $status
                 }
                 {^/dnd} - {^/busy} {
                     set status ""
                     regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
+		    set tkjabber::AutoAway -1
                     tkjabber::away $status dnd
                 }
                 {^/back} {
@@ -3536,20 +3563,20 @@ proc ::tkchat::ChangeColors {} {
     destroy $t
 }
 
-proc ::tkchat::applyColors {} {
+proc ::tkchat::applyColors {{txt .txt}} {
     global Options
     # update colors
-    .txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
+    $txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
     .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
-    .txt tag configure found -background "#[getColor SearchBG]"
+    $txt tag configure found -background "#[getColor SearchBG]"
     foreach nk $Options(NickList) {
         set clr [getColor $nk]
         if {$clr == ""} {
             set clr [getColor MainFG]
         }
 	if {[catch {
-	    .txt tag config NICK-$nk -foreground "#$clr"
-	    .txt tag config NOLOG-$nk -foreground "#[fadeColor $clr]"
+	    $txt tag config NICK-$nk -foreground "#$clr"
+	    $txt tag config NOLOG-$nk -foreground "#[fadeColor $clr]"
 	} msg]} then { log::log debug "applyColors: \"$msg\"" }
     }
 }
@@ -4251,6 +4278,7 @@ proc ::tkchat::Init {args} {
         Transparency    100
         AutoFade        0
         AutoFadeLimit   80
+	AutoAway	-1
 	EnableWhiteboard 1
 	Popup,USERINFO	1
 	Popup,WELCOME	0
@@ -6097,8 +6125,10 @@ namespace eval tkjabber {
     Variable muc_jid_map ;# array with conference-id to user-jid map.
     Variable users ;#
     Variable user_alias
-    Variable Away 0
-
+    Variable Away 0    
+    Variable AutoAway 0
+    Variable AwayShow ""
+    
     # Provides a map of nicks to full jids (works because the chat is
     # not anonymous. Used for the /memo function.
     variable members; if {![info exists members]} {array set members {}}
@@ -6438,7 +6468,7 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 		} [lindex $status 0]]
                 set m "$jid has $action ($tstatus)"
                 if {[llength $status] > 1} {append m ": [lindex $status 1]"}
-		tkchat::addSystem .txt $m
+		tkchat::addSystem .txt $m end AVAILABILITY
 		return
 	    }
 	
@@ -6450,7 +6480,7 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
             } elseif {$action eq "changedstatus"} {
                 set s [string map {xa idle chat talking dnd busy} [lindex $status 0]]
                 if {[lindex $status 1] ne ""} {append s " ([lindex $status 1])"}
-                tkchat::addSystem .txt "$p(-resource) is $s"
+                tkchat::addSystem .txt "$p(-resource) is $s" end AVAILABILITY
             } else {
                 if { !($action eq "entered" && $ignoreNextNick eq $p(-resource)) } {
                     # if not the ignore nick:
@@ -6580,7 +6610,7 @@ proc tkjabber::MsgCB {jlibName type args} {
 		set w [getChatWidget $m(-from) $name]
 	    }
 	    if {$w eq ".txt"} {
-		tkchat::addAction $w "" $name " whispers: $m(-body)" end $ts
+		tkchat::addAction $w $color $name " whispers: $m(-body)" end $ts
 	    } else {
 		if { [string match -nocase "/me *" $m(-body)] } {
 		    tkchat::addAction $w $color $name [string range $m(-body) 4 end] end $ts
@@ -6897,8 +6927,9 @@ proc tkjabber::MucEnterCB {mucName type args} {
 	    if {$conference eq "tcl@tach.tclers.tk" \
                     &&  !$tkjabber::HaveHistory } {
                 # Force history loading to the background
-		after 10 [list tkchat::LoadHistory]
+		after 10 [list tkchat::LoadHistory]		
 	    }
+	    autoStatus
 	}
 	default {
 	    tkchat::addSystem .txt  "MucEnter: type=$type, args='$args'"
@@ -7432,8 +7463,11 @@ proc tkjabber::away {status {show away}} {
 
 proc tkjabber::back {status} {
     variable Away
+    variable AutoAway
     variable conference
     set Away 0
+    set AutoAway 0
+
     set jid $conference/[$tkjabber::muc mynick $conference]
     $tkjabber::jabber send_presence -type available \
         -from $jid -to $conference -show online -status $status
@@ -7550,6 +7584,53 @@ proc tkjabber::deleteChatWidget { jid } {
     }
 }
 
+proc tkjabber::autoStatus {} {
+    variable autoStatusAfterId
+    variable Away
+    variable AutoAway
+    variable AwayShow
+    global Options
+
+    if { [info exists autoStatusAfterId] } {
+	after cancel $autoStatusAfterId
+	unset autoStatusAfterId
+    }	
+
+    if { ![idle::supported] } return
+    log::log debug "Now idle for: [idle::idletime] seconds."
+    set autoStatusAfterId [after 1000 [namespace origin autoStatus]]
+	
+    if { $Options(AutoAway) == -1 } {
+	# Auto Away disabled in config menu
+	return
+    }
+    
+    if { $AutoAway < 0 } {
+	# Auto Away disabled because use set status manually.
+	return
+    }
+    
+
+    set idle_time [expr {$Options(AutoAway)*60}]
+    set xa_time [expr {$idle_time + 60*30}]
+
+    # for easy debugging:
+    #set idle_time 5
+    #set xa_time 10
+        
+    if { [idle::idletime] < $idle_time && $AutoAway > 0 } {
+	set AutoAway 0
+	back ""
+    } elseif { [idle::idletime] > $idle_time && $AutoAway == 0  } {
+	set AutoAway 1
+	away "no activity" away
+    } elseif { [idle::idletime] > $xa_time && $AutoAway == 1 } {
+	set AutoAway 2
+	away "no activity" xa
+    }
+    
+}
+
 
 # -------------------------------------------------------------------------
 # Windows CE specific code.
@@ -7573,4 +7654,6 @@ if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} 
 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
+    
+
 }
