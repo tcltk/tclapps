@@ -1,3 +1,19 @@
+2005-04-23  Jeff Godfrey <jeff_godfrey@pobox.com>
+
+    * asteroids.tcl
+    - Fixed the storage location of the high-score file when app is run as
+      a starpack.  Prior to the change, when running as a starpack, the file
+      was (attempting to be) stored in the exe itself.  Now, in a wrapped state,
+      it is stored next to the exe file.
+    - Modified the code that loads the sound files into Snack so that it works
+      properly when wrapped as a starpack.
+    - Worked around an odd bug that caused the app to crash upon exit when run
+      as a starpack, *with* the Snack sound extension.  In the "appExit" proc,
+      there are one or more channels still open with names like "mk##", that
+      cause the crash.  As I don't know what's opening the channels (likely
+      MetaKit related?), I just closed them before exiting.  This seems to avoid
+      the problem, though it should likely be fixed elsewhere.
+    
 2005-03-25  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* asteroids.tcl: add exec wish at top

@@ -12,8 +12,8 @@ exec wish "$0" ${1+"$@"}
 
 package require Tk 8.4
 
-set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.11 2005/03/25 20:53:31 hobbs Exp $"}
-set ::DIR [file dirname [info script]]
+set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.12 2005/04/23 15:33:51 jgodfrey Exp $"}
+set ::TOPDIR [file dirname [info script]]
 
 proc main {} {
     initVars
@@ -31,6 +31,7 @@ proc main {} {
 }
 
 proc initVars {} {
+
     # This adds a bit of color - all white is traditional
     array set ::CLR {
         dust        yellow
@@ -64,7 +65,15 @@ proc initVars {} {
     set ::globals(lives)         3
     set ::globals(timeStart)     [clock clicks -milliseconds]
     set ::globals(frameCount)    0
-    set ::globals(highScoreFile) [file join $::DIR "asteroids_hs.txt"]
+
+    # --- if we're wrapped, put the high score table next to the exe.
+    #     if not, put it next to the tcl script...
+    if {[info exists ::starkit::topdir]} {
+        set ::globals(highScoreFile) \
+            [file join $::starkit::topdir "asteroids_hs.txt"]
+    } else {
+        set ::globals(highScoreFile) [file join $::TOPDIR "asteroids_hs.txt"]
+    }
 
     set ::globals(lifeEvery)     10000  ;# new life every 10000 pts
     set ::globals(nextLife)      $::globals(lifeEvery)
@@ -164,6 +173,17 @@ proc doLink {c item} {
 }
 
 proc appExit {} {
+    # --- For some reason, when the app is wrapped into a starpack *using Snack*,
+    #     some channels remain open at this point.  In a StarPack, this causes
+    #     a crash with the error "Tcl_Close on channel with refCount > 0".
+    #     The open channels are always named "mk##", and I can't figure out
+    #     where they are coming from (likely MetaKit related?).  Until I have a
+    #     better solution, attempt to close all channels that don't match "std*".
+    foreach channel [file channels] {
+        if {![string match -nocase std* $channel]} {
+            catch {close $channel}
+        }
+    }
     set ::globals(gameOn) 0
     exit
 }
@@ -1069,18 +1089,17 @@ proc testForSounds {} {
     if {[catch {package require snack}]} return
 
     # --- load the sounds if available
-    foreach {snd file} {
-        sndShot shot.wav sndExplosion explosion.wav  sndThrust thrust.wav
-	sndBeat1 beat1.wav sndBeat2 beat2.wav
-    } {
-       if {[file readable $file]} {
-           sound $snd -file $file
-       } else {
-           return
+    foreach {snd file} {sndShot shot.wav sndExplosion explosion.wav \
+        sndThrust thrust.wav sndBeat1 beat1.wav sndBeat2 beat2.wav} {
+        set file [file join $::TOPDIR/$file]
+        if {[file readable $file]} {
+            sound $snd -file $file
+        } else {
+            return
        }
     }
 
-    # --- OK, here we have the necessary sound support, so redefine the sndPlay
+    # --- OK, here we have the necessary sound support, so redefine sndPlay
     proc sndPlay {snd} {
        $snd play
     }
