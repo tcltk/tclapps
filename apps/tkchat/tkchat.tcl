@@ -83,7 +83,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.275 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.276 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -115,7 +115,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.275 2005/04/13 12:15:21 pascalscheffers Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.276 2005/04/23 17:57:45 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6260,10 +6260,10 @@ proc tkjabber::cleanup {} {
     variable conference
     variable socket
 
-    if { [catch {
-	$muc exit $conference
-    }] } {
-	log::log error "Cleanup: $::errorInfo"
+    if {[info exists muc]} {
+        if {[catch {$muc exit $conference} err]} {
+            log::log error "cleanup: $err"
+        }
     }
 
     if { [catch {$jabber closestream}] } {
@@ -6711,12 +6711,12 @@ proc tkjabber::MsgCB {jlibName type args} {
 		switch -- [lindex $m(-error) 0] {
 		    405 {
 			if { [catch {
-			    $muc exit $conference
+                            $muc exit $conference
 			}] } {
 			    log::log debug "MUC EXIT: $::errorInfo"
 			}
 			tkchat::addSystem .txt "$m(-from): [lindex $m(-error) 1]. Trying to get in again..."
-			$::tkjabber::muc enter $::tkjabber::conference $::Options(Nickname) -command [namespace current]::MucEnterCB
+			$muc enter $::tkjabber::conference $::Options(Nickname) -command [namespace current]::MucEnterCB
 		    }
 		    default {
 			tkchat::addSystem .txt  "MsgCB (error) args='$args'"

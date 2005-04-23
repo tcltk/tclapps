@@ -1,3 +1,9 @@
+2005-04-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (tkjabber::cleanup): Modified the cleanup to check
+	for the existence of the muc variable. Sometimes it has already
+	been cleaned up.
+
 2004-04-13  Pascal Scheffers  <pascal@scheffers.net>
 
 	* tkchat.tcl: removed askleo and babelfish bindings from private chat
