@@ -1,3 +1,10 @@
+2005-04-03  Jeff Godfrey <jeff_godfrey@pobox.com>
+
+    * asteroids.tcl
+    - Fixed (for real this time...), the location of the high-score table when
+      the app is run as a starpack.  The previous fix to this problem wasn't
+      quite correct...
+      
 2005-04-23  Jeff Godfrey <jeff_godfrey@pobox.com>
 
     * asteroids.tcl

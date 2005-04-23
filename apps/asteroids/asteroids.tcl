@@ -12,7 +12,7 @@ exec wish "$0" ${1+"$@"}
 
 package require Tk 8.4
 
-set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.12 2005/04/23 15:33:51 jgodfrey Exp $"}
+set ::RCS {"RCS: @(#) $Id: asteroids.tcl,v 1.13 2005/04/23 15:46:12 jgodfrey Exp $"}
 set ::TOPDIR [file dirname [info script]]
 
 proc main {} {
@@ -70,7 +70,7 @@ proc initVars {} {
     #     if not, put it next to the tcl script...
     if {[info exists ::starkit::topdir]} {
         set ::globals(highScoreFile) \
-            [file join $::starkit::topdir "asteroids_hs.txt"]
+            [file join [file dirname $::starkit::topdir] "asteroids_hs.txt"]
     } else {
         set ::globals(highScoreFile) [file join $::TOPDIR "asteroids_hs.txt"]
     }
