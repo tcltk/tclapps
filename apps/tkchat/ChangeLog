@@ -3,6 +3,8 @@
 	* tkchat.tcl: Applied patch #1187190 by Daniel South which fixes
 	updating the system tray icon when the application regains focus
 	on windows.
+	* tkchat.tcl: Applied patch #1187273 by Daniel South to fix
+	restoring a hidden app window to the pre-hidden state.
 
 2005-04-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

@@ -83,7 +83,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.277 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.278 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -115,7 +115,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.277 2005/04/24 23:26:41 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.278 2005/04/24 23:43:20 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5495,6 +5495,8 @@ proc ::tkchat::WinicoInit {} {
         package require Winico
     }]} {
         variable TaskbarIcon
+        variable WinicoWmState [wm state .]
+
         set icofile [file join [file dirname [info script]] tkchat.ico]
         if {[file exists $icofile]} {
             set TaskbarIcon [winico createfrom $icofile]
@@ -5515,12 +5517,14 @@ proc ::tkchat::WinicoCleanup {} {
 }
 
 proc ::tkchat::WinicoCallback {msg icn} {
+    variable WinicoWmState
     switch -exact -- $msg {
         WM_LBUTTONDOWN {
             if {[wm state .] == "withdrawn"} {
-                wm deiconify .
+                wm state . $WinicoWmState
                 ResetMessageCounter
             } else {
+                set WinicoWmState [wm state .]
                 wm withdraw .
             }
         }
