@@ -83,7 +83,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.278 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.279 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -115,7 +115,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.278 2005/04/24 23:43:20 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.279 2005/04/25 08:51:23 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4425,9 +4425,7 @@ proc ::tkchat::Init {args} {
 
     Hook add chat [namespace origin IncrMessageCounter]
     BookmarkInit
-    if {[tk_windowingsystem] == "win32"} {
-        WinicoInit
-    }
+    WinicoInit
 
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
@@ -5491,9 +5489,9 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 # At some point I want to support multiple icons for nochat/chat/alert.
 #
 proc ::tkchat::WinicoInit {} {
-    if {![catch {
-        package require Winico
-    }]} {
+    if {[tk_windowingsystem] == "win32" &&
+	![catch {package require Winico}]
+    } then {
         variable TaskbarIcon
         variable WinicoWmState [wm state .]
 

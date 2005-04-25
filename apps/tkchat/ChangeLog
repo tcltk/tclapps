@@ -1,3 +1,8 @@
+2005-04-25  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Fixed the latest additions to not break execution on
+	non-Windows platforms.
+
 2005-04-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Applied patch #1187190 by Daniel South which fixes
