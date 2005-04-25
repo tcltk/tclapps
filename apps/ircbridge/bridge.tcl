@@ -1,15 +1,13 @@
 #!/bin/sh
-# the next line restarts using tclsh \
-    exec tclsh "$0" "$@"
-
+#
 # bridge.tcl -- bridge between Tcl Chat and IRC.
-
+#
 # Copyright 2003 David N. Welton <davidw@dedasys.com>
-
-# $Id: bridge.tcl,v 1.10 2004/03/26 16:06:30 pascalscheffers Exp $
-
-# There's a lot that could be added here.
-
+#
+# $Id: bridge.tcl,v 1.11 2005/04/25 20:29:37 patthoyts Exp $
+#
+# the next line restarts using tclsh \
+exec tclsh "$0" ${1+"$@"}
 
 set auto_path "[file dirname [info script]] $auto_path"
 
@@ -19,9 +17,9 @@ package require chat
 
 # Some config defaults:
 
-set ::irc_server irc.debian.org
+set ::irc_server irc.freenode.net
 set ::irc_port 6667
-set ::irc_user ircbridge
+set ::irc_user azbridge
 set ::irc_channel \#tcl
 
 # Source the rc file if it exists. Use this file to set ::chatPassword
@@ -30,22 +28,44 @@ if { [file exists ~/.ircbridge] } {
     source ~/.ircbridge
 }
 
+proc chat::load_banned {} {
+    variable IgnoreList
+    set IgnoreList {}
+    if {[file exists ~/.ircbridge.banned]} {
+        set f [open ~/.ircbridge.banned r]
+        while {[gets $f name]} {
+            if {![regexp {\s*#} $name]} {
+                lappend IgnoreList $name
+	     }
+        }
+    }
+}
+
 # Called when someone does something like leave or join.
 
 proc chat::addTraffic {who action} {
-    Send "PRIVMSG $::client::channel :*** $who $action"
+    variable IgnoreList
+    if {[lsearch -exact $IgnoreList $who] == -1} {
+        Send "PRIVMSG $::client::channel :*** $who $action"
+    }
 }
 
 # Called when a new message from Tcler's Chat is to be handled.
 
 proc chat::addMessage {nick str} {
-    Send "PRIVMSG $::client::channel :<$nick> $str"
+    variable IgnoreList
+    if {[lsearch -exact $IgnoreList $nick] == -1} {
+        Send "PRIVMSG $::client::channel :<$nick> $str"
+    }
 }
 
 # Called when a new action (/me) from Tcler's Chat is to be handled. 
 
 proc chat::addAction {nick str} {
-    Send "PRIVMSG $::client::channel :* $nick $str"
+    variable IgnoreList
+    if {[lsearch -exact $IgnoreList $nick] == -1} {
+        Send "PRIVMSG $::client::channel :* $nick $str"
+    }
 }
 
 # Whispers from tkchat chatusers:
@@ -54,6 +74,11 @@ proc chat::addWhisper {nick str} {
     if { $nick eq "WELCOME" } {
 	::log::log debug "Welcome message: $str"
 	return
+    }
+
+    variable IgnoreList
+    if {[lsearch -exact $IgnoreList $nick] == -1} {
+        return
     }
 
     set str [string range $str 0 end-1]
@@ -73,6 +98,18 @@ proc chat::addWhisper {nick str} {
 	default {
 	    chat::msgSend "/msg $nick I don't understand '$str'"
 	}
+    }
+}
+
+proc ban {nick} {
+    variable chat::IgnoreList
+    if {[lsearch -exact $IgnoreList $nick] == -1} {
+        lappend IgnoreList $nick
+	set f [open ~/.ircbridge.banned w]
+	foreach $name $IgnoreList {
+	    puts $f $name
+	}
+        close $f
     }
 }
 
@@ -166,7 +203,9 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent defaultevent {
-	::log::log debug "[action] XXX [who] XXX [target] XXX [msg]"
+        if {[action] ne "PONG"} {
+	    ::log::log debug "[action] XXX [who] XXX [target] XXX [msg]"
+        }
     }
 
     $cn registerevent PART {
@@ -298,8 +337,26 @@ if { [lindex $argv 0] eq "-d" } {
     signal trap    {QUIT TERM} shutdown    
 }
 
-set onlineircusers [list]
-client::create $::irc_server $::irc_port $::irc_user $::irc_channel
-::chat::Init
 
-vwait forever
+if {!$tcl_interactive} {
+    if {$tcl_platform(platform) eq "unix"} {
+        set cmdloop [file join [file dirname [info script]] cmdloop.tcl]
+        if {[file exist $cmdloop]} {
+            source $cmdloop
+            set cmdloop::welcome "IRC Bridge \$Version$"
+            append cmdloop::welcome "\nReady on %client %port"
+            cmdloop::cmdloop
+            #cmdloop::listen 127.0.0.1 5442
+        }
+        set tcl_interactive 1;# don't do this again if we re-source.
+    }
+
+    set onlineircusers [list]
+    client::create $::irc_server $::irc_port $::irc_user $::irc_channel
+    chat::load_banned
+    ::chat::Init
+
+    if {![info exists tcl_service]} {
+        vwait ::forever
+    }
+}

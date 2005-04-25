@@ -24,8 +24,8 @@ namespace eval chat {
     # set the configuration options
     array set Options {
 	Username	"ircbridge"
-	Password	""
-	KillPassword    "shutupanddie"
+	Password	"YOU MUST SET THIS UP IN ~/.ircbridge"
+	KillPassword    "shut up and die"
 	URL		http://mini.net/cgi-bin/chat.cgi
         URL2		http://mini.net/cgi-bin/chat2.cgi
         URLchatter	http://mini.net/cgi-bin/chatter2.cgi
@@ -40,6 +40,8 @@ namespace eval chat {
     variable chatter_cgi ""
     variable chatter_stamp 0
     
+    variable IgnoreList
+    if {![info exists IgnoreList]} { set IgnoreList [list] }
 }
 
 # Check the HTTP response for redirecting URLs. - PT

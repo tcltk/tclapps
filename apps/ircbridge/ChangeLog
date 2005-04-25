@@ -1,3 +1,11 @@
+2005-04-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* bridge.tcl:   Added an ingore list to deal with trolls.
+	* chat.tcl:
+	* cmdloop.tcl:  Added so that we can enter commands into the
+	                running bridge (we run the bridge in a screen
+			session).
+
 2004-03-11  Pascal Scheffers  <pascal@scheffers.net>
 	
 	* bridge.tcl: Fixed a /msg loop for welcome messages, added config
