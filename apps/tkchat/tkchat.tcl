@@ -83,7 +83,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.280 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.281 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -115,7 +115,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.280 2005/04/25 08:59:55 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.281 2005/04/25 13:30:10 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5489,18 +5489,38 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 # At some point I want to support multiple icons for nochat/chat/alert.
 #
 proc ::tkchat::WinicoInit {} {
-    if {[tk_windowingsystem] ne "win32"} return
+    log::log debug "tk windowingsystem [tk_windowingsystem]"
+    if {[tk_windowingsystem] eq "win32" &&
+        ![catch {package require Winico}]} {
+        variable TaskbarIcon
+        variable WinicoWmState [wm state .]
+        
+        set icofile [file join [file dirname [info script]] tkchat.ico]
+        if {[file exists $icofile]} {
+            set TaskbarIcon [winico createfrom $icofile]
+            winico taskbar add $TaskbarIcon \
+                -pos 0 \
+                -text [wm title .] \
+                -callback [list [namespace origin WinicoCallback] %m %i]
+            bind . <Destroy> [namespace origin WinicoCleanup]
+        }
+    } else {
+        proc ::tkchat::WinicoUpdate {} {return}
+    }
+}
+
+proc ::tkchat::WinicoUpdate {} {
+    variable MessageCounter
     variable TaskbarIcon
-    variable WinicoWmState [wm state .]
-    
-    set icofile [file join [file dirname [info script]] tkchat.ico]
-    if {[file exists $icofile]} {
-	set TaskbarIcon [winico createfrom $icofile]
-	winico taskbar add $TaskbarIcon \
-	    -pos 0 \
-	    -text [wm title .] \
-	    -callback [list [namespace origin WinicoCallback] %m %i]
-	bind . <Destroy> [namespace origin WinicoCleanup]
+    if {[llength [info commands winico]] < 1} { return }
+    if {$MessageCounter > 0} {
+        winico taskbar modify $TaskbarIcon \
+            -pos 2 \
+            -text "$MessageCounter - Tcl'ers chat"
+    } else {
+        winico taskbar modify $TaskbarIcon \
+            -pos 0 \
+            -text "Tcl'ers chat"
     }
 }
 
@@ -5515,27 +5535,14 @@ proc ::tkchat::WinicoCallback {msg icn} {
         WM_LBUTTONDOWN {
             if {[wm state .] == "withdrawn"} {
                 wm state . $WinicoWmState
+                wm deiconify .
+                focus .eMsg
                 ResetMessageCounter
             } else {
                 set WinicoWmState [wm state .]
                 wm withdraw .
             }
         }
-    }
-}
-
-proc ::tkchat::WinicoUpdate {} {
-    if {[tk_windowingsystem] ne "win32"} return
-    variable MessageCounter
-    variable TaskbarIcon
-    if {$MessageCounter > 0} {
-        winico taskbar modify $TaskbarIcon \
-            -pos 2 \
-            -text "$MessageCounter - Tcl'ers chat"
-    } else {
-        winico taskbar modify $TaskbarIcon \
-            -pos 0 \
-            -text "Tcl'ers chat"
     }
 }
 
@@ -7597,7 +7604,7 @@ proc tkjabber::autoStatus {} {
     }	
 
     if { ![idle::supported] } return
-    log::log debug "Now idle for: [idle::idletime] seconds."
+    #log::log debug "Now idle for: [idle::idletime] seconds."
     set autoStatusAfterId [after 1000 [namespace origin autoStatus]]
 	
     if { $Options(AutoAway) == -1 } {
