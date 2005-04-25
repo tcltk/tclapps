@@ -83,7 +83,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.279 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.280 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -115,7 +115,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.279 2005/04/25 08:51:23 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.280 2005/04/25 08:59:55 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5489,23 +5489,18 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 # At some point I want to support multiple icons for nochat/chat/alert.
 #
 proc ::tkchat::WinicoInit {} {
-    if {[tk_windowingsystem] == "win32" &&
-	![catch {package require Winico}]
-    } then {
-        variable TaskbarIcon
-        variable WinicoWmState [wm state .]
-
-        set icofile [file join [file dirname [info script]] tkchat.ico]
-        if {[file exists $icofile]} {
-            set TaskbarIcon [winico createfrom $icofile]
-            winico taskbar add $TaskbarIcon \
-                -pos 0 \
-                -text [wm title .] \
-                -callback [list [namespace origin WinicoCallback] %m %i]
-            bind . <Destroy> [namespace origin WinicoCleanup]
-        }
-    } else {
-        proc ::tkchat::WinicoUpdate {} {}
+    if {[tk_windowingsystem] ne "win32"} return
+    variable TaskbarIcon
+    variable WinicoWmState [wm state .]
+    
+    set icofile [file join [file dirname [info script]] tkchat.ico]
+    if {[file exists $icofile]} {
+	set TaskbarIcon [winico createfrom $icofile]
+	winico taskbar add $TaskbarIcon \
+	    -pos 0 \
+	    -text [wm title .] \
+	    -callback [list [namespace origin WinicoCallback] %m %i]
+	bind . <Destroy> [namespace origin WinicoCleanup]
     }
 }
 
@@ -5530,6 +5525,7 @@ proc ::tkchat::WinicoCallback {msg icn} {
 }
 
 proc ::tkchat::WinicoUpdate {} {
+    if {[tk_windowingsystem] ne "win32"} return
     variable MessageCounter
     variable TaskbarIcon
     if {$MessageCounter > 0} {
