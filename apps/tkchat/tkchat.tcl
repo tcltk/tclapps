@@ -83,7 +83,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.281 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.282 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -115,7 +115,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.281 2005/04/25 13:30:10 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.282 2005/04/27 09:54:10 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2141,7 +2141,20 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     bind $txt <Button-5>   [list $txt yview scroll  1 units]
 }
 
-proc ::tkchat::CreateNewChatWindow { parent jid title } {
+proc ::tkchat::SetChatWindowBindings { parent jid } {
+
+    set post [list ::tkchat::userPostOneToOne $parent $jid]
+    
+    bind $parent.eMsg <Return>	  $post
+    bind $parent.eMsg <KP_Enter>  $post
+    $parent.post configure -command $post
+    wm title $parent $::tkjabber::ChatWindows(title.$jid)
+    wm protocol $parent WM_DELETE_WINDOW [list ::tkchat::DeleteChatWindow $parent $jid]
+    bind $parent <FocusIn> [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
+    applyColors $parent.txt
+}
+
+proc ::tkchat::CreateNewChatWindow { parent } {
     global Options
         
     if {[info command ::panedwindow] != {} && $Options(UsePane)} {
@@ -2154,14 +2167,10 @@ proc ::tkchat::CreateNewChatWindow { parent jid title } {
     
     CreateTxtAndSbar $parent
     
-    set post [list ::tkchat::userPostOneToOne $parent $jid]
-    
     # bottom frame for entry
     frame $parent.btm
     button $parent.ml -text ">>" -width 0 -command [list ::tkchat::showExtra $parent]
     entry $parent.eMsg
-    bind $parent.eMsg <Return>	  $post
-    bind $parent.eMsg <KP_Enter>  $post
     #bind $parent.eMsg <Key-Up>	  ::tkchat::entryUp
     #bind $parent.eMsg <Key-Down> ::tkchat::entryDown
     #bind $parent.eMsg <Key-Tab>  {::tkchat::nickComplete ; break}
@@ -2169,7 +2178,7 @@ proc ::tkchat::CreateNewChatWindow { parent jid title } {
     bind $parent.eMsg <Key-Next>  [list $parent.txt yview scroll  1 pages]
     text $parent.tMsg -height 6 -font FNT
     #bind $parent.tMsg <Key-Tab> {::tkchat::nickComplete ; break}
-    button $parent.post -text "Post" -command $post
+    button $parent.post -text "Post"
     
     if {$UsePane} {
 	$parent.txt configure -width 10
@@ -2193,12 +2202,7 @@ proc ::tkchat::CreateNewChatWindow { parent jid title } {
     grid rowconfigure	 $parent 0 -weight 1
     grid columnconfigure $parent 0 -weight 1
     grid columnconfigure $parent.btm 1 -weight 1
-    wm title $parent "$title <$jid>"
-    
     wm geometry $parent 450x350
-    wm protocol $parent WM_DELETE_WINDOW [list ::tkchat::DeleteChatWindow $parent $jid]
-    bind $parent <FocusIn> [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
-    applyColors $parent.txt
     return $parent.txt
 }
 
@@ -2208,7 +2212,9 @@ proc ::tkchat::DeleteChatWindow { toplevel jid } {
 }
 
 proc ::tkchat::CreateNewChatTab { parent title } {
-    return [CreateNewChatWindow $parent $title]
+    set w [CreateNewChatWindow $parent]
+    SetChatWindowBindings $parent $tit
+    return $w
 }
 
 
@@ -2881,17 +2887,28 @@ proc ::tkchat::userPost {{jid ""}} {
 		}
 		{^/msg\s} {
 		    if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
-			tkjabber::msgSend $privMsg -user $toNick -type normal
+			if {[regexp {@} $toNick]} {
+			    tkjabber::msgSend $privMsg -tojid $toNick -type normal
+			} else {
+			    tkjabber::msgSend $privMsg -user $toNick -type normal
+			}
 		    }
 		}
 		{^/chat\s?} {
-		    if { [regexp {^/chat ([^ ]+) (.+)} $msg -> toNick privMsg] } {
-			set w [tkjabber::getChatWidget $::tkjabber::conference/$toNick $toNick] 
-			if { $w ne ".txt" } {
-			    tkchat::addMessage $w "" $Options(Nickname) $privMsg end 0
-			    tkjabber::msgSend $privMsg -tojid $::tkjabber::conference/$toNick -type chat
-			} else {
-			    tkjabber::msgSend $privMsg -user $toNick -type chat    
+		    if { [regexp {^/chat ([^ ]+)(?:\ (.*))?} $msg -> toNick privMsg] } {
+			# Are we talking to a nick in this MUC or to an arbitrary JID?
+			if {![regexp {([^@]+)@.*} $toNick toJID toNick]} {
+			    set toJID $::tkjabber::conference/$toNick
+			}
+			set w [tkjabber::getChatWidget $toJID $toNick]
+			set privMsg [string trim $privMsg]
+			if {$privMsg ne ""} {
+			    if { $w ne ".txt" } {
+				tkchat::addMessage $w "" $Options(Nickname) $privMsg end 0
+				tkjabber::msgSend $privMsg -tojid $toJID -type chat
+			    } else {
+				tkjabber::msgSend $privMsg -user $toNick -type chat    
+			    }
 			}
 		    }
 		}		
@@ -6141,7 +6158,7 @@ namespace eval tkjabber {
     variable members; if {![info exists members]} {array set members {}}
 
     # To provide a map between parents widgets and chats
-    variable ChatWindows; if {![info exists ChatWindows]} {array set ChatWindows {}}
+    variable ChatWindows; if {![info exists ChatWindows]} {array set ChatWindows {counter 0}}
 }
 
 # Login:
@@ -7549,9 +7566,27 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
 # -------------------------------------------------------------------------
 
 proc tkjabber::getChatWidget { jid from } {
+
     variable ChatWindows
     global Options
     # Look in ChatWindows and maybe popup a new chat window
+    
+    if {![info exists ChatWindows(txt.$jid)] &&
+	[regexp {([^/]+)/} $jid -> jwr] &&
+	[info exists ChatWindows(txt.$jwr)]
+    } then {
+	# We have a window for that JID with no resource.
+	# Let's personalise it.
+	foreach v {toplevel title txt} {
+	    if {[info exists ChatWindows($v.$jwr)]} {
+		set ChatWindows($v.$jid) $ChatWindows($v.$jwr)
+		unset ChatWindows($v.$jwr)
+	    }
+	}
+	set ChatWindows(title.$jid) "$from <$jid>"
+	::tkchat::SetChatWindowBindings $ChatWindows(toplevel.$jid) $jid
+    }
+
     if { [info exists ChatWindows(toplevel.$jid)] } {
 	if { ![string match "$ChatWindows(toplevel.$jid)*" [focus]] } {
 	    wm title $ChatWindows(toplevel.$jid) "* $ChatWindows(title.$jid)" 
@@ -7561,16 +7596,17 @@ proc tkjabber::getChatWidget { jid from } {
     if { [info exists ChatWindows(txt.$jid)] } {	
 	return $ChatWindows(txt.$jid)
     }
-    
+
     switch $Options(OneToOne) {
 	tabbed -
 	popup {
-	    set p [string map [list . "" @ "" / "" # _] $jid]
-	    set ChatWindows(toplevel.$jid) [toplevel .chat_$p]
+	    set ChatWindows(toplevel.$jid) [toplevel .chat[incr ChatWindows(counter)]]
 	    set ChatWindows(title.$jid) "$from <$jid>"
-	    set ChatWindows(txt.$jid) [tkchat::CreateNewChatWindow $ChatWindows(toplevel.$jid) $jid $from]
+	    set ChatWindows(txt.$jid) \
+		[tkchat::CreateNewChatWindow $ChatWindows(toplevel.$jid)]
+	    ::tkchat::SetChatWindowBindings $ChatWindows(toplevel.$jid) $jid
 	    focus $ChatWindows(toplevel.$jid).eMsg
-	    return $ChatWindows(txt.$jid)	
+	    return $ChatWindows(txt.$jid)
 	}
 	default {
 	    return .txt

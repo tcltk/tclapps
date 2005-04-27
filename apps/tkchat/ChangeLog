@@ -1,3 +1,7 @@
+2005-04-27  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: /msg and /chat now also work with arbitrary JIDs.
+
 2005-04-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: More fixes to the system tray icon stuff. Tested on
