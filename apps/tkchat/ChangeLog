@@ -1,3 +1,7 @@
+2005-05-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added additional icons to show extended-away state.
+
 2005-04-27  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: /msg and /chat now also work with arbitrary JIDs.

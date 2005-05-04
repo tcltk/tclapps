@@ -78,12 +78,19 @@ if {[llength [info command ::tk::label]] < 1} {
 if {$tcl_platform(platform) eq "windows"
     && $tcl_platform(os) ne "Windows CE"} {
     package require dde
+
+    # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
+    # This package also provides more efficient IP sockets on windows.
+    if {0 && ![catch {package require Iocpsock}]} {
+        rename ::socket ::socket1
+        interp alias {} ::socket {} ::socket2
+    }
 }
 
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.282 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.283 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -115,7 +122,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.282 2005/04/27 09:54:10 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.283 2005/05/04 01:50:49 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7188,8 +7195,11 @@ proc ::tkchat::updateJabberNames { } {
             dnd {
                 .names image create end -image ::tkchat::roster::dnd
             }
-            away - xa {
+            away {
                 .names image create end -image ::tkchat::roster::away
+            }
+            xa {
+                .names image create end -image ::tkchat::roster::xa
             }
         }
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
@@ -7220,15 +7230,22 @@ proc ::tkchat::createRosterImages {} {
         ekMJADs=
     }
     image create photo ::tkchat::roster::away -data {
-        R0lGODlhDgAKAMIAAAAAAP//gICAgP///4CAQACA/wBAgP///yH5BAEKAAcA
-        LAAAAAAOAAoAAAMzeAesy8CBQMUaeMRFgwCZpnEB8WXguAhsymARUBSGkcKa
-        PNN2GO+8R2MBrDmOupnxqEgAADs=
+        R0lGODlhDgAKAOMAAAAAAAAA////gICAgP///4CAQACA/wBAgP//////////
+        /////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ4ECFAJQo4WCD6
+        uERIaFMnDIFIAGMpFKjIttNgp+usAYZxHLgQK8Dr+YCqnfF4yUiKvZ9lCmVO
+        JREAOw==
     }
     image create photo ::tkchat::roster::dnd -data {
         R0lGODlhDgAKAOMAAAAAAP//gICAgP8AAICAQP///wCA/wBAgP//////////
         /////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ5ECFA5aTAgsDF
         HOCQTVwgAGGYbQFxDkVciBIg3Kg8r4ZxHKiUCNDr/YIgXvF3qUyKvoNlSlxK
         p5IIADs=
+    }
+    image create photo ::tkchat::roster::xa -data {
+        R0lGODlhDgAKAOMAAAAAAP8AAP//gICAgP///4CAQACA/wBAgP//////////
+        /////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ4ECFAJQo4WCD6
+        uERIaFMnDIFIAGMpFKjIttNgp+usAYZxHLgQK8Dr+YCqnfF4yUiKvZ9lCmVO
+        JREAOw==
     }
 }
 
