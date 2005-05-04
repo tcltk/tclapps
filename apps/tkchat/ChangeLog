@@ -1,6 +1,7 @@
 2005-05-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added additional icons to show extended-away state.
+	* tkchat.tcl: Fixed support for tklib's as style package.
 
 2005-04-27  Reinhard Max  <max@suse.de>
 

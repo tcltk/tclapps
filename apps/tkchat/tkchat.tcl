@@ -90,7 +90,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.283 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.284 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -122,7 +122,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.283 2005/05/04 01:50:49 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.284 2005/05/04 02:01:31 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1693,10 +1693,14 @@ proc ::tkchat::CreateGUI {} {
     # Pick an enhanced Tk style.
     set done 0
     if {([string match "as*" $Options(Style)]
-         || [string equal $Options(Style) "any"])
-	&& ![catch {package require as::style}]} {
-	as::style::init
-	set done 1
+         || [string equal $Options(Style) "any"])} {
+	if {![catch {package require as::style}]} {
+	    as::style::init
+	    set done 1
+	} elseif {![catch {package require style::as}]} {
+	    style::as::init
+	    set done 1
+	}
     }
     if {!$done
 	&& ([string match "g*" $Options(Style)]
@@ -5889,7 +5893,8 @@ proc ::tkchat::EditOptions {} {
     radiobutton $sf.def -text "Tk default" -underline 0 \
         -variable ::tkchat::EditOptions(Style) -value tk
 
-    if {[catch {package require as::style}]} {
+    if {[catch {package require style::as}]
+	&& [catch {package require as::style}]} {
         $sf.as configure -state disabled
     }
 
