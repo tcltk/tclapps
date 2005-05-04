@@ -1,3 +1,9 @@
+2005-05-04  Kevin Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl:  Corrected an interaction between the whiteboard
+	and TIP #132 formatting of floating point numbers (Arguably
+	a bug in the whiteboard code).
+	
 2005-05-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added additional icons to show extended-away state.
