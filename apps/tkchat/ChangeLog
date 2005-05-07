@@ -2,6 +2,8 @@
 
 	* tkchat.tcl: Applied patch #1196561 from Daniel South to remove
 	the Tk 8.3 compatability code now that we require Tk 8.4.
+	* tkchat.tcl: Applied patch #1196564 from Daniel South to clean up
+	a tile warning produced by recent tile.
 
 2005-05-04  Kevin Kenny  <kennykb@acm.org>
 
