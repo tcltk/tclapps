@@ -90,7 +90,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.285 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.286 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -122,7 +122,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.285 2005/05/04 16:58:45 kennykb Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.286 2005/05/07 12:39:53 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -167,21 +167,6 @@ namespace eval ::tkchat {
     #NoisyUsers: temporarily hide users who are blabbering
     variable noisyUsers
     variable MessageCounter 0
-}
-
-# Tcl8.3 compatibility procs
-if {[package vcompare [package provide Tcl] 8.3] == 0} {
-    proc ::tkchat::tk_windowingsystem {} {
-        if {[string equal $::tcl_platform(platform) "windows"]} {
-            return "win32"
-        } elseif {[string equal $::tcl_platform(platform) "unix"]} {
-            return "x11"
-        } else {
-            return "dontcare"
-        }
-    }
-} else {
-    interp alias {} ::tkchat::tk_windowingsystem {} tk windowingsystem
 }
 
 # -------------------------------------------------------------------------
@@ -265,8 +250,7 @@ proc ::tkchat::Retrieve {} {
 	set token [::http::geturl $HEADUrl \
 		       -headers [buildProxyHeaders] -timeout 30000]
 	::http::wait $token
-        if {[string equal [::http::status $token] "ok"] && \
-                [::http::ncode $token] == 200} {
+        if {[::http::status $token] eq "ok" && [::http::ncode $token] == 200} {
             set code [catch {
                 set data [::http::data $token]
                 if {[string length $data] < 1} {
@@ -1022,7 +1006,7 @@ proc ::tkchat::addMessage {w clr nick str {mark end} {timestamp 0} {extraOpts ""
 
     array set opts $extraOpts
 
-    if {[string equal $nick "ircbridge"]} {
+    if {$nick eq "ircbridge"} {
 	if {[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
 	    # Use their true nick, but display bridge users as <$nick>
 	    # This allows people registered in both systems to appear
@@ -1034,8 +1018,7 @@ proc ::tkchat::addMessage {w clr nick str {mark end} {timestamp 0} {extraOpts ""
 		return
 	    }
 
-	    if {[string equal $truenick "ijchain"]
-                || [string equal $truenick "ijbridge"]} {
+	    if {$truenick eq "ijchain" || $truenick eq "ijbridge"} {
 		# ijchain is a Jabber to IRC link.
 		if {[regexp {&lt;(.*?)&gt; (.*)$} $str -> truenick msg]} {
 		    set nick "<$truenick>"
@@ -1069,7 +1052,7 @@ proc ::tkchat::addMessage {w clr nick str {mark end} {timestamp 0} {extraOpts ""
     checkNick $w $nick $clr
     checkAlert NORMAL $nick $str
     $w config -state normal
-    if {[string equal $nick "clock"] || [string equal $nick "tick"]} {
+    if {$nick eq "clock" || $nick eq "tick"} {
 	$w insert $mark "\t" [list STAMP]
 	$w insert $mark "$nick\t" [list NICK NICK-$nick]
         $w insert $mark "[formatClock $str] " [list NICK-$nick MSG]
@@ -1707,7 +1690,7 @@ proc ::tkchat::CreateGUI {} {
     if {!$done
 	&& ([string match "g*" $Options(Style)]
             || [string equal $Options(Style) "any"])
-	&& [tk_windowingsystem] == "x11"} {
+	&& [tk windowingsystem] == "x11"} {
 	gtklook_style_init
     }
 
@@ -5519,8 +5502,8 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 # At some point I want to support multiple icons for nochat/chat/alert.
 #
 proc ::tkchat::WinicoInit {} {
-    log::log debug "tk windowingsystem [tk_windowingsystem]"
-    if {[tk_windowingsystem] eq "win32" &&
+    log::log debug "tk windowingsystem [tk windowingsystem]"
+    if {[tk windowingsystem] eq "win32" &&
         ![catch {package require Winico}]} {
         variable TaskbarIcon
         variable WinicoWmState [wm state .]
@@ -5853,11 +5836,8 @@ proc ::tkchat::EditOptions {} {
     wm withdraw $dlg
     wm title $dlg "Tkchat Options"
 
-    if {[package vcompare [package provide Tcl] 8.3] == 0} {
-        set bf [frame $dlg.bf]
-    } else {
-        set bf [labelframe $dlg.bf -text "Preferred browser" -padx 1 -pady 1]
-    }
+    set bf [labelframe $dlg.bf -text "Preferred browser" -padx 1 -pady 1]
+
     message $bf.m -justify left -width 320 \
         -text "Provide the command used to launch your web browser. For\
         instance /opt/bin/mozilla or xterm -e links. The URL to\
@@ -5876,13 +5856,9 @@ proc ::tkchat::EditOptions {} {
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
-    if {[package vcompare [package provide Tcl] 8.3] == 0} {
-        set sf [frame $dlg.sf]
-        set gf [frame $dlg.gf]
-    } else {
-        set sf [labelframe $dlg.sf -text "Tk style" -padx 1 -pady 1]
-        set gf [labelframe $dlg.gf -text "Gimmiks"  -padx 1 -pady 1]
-    }
+    set sf [labelframe $dlg.sf -text "Tk style" -padx 1 -pady 1]
+    set gf [labelframe $dlg.gf -text "Gimmiks"  -padx 1 -pady 1]
+
     message $sf.m -justify left -width 320 \
         -text "The Tk style selection available here will apply when you \
            next restart tkchat."
