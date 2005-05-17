@@ -61,11 +61,7 @@ if {[llength [info command ::tk::label]] < 1} {
         rename ::$cmd ::tk::$cmd
     }
     if {![catch {package require tile 0.5}]} {
-        if {[namespace exists ::ttk]} {
-            namespace import -force ttk::*
-        } else {
-            namespace import -force tile::*
-        }
+	namespace import -force ttk::*
     }
     foreach cmd {label radiobutton entry} {
         if {[llength [info command ::$cmd]] < 1} {
@@ -90,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.287 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.288 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -122,7 +118,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.287 2005/05/07 20:19:06 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.288 2005/05/17 06:57:51 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2310,20 +2306,11 @@ proc ::tkchat::ScrolledWidgetSet {sbar f1 f2} {
 
 proc ::tkchat::MakeScrolledWidget {w args} {
     global Options
-    if {[package provide tile] != {}} {
-        if {[info commands ttk::scrollbar] eq {}} {
-            set sbcmd ttk::scrollbar
-        } else {
-            set sbcmd tscrollbar
-        }
-    } else {
-	set sbcmd scrollbar
-    }
 
     set parent [winfo parent $w]
     for {set n 0} {[winfo exists $parent.f$n]} {incr n} {}
     set f [frame $parent.f$n]
-    set vs [$sbcmd $f.vs -orient vertical -command [list $w yview]]
+    set vs [scrollbar $f.vs -orient vertical -command [list $w yview]]
     $w configure -yscrollcommand [list $vs set]
     raise $w $f
 
