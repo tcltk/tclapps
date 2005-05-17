@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.289 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.290 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -118,7 +118,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.289 2005/05/17 09:14:59 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.290 2005/05/17 09:23:29 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1052,7 +1052,7 @@ proc ::tkchat::addMessage {w clr nick str {mark end} {timestamp 0} {extraOpts ""
     #for colors, it is better to extract the displayed nick from the one used for
     #tags.
     set displayNick $nick
-    regexp {^<(.+)>$} $nick displayNick nick
+    regexp {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
     checkNick $w $nick $clr
     checkAlert NORMAL $nick $str
@@ -1345,7 +1345,7 @@ proc ::tkchat::addAction {w clr nick str {mark end} {timestamp 0} {extraOpts ""}
     #for colors, it is better to extract the displayed nick from the one used for
     #tags.
     set displayNick $nick
-    regexp {^<(.+)>$} $nick displayNick nick
+    regexp {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
     checkNick $w $nick $clr
     checkAlert ACTION $nick $str
@@ -1382,11 +1382,11 @@ proc ::tkchat::addAction {w clr nick str {mark end} {timestamp 0} {extraOpts ""}
     if {$Options(AutoScroll)} {$w see $mark}
 }
 
-proc ::tkchat::addSystem {w str {mark end} {tags {}}} {
+proc ::tkchat::addSystem {w str {mark end} {tags {}} {time 0}} {
     global Options
-    
+
     $w config -state normal
-    ::tkchat::InsertTimestamp $w "" $mark 0 $tags
+    ::tkchat::InsertTimestamp $w "" $mark $time $tags
     $w insert $mark "\t$str\n" [concat [list MSG SYSTEM] $tags]
     $w config -state disabled
     if {$Options(AutoScroll)} { $w see $mark }
@@ -4321,6 +4321,8 @@ proc ::tkchat::Init {args} {
 	Alert,NORMAL	     1
 	Alert,ACTION	     1
         WhisperIndicatorColor #ffe0e0
+	EntryMessageColor    #002500
+	ExitMessageColor     #250000
         UseBabelfish         0
 	JabberResource       tkchat
 	OneToOne	     tabbed
@@ -4375,10 +4377,6 @@ proc ::tkchat::Init {args} {
 
     # Set the 'Hardcoded' Options:
     set Options(JabberLogs) "http://tclers.tk/conferences/tcl"
-    array set Options {
-	EntryMessageColor    #002500
-	ExitMessageColor     #250000
-    }
 
     if { $::tcl_platform(os) eq "Windows CE" } {
 	# Disable history loading on wince
@@ -6679,52 +6677,12 @@ proc tkjabber::MsgCB {jlibName type args} {
 		    }
 	    	} else {
 		    tkchat::addAction .txt $color $from " changed the topic to: $m(-subject)" end $ts
-		}		
-	    } else {		
+		}
+	    } else {
 		if { [info exists m(-body)] > 0 } {
-		    set opts {}
-		    if { [string match "ijchain*" $from] } {
-			set pos [string first " " $m(-body)]
-			set from [string trim [string range $m(-body) 0 $pos]]
-			incr pos
-			set m(-body) [string range $m(-body) $pos end]
-			if { $from eq "***" && [regexp {([^ ]+) (leaves|joins)} $m(-body) -> who action] } {
-			    set action [string map {joins entered leaves left} $action]
-			    tkchat::addTraffic .txt <$who> $action end $ts
-			    return
-			}
-			if { $from eq "<azbridge>" } {
-			    set pos [string first " " $m(-body)]
-			    set from "[string trim [string range $m(-body) 0 $pos]]"
-			    incr pos
-			    set m(-body) [string range $m(-body) $pos end]
-			}
-			if { $from eq "*" && [regexp {([^ ]+) (entered|left)} $m(-body) -> who action] } {
-			    set action [string map {joins entered leaves left} $action]
-			    # Double <> to show webchat users.
-			    tkchat::addTraffic .txt <<$who>> $action end $ts
-			    return
-			}		
-			if { $from eq "*" } {
-			    set pos [string first " " $m(-body)]
-			    set from "<[string trim [string range $m(-body) 0 $pos]]>"
-			    incr pos
-			    set m(-body) "/me [string range $m(-body) $pos end]"				
-			} 			
-	    	    }
-		    if { [string match "/nolog*" $m(-body)] } {
-			set m(-body) [string trim [string range $m(-body) 6 end]]
-			lappend opts nolog 1
-		    } elseif { [info exists tkchatAttr(nolog)] && $tkchatAttr(nolog) } {
-			lappend opts nolog 1
-		    }
-		    if { [string range $m(-body) 0 3] eq "/me " } {
-			tkchat::addAction .txt $color $from [string range $m(-body) 4 end] end $ts $opts
-		    } else {		
-			tkchat::addMessage .txt $color $from $m(-body) end $ts $opts
-		    }
+		    ::tkjabber::parseMsg $from $m(-body) $color end 0
 		} else {
-		    #tkchat::addSystem .txt "Got a message I do not understand from $from:\n$args"
+		    log::log notice "Unknown message from $from: '$args'"
 		}
 	    }
 	}
@@ -6745,9 +6703,8 @@ proc tkjabber::MsgCB {jlibName type args} {
 	    if { [llength $msg] > 0 } {
 		tkchat::addAction .txt "" $from " whispers: [join $msg \n]" 		
 	    } else {
-		tkchat::addSystem .txt "Got a message I do not understand from $from:\n$args"
+		log::log notice "Unknown message from $from: '$args'"
 	    }	
-	    #tkchat::addMessage .txt ""  "Subject: $m(-subject)\n$m(-body)" end $ts
 	}
 	error {
 	    if { [info exists m(-error)] } {
@@ -6778,6 +6735,60 @@ proc tkjabber::MsgCB {jlibName type args} {
 	default {
 	    tkchat::addSystem .txt "|| MsgCB > type=$type, args=$args"
 	}
+    }
+}
+
+proc ::tkjabber::parseMsg { nick msg color tag time } {
+    set msg [split $msg]
+    set opts {}
+    if { $nick eq "ijchain" } {
+	set nick [lindex $msg 0]
+	set msg [lrange $msg 1 end]
+	if { $nick eq "***" } {
+	    # Single <> to show IRC users.
+	    set nick <[lindex $msg 0]>
+	    set action [lrange $msg 1 end]
+	    if { $action eq "leaves" || $action eq "joins" } {
+		set action [string map { joins entered leaves left } $action]
+		tkchat::addTraffic .txt $nick $action $tag $time
+	    } elseif { [lrange $action 0 end-1] eq "is now known as" } {
+		set newnick <[lindex $action end]>
+		tkchat::addSystem .txt "In a fit of schizophrenia, $nick would like to be known as $newnick." $tag {} $time
+	    } else {
+		log::log notice "Unknown IRC command '$msg'"
+	    }
+	    return
+	} elseif { $nick eq "*" } {
+	    set nick [lindex $msg 0]
+	    set action [lrange $msg 1 end]
+	    if { $action eq "entered" || $action eq "left" } {
+		# Double <> to show webchat users.
+		tkchat::addTraffic .txt <<$nick>> $action $tag $time
+		return
+	    } else {
+		set msg [linsert $action 0 /me]
+	    }
+	}
+    }
+    if { [lindex $msg 0] eq "/nolog" } {
+	set msg [lrange $msg 1 end]
+	lappend opts nolog 1
+    } elseif { [uplevel 1 { info exists tkchatAttr(nolog) }] \
+	    && [uplevel 1 { set tkchatAttr(nolog) }] } {
+	lappend opts nolog 1
+    }
+    if { $nick eq "" } {
+	if { [lrange $msg 1 3] eq "has become available" } {
+	    tkchat::addTraffic .txt [lindex $msg 0] entered $tag $time
+	} elseif { [string match "has left*" [lrange $msg 1 2]] } {
+	    tkchat::addTraffic .txt [lindex $msg 0] left $tag $time
+	}
+    } elseif { [lindex $msg 0] eq "/me" } {
+	set msg [join [lrange $msg 1 end]]
+	tkchat::addAction .txt $color $nick $msg $tag $time $opts
+    } else {
+	set msg [join $msg]
+	tkchat::addMessage .txt $color $nick $msg $tag $time $opts
     }
 }
 
@@ -7389,35 +7400,9 @@ proc ::tkjabber::LoadHistoryLines {} {
 	set time [lindex $entry 0]
 	set nick [lindex $entry 1]
 	set msg [lindex $entry 2]
-	
-	if { [string match "ijchain*" $nick] } {
-	    set pos [string first " " $msg]
-	    set nick [string trim [string range $msg 0 $pos]]
-	    incr pos
-	    set msg [string range $msg $pos end]
-	    if { $nick eq "<azbridge>" } {
-		set pos [string first " " $msg]
-		set nick "[string trim [string range $msg 0 $pos]]"
-		incr pos
-		set msg [string range $msg $pos end]
-	    }
-	    if { $nick eq "*" } {
-		set pos [string first " " $msg]
-		set nick "<[string trim [string range $msg 0 $pos]]>"
-		incr pos
-		set msg "/me [string range $msg $pos end]"				
-	    }
-	}
-	
-	if { [string equal $nick ""] && [string match "* has left" $msg] } {
-	    tkchat::addTraffic .txt [lindex [split $msg] 0] left HISTORY $time
-	} elseif {[string equal $nick ""] && [string match "* has become available" $msg] } {
-	    tkchat::addTraffic .txt [lindex [split $msg] 0] entered HISTORY $time
-	} elseif { [string match "/me *" $msg] } {
-	    tkchat::addAction .txt "" $nick [string range $msg 4 end] HISTORY $time
-	} else {
-            tkchat::addMessage .txt "" $nick $msg HISTORY $time
-	}
+
+	::tkjabber::parseMsg $nick $msg "" HISTORY $time
+
         incr count
         if {$count > 35 } { break }
     }

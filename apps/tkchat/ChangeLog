@@ -1,5 +1,9 @@
 2005-05-17  Daniel South  <wildcard_25@users.sourceforge.net>
 
+	* tkchat.tcl: Convert all entry and exit messages to Traffic messages
+	so they can be hidden with the 'Hide Entry/Exit Messages' menu.
+	Factor out common code for parsing live and history messages.
+	[Patch 1198196]
 	* tkchat.tcl: Automatic cleanup of nicks in the .tkchatrc file that
 	are older than 30 days. [Patch 1196567]
 	* tkchat.tcl: Remove import of tile:: namespace now that we require
