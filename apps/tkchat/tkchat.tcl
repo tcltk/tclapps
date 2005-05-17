@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.288 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.289 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -118,7 +118,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.288 2005/05/17 06:57:51 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.289 2005/05/17 09:14:59 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -910,8 +910,17 @@ proc ::tkchat::checkNick {txt nick clr} {
             set clr [getColor MainFG]
         }
     }
-    if {[lsearch -exact $Options(NickList) $nick] < 0} {
-        lappend Options(NickList) $nick
+    set match 0
+    foreach nk $Options(NickList) {
+	if { [lindex $nk 0] eq $nick } {
+	    lset Options(NickList) $match [lset nk 1 [clock seconds]]
+	    break
+	} else {
+	    incr match
+	}
+    }
+    if { $match == [llength $Options(NickList)] } {
+	lappend Options(NickList) [list $nick [clock seconds]]
         set Options(Color,$nick,Web) $clr
         set Options(Color,$nick,Inv) [::tkchat::invClr $clr]
         set Options(Color,$nick,Mine) $clr
@@ -1331,14 +1340,16 @@ proc ::tkchat::formatClock {str} {
 
 proc ::tkchat::addAction {w clr nick str {mark end} {timestamp 0} {extraOpts ""}} {
     global Options
-    checkNick $w $nick $clr
-    checkAlert ACTION $nick $str
     array set opts $extraOpts
-    $w config -state normal
+
     #for colors, it is better to extract the displayed nick from the one used for
     #tags.
     set displayNick $nick
     regexp {^<(.+)>$} $nick displayNick nick
+
+    checkNick $w $nick $clr
+    checkAlert ACTION $nick $str
+    $w config -state normal
     ::tkchat::InsertTimestamp $w $nick $mark $timestamp
     $w insert $mark "   * $displayNick " [list NICK NICK-$nick]
     if {[string equal $nick clock]} {
@@ -1480,14 +1491,17 @@ proc ::tkchat::didIrcBridgeWhisper { clr name str } {
 proc ::tkchat::addHelp {w clr name str} {
     global Options
 
-    if {[lsearch -exact $Options(NickList) $name] >= 0} {
-	if { [string equal $name "ircbridge"] } {
-	    doIrcBridgeWhisper $clr $name $str
-	} else {
-	    # this is an incoming private message
-	    addAction $w $clr $name " whispers: $str"
+    foreach nk $Options(NickList) {
+	set nk [lindex $nk 0]
+	if { $name == $nk } {
+	    if { $name eq "ircbridge"] } {
+		doIrcBridgeWhisper $clr $name $str
+	    } else {
+		# this is an incoming private message
+		addAction $w $clr $name " whispers: $str"
+	    }
+	    return
 	}
-	return
     }
     if {[string match "->*" $name]} {
 	if { [string equal $name "->ircbridge"] } {
@@ -2282,7 +2296,8 @@ proc ::tkchat::NickVisMenu {} {
     set m .mbar.vis.nicks
     $m delete 0 end
     set cnt 0
-    foreach n [lsort -dict $::Options(NickList)] {
+    foreach n [lsort -dict -index 0 $::Options(NickList)] {
+	set n [lindex $n 0]
 	set tag NICK-$n
 	$m add checkbutton -label $n \
 	    -onval 1 -offval 0 \
@@ -3522,7 +3537,8 @@ proc ::tkchat::ChangeColors {} {
         }
     }
     grid [label $f.offline -text "Offline Users" -font SYS] - - -
-    foreach nick [lsort -dict $Options(NickList)] {
+    foreach nick [lsort -dict -index 0 $Options(NickList)] {
+	set nick [lindex $nick 0]
         if {[lsearch -exact $Options(OnLineUsers) $nick] < 0} {
             buildRow $f $nick $nick
         }
@@ -3576,6 +3592,7 @@ proc ::tkchat::applyColors {{txt .txt}} {
     .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
     $txt tag configure found -background "#[getColor SearchBG]"
     foreach nk $Options(NickList) {
+	set nk [lindex $nk 0]
         set clr [getColor $nk]
         if {$clr == ""} {
             set clr [getColor MainFG]
@@ -4258,7 +4275,7 @@ proc ::tkchat::Init {args} {
 	AutoConnect	0
 	DisplayUsers	1
 	Refresh		30
-	NickList	{}
+	NickList	{{} {}}
 	History		{}
 	AutoScroll	0
 	Geometry	600x500
@@ -4331,6 +4348,25 @@ proc ::tkchat::Init {args} {
             eval $d
         }
     }
+    # Convert old nick list to new and remove expired nicks
+    set newNicks [list]
+    foreach nk $Options(NickList) {
+	if { ![string is integer -strict [lindex $nk 1]] } {
+	    set nk [list $nk]
+	}
+	if { [lindex $nk 1] eq "" } { lappend nk [clock seconds] }
+	if { [lindex $nk 1] > [clock scan "-30 day"]
+		|| [lindex $nk 0] eq $Options(Username) } {
+	    lappend newNicks $nk
+	} else {
+	    unset "Options(Color,[lindex $nk 0],Inv)"
+	    unset "Options(Color,[lindex $nk 0],Mine)"
+	    unset "Options(Color,[lindex $nk 0],Web)"
+	    unset "Options(Color,[lindex $nk 0],Which)"
+	    unset "Options(Visibility,NICK-[lindex $nk 0])"
+	}
+    }
+    set Options(NickList) $newNicks
 
     # Compatability issues...
     if {[string is integer $Options(UseJabberSSL)]} {

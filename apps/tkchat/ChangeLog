@@ -1,5 +1,7 @@
 2005-05-17  Daniel South  <wildcard_25@users.sourceforge.net>
 
+	* tkchat.tcl: Automatic cleanup of nicks in the .tkchatrc file that
+	are older than 30 days. [Patch 1196567]
 	* tkchat.tcl: Remove import of tile:: namespace now that we require
 	Tile 0.5. [Patch 1196561]
 
