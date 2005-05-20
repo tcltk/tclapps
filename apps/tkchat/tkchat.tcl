@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.290 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.291 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -118,7 +118,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.290 2005/05/17 09:23:29 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.291 2005/05/20 23:22:15 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6680,7 +6680,7 @@ proc tkjabber::MsgCB {jlibName type args} {
 		}
 	    } else {
 		if { [info exists m(-body)] > 0 } {
-		    ::tkjabber::parseMsg $from $m(-body) $color end 0
+		    ::tkjabber::parseMsg $from $m(-body) $color end $ts
 		} else {
 		    log::log notice "Unknown message from $from: '$args'"
 		}
@@ -6739,7 +6739,7 @@ proc tkjabber::MsgCB {jlibName type args} {
 }
 
 proc ::tkjabber::parseMsg { nick msg color tag time } {
-    set msg [split $msg]
+    set msg [split $msg " "]
     set opts {}
     if { $nick eq "ijchain" } {
 	set nick [lindex $msg 0]
