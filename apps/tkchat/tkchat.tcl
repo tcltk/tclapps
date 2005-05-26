@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.291 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.292 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -118,34 +118,40 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.291 2005/05/20 23:22:15 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.292 2005/05/26 12:39:29 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
-			   "%user% has entered the chat!" \
-			   "Out of a cloud of smoke, %user% appears!" \
-			   "%user% saunters in." \
-			   "%user% wanders in." \
-			   "%user% checks into the chat." \
-			   "%user% is feeling chatty!" \
-			   "A limousine pulls up, and %user% steps out into the crowd of waiting paparazzi." \
-			   "%user% valt door een gat in het plafond naar binnen." \
-			   "%user% wandeld luid schreeuwend binnen." \
-			   "%user% \u8FDB\u95E8" \
-			   "%user% \u9032\u9580" \
-			  ]
+	    "%user% has entered the chat!" \
+	    "Out of a cloud of smoke, %user% appears!" \
+	    "%user% saunters in." \
+	    "%user% wanders in." \
+	    "%user% checks into the chat." \
+	    "%user% is feeling chatty!" \
+	    "A limousine pulls up, and %user% steps out into the crowd of waiting paparazzi." \
+	    "%user% valt door een gat in het plafond naar binnen." \
+	    "%user% wandeld luid schreeuwend binnen." \
+	    "%user% \u8FDB\u95E8" \
+	    "%user% \u9032\u9580" \
+	    ]
     set MSGS(left) [list \
-			"%user% has left the chat!" \
-			"In a cloud of smoke, %user% disappears!" \
-			"%user% exits, stage left!" \
-			"%user% doesn't want to talk to you anymore!" \
-			"%user% looks at the clock and dashes out the door" \
-			"%user% macht wie eine Banane ..." \
-			"Ladies and Gentlemen, %user% has left the building!" \
-			"%user% opens a hidden trap door and escapes through it." \
-			"%user% zakt door de vloer en is weg." \
-			"%user% vertrekt stilletjes." \
-		       ]
+	    "%user% has left the chat!" \
+	    "In a cloud of smoke, %user% disappears!" \
+	    "%user% exits, stage left!" \
+	    "%user% doesn't want to talk to you anymore!" \
+	    "%user% looks at the clock and dashes out the door" \
+	    "%user% macht wie eine Banane ..." \
+	    "Ladies and Gentlemen, %user% has left the building!" \
+	    "%user% opens a hidden trap door and escapes through it." \
+	    "%user% zakt door de vloer en is weg." \
+	    "%user% vertrekt stilletjes." \
+	    ]
+    set MSGS(nickchange) [list \
+	    "In a fit of schizophrenia, %user% would like to be known as %newuser%." \
+	    "%user% replaces their old hat with a new one called %newuser%." \
+	    "The Amazing %user% switches to their secret identity, mild mannered %newuser%." \
+	    "Admist a burst of smoke, %user% disappears and %newuser% materializes."
+	    ]
 
     # Variables to control the search function.
     variable searchString ""
@@ -888,27 +894,27 @@ proc ::tkchat::parseStr {str} {
     return $out
 }
 
-proc ::tkchat::checkNick {txt nick clr} {
+proc ::tkchat::checkNick { txt nick clr } {
     global Options
 
-    set wid [expr {[font measure NAME $nick] + 10}]
-    if {$wid > $Options(Offset)} {	
-        set Options(Offset) $wid
-	
+    set wid [expr { [font measure NAME <$nick>] + 10 }]
+    if { $wid > $Options(Offset) } {
+	set Options(Offset) $wid
+
 	# Maybe limit the nick column width a bit...
-	set max [expr {[font measure NAME [string repeat X 12]]+10}]
+	set max [expr { [font measure NAME [string repeat X 12]] + 10 }]
 	if { $Options(Offset) > $max } {
 	    set Options(Offset) $max
 	}
-	
+
 	# Set tabs appropriate for STAMP visibility
 	StampVis
     }
-    if {$clr == ""} {
-        set clr [getColor $nick]
-        if {$clr == ""} {
-            set clr [getColor MainFG]
-        }
+    if { $clr == "" } {
+	set clr [getColor $nick]
+	if { $clr == "" } {
+	    set clr [getColor MainFG]
+	}
     }
     set match 0
     foreach nk $Options(NickList) {
@@ -921,26 +927,31 @@ proc ::tkchat::checkNick {txt nick clr} {
     }
     if { $match == [llength $Options(NickList)] } {
 	lappend Options(NickList) [list $nick [clock seconds]]
-        set Options(Color,$nick,Web) $clr
-        set Options(Color,$nick,Inv) [::tkchat::invClr $clr]
-        set Options(Color,$nick,Mine) $clr
-        set Options(Color,$nick,Which) Web
-        ::tkchat::NickVisMenu
+	set Options(Color,$nick,Web)	$clr
+	set Options(Color,$nick,Inv)	[invClr $clr]
+	set Options(Color,$nick,Mine)	$clr
+	set Options(Color,$nick,Which)	Web
+	NickVisMenu
     }
-    if {![info exists Options(Color,$nick,Web)] ||
-        [string compare $Options(Color,$nick,Web) $clr]} {
-        # new color
-        set Options(Color,$nick,Web) $clr
-        set Options(Color,$nick,Inv) [::tkchat::invClr $clr]
-        if {![info exists Options(Color,$nick,Mine)]} {
-            set Options(Color,$nick,Mine) [getColor MainFG]
-        }
-        set clr [getColor $nick]
-        if {$clr == ""} { set clr [getColor MainFG] }
+    if { ![info exists Options(Color,$nick,Web)]
+	    || $Options(Color,$nick,Web) ne $clr } {
+	# new color
+	set Options(Color,$nick,Web) $clr
+	set Options(Color,$nick,Inv) [invClr $clr]
+	if { ![info exists Options(Color,$nick,Mine)] } {
+	    set Options(Color,$nick,Mine) [getColor MainFG]
+	}
+	set clr [getColor $nick]
+	if { $clr == "" } {
+	    set clr [getColor MainFG]
+	}
 	if {[catch {
 	    $txt tag configure NICK-$nick -foreground "#$clr"
 	    $txt tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
-	} msg]} then { log::log debug "nickCheck: \"$msg\"" }
+	    $txt tag lower NICK-$nick STAMP
+	} msg]} then {
+	    ::log::log debug "nickCheck: \"$msg\""
+	}
     }
 }
 
@@ -1004,103 +1015,65 @@ proc ::tkchat::checkAlert {msgtype nick str} {
     }
 }
 
-proc ::tkchat::addMessage {w clr nick str {mark end} {timestamp 0} {extraOpts ""}} {
+proc ::tkchat::addMessage { w clr nick str {mark end} {timestamp 0}
+	    {extraOpts ""} } {
     global Options
     variable map
-    #set w .txt
 
     array set opts $extraOpts
-
-    if {$nick eq "ircbridge"} {
-	if {[regexp {^([^ ]+) says: (.*)$} $str -> truenick msg]} {
-	    # Use their true nick, but display bridge users as <$nick>
-	    # This allows people registered in both systems to appear
-	    # with the right color info.
-	    set nick <$truenick>
-	    set str  $msg
-
-	    if { [nickIsNoisy $nick] } {
-		return
-	    }
-
-	    if {$truenick eq "ijchain" || $truenick eq "ijbridge"} {
-		# ijchain is a Jabber to IRC link.
-		if {[regexp {&lt;(.*?)&gt; (.*)$} $str -> truenick msg]} {
-		    set nick "<$truenick>"
-		    set str $msg
-		    if { [regexp {^/me (.+)$} $msg -> action] } {
-			addAction .txt $clr "$nick" $action $mark
-			return
-		    }
-		}
-	    }
-	    #Probably obsolete regexp now ircbridge parses CTCPs:
-	    if { [regexp {^ACTION (.+)} $str -> action] } {
-		addAction .txt $clr "<$nick>" [string range $action 0 end-1] $mark
-		return
-	    }
-	} elseif {[regexp {^\* ([^ ]+) (.*)$} $str -> truenick msg] } {
-	    addAction .txt $clr "<$truenick>" $msg $mark
-	    return
-	}
-    }
 
     if { [nickIsNoisy $nick] } {
 	return
     }
 
-    #for colors, it is better to extract the displayed nick from the one used for
-    #tags.
+    #for colors, it is better to extract the displayed nick from the one used
+    #for tags.
     set displayNick $nick
     regexp {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
     checkNick $w $nick $clr
     checkAlert NORMAL $nick $str
     $w config -state normal
-    if {$nick eq "clock" || $nick eq "tick"} {
-	$w insert $mark "\t" [list STAMP]
-	$w insert $mark "$nick\t" [list NICK NICK-$nick]
-        $w insert $mark "[formatClock $str] " [list NICK-$nick MSG]
-    } else {
-	::tkchat::InsertTimestamp $w $nick $mark $timestamp	
-	$w insert $mark "$displayNick\t" [list NICK NICK-$nick]
-        foreach {str url} [parseStr $str] {
-            foreach cmd [array names ::tkchat::MessageHooks] {
-                eval $cmd [list $nick $str $url]
-            }
-	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NOLOG-$nick NOLOG]
-	    } else {
-		set tags [list MSG NICK-$nick]
-	    }
-            if {$url != ""} {
-                lappend tags URL URL-[incr ::URLID]
-                $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
-            }
+    InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
+    $w insert $mark "$displayNick\t" [list NICK NICK-$nick]
+    foreach { str url } [parseStr $str] {
+	foreach cmd [array names MessageHooks] {
+	    eval $cmd [list $nick $str $url]
+	}
+	if { [info exists opts(nolog)] } {
+	    set tags [list MSG NOLOG-$nick NOLOG NICK-$nick]
+	} else {
+	    set tags [list MSG NICK-$nick]
+	}
+	if { $url != "" } {
+	    lappend tags URL URL-[incr ::URLID]
+	    $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
+	}
 
-	    # Split into lines, so we can insert the proper tabs for
-	    # timestamps:
-	    set lines [split $str \n]
-	    for { set i 0 } { $i < [llength $lines] } { incr i } {
-		set line [lindex $lines $i]
-		if { $i > 0 } {
-		    # The first line has the timestamp, only
-		    # subsequent lines need an extra tab char
-		    log::log debug "More than one line, add tabs"
-		    $w insert $mark "\n" {} "\t" [list STAMP]		
-		    set line "\t$line"
-		}
-		tkchat::Insert $w $line $tags $url $mark
+	# Split into lines, so we can insert the proper tabs for
+	# timestamps:
+	set lines [split $str \n]
+	for { set i 0 } { $i < [llength $lines] } { incr i } {
+	    set line [lindex $lines $i]
+	    if { $i > 0 } {
+		# The first line has the timestamp, only
+		# subsequent lines need an extra tab char
+		::log::log debug "More than one line, add tabs"
+		$w insert $mark "\n" $tags "\t" [list STAMP NICK-$nick]
+		set line "\t$line"
 	    }
-        }
-        # Call chat activity hooks
-        foreach cmd [array names ::tkchat::ChatActivityHooks] {
-            eval $cmd
-        }
+	    Insert $w $line $tags $url $mark
+	}
+    }
+    # Call chat activity hooks
+    foreach cmd [array names ::tkchat::ChatActivityHooks] {
+	eval $cmd
     }
     $w insert $mark "\n" [list NICK NICK-$nick]
     $w config -state disabled
-    if {$Options(AutoScroll)} { $w see end }
+    if { $Options(AutoScroll) } {
+	$w see end
+    }
 }
 
 # Provide an indication of the number of messages since the window was last
@@ -1128,41 +1101,48 @@ proc ::tkchat::ResetMessageCounter {} {
     WinicoUpdate
 }
 
-proc ::tkchat::InsertTimestamp {w nick {mark end} {seconds 0} {tags ""}} {
+proc ::tkchat::InsertTimestamp { w nick {mark end} {seconds 0} {tags {}} } {
 
     # The nick argument is here, so we can display the local time for
     # each nick.
 
-    if { $seconds == 0 } { set seconds [clock seconds] }
+    if { $seconds == 0 } {
+	set seconds [clock seconds]
+    }
 
     $w insert $mark "\[[clock format $seconds -format %H:%M]\]\t" \
-	[concat [list STAMP] $tags]
+	[concat STAMP $tags]
 }
 
-proc ::tkchat::Insert {w str tags {url ""} {mark end}} {
+proc ::tkchat::Insert { w str tags {url ""} {mark end} } {
     global Options
     set str [string map {"\n" "\n\t"} $str]
     # Don't do emoticons on URLs
-    if {($url == "") && $Options(emoticons)} {
+    if { ($url eq "") && $Options(emoticons) } {
 	variable IMG
 	variable IMGre
 	set i 0
 	foreach match [regexp -inline -all -indices -- $IMGre $str] {
-	    foreach {start end} $match {break}
+	    foreach { start end } $match break
 	    set emot [string range $str $start $end]
-	    if {[info exists IMG($emot)]} {
-		$w insert $mark [string range $str $i [expr {$start-1}]] $tags
-                set idx [$w index "$mark -1 char"]
+	    if { [info exists IMG($emot)] } {
+		$w insert $mark \
+			[string range $str $i [expr { $start - 1 }]] $tags
+		if { $mark eq "end" } {
+		    set idx [$w index "$mark -1 indices"]
+		} else {
+		    set idx [$w index $mark]
+		}
 		$w image create $mark -image ::tkchat::img::$IMG($emot)
-                foreach tg $tags {
-                    $w tag add $tg $idx
-                }
+		foreach tg $tags {
+		    $w tag add $tg $idx
+		}
 	    } else {
 		$w insert $mark [string range $str $i $end] $tags
 	    }
-	    set i [expr {$end+1}]
+	    set i [expr { $end + 1 }]
 	}
-	if {$i <= [string length $str]} {
+	if { $i <= [string length $str] } {
 	    $w insert $mark [string range $str $i end] $tags
 	}
     } else {
@@ -1338,85 +1318,83 @@ proc ::tkchat::formatClock {str} {
     return $out
 }
 
-proc ::tkchat::addAction {w clr nick str {mark end} {timestamp 0} {extraOpts ""}} {
+proc ::tkchat::addAction { w clr nick str {mark end} {timestamp 0}
+	{extraOpts ""} } {
     global Options
-    array set opts $extraOpts
 
-    #for colors, it is better to extract the displayed nick from the one used for
-    #tags.
+    array set opts $extraOpts
+    set tags [list NICK-$nick]
+
+    #for colors, it is better to extract the displayed nick from the one used
+    #for tags.
     set displayNick $nick
     regexp {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
     checkNick $w $nick $clr
     checkAlert ACTION $nick $str
-    $w config -state normal
-    ::tkchat::InsertTimestamp $w $nick $mark $timestamp
-    $w insert $mark "   * $displayNick " [list NICK NICK-$nick]
-    if {[string equal $nick clock]} {
-        $w insert $mark "[formatClock $str] " [list NICK-$nick ACTION]
-    } else {
-	foreach {str url} [parseStr $str] {
-	    if { [info exists opts(nolog)] } {
-		set tags [list MSG NOLOG-$nick ACTION NOLOG]	
-	    } else {
-		set tags [list MSG NICK-$nick ACTION]
-	    }
-	    if {$url != ""} {
-		lappend tags URL URL-[incr ::URLID]
-		$w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
-	    }
-	    tkchat::Insert $w $str $tags $url $mark
-	}
-    }
-    $w insert $mark "\n" [list NICK-$nick ACTION]
 
     # Special handling for single dot action message
-    if {[string trim $str] == "." && $Options(Username) != $nick} {
-        set inspt [$w index "$mark - 2 line"]
-        set endpt [$w index "$mark - 1 line"]
-        $w tag add SINGLEDOT $inspt $endpt
-        $w tag raise SINGLEDOT NICK-$nick
+    if { [string trim $str] eq "." && $Options(Username) ne $nick } {
+	lappend tags SINGLEDOT
     }
 
-    $w config -state disabled
-    if {$Options(AutoScroll)} {$w see $mark}
-}
-
-proc ::tkchat::addSystem {w str {mark end} {tags {}} {time 0}} {
-    global Options
-
     $w config -state normal
-    ::tkchat::InsertTimestamp $w "" $mark $time $tags
-    $w insert $mark "\t$str\n" [concat [list MSG SYSTEM] $tags]
+    InsertTimestamp $w $nick $mark $timestamp $tags
+    $w insert $mark "   * $displayNick " [concat NICK $tags]
+    foreach { str url } [parseStr $str] {
+	if { [info exists opts(nolog)] } {
+	    lappend tags MSG ACTION NOLOG [list NOLOG-$nick]
+	} else {
+	    lappend tags MSG ACTION
+	}
+	if { $url != "" } {
+	    lappend tags URL URL-[incr ::URLID]
+	    $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
+	}
+	Insert $w $str $tags $url $mark
+    }
+    $w insert $mark "\n" $tags
     $w config -state disabled
-    if {$Options(AutoScroll)} { $w see $mark }
+    if { $Options(AutoScroll) } {
+	$w see $mark
+    }
 }
 
-# Add notification of user entering or leaving. We can hide these notifications
-# by setting Options(hideTraffic)
-# Always add tehse to text - just tag them so we can elide them at will
+proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {time 0} } {
+    $w config -state normal
+    InsertTimestamp $w "" $mark $time $tags
+    $w insert $mark "\t$str\n" [concat MSG $tags]
+    $w config -state disabled
+    if { $::Options(AutoScroll) } {
+	$w see $mark
+    }
+}
+
+# Add notification of user entering or leaving.
+# Always add these to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
-proc ::tkchat::addTraffic {w who action {mark end} {timestamp 0} } {
+proc ::tkchat::addTraffic { w who action {mark end} {timestamp 0}
+	{newwho {}} } {
     # Action should be entered or left
     global Options
+    variable MSGS
 
-    variable ::tkchat::MSGS
     $w config -state normal
-    if {[string equal $who$action "ircbridgeentered"]} {
-        set msg "$who was erected"
-    } elseif {[string equal $who$action "ircbridgeleft"]} {
-        set msg "$who fell down"
-    } elseif {[info exists MSGS($action)]} {
-        set msg [string map -nocase [list %user% $who] \
-                       [lindex $MSGS($action) \
-                              [expr {int(rand()*[llength $MSGS($action)])}]]]
+    if { [info exists MSGS($action)] } {
+	set msg [string map -nocase [list %user% $who %newuser% $newwho] \
+		[lindex $MSGS($action) \
+		[expr { int(rand() * [llength $MSGS($action)]) }]]]
+    } elseif { $action eq "nickchange" } {
+	set msg "$who is now known as $newwho"
     } else {
-        set msg "$who has $action the chat!!"
+	set msg "$who has $action the chat!!"
     }
-    ::tkchat::InsertTimestamp $w "" $mark $timestamp TRAFFIC
-    $w insert $mark "\t$msg\n" [list MSG SYSTEM TRAFFIC [string toupper $action]]
+    InsertTimestamp $w "" $mark $timestamp TRAFFIC
+    $w insert $mark "\t$msg\n" [list MSG TRAFFIC [string toupper $action]]
     $w config -state disabled
-    if {$Options(AutoScroll)} { $w see $mark }
+    if { $Options(AutoScroll) } {
+	$w see $mark
+    }
 }
 
 proc ::tkchat::addUnknown {str} {
@@ -1867,44 +1845,26 @@ proc ::tkchat::CreateGUI {} {
     ## Visibility Menu
     ##
     set m .mbar.vis
-    foreach {tag text} {
-	SYSTEM	 "System"
-	TRAFFIC	 "Entry/Exit"
-	WELCOME	 "Welcome"
-	HELP	 "Help"
-	USERINFO "User Info"
-	MEMO	 "Memo"
-	AVAILABILITY "Away/Online status"
-    } {
+    foreach tag $Options(ElideTags) text { "Single Dot" "Online/Away Status" \
+		"Entry/Exit" "All System" "Error" } {
 	$m add checkbutton -label "Hide $text Messages" \
-	    -onval 1 -offval 0 \
-	    -var Options(Visibility,$tag) \
-	    -command "::tkchat::DoVis $tag" \
-	    -underline 5
+		-onval 1 \
+		-offval 0 \
+		-var Options(Visibility,$tag) \
+		-command "::tkchat::DoVis $tag" \
+		-underline 5
     }
-    $m add checkbutton -label "Hide single dot actions" \
-	-onval 1 -offval 0 -var Options(Visibility,SINGLEDOT) \
-	-command [list ::tkchat::DoVis SINGLEDOT] -underline 12
     $m add checkbutton -label "Hide Timestamps" \
-	-onval 1 -offval 0 -var Options(Visibility,STAMP) \
-	-command [list ::tkchat::StampVis] -underline 5
+	    -onval 1 \
+	    -offval 0 \
+	    -var Options(Visibility,STAMP) \
+	    -command [list ::tkchat::StampVis] \
+	    -underline 5
     $m add separator
     $m add command -label "Hide All Users" -command  "::tkchat::NickVis 1"
     $m add command -label "Show All Users" -command  "::tkchat::NickVis 0"
     $m add cascade -label "Hide Users" -menu [menu $m.nicks -tearoff 0]
-    ::tkchat::NickVisMenu
-    $m add separator
-    foreach {tag text} {
-	HELP	 "Help"
-	USERINFO "User Info"
-	WELCOME	 "Welcome"
-	MEMO	 "Memo"
-    } {
-	$m add checkbutton -label "Pop-up $text Messages" \
-	    -onval 1 -offval 0 \
-	    -var Options(Popup,$tag) \
-	    -underline 10
-    }
+    NickVisMenu
 
     ## Alert Menu
     ##
@@ -2112,15 +2072,21 @@ proc ::tkchat::CreateGUI {} {
 
 proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     global Options
-    
+
     set txt $parent.txt
     set sbar $parent.sbar
-    
-    text $txt -background "#[getColor MainBG]" \
-	-foreground "#[getColor MainFG]" \
-	-font FNT -relief sunken -bd 2 -wrap word \
-	-yscroll "::tkchat::scroll_set $sbar" \
-	-state disabled -cursor left_ptr -height 1
+
+    text $txt \
+	    -background "#[getColor MainBG]" \
+	    -foreground "#[getColor MainFG]" \
+	    -font FNT \
+	    -relief sunken \
+	    -borderwidth 2 \
+	    -wrap word \
+	    -yscroll "::tkchat::scroll_set $sbar" \
+	    -state disabled \
+	    -cursor left_ptr \
+	    -height 1
     scrollbar $sbar -command "$txt yview"
 
     $txt tag configure MSG -lmargin2 50
@@ -2128,23 +2094,33 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure NICK -font NAME
     $txt tag configure ACTION -font ACT
     $txt tag configure NOLOG -font NOLOG
+    $txt tag configure AVAILABILITY -font SYS
     $txt tag configure SYSTEM -font SYS
+    $txt tag configure TRAFFIC -font SYS
     $txt tag configure ERROR -background red
     $txt tag configure ENTERED -foreground $Options(EntryMessageColor)
     $txt tag configure LEFT -foreground $Options(ExitMessageColor)
-    $txt tag configure STAMP -font STAMP
+    $txt tag configure CHANGENICK
     $txt tag configure URL -underline 1
-    $txt tag configure SINGLEDOT -font ACT
+    $txt tag configure STAMP -font STAMP -foreground "#[getColor MainFG]"
+    $txt tag configure SINGLEDOT
     $txt tag bind URL <Enter> [list $txt config -cursor hand2]
     $txt tag bind URL <Leave> [list $txt config -cursor {}]
-    
+
+    # Adjust tag ordering for hidden text
+    foreach tag $Options(ElideTags) {
+	if { $Options(Visibility,$tag) } {
+	    $txt tag raise $tag STAMP
+	}
+    }
+
     # on windows, a disabled text widget can't get focus
     # but someone might want to copy/paste the text
-    bind $txt <1> { focus %W }
-    bind $txt <Up>	   [list $txt yview scroll -1 units]
-    bind $txt <Down>	   [list $txt yview scroll  1 units]
-    bind $txt <Button-4>   [list $txt yview scroll -1 units]
-    bind $txt <Button-5>   [list $txt yview scroll  1 units]
+    bind $txt <1>	 { focus %W }
+    bind $txt <Up>	 [list $txt yview scroll -1 units]
+    bind $txt <Down>	 [list $txt yview scroll  1 units]
+    bind $txt <Button-4> [list $txt yview scroll -1 units]
+    bind $txt <Button-5> [list $txt yview scroll  1 units]
 }
 
 proc ::tkchat::SetChatWindowBindings { parent jid } {
@@ -2258,38 +2234,64 @@ proc ::tkchat::PaneLeave {pane} {
     }
 }
 
-proc ::tkchat::DoVis {tag} {
+proc ::tkchat::DoVis { tag } {
+    if { $::Options(Visibility,$tag) } {
+	.txt tag raise $tag
+    } else {
+	.txt tag lower $tag STAMP
+    }
     .txt tag config $tag -elide $::Options(Visibility,$tag)
+    if { $::Options(AutoScroll) } {
+	.txt see end
+    }
 }
 
-proc ::tkchat::NickVis {val} {
+proc ::tkchat::NickVis { val } {
+    global Options
+
     foreach t [array names ::Options Visibility,NICK-*] {
-	if {$::Options($t) != $val} {
-	    set ::Options($t) $val
+	if { $Options($t) != $val } {
+	    set Options($t) $val
 	    DoVis [lindex [split $t ,] end]
 	}
+    }
+    if { $Options(AutoScroll) } {
+	.txt see end
     }
 }
 
 proc ::tkchat::StampVis {} {
     global Options
-    set tag STAMP
 
-    .txt tag config $tag -elide $::Options(Visibility,$tag)
+    .txt tag config STAMP -elide $Options(Visibility,STAMP)
 
     set wid $Options(Offset)
 
-    if { $::Options(Visibility,$tag) } {
+    if { $Options(Visibility,STAMP) } {
 	# Invisible
+	.txt tag raise STAMP
 	.txt config -tabs [list $wid l]
 	.txt tag configure MSG -lmargin2 $wid
     } else {
 	# Stamps visible
-	set wid_tstamp [expr {[font measure NAME "\[88:88\]"] + 5}]
-	.txt config -tabs [list $wid_tstamp l [expr {$wid+$wid_tstamp}] l]
-	.txt tag configure MSG -lmargin2 [expr {$wid+$wid_tstamp}]
+	foreach tag $Options(ElideTags) {
+	    if { $Options(Visibility,$tag) } {
+		.txt tag raise $tag STAMP
+	    }
+	}
+	foreach tag [array names ::Options Visibility,NICK-*] {
+	    if { $Options($tag) } {
+		.txt tag raise [lindex [split $tag ,] end] STAMP
+	    }
+	}
+	set wid_tstamp [expr { [font measure NAME "\[88:88\]"] + 5 }]
+	set wid [expr { $wid + $wid_tstamp }]
+	.txt config -tabs [list $wid_tstamp l $wid l]
+	.txt tag configure MSG -lmargin2 $wid
     }
-
+    if { $Options(AutoScroll) } {
+	.txt see end
+    }
 }
 
 proc ::tkchat::NickVisMenu {} {
@@ -3587,20 +3589,30 @@ proc ::tkchat::ChangeColors {} {
 
 proc ::tkchat::applyColors {{txt .txt}} {
     global Options
+
     # update colors
     $txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
     .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
     $txt tag configure found -background "#[getColor SearchBG]"
     foreach nk $Options(NickList) {
 	set nk [lindex $nk 0]
-        set clr [getColor $nk]
-        if {$clr == ""} {
-            set clr [getColor MainFG]
-        }
-	if {[catch {
+	set clr [getColor $nk]
+	if { $clr == "" } {
+	    set clr [getColor MainFG]
+	}
+	if { [catch {
 	    $txt tag config NICK-$nk -foreground "#$clr"
 	    $txt tag config NOLOG-$nk -foreground "#[fadeColor $clr]"
-	} msg]} then { log::log debug "applyColors: \"$msg\"" }
+	    if { $Options(Visibility,STAMP) } {
+		$txt tag raise NICK-$nk STAMP
+		$txt tag raise NOLOG-$nk STAMP
+	    } else {
+		$txt tag lower NICK-$nk STAMP
+		$txt tag lower NOLOG-$nk STAMP
+	    }
+	} msg] } then {
+	    ::log::log debug "applyColors: \"$msg\""
+	}
     }
 }
 
@@ -3700,31 +3712,43 @@ proc ::tkchat::quit {} {
 
 proc ::tkchat::saveRC {} {
     global Options
-    if {[info exists ::env(HOME)]} {
+
+    if { [info exists ::env(HOME)] } {
 	set rcfile [file join $::env(HOME) .tkchatrc]
-        set Options(Geometry) [wm geometry .]
-        if {[winfo exists .pane] && $::Options(DisplayUsers)} {
-            set Options(Pane) [.pane sash coord 0]
-        }
+	set Options(Geometry) [wm geometry .]
+	if { [winfo exists .pane] && $Options(DisplayUsers) } {
+	    set Options(Pane) [.pane sash coord 0]
+	}
 	array set tmp [array get Options]
+
+	# Don't save these options to resource file
 	set ignore {
-            History FetchTimerID OnlineTimerID FinalList NamesWin
-            FetchToken OnlineToken OnLineUsers ProxyPassword ProxyAuth
-            URL URL2 URLchk URLlogs errLog ChatLogChannel PaneUsersWidth
-	    retryFailedCheckPage JabberDebug JabberConnect
-        }
-	if {!$tmp(SavePW)} {
+	    ChatLogChannel ElideTags FetchTimerID FinalList History
+	    JabberConnect JabberDebug JabberLogs NamesWin Offset OnlineTimerID
+	    OnLineUsers PaneUsersWidth ProxyAuth ProxyPassword URL URL2 URLchk
+	    URLlogs errLog retryFailedCheckPage
+	}
+
+	# Deprecated Options
+	append ignore {
+	    FetchToken OnlineToken Refresh TimeFormat TimeGMT hideTraffic
+	    Popup,USERINFO Popup,WELCOME Popup,MEMO Popup,HELP
+	    Visibility,USERINFO Visibility,WELCOME Visibility,MEMO
+	    Visibility,HELP
+	}
+
+	if { !$tmp(SavePW) } {
 	    lappend ignore Password
 	}
 	foreach idx $ignore {
-	    catch {unset tmp($idx)}
+	    catch { unset tmp($idx) }
 	}
 	set oplist [list]
 	foreach option [lsort [array names tmp]] {
 	    lappend oplist [list $option $tmp($option)]
 	}
-	if {![catch {open $rcfile w 0600} fd]} {
-            fconfigure $fd -encoding utf-8
+	if { ![catch { open $rcfile w 0600 } fd] } {
+	    fconfigure $fd -encoding utf-8
 	    puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	    puts $fd "array set Options \{"
 	    puts $fd [join $oplist "\n"]
@@ -4251,10 +4275,13 @@ proc ::tkchat::ShowSmiles {} {
 }
 proc ::tkchat::Init {args} {
     global Options env
-    set ::URLID 0
+
     # set intial defaults
+    set ::URLID 0
     set ::tkchat::eCURR 0
     set ::tkchat::eHIST ""
+
+    # set defaults for User Settable Options
     array set Options {
 	UseProxy	0
 	ProxyHost	""
@@ -4274,7 +4301,6 @@ proc ::tkchat::Init {args} {
 	OnlineTimerID	-1
 	AutoConnect	0
 	DisplayUsers	1
-	Refresh		30
 	NickList	{{} {}}
 	History		{}
 	AutoScroll	0
@@ -4289,9 +4315,6 @@ proc ::tkchat::Init {args} {
 	LogLevel	notice
 	errLog		stderr
 	emoticons	1
-	hideTraffic	0
-	TimeFormat	"At the tone, the time is %H:%M on %A %d %b %Y"
-	TimeGMT		0
 	HistoryLines	-1
 	timeout		30000
 	Emoticons	1
@@ -4303,16 +4326,9 @@ proc ::tkchat::Init {args} {
         AutoFadeLimit   80
 	AutoAway	-1
 	EnableWhiteboard 1
-	Popup,USERINFO	1
-	Popup,WELCOME	0
-	Popup,MEMO	1
-	Popup,HELP	1
-	Visibility,USERINFO  1
-	Visibility,WELCOME   1
-	Visibility,MEMO	     1
-	Visibility,HELP	     1
 	Visibility,SINGLEDOT 0
 	Visibility,STAMP     1
+	Visibility,ERROR     0
 	Alert,SOUND	     0
 	Alert,RAISE	     1
 	Alert,ALL	     0
@@ -4327,36 +4343,41 @@ proc ::tkchat::Init {args} {
 	JabberResource       tkchat
 	OneToOne	     tabbed
     }
-    catch {set Options(BROWSER) $env(BROWSER)}
-
-    foreach {name clr} { MainBG FFFFFF MainFG 000000 SearchBG FF8C44} {
-	set Options(Color,$name,Web)   $clr
-	set Options(Color,$name,Inv)   [invClr $clr]
-	set Options(Color,$name,Mine)  $clr
-	set Options(Color,$name,Which) Web
+    catch { set Options(BROWSER) $env(BROWSER) }
+    foreach { name clr } { MainBG FFFFFF MainFG 000000 SearchBG FF8C44 } {
+	set Options(Color,$name,Web)	$clr
+	set Options(Color,$name,Inv)	[invClr $clr]
+	set Options(Color,$name,Mine)	$clr
+	set Options(Color,$name,Which)	Web
     }
+
     # attach a trace function to the log level
     trace variable Options(LogLevel) w [namespace origin LogLevelSet]
     LogLevelSet
 
     # load RC file if it exists
-    if {[info exists ::env(HOME)] && \
-	    [file readable [set rcfile [file join $::env(HOME) .tkchatrc]]]} {
-	catch {
-            set f [open $rcfile r]
-            fconfigure $f -encoding utf-8
-            set d [read $f]
-            close $f
-            eval $d
-        }
+    if { [info exists ::env(HOME)] } {
+	set rcfile [file join $::env(HOME) .tkchatrc]
+	if { [file readable $rcfile] } {
+	    catch {
+		set f [open $rcfile r]
+		fconfigure $f -encoding utf-8
+		set d [read $f]
+		close $f
+		eval $d
+	    }
+	}
     }
+
     # Convert old nick list to new and remove expired nicks
     set newNicks [list]
     foreach nk $Options(NickList) {
 	if { ![string is integer -strict [lindex $nk 1]] } {
 	    set nk [list $nk]
 	}
-	if { [lindex $nk 1] eq "" } { lappend nk [clock seconds] }
+	if { [lindex $nk 1] eq "" } {
+	    lappend nk [clock seconds]
+	}
 	if { [lindex $nk 1] > [clock scan "-30 day"]
 		|| [lindex $nk 0] eq $Options(Username) } {
 	    lappend newNicks $nk
@@ -4371,23 +4392,22 @@ proc ::tkchat::Init {args} {
     set Options(NickList) $newNicks
 
     # Compatability issues...
-    if {[string is integer $Options(UseJabberSSL)]} {
-        set Options(UseJabberSSL) [lindex {no ssl} $Options(UseJabberSSL)]
+    if { [string is integer $Options(UseJabberSSL)] } {
+	set Options(UseJabberSSL) [lindex {no ssl} $Options(UseJabberSSL)]
     }
-
-    # Set the 'Hardcoded' Options:
-    set Options(JabberLogs) "http://tclers.tk/conferences/tcl"
-
     if { $::tcl_platform(os) eq "Windows CE" } {
 	# Disable history loading on wince
 	set Options(HistoryLines) 0
     }
 
-    set Options(Offset) 50
-    catch {unset Options(FetchToken)}
-    catch {unset Options(OnlineToken)}
-    set Options(History) {}
-    set Options(OnLineUsers) {}
+    # Set the 'Hardcoded' Options:
+    array set Options {
+	JabberLogs	"http://tclers.tk/conferences/tcl"
+	Offset		50
+	ElideTags	{ SINGLEDOT AVAILABILITY TRAFFIC SYSTEM ERROR }
+	History		{}
+	OnLineUsers	{}
+    }
 
     # Process command line args
     set nologin 0
@@ -5915,17 +5935,13 @@ proc ::tkchat::EditOptions {} {
     set gimmicks 0
     if {[lsearch [wm attributes .] -alpha] != -1} {
         set gimmicks 1
-        set scale scale
-        if {[info command ::tscale] != {}} {
-            set scale tscale
-        }
         checkbutton $gf.fade -text "When not active, fade to " -underline 2 \
             -variable ::tkchat::EditOptions(AutoFade)
         spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
             -textvariable ::tkchat::EditOptions(AutoFadeLimit)
         label $gf.pct -text "%"
         label $gf.alabel -text Transparency
-        $scale $gf.alpha -from 1 -to 100 -orient horizontal
+	scale $gf.alpha -from 1 -to 100 -orient horizontal
         $gf.alpha set $EditOptions(Transparency)
         #[expr {int([wm attributes . -alpha] * 100)}]
         $gf.alpha configure -command [namespace origin SetAlpha]
@@ -6516,7 +6532,7 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 	    # Much more interesting info available in array ...
 
             if { $action eq "nickchange" } {
-                tkchat::addSystem .txt "In a fit of schizophrenia, $p(-resource) would like to be known as $newnick."
+		::tkchat::addTraffic .txt $p(-resource) $action end 0 $newnick
                 set ignoreNextNick $newnick
             } elseif {$action eq "changedstatus"} {
                 set s [string map {xa idle chat talking dnd busy} [lindex $status 0]]
@@ -6750,12 +6766,12 @@ proc ::tkjabber::parseMsg { nick msg color tag time } {
 	    set action [lrange $msg 1 end]
 	    if { $action eq "leaves" || $action eq "joins" } {
 		set action [string map { joins entered leaves left } $action]
-		tkchat::addTraffic .txt $nick $action $tag $time
+		::tkchat::addTraffic .txt $nick $action $tag $time
 	    } elseif { [lrange $action 0 end-1] eq "is now known as" } {
 		set newnick <[lindex $action end]>
-		tkchat::addSystem .txt "In a fit of schizophrenia, $nick would like to be known as $newnick." $tag {} $time
+		::tkchat::addTraffic .txt $nick nickchange $tag $time $newnick
 	    } else {
-		log::log notice "Unknown IRC command '$msg'"
+		::log::log notice "Unknown IRC command '$msg'"
 	    }
 	    return
 	} elseif { $nick eq "*" } {
@@ -6763,7 +6779,7 @@ proc ::tkjabber::parseMsg { nick msg color tag time } {
 	    set action [lrange $msg 1 end]
 	    if { $action eq "entered" || $action eq "left" } {
 		# Double <> to show webchat users.
-		tkchat::addTraffic .txt <<$nick>> $action $tag $time
+		::tkchat::addTraffic .txt <<$nick>> $action $tag $time
 		return
 	    } else {
 		set msg [linsert $action 0 /me]
@@ -6779,16 +6795,16 @@ proc ::tkjabber::parseMsg { nick msg color tag time } {
     }
     if { $nick eq "" } {
 	if { [lrange $msg 1 3] eq "has become available" } {
-	    tkchat::addTraffic .txt [lindex $msg 0] entered $tag $time
+	    ::tkchat::addTraffic .txt [lindex $msg 0] entered $tag $time
 	} elseif { [string match "has left*" [lrange $msg 1 2]] } {
-	    tkchat::addTraffic .txt [lindex $msg 0] left $tag $time
+	    ::tkchat::addTraffic .txt [lindex $msg 0] left $tag $time
 	}
     } elseif { [lindex $msg 0] eq "/me" } {
 	set msg [join [lrange $msg 1 end]]
-	tkchat::addAction .txt $color $nick $msg $tag $time $opts
+	::tkchat::addAction .txt $color $nick $msg $tag $time $opts
     } else {
 	set msg [join $msg]
-	tkchat::addMessage .txt $color $nick $msg $tag $time $opts
+	::tkchat::addMessage .txt $color $nick $msg $tag $time $opts
     }
 }
 

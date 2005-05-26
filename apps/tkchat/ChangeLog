@@ -1,3 +1,10 @@
+2005-05-26  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed some elide problems with regard to entry/exit,
+	online/away, system, error and singledot messages, as well as
+	timestamps and emoticons. [Bug 978962]
+	* tkchat.tcl: Removed use of tscale, missed by Patch 196561.
+
 2005-05-21  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl: Corrected two oversights from last commit. Fixed
