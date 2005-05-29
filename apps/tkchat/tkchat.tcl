@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.293 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.294 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -118,7 +118,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.293 2005/05/26 14:40:32 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.294 2005/05/29 15:42:12 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1129,7 +1129,7 @@ proc ::tkchat::Insert { w str tags {url ""} {mark end} } {
 		$w insert $mark \
 			[string range $str $i [expr { $start - 1 }]] $tags
 		if { $mark eq "end" } {
-		    set idx [$w index "$mark -1 indices"]
+		    set idx [$w index "$mark -1 char"]
 		} else {
 		    set idx [$w index $mark]
 		}
@@ -2100,7 +2100,7 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure ERROR -background red
     $txt tag configure ENTERED -foreground $Options(EntryMessageColor)
     $txt tag configure LEFT -foreground $Options(ExitMessageColor)
-    $txt tag configure CHANGENICK
+    $txt tag configure NICKCHANGE
     $txt tag configure URL -underline 1
     $txt tag configure STAMP -font STAMP -foreground "#[getColor MainFG]"
     $txt tag configure SINGLEDOT
