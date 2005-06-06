@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	;# Workaround until I can convince people
 ;# that apps are not packages.	:)  DGP
 package provide app-tkchat \
-    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.294 $}]
+    [regexp -inline {\d+(?:\.\d+)?} {$Revision: 1.295 $}]
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -118,7 +118,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.294 2005/05/29 15:42:12 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.295 2005/06/06 15:15:54 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -800,14 +800,15 @@ proc ::tkchat::invClr {clr {grays 0}} {
     return [format "%02x%02x%02x" $R $G $B]
 }
 
-proc ::tkchat::getColor {name} {
+proc ::tkchat::getColor { name } {
     global Options
-    if {[catch {
-	set w $Options(Color,$name,Which)
-	set clr $Options(Color,$name,$w)
-    } err]} {
-	set clr ""
-	errLog "bad color name '$name'"
+
+    if { [info exists Options(Color,$name)] } {
+	set w [lindex $Options(Color,$name) 0]
+	set clr [lindex $Options(Color,$name) $w]
+    } else {
+	set w [lindex $Options(Color,NICK-$name) 0]
+	set clr [lindex $Options(Color,NICK-$name) $w]
     }
     return $clr
 }
@@ -894,7 +895,7 @@ proc ::tkchat::parseStr {str} {
     return $out
 }
 
-proc ::tkchat::checkNick { txt nick clr } {
+proc ::tkchat::checkNick { txt nick clr timestamp } {
     global Options
 
     set wid [expr { [font measure NAME <$nick>] + 10 }]
@@ -910,48 +911,32 @@ proc ::tkchat::checkNick { txt nick clr } {
 	# Set tabs appropriate for STAMP visibility
 	StampVis
     }
-    if { $clr == "" } {
-	set clr [getColor $nick]
-	if { $clr == "" } {
-	    set clr [getColor MainFG]
-	}
+    if { $timestamp == 0 } {
+	set timestamp [clock seconds]
     }
     set match 0
     foreach nk $Options(NickList) {
 	if { [lindex $nk 0] eq $nick } {
-	    lset Options(NickList) $match [lset nk 1 [clock seconds]]
+	    lset Options(NickList) $match [lset nk 1 $timestamp]
 	    break
 	} else {
 	    incr match
 	}
     }
     if { $match == [llength $Options(NickList)] } {
-	lappend Options(NickList) [list $nick [clock seconds]]
-	set Options(Color,$nick,Web)	$clr
-	set Options(Color,$nick,Inv)	[invClr $clr]
-	set Options(Color,$nick,Mine)	$clr
-	set Options(Color,$nick,Which)	Web
+	lappend Options(NickList) [list $nick $timestamp]
+	set Options(Color,NICK-$nick) $Options(Color,MainFG)
 	NickVisMenu
-    }
-    if { ![info exists Options(Color,$nick,Web)]
-	    || $Options(Color,$nick,Web) ne $clr } {
-	# new color
-	set Options(Color,$nick,Web) $clr
-	set Options(Color,$nick,Inv) [invClr $clr]
-	if { ![info exists Options(Color,$nick,Mine)] } {
-	    set Options(Color,$nick,Mine) [getColor MainFG]
-	}
 	set clr [getColor $nick]
-	if { $clr == "" } {
-	    set clr [getColor MainFG]
-	}
-	if {[catch {
-	    $txt tag configure NICK-$nick -foreground "#$clr"
-	    $txt tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
-	    $txt tag lower NICK-$nick STAMP
-	} msg]} then {
-	    ::log::log debug "nickCheck: \"$msg\""
-	}
+    }
+    if { $clr ne "" && [lindex $Options(Color,NICK-$nick) 1] ne $clr } {
+	# new color
+	lset Options(Color,NICK-$nick) 1 $clr
+	lset Options(Color,NICK-$nick) 2 [invClr $clr]
+	set clr [getColor $nick]
+	$txt tag configure NICK-$nick -foreground "#$clr"
+	$txt tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
+	$txt tag lower NICK-$nick STAMP
     }
 }
 
@@ -1031,7 +1016,7 @@ proc ::tkchat::addMessage { w clr nick str {mark end} {timestamp 0}
     set displayNick $nick
     regexp {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
-    checkNick $w $nick $clr
+    checkNick $w $nick $clr $timestamp
     checkAlert NORMAL $nick $str
     $w config -state normal
     InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
@@ -1330,7 +1315,7 @@ proc ::tkchat::addAction { w clr nick str {mark end} {timestamp 0}
     set displayNick $nick
     regexp {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
-    checkNick $w $nick $clr
+    checkNick $w $nick $clr $timestamp
     checkAlert ACTION $nick $str
 
     # Special handling for single dot action message
@@ -2254,9 +2239,6 @@ proc ::tkchat::NickVis { val } {
 	    set Options($t) $val
 	    DoVis [lindex [split $t ,] end]
 	}
-    }
-    if { $Options(AutoScroll) } {
-	.txt see end
     }
 }
 
@@ -3346,17 +3328,16 @@ proc ::tkchat::resetSearch {} {
 }
 
 # a couple of little helper funcs
-proc ::tkchat::newColor {w idx} {
-    set init "#$::DlgData(Color,$idx,Mine)"
-    set tmp [tk_chooseColor \
-                   -title "Select Override Color" \
-                   -initialcolor $init]
-    if {$tmp != ""} {
-	set ::DlgData(Color,$idx,Mine) [string range $tmp 1 end]
-	$w config -fg $tmp -selectcolor $tmp
+proc ::tkchat::newColor { w idx } {
+    set init "#[lindex $::DlgData(Color,$idx) 3]"
+    set tmp [tk_chooseColor -title "Select Override Color" -initialcolor $init]
+    if { $tmp ne "" } {
+	lset ::DlgData(Color,$idx) 3 [string range $tmp 1 end]
+	$w config -foreground $tmp -selectcolor $tmp
     }
 }
-proc ::tkchat::buildRow {f idx disp} {
+
+proc ::tkchat::buildRow { f idx disp } {
     global DlgData
     variable buildRow_seq
     if { ![info exists buildRow_seq] } {
@@ -3366,25 +3347,29 @@ proc ::tkchat::buildRow {f idx disp} {
     }
     set seq $buildRow_seq
     ::tk::label $f.nm$seq -text "$disp" -anchor w -font NAME -padx 0 -pady 0
-    ::tk::radiobutton $f.def$seq -text "default" \
-          -var DlgData(Color,$idx,Which) \
-          -val Web -fg "#$DlgData(Color,$idx,Web)" \
-          -selectcolor "#$DlgData(Color,$idx,Web)" \
-          -indicatoron 0 -padx 0 -pady 0 -font FNT
-    ::tk::radiobutton $f.inv$seq -text "inverted" \
-          -var DlgData(Color,$idx,Which) \
-          -val Inv -fg "#$DlgData(Color,$idx,Inv)" \
-          -selectcolor "#$DlgData(Color,$idx,Inv)" \
-          -indicatoron 0 -padx 0 -pady 0 -font FNT
-    ::tk::radiobutton $f.ovr$seq -text "custom" \
-          -var DlgData(Color,$idx,Which) \
-          -val Mine -fg "#$DlgData(Color,$idx,Mine)"\
-          -selectcolor  "#$DlgData(Color,$idx,Mine)" \
-          -indicatoron 0  -padx 0 -pady 0 -font FNT
-    button $f.clr$seq -text "..." -padx 0 -pady 0  -font FNT \
-          -command [list ::tkchat::newColor $f.ovr$seq $idx]
+    ::tk::radiobutton $f.def$seq -padx 0 -pady 0 -font FNT -indicatoron 0 \
+	    -text "default" \
+	    -variable DlgData($idx) \
+	    -value 1 \
+	    -foreground  "#[lindex $DlgData(Color,$idx) 1]" \
+	    -selectcolor "#[lindex $DlgData(Color,$idx) 1]"
+    ::tk::radiobutton $f.inv$seq -padx 0 -pady 0 -font FNT -indicatoron 0 \
+	    -text "inverted" \
+	    -variable DlgData($idx) \
+	    -value 2 \
+	    -foreground "#[lindex $DlgData(Color,$idx) 2]" \
+	    -selectcolor "#[lindex $DlgData(Color,$idx) 2]"
+    ::tk::radiobutton $f.ovr$seq -padx 0 -pady 0 -font FNT -indicatoron 0 \
+	    -text "custom" \
+	    -variable DlgData($idx) \
+	    -value 3 \
+	    -foreground "#[lindex $DlgData(Color,$idx) 3]" \
+	    -selectcolor  "#[lindex $DlgData(Color,$idx) 3]"
+    button $f.clr$seq -padx 0 -pady 0 -font FNT \
+	    -text "..." \
+	    -command [list ::tkchat::newColor $f.ovr$seq $idx]
     grid $f.nm$seq $f.def$seq $f.inv$seq $f.ovr$seq $f.clr$seq \
-          -padx 2 -pady 2 -sticky ew
+	    -padx 2 -pady 2 -sticky ew
 }
 
 proc ::tkchat::EditMacros {} {
@@ -3485,6 +3470,10 @@ proc ::tkchat::ChangeColors {} {
     # make copy of current settings
     array set DlgData [array get Options Color,*]
     set DlgData(MyColor) $Options(MyColor)
+    foreach nk [array names DlgData Color,*] {
+	set nk [lindex [split $nk ,] end]
+	set DlgData($nk) [lindex $DlgData(Color,$nk) 0]
+    }
 
     #Build screen
     set t .opts
@@ -3520,30 +3509,31 @@ proc ::tkchat::ChangeColors {} {
     bind $f <Configure> {
 	[winfo parent %W] config -width [expr {%w+5}] -scrollregion [list 0 0 %w %h]
     }
-    foreach {key str} {Web "All\nDefault" Inv "All\nInverted" Mine "All\nCustom"} {
+    foreach {key str} { 1 "All\nDefault" 2 "All\nInverted" 3 "All\nCustom"} {
         button $f.all$key -text $str -padx 0 -pady 0 -font SYS -command \
-              [string map [list %val% $key] {
-                  foreach idx [array names DlgData *,Which] {
-                      set DlgData($idx) %val%
-                  }
-              }]
+		[string map [list %val% $key] {
+		    foreach idx [array names DlgData Color,*] {
+			set idx [lindex [split $idx ,] end]
+			set DlgData($idx) %val%
+		    }
+		}]
     }
-    grid x $f.allWeb $f.allInv $f.allMine x -padx 1 -pady 1
+    grid x $f.all1 $f.all2 $f.all3 x -padx 1 -pady 1
     foreach {idx str} {MainBG Background MainFG Foreground SearchBG Searchbackgr} {
         buildRow $f $idx $str
     }
     grid [label $f.online -text "Online Users" -font SYS] - - -
     foreach nick [lsort -dict $Options(OnLineUsers)] {
-        if {[info exists DlgData(Color,$nick,Which)]} {
-            buildRow $f $nick $nick
-        }
+	if { [info exists DlgData(Color,NICK-$nick)] } {
+	    buildRow $f NICK-$nick $nick
+	}
     }
     grid [label $f.offline -text "Offline Users" -font SYS] - - -
     foreach nick [lsort -dict -index 0 $Options(NickList)] {
 	set nick [lindex $nick 0]
-        if {[lsearch -exact $Options(OnLineUsers) $nick] < 0} {
-            buildRow $f $nick $nick
-        }
+	if { [lsearch -exact $Options(OnLineUsers) $nick] < 0 } {
+	    buildRow $f NICK-$nick $nick
+	}
     }
     frame $t.f2
     button $t.f2.ok -width 8 -text "OK" -command {set DlgDone ok} -font SYS
@@ -3577,17 +3567,22 @@ proc ::tkchat::ChangeColors {} {
 		set working 0
 	    }
 	}
-	if {$change} {
+	if { $change } {
+	    # apply changes for which
+	    foreach nk [array names DlgData Color,*] {
+		set nk [lindex [split $nk ,] end]
+		lset DlgData(Color,$nk) 0 $DlgData($nk)
+	    }
 	    # propagate changes to main data
-	    array set Options [array get DlgData]
+	    array set Options [array get DlgData Color,*]
 	    # update colors
-            applyColors
+	    applyColors
 	}
     }
     destroy $t
 }
 
-proc ::tkchat::applyColors {{txt .txt}} {
+proc ::tkchat::applyColors { {txt .txt} } {
     global Options
 
     # update colors
@@ -3597,21 +3592,14 @@ proc ::tkchat::applyColors {{txt .txt}} {
     foreach nk $Options(NickList) {
 	set nk [lindex $nk 0]
 	set clr [getColor $nk]
-	if { $clr == "" } {
-	    set clr [getColor MainFG]
-	}
-	if { [catch {
-	    $txt tag config NICK-$nk -foreground "#$clr"
-	    $txt tag config NOLOG-$nk -foreground "#[fadeColor $clr]"
-	    if { $Options(Visibility,STAMP) } {
-		$txt tag raise NICK-$nk STAMP
-		$txt tag raise NOLOG-$nk STAMP
-	    } else {
-		$txt tag lower NICK-$nk STAMP
-		$txt tag lower NOLOG-$nk STAMP
-	    }
-	} msg] } then {
-	    ::log::log debug "applyColors: \"$msg\""
+	$txt tag config NICK-$nk -foreground "#$clr"
+	$txt tag config NOLOG-$nk -foreground "#[fadeColor $clr]"
+	if { $Options(Visibility,STAMP) } {
+	    $txt tag raise NICK-$nk STAMP
+	    $txt tag raise NOLOG-$nk STAMP
+	} else {
+	    $txt tag lower NICK-$nk STAMP
+	    $txt tag lower NOLOG-$nk STAMP
 	}
     }
 }
@@ -3727,6 +3715,17 @@ proc ::tkchat::saveRC {} {
 	    JabberConnect JabberDebug JabberLogs NamesWin Offset OnlineTimerID
 	    OnLineUsers PaneUsersWidth ProxyAuth ProxyPassword URL URL2 URLchk
 	    URLlogs errLog retryFailedCheckPage
+	}
+	foreach nk [array names Options Visibility,NICK-*] {
+	    if { !$Options($nk) } {
+		lappend ignore $nk
+	    }
+	}
+	foreach nk [array names Options Color,NICK-*] {
+	    if { [lindex $Options($nk) 0] == 1 \
+		    && [lindex $Options($nk) 1] eq [getColor MainFG] } {
+		lappend ignore $nk
+	    }
 	}
 
 	# Deprecated Options
@@ -4345,10 +4344,7 @@ proc ::tkchat::Init {args} {
     }
     catch { set Options(BROWSER) $env(BROWSER) }
     foreach { name clr } { MainBG FFFFFF MainFG 000000 SearchBG FF8C44 } {
-	set Options(Color,$name,Web)	$clr
-	set Options(Color,$name,Inv)	[invClr $clr]
-	set Options(Color,$name,Mine)	$clr
-	set Options(Color,$name,Which)	Web
+	set Options(Color,$name) [list 1 $clr [invClr $clr] $clr]
     }
 
     # attach a trace function to the log level
@@ -4369,7 +4365,32 @@ proc ::tkchat::Init {args} {
 	}
     }
 
-    # Convert old nick list to new and remove expired nicks
+    # Convert old color list (<1.295) to new
+    foreach nk [array names Options Color,*,Web] {
+	set nk [lindex [split $nk ,] 1]
+	switch -- $nk {
+	    MainBG -
+	    MainFG -
+	    SearchBG {
+		set Options(Color,$nk) [string map {Web 1 Inv 2 Mine 3} \
+			$Options(Color,$nk,Which)]
+		lappend Options(Color,$nk) $Options(Color,$nk,Web) \
+			$Options(Color,$nk,Inv) $Options(Color,$nk,Mine)
+	    }
+	    default {
+		set Options(Color,NICK-$nk) [string map {Web 1 Inv 2 Mine 3} \
+			$Options(Color,$nk,Which)]
+		lappend Options(Color,NICK-$nk) $Options(Color,$nk,Web) \
+			$Options(Color,$nk,Inv) $Options(Color,$nk,Mine)
+	    }
+	}
+	unset -nocomplain "Options(Color,$nk,Inv)"
+	unset -nocomplain "Options(Color,$nk,Mine)"
+	unset -nocomplain "Options(Color,$nk,Web)"
+	unset -nocomplain "Options(Color,$nk,Which)"
+    }
+
+    # Convert old nick list (<1.289) to new and remove expired nicks
     set newNicks [list]
     foreach nk $Options(NickList) {
 	if { ![string is integer -strict [lindex $nk 1]] } {
@@ -4382,14 +4403,19 @@ proc ::tkchat::Init {args} {
 		|| [lindex $nk 0] eq $Options(Username) } {
 	    lappend newNicks $nk
 	} else {
-	    unset "Options(Color,[lindex $nk 0],Inv)"
-	    unset "Options(Color,[lindex $nk 0],Mine)"
-	    unset "Options(Color,[lindex $nk 0],Web)"
-	    unset "Options(Color,[lindex $nk 0],Which)"
-	    unset "Options(Visibility,NICK-[lindex $nk 0])"
+	    unset -nocomplain "Options(Color,NICK-[lindex $nk 0])"
+	    unset -nocomplain "Options(Visibility,NICK-[lindex $nk 0])"
 	}
     }
     set Options(NickList) $newNicks
+
+    # Build the complete color list
+    foreach nk $Options(NickList) {
+	set nk [lindex $nk 0]
+	if { ![info exist Options(Color,NICK-$nk)] } {
+	    set Options(Color,NICK-$nk) $Options(Color,MainFG)
+	}
+    }
 
     # Compatability issues...
     if { [string is integer $Options(UseJabberSSL)] } {
