@@ -1,3 +1,21 @@
+2005-06-14  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl:
+	Fix conversion from old color list for some unusual nicks.
+	Fix changing own color.
+	Only save nicks that have extra attributes stored.
+	Fix a problem with new messages getting mixed into history when it is
+		being reloaded.
+	Add autoscroll when showing/hiding extended text entry.
+	Selecting to be alerted now activates some defaults if none set.
+	Alerts now work for the nickname currently being used as well as the
+		username.
+	Remove another old tile-ism.
+	Convert ::tkchat::msgSend calls to use ::tkjabber::msgSend.
+	Convert ::tkchat::errLog proc calls to use ::log::log.
+	Removed some orhaned procs.
+	Clean up a lot of whitespace at start and end of lines.
+
 2005-06-07  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl: Save only changed colors and invisibility settings in
