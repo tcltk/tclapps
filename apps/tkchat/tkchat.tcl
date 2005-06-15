@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.296 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.297 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -101,7 +101,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.296 2005/06/14 12:24:19 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.297 2005/06/15 09:19:20 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6376,11 +6376,18 @@ proc tkjabber::cleanup {} {
     variable muc
     variable conference
     variable socket
+    variable roster
 
     if {[info exists muc]} {
 	if {[catch {$muc exit $conference} err]} {
 	    ::log::log error "cleanup: $err"
 	}
+    }
+
+    if {[info exists roster]} {
+        if {[catch {$roster reset} err]} {
+            ::log::log error "cleanup: $err"
+        }
     }
 
     if { [catch {$jabber closestream}] } {
