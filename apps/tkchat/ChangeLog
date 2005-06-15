@@ -1,3 +1,14 @@
+2005-06-16  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl:
+	Fix tags for action messages.
+	Cleanup members in ::tkjabber::cleanup as well.
+	Correct some potential problems where a nick has a comma in it.
+	Fix timestamp eliding and tabs in One-to-One chat.
+	Allow register screen to work again.
+	Clean up 'after' scripts when restarting.
+	Add tk8.5a3 idle detection for AutoAway (from Kevin Kenny).
+
 2005-06-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (tkjabber::cleanup): Cleanup roster too.

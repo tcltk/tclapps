@@ -44,7 +44,14 @@ package require jlib		; # jlib
 package require browse		; # jlib
 package require muc		; # jlib
 
-if { [catch {
+if { ![catch { tk inactive }] } {
+    # Idle detection built into tk8.5a3
+    namespace eval ::idle {
+	namespace export supported idletime
+	proc ::idle::supported {} { return 1 }
+	proc ::idle::idletime {} { return [expr { [tk inactive] / 1000 }] }
+    }
+} elseif { [catch {
     # Optional idle detection
     package require idle
 }] } then {
@@ -85,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.297 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.298 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -101,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.297 2005/06/15 09:19:20 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.298 2005/06/15 18:44:27 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -480,7 +487,8 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    } else {
 		set FinalList [concat $new $FinalList]
 	    }
-	    if { [::tkjabber::HistoryLines] >= $Options(HistoryLines) } {
+	    if { [llength $::tkjabber::HistoryLines] \
+		    >= $Options(HistoryLines) } {
 		break
 	    }
 	}
@@ -632,7 +640,7 @@ proc ::tkchat::translateDone {tok} {
     }
 }
 
-proc ::tkchat::babelfishInit { \
+proc ::tkchat::babelfishInit {
 	{url http://babelfish.altavista.com/babelfish/} } {
     set tok [http::geturl $url \
 	    -headers [buildProxyHeaders] \
@@ -809,12 +817,12 @@ proc ::tkchat::parseStr {str} {
     return $out
 }
 
-proc ::tkchat::checkNick { txt nick clr timestamp } {
+proc ::tkchat::checkNick { w nick clr timestamp } {
     global Options
 
-    set wid [expr { [font measure NAME <$nick>] + 10 }]
-    if { $wid > $Options(Offset) } {
-	set Options(Offset) $wid
+    set nickWidth [expr { [font measure NAME <$nick>] + 10 }]
+    if { $nickWidth > $Options(Offset) } {
+	set Options(Offset) $nickWidth
 
 	# Maybe limit the nick column width a bit...
 	set max [expr { [font measure NAME [string repeat X 12]] + 10 }]
@@ -848,9 +856,9 @@ proc ::tkchat::checkNick { txt nick clr timestamp } {
 	lset Options(Color,NICK-$nick) 1 $clr
 	lset Options(Color,NICK-$nick) 2 [invClr $clr]
 	set clr [getColor $nick]
-	$txt tag configure NICK-$nick -foreground "#$clr"
-	$txt tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
-	$txt tag lower NICK-$nick STAMP
+	$w tag configure NICK-$nick -foreground "#$clr"
+	$w tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
+	$w tag lower NICK-$nick STAMP
     }
 }
 
@@ -931,8 +939,7 @@ proc ::tkchat::setAlert { tag } {
     }
 }
 
-proc ::tkchat::addMessage { w clr nick str {mark end} {timestamp 0}
-	{extraOpts ""} } {
+proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
     global Options
     variable map
     variable MessageHooks
@@ -1021,17 +1028,17 @@ proc ::tkchat::ResetMessageCounter {} {
     WinicoUpdate
 }
 
-proc ::tkchat::InsertTimestamp { w nick {mark end} {seconds 0} {tags {}} } {
+proc ::tkchat::InsertTimestamp { w nick mark timestamp {tags {}} } {
     # The nick argument is here, so we can display the local time for
     # each nick.
-    if { $seconds == 0 } {
-	set seconds [clock seconds]
+    if { $timestamp == 0 } {
+	set timestamp [clock seconds]
     }
-    $w insert $mark "\[[clock format $seconds -format %H:%M]\]\t" \
+    $w insert $mark "\[[clock format $timestamp -format %H:%M]\]\t" \
 	[concat STAMP $tags]
 }
 
-proc ::tkchat::Insert { w str tags {url ""} {mark end} } {
+proc ::tkchat::Insert { w str tags url mark } {
     global Options
     set str [string map {"\n" "\n\t"} $str]
     # Don't do emoticons on URLs
@@ -1233,12 +1240,10 @@ proc ::tkchat::gotoURL {url} {
     .txt config -cursor left_ptr
 }
 
-proc ::tkchat::addAction { w clr nick str {mark end} {timestamp 0}
-	{extraOpts ""} } {
+proc ::tkchat::addAction { w clr nick str mark timestamp {extraOpts ""} } {
     global Options
 
     array set opts $extraOpts
-    set tags [list NICK-$nick]
 
     #for colors, it is better to extract the displayed nick from the one used
     #for tags.
@@ -1249,22 +1254,26 @@ proc ::tkchat::addAction { w clr nick str {mark end} {timestamp 0}
     checkAlert ACTION $nick $str
 
     # Special handling for single dot action message
+    set singleDot 0
     if { [string trim $str] eq "." && $Options(Username) ne $nick } {
-	lappend tags SINGLEDOT
+	set singleDot 1
     }
 
     $w config -state normal
-    InsertTimestamp $w $nick $mark $timestamp $tags
-    $w insert $mark "   * $displayNick " [concat NICK $tags]
+    InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
+    $w insert $mark "   * $displayNick " [list NICK NICK-$nick]
     foreach { str url } [parseStr $str] {
 	if { [info exists opts(nolog)] } {
-	    lappend tags MSG ACTION NOLOG [list NOLOG-$nick]
+	    set tags [list MSG ACTION NOLOG NOLOG-$nick NICK-$nick]
 	} else {
-	    lappend tags MSG ACTION
+	    set tags [list MSG ACTION NICK-$nick]
 	}
 	if { $url ne "" } {
 	    lappend tags URL URL-[incr ::URLID]
 	    $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
+	}
+	if { $singleDot } {
+	    lappend tags SINGLEDOT
 	}
 	Insert $w $str $tags $url $mark
     }
@@ -1275,9 +1284,9 @@ proc ::tkchat::addAction { w clr nick str {mark end} {timestamp 0}
     }
 }
 
-proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {time 0} } {
+proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {timestamp 0} } {
     $w config -state normal
-    InsertTimestamp $w "" $mark $time $tags
+    InsertTimestamp $w "" $mark $timestamp $tags
     $w insert $mark "\t$str\n" [concat MSG $tags]
     $w config -state disabled
     if { $::Options(AutoScroll) } {
@@ -1288,19 +1297,22 @@ proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {time 0} } {
 # Add notification of user entering or leaving.
 # Always add these to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
-proc ::tkchat::addTraffic { w who action {mark end} {timestamp 0}
-	{newwho {}} } {
+proc ::tkchat::addTraffic { w who action mark timestamp } {
     # Action should be entered or left
     global Options
     variable MSGS
 
+    set newwho ""
+
     $w config -state normal
     if { [info exists MSGS($action)] } {
+	if { $action eq "nickchange" } {
+	    set newwho [lindex $who 1]
+	    set who [lindex $who 0]
+	}
 	set msg [string map -nocase [list %user% $who %newuser% $newwho] \
 		[lindex $MSGS($action) \
 		[expr { int(rand() * [llength $MSGS($action)]) }]]]
-    } elseif { $action eq "nickchange" } {
-	set msg "$who is now known as $newwho"
     } else {
 	set msg "$who has $action the chat!!"
     }
@@ -2015,22 +2027,20 @@ proc ::tkchat::CreateGUI {} {
 
     # using explicit rows for restart
     set Options(NamesWin) [MakeScrolledWidget .names]
-    if {$UsePane} {
+    if { $UsePane } {
 	.txt configure -width 10
 	.names configure -width 10
 	grid .txt .sbar -in .txtframe -sticky news -padx 1 -pady 2
 	grid columnconfigure .txtframe 0 -weight 1
 	grid rowconfigure .txtframe 0 -weight 1
 	.pane add .txtframe -sticky news
-	#.pane add .names -sticky news
 	.pane add $Options(NamesWin) -sticky news
 	grid .pane -sticky news -padx 1 -pady 2
 	grid .btm  -sticky news
     } else {
-	#grid .txt .sbar .names -sticky news -padx 1 -pady 2
 	grid .txt .sbar $Options(NamesWin) -sticky news -padx 1 -pady 2
 	grid configure .sbar -sticky ns
-	grid .btm	     -sticky news -columnspan 3
+	grid .btm -sticky news -columnspan 3
     }
     grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
     grid configure .eMsg -sticky ew
@@ -2046,20 +2056,22 @@ proc ::tkchat::CreateGUI {} {
     }
     wm deiconify .
 
-    if {$UsePane} {
+    if { $UsePane } {
 	update
-	if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2} {
+	if { [info exists $Options(Pane)] && [llength $Options(Pane)] == 2 } {
 	    eval [linsert $Options(Pane) 0 .pane sash place 0]
 	} else {
-	    set w [expr {([winfo width .pane] * 4) / 5}]
+	    set w [expr { ([winfo width .pane] * 4) / 5 }]
 	    set coord [.pane sash coord 0]
 	    .pane sash place 0 $w [lindex $coord 1]
 	}
 	set Options(PaneUsersWidth) \
-	    [expr {[winfo width .pane] - [lindex [.pane sash coord 0] 0]}]
-	bind .pane <Configure> [list [namespace origin PaneConfigure] %W %w]
-	bind .pane <Leave> [list [namespace origin PaneLeave] %W]
-	PaneConfigure .pane [winfo width .pane];# update the pane immediately.
+	    [expr { [winfo width .pane] - [lindex [.pane sash coord 0] 0] }]
+	bind .pane <Configure>	{ ::tkchat::PaneConfigure %W %w }
+	bind .pane <Leave>	{ ::tkchat::PaneLeave %W }
+
+	# update the pane immediately.
+	PaneConfigure .pane [winfo width .pane]
     }
 
     # call this to activate the option on whether the users should be shown
@@ -2076,14 +2088,16 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     text $txt \
 	    -background "#[getColor MainBG]" \
 	    -foreground "#[getColor MainFG]" \
-	    -font FNT \
 	    -relief sunken \
 	    -borderwidth 2 \
+	    -width 8 \
+	    -height 1 \
+	    -font FNT \
 	    -wrap word \
-	    -yscroll "::tkchat::scroll_set $sbar" \
-	    -state disabled \
 	    -cursor left_ptr \
-	    -height 1
+	    -yscroll "::tkchat::scroll_set $sbar" \
+	    -state disabled
+
     scrollbar $sbar -command "$txt yview"
 
     $txt tag configure MSG -lmargin2 50
@@ -2128,8 +2142,10 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
     bind $parent.eMsg <KP_Enter>  $post
     $parent.post configure -command $post
     wm title $parent $::tkjabber::ChatWindows(title.$jid)
-    wm protocol $parent WM_DELETE_WINDOW [list ::tkchat::DeleteChatWindow $parent $jid]
-    bind $parent <FocusIn> [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
+    wm protocol $parent WM_DELETE_WINDOW \
+	    [list ::tkchat::DeleteChatWindow $parent $jid]
+    bind $parent <FocusIn> \
+	    [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
     applyColors $parent.txt
 }
 
@@ -2148,34 +2164,32 @@ proc ::tkchat::CreateNewChatWindow { parent } {
 
     # bottom frame for entry
     frame $parent.btm
-    button $parent.ml -text ">>" -width 0 -command [list ::tkchat::showExtra $parent]
+    button $parent.ml \
+	    -text ">>" \
+	    -width 0 \
+	    -command [list ::tkchat::showExtra $parent]
     entry $parent.eMsg
-    #bind $parent.eMsg <Key-Up>	  ::tkchat::entryUp
-    #bind $parent.eMsg <Key-Down> ::tkchat::entryDown
-    #bind $parent.eMsg <Key-Tab>  {::tkchat::nickComplete ; break}
     bind $parent.eMsg <Key-Prior> [list $parent.txt yview scroll -1 pages]
     bind $parent.eMsg <Key-Next>  [list $parent.txt yview scroll  1 pages]
     text $parent.tMsg -height 6 -font FNT
-    #bind $parent.tMsg <Key-Tab> {::tkchat::nickComplete ; break}
     button $parent.post -text "Post"
 
     if {$UsePane} {
 	$parent.txt configure -width 10
-	grid $parent.txt $parent.sbar -in $parent.txtframe -sticky news -padx 1 -pady 2
+	grid $parent.txt $parent.sbar \
+		-in $parent.txtframe -sticky news -padx 1 -pady 2
 	grid columnconfigure $parent.txtframe 0 -weight 1
 	grid rowconfigure $parent.txtframe 0 -weight 1
 	$parent.pane add $parent.txtframe -sticky news
-	#$parent.pane add .names -sticky news
-	#$parent.pane add $Options(NamesWin) -sticky news
 	grid $parent.pane -sticky news -padx 1 -pady 2
 	grid $parent.btm  -sticky news
     } else {
-	#grid .txt .sbar .names -sticky news -padx 1 -pady 2
 	grid $parent.txt $parent.sbar -sticky news -padx 1 -pady 2
 	grid configure $parent.sbar -sticky ns
-	grid $parent.btm	     -sticky news -columnspan 3
+	grid $parent.btm -sticky news -columnspan 3
     }
-    grid $parent.ml $parent.eMsg $parent.post -in $parent.btm -sticky ews -padx 2 -pady 2
+    grid $parent.ml $parent.eMsg $parent.post \
+	    -in $parent.btm -sticky ews -padx 2 -pady 2
     grid configure $parent.eMsg -sticky ew
 
     grid rowconfigure	 $parent 0 -weight 1
@@ -2185,9 +2199,9 @@ proc ::tkchat::CreateNewChatWindow { parent } {
     return $parent.txt
 }
 
-proc ::tkchat::DeleteChatWindow { toplevel jid } {
+proc ::tkchat::DeleteChatWindow { w jid } {
     ::tkjabber::deleteChatWidget $jid
-    destroy $toplevel
+    destroy $w
 }
 
 # FIXME: Work in progress for notebook style tabbed windows?
@@ -2253,35 +2267,43 @@ proc ::tkchat::NickVis { val } {
 
 proc ::tkchat::StampVis {} {
     global Options
+    variable ::tkjabber::ChatWindows
 
-    .txt tag config STAMP -elide $Options(Visibility,STAMP)
-
-    set wid $Options(Offset)
-
-    if { $Options(Visibility,STAMP) } {
-	# Invisible
-	.txt tag raise STAMP
-	.txt config -tabs [list $wid l]
-	.txt tag configure MSG -lmargin2 $wid
-    } else {
-	# Stamps visible
-	foreach tag $Options(ElideTags) {
-	    if { $Options(Visibility,$tag) } {
-		.txt tag raise $tag STAMP
-	    }
-	}
-	foreach tag [array names ::Options Visibility,NICK-*] {
-	    if { $Options($tag) } {
-		.txt tag raise [lindex [split $tag ,] end] STAMP
-	    }
-	}
-	set wid_tstamp [expr { [font measure NAME "\[88:88\]"] + 5 }]
-	set wid [expr { $wid + $wid_tstamp }]
-	.txt config -tabs [list $wid_tstamp l $wid l]
-	.txt tag configure MSG -lmargin2 $wid
+    set textWindows .txt
+    foreach w [array names ChatWindows txt.*] {
+	lappend textWindows $ChatWindows($w)
     }
-    if { $Options(AutoScroll) } {
-	.txt see end
+
+    foreach w $textWindows {
+	$w tag config STAMP -elide $Options(Visibility,STAMP)
+
+	set width $Options(Offset)
+
+	if { $Options(Visibility,STAMP) } {
+	    # Invisible
+	    $w tag raise STAMP
+	    $w config -tabs $width
+	    $w tag configure MSG -lmargin2 $width
+	} else {
+	    # Stamps visible
+	    foreach tag $Options(ElideTags) {
+		if { $Options(Visibility,$tag) } {
+		    $w tag raise $tag STAMP
+		}
+	    }
+	    foreach tag [array names Options Visibility,NICK-*] {
+		if { $Options($tag) } {
+		    $w tag raise [string range $tag 11 end] STAMP
+		}
+	    }
+	    set width_tstamp [expr { [font measure NAME "\[88:88\]"] + 5 }]
+	    set width [expr { $width + $width_tstamp }]
+	    $w config -tabs [list $width_tstamp $width]
+	    $w tag configure MSG -lmargin2 $width
+	}
+	if { $Options(AutoScroll) } {
+	    $w see end
+	}
     }
 }
 
@@ -2292,11 +2314,13 @@ proc ::tkchat::NickVisMenu {} {
     foreach n [lsort -dict -index 0 $::Options(NickList)] {
 	set n [lindex $n 0]
 	set tag NICK-$n
-	$m add checkbutton -label $n \
-	    -onval 1 -offval 0 \
-	    -var Options(Visibility,$tag) \
-	    -command "::tkchat::DoVis $tag"
-	if {$cnt >0 && $cnt % 25 == 0} {
+	$m add checkbutton \
+		-label $n \
+		-variable Options(Visibility,$tag) \
+		-onvalue 1 \
+		-offvalue 0 \
+		-command "::tkchat::DoVis $tag"
+	if { $cnt > 0 && $cnt % 25 == 0 } {
 	    $m entryconfig end -columnbreak 1
 	}
 	incr cnt
@@ -2717,8 +2741,6 @@ proc ::tkchat::checkAlias { msg } {
 }
 
 proc ::tkchat::userPostOneToOne {p jid} {
-    global Options
-
     if {[winfo ismapped $p.eMsg]} {
 	set str [$p.eMsg get]
     } else {
@@ -2728,9 +2750,10 @@ proc ::tkchat::userPostOneToOne {p jid} {
 
     tkjabber::msgSend $msg -tojid $jid -type chat
     if { [string match "/me *" $msg] } {
-	addAction $p.txt "" $Options(Nickname) [string range $msg 4 end]
+	set $msg [string range $msg 4 end]
+	addAction $p.txt "" $::Options(Nickname) $msg end 0
     } else {
-	tkchat::addMessage $p.txt "" $Options(Nickname) $msg end 0
+	addMessage $p.txt "" $::Options(Nickname) $msg end 0
     }
     $p.eMsg delete 0 end
     $p.tMsg delete 1.0 end
@@ -2899,7 +2922,8 @@ proc ::tkchat::userPost {{jid ""}} {
 			set privMsg [string trim $privMsg]
 			if {$privMsg ne ""} {
 			    if { $w ne ".txt" } {
-				tkchat::addMessage $w "" $Options(Nickname) $privMsg end 0
+				addMessage \
+					$w "" $Options(Nickname) $privMsg end 0
 				tkjabber::msgSend $privMsg -tojid $toJID -type chat
 			    } else {
 				tkjabber::msgSend $privMsg -user $toNick -type chat
@@ -3534,7 +3558,7 @@ proc ::tkchat::ChangeColors {} {
 	button $f.all$key -text $str -padx 0 -pady 0 -font SYS -command \
 		[string map [list %val% $key] {
 		    foreach idx [array names DlgData Color,*] {
-			set idx [lindex [split $idx ,] end]
+			set idx [string range $idx 6 end]
 			set DlgData($idx) %val%
 		    }
 		}]
@@ -3832,6 +3856,11 @@ proc ::tkchat::Debug {cmd args } {
 	    saveRC
 	    eval destroy [winfo children .]
 	    eval font delete [font names]
+	    while { [after info] ne "" } {
+		    foreach id [after info] {
+		    after cancel $id
+		}
+	    }
 	    unset ::Options
 	    after 2000 [linsert $::argv 0 ::tkchat::Init]
 	}
@@ -4535,7 +4564,7 @@ proc ::tkchat::Init {args} {
     # build screen
     CreateGUI
     foreach idx [array names Options Visibility,*] {
-	set tag [lindex [split $idx ,] end]
+	set tag [string range $idx 11 end]
 	.txt tag config $tag -elide $Options($idx)
     }
 
@@ -6377,6 +6406,7 @@ proc tkjabber::cleanup {} {
     variable conference
     variable socket
     variable roster
+    variable members
 
     if {[info exists muc]} {
 	if {[catch {$muc exit $conference} err]} {
@@ -6385,16 +6415,16 @@ proc tkjabber::cleanup {} {
     }
 
     if {[info exists roster]} {
-        if {[catch {$roster reset} err]} {
-            ::log::log error "cleanup: $err"
-        }
+	if {[catch {$roster reset} err]} {
+	    ::log::log error "cleanup: $err"
+	}
     }
+    catch { unset members }
 
     if { [catch {$jabber closestream}] } {
 	::log::log error "Closestream: $::errorInfo"
     }
 
-    #catch {close $socket}
     catch {jlib::resetsocket $jabber}
     set socket ""
     if {[winfo exists .mbar.file]} {
@@ -6599,7 +6629,8 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 	    # Much more interesting info available in array ...
 
 	    if { $action eq "nickchange" } {
-		::tkchat::addTraffic .txt $p(-resource) $action end 0 $newnick
+		::tkchat::addTraffic .txt \
+			[list $p(-resource) $newnick] $action end 0
 		set ignoreNextNick $newnick
 	    } elseif {$action eq "changedstatus"} {
 		set s [string map {xa idle chat talking dnd busy} [lindex $status 0]]
@@ -6608,7 +6639,7 @@ proc tkjabber::RosterCB {rostName what {jid {}} args} {
 	    } else {
 		if { !($action eq "entered" && $ignoreNextNick eq $p(-resource)) } {
 		    # if not the ignore nick:
-		    tkchat::addTraffic .txt $p(-resource) $action
+		    ::tkchat::addTraffic .txt $p(-resource) $action end 0
 		}
 		# Always reset ignoreNextNick!
 		set ignoreNextNick ""
@@ -6687,16 +6718,17 @@ proc tkjabber::MsgCB {jlibName type args} {
     ::log::log debug "|| MsgCB > type=$type, args=$args"
 
     set color ""
-    set ts 0
+    set timestamp 0
 
     array set m $args
     if { [info exists m(-x)] } {
 	foreach x $m(-x) {
 	    switch [wrapper::getattribute $x xmlns] {
 		"jabber:x:delay" {
-		    set ts [clock scan [wrapper::getattribute $x stamp] -gmt 1]
-		    if { $ts eq "" } {
-			set ts 0
+		    set timestamp [clock scan \
+			    [wrapper::getattribute $x stamp] -gmt 1]
+		    if { $timestamp eq "" } {
+			set timestamp 0
 		    }
 		}
 		"urn:tkchat:chat" {
@@ -6734,12 +6766,15 @@ proc tkjabber::MsgCB {jlibName type args} {
 		set w [getChatWidget $m(-from) $name]
 	    }
 	    if {$w eq ".txt"} {
-		tkchat::addAction $w $color $name " whispers: $m(-body)" end $ts
+		::tkchat::addAction \
+			$w $color $name " whispers: $m(-body)" end $timestamp
 	    } else {
 		if { [string match -nocase "/me *" $m(-body)] } {
-		    tkchat::addAction $w $color $name [string range $m(-body) 4 end] end $ts
+		    ::tkchat::addAction $w $color $name \
+			    [string range $m(-body) 4 end] end $timestamp
 		} else {
-		    tkchat::addMessage $w $color $name $m(-body) end $ts
+		    ::tkchat::addMessage \
+			    $w $color $name $m(-body) end $timestamp
 		}
 	    }
 	}
@@ -6752,18 +6787,21 @@ proc tkjabber::MsgCB {jlibName type args} {
 		set topic $m(-subject)
 		set ::tkchat::chatWindowTitle "The Tcler's Chat - $topic"
 		wm title . $::tkchat::chatWindowTitle
+		set msg " changed the topic to: $m(-subject)"
 		if { [info exists m(-body)] } {
 		    if { $from eq $conference } {
 			tkchat::addSystem .txt $m(-body)
 		    } else {
-			tkchat::addAction .txt $color $from " changed the topic to: $m(-subject)\n ... $m(-body)" end $ts
+			append msg "\n ... $m(-body)"
+			::tkchat::addAction \
+				.txt $color $from $msg end $timestamp
 		    }
 		} else {
-		    tkchat::addAction .txt $color $from " changed the topic to: $m(-subject)" end $ts
+		    ::tkchat::addAction .txt $color $from $msg end $timestamp
 		}
 	    } else {
 		if { [info exists m(-body)] > 0 } {
-		    ::tkjabber::parseMsg $from $m(-body) $color end $ts
+		    ::tkjabber::parseMsg $from $m(-body) $color end $timestamp
 		} else {
 		    ::log::log notice "Unknown message from $from: '$args'"
 		}
@@ -6784,7 +6822,8 @@ proc tkjabber::MsgCB {jlibName type args} {
 		lappend msg "$m(-body)"
 	    }
 	    if { [llength $msg] > 0 } {
-		tkchat::addAction .txt "" $from " whispers: [join $msg \n]"
+		::tkchat::addAction .txt \
+			"" $from " whispers: [join $msg \n]" end 0
 	    } else {
 		::log::log notice "Unknown message from $from: '$args'"
 	    }
@@ -6821,7 +6860,7 @@ proc tkjabber::MsgCB {jlibName type args} {
     }
 }
 
-proc ::tkjabber::parseMsg { nick msg color tag time } {
+proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
     set msg [split $msg " "]
     set opts {}
     if { $nick eq "ijchain" } {
@@ -6833,10 +6872,11 @@ proc ::tkjabber::parseMsg { nick msg color tag time } {
 	    set action [lrange $msg 1 end]
 	    if { $action eq "leaves" || $action eq "joins" } {
 		set action [string map { joins entered leaves left } $action]
-		::tkchat::addTraffic .txt $nick $action $tag $time
+		::tkchat::addTraffic .txt $nick $action $mark $timestamp
 	    } elseif { [lrange $action 0 end-1] eq "is now known as" } {
 		set newnick <[lindex $action end]>
-		::tkchat::addTraffic .txt $nick nickchange $tag $time $newnick
+		::tkchat::addTraffic \
+			.txt [list $nick $newnick] nickchange $mark $timestamp
 	    } else {
 		::log::log notice "Unknown IRC command '$msg'"
 	    }
@@ -6846,7 +6886,7 @@ proc ::tkjabber::parseMsg { nick msg color tag time } {
 	    set action [lrange $msg 1 end]
 	    if { $action eq "entered" || $action eq "left" } {
 		# Double <> to show webchat users.
-		::tkchat::addTraffic .txt <<$nick>> $action $tag $time
+		::tkchat::addTraffic .txt <<$nick>> $action $mark $timestamp
 		return
 	    } else {
 		set msg [linsert $action 0 /me]
@@ -6862,16 +6902,16 @@ proc ::tkjabber::parseMsg { nick msg color tag time } {
     }
     if { $nick eq "" } {
 	if { [lrange $msg 1 3] eq "has become available" } {
-	    ::tkchat::addTraffic .txt [lindex $msg 0] entered $tag $time
+	    ::tkchat::addTraffic .txt [lindex $msg 0] entered $mark $timestamp
 	} elseif { [string match "has left*" [lrange $msg 1 2]] } {
-	    ::tkchat::addTraffic .txt [lindex $msg 0] left $tag $time
+	    ::tkchat::addTraffic .txt [lindex $msg 0] left $mark $timestamp
 	}
     } elseif { [lindex $msg 0] eq "/me" } {
 	set msg [join [lrange $msg 1 end]]
-	::tkchat::addAction .txt $color $nick $msg $tag $time $opts
+	::tkchat::addAction .txt $color $nick $msg $mark $timestamp $opts
     } else {
 	set msg [join $msg]
-	::tkchat::addMessage .txt $color $nick $msg $tag $time $opts
+	::tkchat::addMessage .txt $color $nick $msg $mark $timestamp $opts
     }
 }
 
@@ -6942,8 +6982,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 
     switch -- $type {
 	error {
-	    if { [lindex $theQuery 0] eq "not-authorized" \
-		     || $theQuery eq "{} {}" } {
+	    if { $theQuery eq "401 Unauthorized" } {
 		if { ![tkchat::registerScreen] } {
 		    return
 		}
@@ -7154,7 +7193,7 @@ proc tkjabber::msgSend { msg args } {
 		set user $person
 		set found 1
 		::tkchat::addAction .txt "" $::Options(Username) \
-		    " whispered to $name: $msg"
+			" whispered to $name: $msg" end 0
 		break
 	    }
 	}
@@ -7168,7 +7207,7 @@ proc tkjabber::msgSend { msg args } {
 		    lappend users $user/$pres(-resource)
 		    incr found
 		    ::tkchat::addAction .txt "" $::Options(Username) \
-			" whispered to $user/$pres(-resource): $msg"
+			    " whispered to $user/$pres(-resource): $msg" end 0
 		}
 		unset pres
 	    }
@@ -7450,17 +7489,12 @@ proc ::tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
     variable HistoryLines
     variable HaveHistory
     set HaveHistory 1
-    set time [clock scan ${when} -gmt 1]
-    lappend HistoryLines [list $time $nick $msg]
+    set timestamp [clock scan ${when} -gmt 1]
+    lappend HistoryLines [list $timestamp $nick $msg]
     if { [llength $args] > 0 } {
 	::log::log warning "Log incorrect log format."
     }
-    ::log::log debug "[clock format $time] $nick :: $msg"
-}
-
-proc ::tkjabber::HistoryLines {} {
-    variable HistoryLines
-    return [llength $HistoryLines]
+    ::log::log debug "[clock format $timestamp] $nick :: $msg"
 }
 
 proc ::tkjabber::LoadHistoryLines {} {
@@ -7480,11 +7514,11 @@ proc ::tkjabber::LoadHistoryLines {} {
 
     set count 0
     foreach entry $HistoryLines {
-	set time [lindex $entry 0]
+	set timestamp [lindex $entry 0]
 	set nick [lindex $entry 1]
 	set msg [lindex $entry 2]
 
-	::tkjabber::parseMsg $nick $msg "" HISTORY $time
+	::tkjabber::parseMsg $nick $msg "" HISTORY $timestamp
 
 	incr count
 	if {$count > 35 } { break }
@@ -7702,6 +7736,7 @@ proc tkjabber::getChatWidget { jid from } {
 	    set ChatWindows(txt.$jid) \
 		[tkchat::CreateNewChatWindow $ChatWindows(toplevel.$jid)]
 	    ::tkchat::SetChatWindowBindings $ChatWindows(toplevel.$jid) $jid
+	    ::tkchat::StampVis
 	    focus $ChatWindows(toplevel.$jid).eMsg
 	    return $ChatWindows(txt.$jid)
 	}
@@ -7790,6 +7825,4 @@ if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} 
 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
-
-
 }
