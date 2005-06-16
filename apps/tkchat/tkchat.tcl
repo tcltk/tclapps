@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.298 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.299 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.298 2005/06/15 18:44:27 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.299 2005/06/16 23:34:36 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1941,19 +1941,23 @@ proc ::tkchat::CreateGUI {} {
     ##
     set m .mbar.help
     $m add command \
+	    -label "Quick Help..." \
+	    -underline 0 \
+	    -command ::tkchat::Help
+    $m add command \
 	    -label "Help (wiki)..." \
 	    -underline 0 \
 	    -command { ::tkchat::gotoURL http://wiki.tcl.tk/tkchat }
-
     $m add separator
-    $m add command \
-	    -label About... \
-	    -underline 0 \
-	    -command ::tkchat::About
     $m add cascade \
 	    -label "Translate Selection" \
 	    -underline 0 \
 	    -command ::tkchat::babelfishMenu
+    $m add separator
+    $m add command \
+	    -label "About..." \
+	    -underline 0 \
+	    -command ::tkchat::About
 
     # main display
     if { [info commands ::panedwindow] != {} && $Options(UsePane) } {
@@ -2359,7 +2363,7 @@ proc ::tkchat::About {} {
 
     regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
 
-    # don't cache this window - of user reloads on the fly
+    # don't cache this window - if user reloads on the fly
     # we want to make sure it displays latest greatest info!
     catch {destroy .about}
 
@@ -2368,15 +2372,52 @@ proc ::tkchat::About {} {
     wm transient $w .
     wm title $w "About TkChat $rcsVersion"
     button $w.b -text Dismiss -command [list wm withdraw $w]
-    text $w.text -height 34 -bd 1 -width 100
+    text $w.text -height 18 -bd 1 -width 80
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
     $w.text tag config center -justify center
     $w.text tag config title -justify center -font {Courier -18 bold}
     $w.text tag config h1 -justify left -font {Sans -12 bold}
-    $w.text insert 1.0 "About TkChat v$rcsVersion" title \
-	"\n\nCopyright (C) 2001 Bruce B Hartweg <brhartweg@bigfoot.com>" \
-	center "\n$rcsid\n\n" center
+    $w.text insert 1.0 "TkChat v$rcsVersion" title \
+	"\n\nCopyright (c) 2001-2005  Bruce B Hartweg <brhartweg@bigfoot.com>" \
+        center "\n$rcsid\n\n" center \
+        "Additional contributions from\n" {} \
+        "Don Porter <dgp@users.sourceforge.net>\n" {} \
+        "Pat Thoyts <patthoyts@users.sourceforge.net>\n" {} \
+        "Jeff Hobbs <jeffh@activestate.com>\n" {} \
+        "Ryan Casey <scfied@hotmail.com>\n" {} \
+        "Reinhard Max <max@suse.de>\n" {} \
+        "D. Richard Hipp <drh@hwaci.com>\n" {} \
+        "Kevin Kenny <kennykb@users.sourceforge.net>\n" {} \
+        "Pascal Scheffers <pascal@scheffers.net>\n" {} \
+        "Joe English <jenglish@users.sourceforge.net>\n" {} \
+        "Daniel South <wildcard_25@users.sourceforge.net>\n" {}
+
+    $w.text config -state disabled
+    bind $w <Return> [list $w.b invoke]
+    bind $w <Escape> [list $w.b invoke]
+    catch {::tk::PlaceWindow $w widget .}
+    wm deiconify $w
+}
+
+proc ::tkchat::Help {} {
+    variable rcsid
+    global Options
+    regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
+
+    catch {destroy .qhelp}
+    set w [toplevel .qhelp -class dialog]
+    wm withdraw $w
+    wm transient $w .
+    wm title $w "TkChat $rcsVersion Help"
+    button $w.b -text "Dismiss" -command [list wm withdraw $w]
+    text $w.text -height 30 -bd 1 -width 100
+    pack $w.b -fill x -side bottom
+    pack $w.text -fill both -side left -expand 1
+    $w.text tag config center -justify center
+    $w.text tag config title -justify center -font {Courier -18 bold}
+    $w.text tag config h1 -justify left -font {Sans -12 bold}
+    $w.text insert 1.0 "TkChat v$rcsVersion Help\n" title
 
     $w.text insert end "Commands\n" h1 \
 	"/msg <nick> <text>\t\tsend private message to user <nick>\n" {} \
