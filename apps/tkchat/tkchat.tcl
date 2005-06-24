@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.299 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.300 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.299 2005/06/16 23:34:36 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.300 2005/06/24 10:48:55 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4710,7 +4710,10 @@ proc ::dict.leo.org::parse {tag close options body} {
 proc ::dict.leo.org::query {query} {
     variable table
     variable leoURL
+    set enc [::http::config -urlencoding]
+    ::http::config -urlencoding iso8859-15
     set query [::http::formatQuery search $query]
+    ::http::config -urlencoding $enc
     set tok [::http::geturl $leoURL -query $query]
     foreach line [split [::http::data $tok] "\n"] {
 	if {[string match "*ENGLISCH*DEUTSCH*" $line]} break
@@ -4718,7 +4721,7 @@ proc ::dict.leo.org::query {query} {
     ::http::cleanup $tok
     set table ""
     ::htmlparse::parse -cmd ::dict.leo.org::parse $line
-	return $table
+    return $table
 }
 
 proc ::dict.leo.org::max {a b} {expr {$a > $b ? $a : $b}}

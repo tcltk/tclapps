@@ -1,3 +1,7 @@
+2005-06-24  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Fixed query encoding for askLEO.
+
 2005-06-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::Help): Rearranged the About dialog and
