@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.300 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.301 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.300 2005/06/24 10:48:55 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.301 2005/07/05 02:26:39 mistachkin Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2391,6 +2391,7 @@ proc ::tkchat::About {} {
         "Kevin Kenny <kennykb@users.sourceforge.net>\n" {} \
         "Pascal Scheffers <pascal@scheffers.net>\n" {} \
         "Joe English <jenglish@users.sourceforge.net>\n" {} \
+        "Joe Mistachkin <joe@mistachkin.com>\n" {} \
         "Daniel South <wildcard_25@users.sourceforge.net>\n" {}
 
     $w.text config -state disabled

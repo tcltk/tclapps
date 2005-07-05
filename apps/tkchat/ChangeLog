@@ -1,3 +1,8 @@
+2005-07-04  Joe Mistachkin  <joe@mistachkin.com>
+
+	* tkchat.tcl (::tkchat::Help): Added myself to the about dialog
+        (command alias support).
+
 2005-06-24  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Fixed query encoding for askLEO.
