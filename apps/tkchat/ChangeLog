@@ -1,3 +1,7 @@
+2005-07-22  Reinhard Max  <max@tclers.tk>
+
+	* tkchat.tcl (::tkchat::addAction): Take care for empty actions.
+	
 2005-07-04  Joe Mistachkin  <joe@mistachkin.com>
 
 	* tkchat.tcl (::tkchat::Help): Added myself to the about dialog

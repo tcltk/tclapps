@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.301 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.302 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.301 2005/07/05 02:26:39 mistachkin Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.302 2005/07/22 20:29:08 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1262,6 +1262,7 @@ proc ::tkchat::addAction { w clr nick str mark timestamp {extraOpts ""} } {
     $w config -state normal
     InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
     $w insert $mark "   * $displayNick " [list NICK NICK-$nick]
+    set tags [list MSG ACTION NICK-$nick]; # in case we get an empty action
     foreach { str url } [parseStr $str] {
 	if { [info exists opts(nolog)] } {
 	    set tags [list MSG ACTION NOLOG NOLOG-$nick NICK-$nick]
