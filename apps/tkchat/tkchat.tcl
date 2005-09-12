@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.302 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.303 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.302 2005/07/22 20:29:08 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.303 2005/09/12 13:49:18 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -428,6 +428,7 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	if {[llength $loglist] > 0} {
 	    # ask user
 	    set t .histQ
+	    catch {destroy $t}
 	    toplevel $t -class dialog
 	    wm withdraw $t
 	    wm transient $t
@@ -849,7 +850,9 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 	lappend Options(NickList) [list $nick $timestamp]
 	set Options(Color,NICK-$nick) $Options(Color,MainFG)
 	NickVisMenu
-	set clr [getColor $nick]
+	if { $clr eq "" } {
+	    set clr [getColor MainFG]
+	}
     }
     if { $clr ne "" && [lindex $Options(Color,NICK-$nick) 1] ne $clr } {
 	# new color
@@ -2373,27 +2376,32 @@ proc ::tkchat::About {} {
     wm transient $w .
     wm title $w "About TkChat $rcsVersion"
     button $w.b -text Dismiss -command [list wm withdraw $w]
-    text $w.text -height 18 -bd 1 -width 80
+    text $w.text -height 19 -bd 1 -width 80
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
     $w.text tag config center -justify center
     $w.text tag config title -justify center -font {Courier -18 bold}
     $w.text tag config h1 -justify left -font {Sans -12 bold}
-    $w.text insert 1.0 "TkChat v$rcsVersion" title \
-	"\n\nCopyright (c) 2001-2005  Bruce B Hartweg <brhartweg@bigfoot.com>" \
-        center "\n$rcsid\n\n" center \
-        "Additional contributions from\n" {} \
-        "Don Porter <dgp@users.sourceforge.net>\n" {} \
-        "Pat Thoyts <patthoyts@users.sourceforge.net>\n" {} \
-        "Jeff Hobbs <jeffh@activestate.com>\n" {} \
-        "Ryan Casey <scfied@hotmail.com>\n" {} \
-        "Reinhard Max <max@suse.de>\n" {} \
-        "D. Richard Hipp <drh@hwaci.com>\n" {} \
-        "Kevin Kenny <kennykb@users.sourceforge.net>\n" {} \
-        "Pascal Scheffers <pascal@scheffers.net>\n" {} \
-        "Joe English <jenglish@users.sourceforge.net>\n" {} \
-        "Joe Mistachkin <joe@mistachkin.com>\n" {} \
-        "Daniel South <wildcard_25@users.sourceforge.net>\n" {}
+    $w.text insert 1.0 \
+	"TkChat v$rcsVersion\n" title \
+	"Copyright (c) 2001-2005  Bruce B Hartweg <brhartweg@bigfoot.com>\n" \
+		center \
+	"$rcsid\n\n" center \
+	"Additional contributions from:\n\n" {}
+
+    lappend txt "Don Porter"		"<dgp@users.sourceforge.net>"
+    lappend txt "Pat Thoyts"		"<patthoyts@users.sourceforge.net>"
+    lappend txt "Jeff Hobbs"		"<jeffh@activestate.com>"
+    lappend txt "Ryan Casey"		"<scfied@hotmail.com>"
+    lappend txt "Reinhard Max"		"<max@suse.de>"
+    lappend txt "D. Richard Hipp"	"<drh@hwaci.com>"
+    lappend txt "Kevin Kenny"		"<kennykb@users.sourceforge.net>"
+    lappend txt "Pascal Scheffers"	"<pascal@scheffers.net>"
+    lappend txt "Joe English"		"<jenglish@users.sourceforge.net>"
+    lappend txt "Joe Mistachkin"	"<joe@mistachkin.com>"
+    lappend txt "Daniel South"		"<wildcard_25@users.sourceforge.net>"
+
+    insertHelpText $w.text $txt
 
     $w.text config -state disabled
     bind $w <Return> [list $w.b invoke]
@@ -2413,45 +2421,102 @@ proc ::tkchat::Help {} {
     wm transient $w .
     wm title $w "TkChat $rcsVersion Help"
     button $w.b -text "Dismiss" -command [list wm withdraw $w]
-    text $w.text -height 30 -bd 1 -width 100
+    text $w.text -height 30 -bd 1 -width 100 -wrap word
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
-    $w.text tag config center -justify center
     $w.text tag config title -justify center -font {Courier -18 bold}
     $w.text tag config h1 -justify left -font {Sans -12 bold}
     $w.text insert 1.0 "TkChat v$rcsVersion Help\n" title
 
-    $w.text insert end "Commands\n" h1 \
-	"/msg <nick> <text>\t\tsend private message to user <nick>\n" {} \
-	"/userinfo <nick>\t\tdisplay registered information for user <nick>\n" {} \
-	"/afk ?reason?\t\tset your status to away with an optional reason\n" {} \
-	"/back ?reason?\t\tindicate that you have returned\n" {} \
-	"/away ?reason?\t\tsynonym for /afk\n" {} \
-	"/google <text>\t\topen a google query for <text> in web browser\n" {} \
-	"/googlefight <word> <word>\tperform a google fight between two words or phrases (in quotes)\n" {} \
-	"/tip:<NUM>\t\topen the specified TIP document in web browser\n" {} \
-	"/wiki <text>\t\tdo a wiki query with the remainder of the line\n" {} \
-	"/bug ?group? ?tracker? id\topen a sourceforge tracker item in browser\n" {} \
-	"/noisy ?<nick>? ?<minutes>?\tToggle <nick> noisy for x minutes (default 5)\n" {} \
-	"\t\t\tmessages from noisy users are not diplayed.\n" {} \
-	"\t\t\tNot specifying a nick will give you a list of noisy users.\n" {} \
-	"/see <mark>\t\tgoto named mark or index (eg: bookmark1 end 0.0)\n" {} \
-	"/alias <name> <type> <body>\ttype is 'proc' or 'script',\
-	  type proc takes exactly one argument.\n\
-	  \t\t\te.g: /alias foo script addSystem .txt \"test!\"\n" {} \
-	"\t\t\t/alias foo proc thisProc\n" {} \
-	"\t\t\tproc thisProc { arguments } { addSystem .txt \$arguments }\n" {} \
-	"/unalias <pattern>\t\tremoves one or more aliases.\n\
-    \t\t\te.g: /unalias f*\n" {} \
-	"Searching\n" h1 \
-	"/?<text>\t\t\tsearch the chat buffer for matching text.\
-	 Repeating the command will progress\n\t\t\tto the previous match\n" {} \
-	"/!\t\t\tclear the previous search result\n" {} \
+    $w.text insert end "Commands\n" h1
 
+    lappend txt "/msg <nick> <text>"
+    lappend txt [list "Send private message to user <nick>"]
+
+    lappend txt "/userinfo <nick>"
+    lappend txt [list "Display registered information for user <nick>"]
+
+    lappend txt "/afk ?reason?"
+    lappend txt [list "Set your status to away with an optional reason"]
+
+    lappend txt "/back ?reason?"
+    lappend txt [list "Indicate that you have returned"]
+
+    lappend txt "/away ?reason?"
+    lappend txt [list "Synonym for /afk"]
+
+    lappend txt "/google <text>"
+    lappend txt [list "Open a google query for <text> in web browser"]
+
+    lappend txt "/googlefight <word> <word>"
+    lappend txt [list \
+	    "Perform a google fight between two words or phrases (in quotes)"]
+
+    lappend txt "/tip:<NUM>"
+    lappend txt [list "Open the specified TIP document in web browser"]
+
+    lappend txt "/wiki <text>"
+    lappend txt [list "Do a wiki query with the remainder of the line"]
+
+    lappend txt "/bug ?group? ?tracker? id"
+    lappend txt [list "Open a sourceforge tracker item in browser"]
+
+    lappend txt "/noisy ?<nick>? ?<minutes>?"
+    lappend txt [list [concat \
+	    "Toggle <nick> noisy for x minutes (default 5). Messages from" \
+	    "noisy users are not diplayed. Not specifying a nick will give" \
+	    "you a list of noisy users."]]
+
+    lappend txt "/see <mark>"
+    lappend txt [list "Goto named mark or index (eg: bookmark1 end 0.0)"]
+
+    lappend txt "/alias <name> <type> <body>"
+    lappend txt [list [concat \
+	    "<type> is 'proc' or 'script', type proc takes exactly one" \
+	    "argument."] \
+	    "e.g: /alias foo script addSystem .txt \"test!\"" \
+	    "/alias foo proc thisProc" \
+	    "proc thisProc { arguments } { addSystem .txt \$arguments }"]
+
+    lappend txt "/unalias <pattern>"
+    lappend txt [list \
+	    "Removes one or more aliases." \
+	    "e.g: /unalias f*"]
+
+    insertHelpText $w.text $txt
+    set txt ""
+
+    $w.text insert end "Searching\n" h1
+
+    lappend txt "/?<text>"
+    lappend txt [list [concat \
+	    "Search the chat buffer for matching text. Repeating the command" \
+	    "will progress to the previous match"]]
+
+    lappend txt "/!"
+    lappend txt [list "Clear the previous search result"]
+
+    insertHelpText $w.text $txt
 
     $w.text config -state disabled
     catch {::tk::PlaceWindow $w widget .}
     wm deiconify $w
+}
+
+proc ::tkchat::insertHelpText { w txt } {
+    set tabOffset [$w cget -tabs]
+    foreach { cmd usage } $txt {
+	set cmdWidth [expr { [font measure [$w cget -font] $cmd] + 10 }]
+	if { $cmdWidth > $tabOffset } {
+	    set tabOffset $cmdWidth
+	    $w config -tabs $cmdWidth
+	    $w tag configure USAGE -lmargin2 $cmdWidth
+	}
+	$w insert end $cmd
+	foreach line $usage {
+	    $w insert end \t$line\n USAGE
+	}
+    }
 }
 
 proc ::tkchat::parseString { variable_name string separators maximum } {
@@ -6938,6 +7003,9 @@ proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
 		set msg [linsert $action 0 /me]
 	    }
 	}
+    } elseif { $nick eq $::Options(JabberConference) } {
+	::tkchat::addSystem .txt $msg
+	return
     }
     if { [lindex $msg 0] eq "/nolog" } {
 	set msg [lrange $msg 1 end]

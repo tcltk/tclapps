@@ -1,3 +1,19 @@
+2005-09-12  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::LoadHistoryFromIndex): Stop crash when
+	history window is opened more than once.
+
+	* tkchat.tcl (::tkchat::checkNick): Show user color correctly
+	for first time post by a new user.
+
+	* tkchat.tcl (::tkchat::Help): Create new procedure to
+	(::tkchat::About):             auto-adjust tab indent based on
+	(::tkchat::insertHelpText):    the width of the first column
+	and make source help text easier to read and modify.
+	
+	* tkchat.tcl (::tkjabber::parseMsg): Convert messages from
+	Conference Channel to System messages.
+
 2005-07-22  Reinhard Max  <max@tclers.tk>
 
 	* tkchat.tcl (::tkchat::addAction): Take care for empty actions.
