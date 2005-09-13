@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.303 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.304 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.303 2005/09/12 13:49:18 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.304 2005/09/13 00:33:21 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2275,23 +2275,25 @@ proc ::tkchat::NickVis { val } {
 
 proc ::tkchat::StampVis {} {
     global Options
+    variable bookmark
     variable ::tkjabber::ChatWindows
 
+    set imagewidth [image width ::tkchat::img::bookmark]
     set textWindows .txt
     foreach w [array names ChatWindows txt.*] {
 	lappend textWindows $ChatWindows($w)
     }
-
     foreach w $textWindows {
 	$w tag config STAMP -elide $Options(Visibility,STAMP)
 
 	set width $Options(Offset)
-
+	if { $bookmark(id) && $w eq ".txt" } {
+	    incr width $imagewidth
+	}
 	if { $Options(Visibility,STAMP) } {
 	    # Invisible
 	    $w tag raise STAMP
-	    $w config -tabs $width
-	    $w tag configure MSG -lmargin2 $width
+	    set tabs $width
 	} else {
 	    # Stamps visible
 	    foreach tag $Options(ElideTags) {
@@ -2305,10 +2307,14 @@ proc ::tkchat::StampVis {} {
 		}
 	    }
 	    set width_tstamp [expr { [font measure NAME "\[88:88\]"] + 5 }]
-	    set width [expr { $width + $width_tstamp }]
-	    $w config -tabs [list $width_tstamp $width]
-	    $w tag configure MSG -lmargin2 $width
+	    incr width $width_tstamp
+	    if { $bookmark(id) && $w eq ".txt" } {
+		incr width_tstamp $imagewidth
+	    }
+	    set tabs [list $width_tstamp $width]
 	}
+	$w configure -tabs $tabs
+	$w tag configure MSG -lmargin2 $width
 	if { $Options(AutoScroll) } {
 	    $w see end
 	}
@@ -5807,6 +5813,12 @@ proc ::tkchat::WinicoCallback {msg icn} {
 # -------------------------------------------------------------------------
 
 proc ::tkchat::BookmarkInit {} {
+    variable bookmark
+
+    set bookmark(id) 0
+    set bookmark(removed) 0
+    set bookmark(last) 0.0
+
     # FIX ME: need to make a better image :)
     image create photo ::tkchat::img::bookmark -format GIF \
 	-data {R0lGODlhEAAQAMIAANnZ2QAAAAD//////wlnuglnuglnuglnuiH5BAEAAAMA
@@ -5814,17 +5826,28 @@ proc ::tkchat::BookmarkInit {} {
 	    WjMUBf3AXwIAOw==}
 
     menu .mbar.mm -tearoff 0
-    .mbar.mm add command -label "Set Bookmark" -accelerator Ctrl-F2 \
-	-command ::tkchat::BookmarkAdd
-    .mbar.mm add command -label "Prev Bookmark" -accelerator Shift-F2 \
-	-command ::tkchat::BookmarkNext
-    .mbar.mm add command -label "Next Bookmark" -accelerator F2 \
-	-command ::tkchat::BookmarkPrev
-    .mbar.mm add command -label "Clear Bookmarks" \
-	-command ::tkchat::BookmarkClear
-    .mbar.mm add command -label "Google Selection" -accelerator Ctrl-G \
-	-command ::tkchat::GoogleSelection
-
+    .mbar.mm add command \
+	    -label "Set/Unset Bookmark" \
+	    -accelerator Ctrl-F2 \
+	    -command ::tkchat::BookmarkToggle
+    .mbar.mm add command \
+	    -label "Prev Bookmark" \
+	    -accelerator Shift-F2 \
+	    -command ::tkchat::BookmarkNext \
+	    -state disabled
+    .mbar.mm add command \
+	    -label "Next Bookmark" \
+	    -accelerator F2 \
+	    -command ::tkchat::BookmarkPrev \
+	    -state disabled
+    .mbar.mm add command \
+	    -label "Clear Bookmarks" \
+	    -command ::tkchat::BookmarkClear \
+	    -state disabled
+    .mbar.mm add command \
+	    -label "Google Selection" \
+	    -accelerator Ctrl-G \
+	    -command ::tkchat::GoogleSelection
 
     .mbar.mm add cascade -label "Translate" -command ::tkchat::babelfishMenu
 
@@ -5834,45 +5857,73 @@ proc ::tkchat::BookmarkInit {} {
     bind .txt <Button-3> {
 	%W mark set AddBookmark "@%x,%y linestart"
 	.mbar.mm post %X %Y
-	%W mark unset AddBookmark
     }
-    bind . <F2> ::tkchat::BookmarkNext
-    bind . <Shift-F2> ::tkchat::BookmarkPrev
-    bind . <Control-F2> ::tkchat::BookmarkAdd
-    bind . <Control-G> ::tkchat::GoogleSelection
-    bind . <Control-g> ::tkchat::GoogleSelection
-
-}
-
-proc ::tkchat::BookmarkAdd {} {
-    variable bookmark
-    if {![info exists bookmark(id)]} {set bookmark(id) 0}
-    if {[catch {.txt index AddBookmark}]} {
+    bind . <Control-F2>	{
 	set x [expr {[winfo pointerx .txt] - [winfo rootx .txt]}]
 	set y [expr {[winfo pointery .txt] - [winfo rooty .txt]}]
 	.txt mark set AddBookmark "@$x,$y linestart"
+	::tkchat::BookmarkToggle
     }
+    bind . <F2>		::tkchat::BookmarkNext
+    bind . <Shift-F2>	::tkchat::BookmarkPrev
+    bind . <Control-G>	::tkchat::GoogleSelection
+    bind . <Control-g>	::tkchat::GoogleSelection
+}
+
+proc ::tkchat::BookmarkToggle {} {
+    variable bookmark
+
+    set index1 [.txt index "AddBookmark linestart"]
+    set index2 [.txt index "AddBookmark lineend"]
+    set imagedump [.txt dump -image $index1 $index2]
+    set index3 [lsearch $imagedump bookmark*]
     .txt configure -state normal
-    .txt image create AddBookmark -image ::tkchat::img::bookmark
-    .txt mark set bookmark[incr bookmark(id)] AddBookmark
-    .txt mark unset AddBookmark
+    if { $index3 == -1 } {
+	incr bookmark(id)
+	.txt image create AddBookmark \
+		-name bookmark$bookmark(id) \
+		-image ::tkchat::img::bookmark
+	.mbar.mm entryconfigure "Prev Bookmark" -state normal
+	.mbar.mm entryconfigure "Next Bookmark" -state normal
+	.mbar.mm entryconfigure "Clear Bookmarks" -state normal
+	if { $bookmark(id) == 1 } {
+	    set imagewidth [image width ::tkchat::img::bookmark]
+	    set tabs [.txt cget -tabs]
+	    foreach tab $tabs {
+		incr tab $imagewidth
+		lappend newtabs $tab
+		set width $tab
+	    }
+	    .txt configure -tabs $newtabs
+	    .txt tag configure STAMP	-lmargin1 $imagewidth
+	    .txt tag configure MSG	-lmargin2 $width
+	}
+    } else {
+	.txt delete [lindex $imagedump $index3]
+	incr bookmark(removed)
+	if { $bookmark(removed) == $bookmark(id) } {
+	    BookmarkClear
+	    set bookmark(removed) 0
+	}
+    }
     .txt configure -state disabled
 }
 
 proc ::tkchat::BookmarkNext {} {
     variable bookmark
-    if {![info exists bookmark(last)]} {set bookmark(last) 0.0}
-    if { $bookmark(last) eq "end" || [catch { .txt index $bookmark(last) }] } {
-	set bookmark(last) 0.0
+
+    if { $bookmark(last) eq "end" } {
+	set index1 0.0
+    } else {
+	set index1 "[.txt index $bookmark(last)] +1 chars"
     }
-    while {$bookmark(last) != {}} {
-	set bookmark(last) [.txt mark next $bookmark(last)]
-	if {[string match "bookmark*" $bookmark(last)]} {
-	    break
-	}
-    }
-    if {$bookmark(last) == {}} {
+    set imagedump [.txt dump -image $index1 end]
+    set index2 [lsearch $imagedump bookmark*]
+
+    if { $index2 == -1 } {
 	set bookmark(last) end
+    } else {
+	set bookmark(last) [lindex $imagedump $index2]
     }
     .txt see $bookmark(last)
     return $bookmark(last)
@@ -5880,41 +5931,47 @@ proc ::tkchat::BookmarkNext {} {
 
 proc ::tkchat::BookmarkPrev {} {
     variable bookmark
-    if {![info exists bookmark(last)]} {set bookmark(last) end}
-    if {$bookmark(last) == "0.0" || [catch {.txt index $bookmark(last)}]} {
-	set bookmark(last) end
+
+    if { $bookmark(last) == 0.0 } {
+	set index1 end
+    } else {
+	set index1 "[.txt index $bookmark(last)] -1 chars"
     }
-    while {$bookmark(last) != {}} {
-	set bookmark(last) [.txt mark previous $bookmark(last)]
-	if {[string match "bookmark*" $bookmark(last)]} {
-	    break
-	}
-    }
-    if {$bookmark(last) == {}} {
+    set imagedump [.txt dump -image 0.0 $index1]
+    set imagedump [lsearch -all -inline $imagedump bookmark*]
+    set index2 [lindex $imagedump end]
+
+    if { $index2 eq "" } {
 	set bookmark(last) 0.0
+    } else {
+	set bookmark(last) $index2
     }
     .txt see $bookmark(last)
     return $bookmark(last)
 }
 
 proc ::tkchat::BookmarkClear {} {
-    set mark 0.0
-    while {[set mark [.txt mark next $mark]] != {}} {
-	if {[string match "bookmark*" $mark]} {
-	    set remove $mark
-	    set mark "[.txt index $mark] + 1 char"
-	    BookmarkRemove $remove
-	}
-    }
-}
+    variable bookmark
 
-proc ::tkchat::BookmarkRemove {mark} {
-    if {[lsearch [.txt mark names] $mark] != -1} {
+    while { $bookmark(id) } {
 	.txt configure -state normal
-	.txt delete "$mark - 1 char"
-	.txt mark unset $mark
+	catch { .txt delete bookmark$bookmark(id) }
 	.txt configure -state disabled
+	incr bookmark(id) -1
     }
+    set imagewidth [image width ::tkchat::img::bookmark]
+    set tabs [.txt cget -tabs]
+    foreach tab $tabs {
+	incr tab -$imagewidth
+	lappend newtabs $tab
+	set width $tab
+    }
+    .txt configure -tabs $newtabs
+    .txt tag configure STAMP	-lmargin1 0
+    .txt tag configure MSG	-lmargin2 $width
+    .mbar.mm entryconfigure "Prev Bookmark" -state disabled
+    .mbar.mm entryconfigure "Next Bookmark" -state disabled
+    .mbar.mm entryconfigure "Clear Bookmarks" -state disabled
 }
 
 proc ::tkchat::GoogleSelection {} {

@@ -1,3 +1,17 @@
+2005-09-13  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::StampVis): Indent text when a bookmark
+	(::tkchat::BookmarkInit):          is set. Allow bookmarks to
+	(::tkchat::BookmarkAdd):           be unset individually.
+	(::tkchat::BookmarkToggle):        Enable/disable menu items as
+	(::tkchat::BookmarkNext):          required. Fix bug were
+	(::tkchat::BookmarkPrev):          bookmark could be set on
+	(::tkchat::BookmarkClear):         wrong line from menu. Rename
+	BookmarkAdd to BookmarkToggle. Change how bokmarks are added
+	and searched for in text. Only one bookmark can be added to a
+	logical line of text. BookmarkClear now does clear all
+	bookmarks.
+
 2005-09-12  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::LoadHistoryFromIndex): Stop crash when
