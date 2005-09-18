@@ -1,3 +1,13 @@
+2005-09-18  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addMessage): Change how bookmark marks
+	(::tkchat::CreateTxtAndSbar):        are created due to bug
+	(::tkchat::StampVis):                found in Tk 8.5 (fix to Tk
+	(::tkchat::BookmarkInit):            will change old
+	(::tkchat::BookmarkToggle):          behaviour). Add
+	(::tkchat::BookmarkClear):           autoscrolling for when
+	bookmarks are added and deleted.
+
 2005-09-13  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::StampVis): Indent text when a bookmark

@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.304 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.305 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.304 2005/09/13 00:33:21 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.305 2005/09/18 08:56:36 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -963,7 +963,7 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
 
     $w config -state normal
     InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
-    $w insert $mark "$displayNick\t" [list NICK NICK-$nick]
+    $w insert $mark "$displayNick\t" [list BOOKMARK NICK NICK-$nick]
     foreach { str url } [parseStr $str] {
 	foreach cmd [array names MessageHooks] {
 	    eval $cmd [list $nick $str $url]
@@ -1038,7 +1038,7 @@ proc ::tkchat::InsertTimestamp { w nick mark timestamp {tags {}} } {
 	set timestamp [clock seconds]
     }
     $w insert $mark "\[[clock format $timestamp -format %H:%M]\]\t" \
-	[concat STAMP $tags]
+	[concat BOOKMARK STAMP $tags]
 }
 
 proc ::tkchat::Insert { w str tags url mark } {
@@ -2119,10 +2119,10 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure ERROR -background red
     $txt tag configure ENTERED -foreground $Options(EntryMessageColor)
     $txt tag configure LEFT -foreground $Options(ExitMessageColor)
-    $txt tag configure NICKCHANGE
     $txt tag configure URL -underline 1
     $txt tag configure STAMP -font STAMP -foreground "#[getColor MainFG]"
     $txt tag configure SINGLEDOT
+    $txt tag configure BOOKMARK
     $txt tag bind URL <Enter> [list $txt config -cursor hand2]
     $txt tag bind URL <Leave> [list $txt config -cursor {}]
 
@@ -2278,7 +2278,6 @@ proc ::tkchat::StampVis {} {
     variable bookmark
     variable ::tkjabber::ChatWindows
 
-    set imagewidth [image width ::tkchat::img::bookmark]
     set textWindows .txt
     foreach w [array names ChatWindows txt.*] {
 	lappend textWindows $ChatWindows($w)
@@ -2288,7 +2287,7 @@ proc ::tkchat::StampVis {} {
 
 	set width $Options(Offset)
 	if { $bookmark(id) && $w eq ".txt" } {
-	    incr width $imagewidth
+	    incr width $bookmark(width)
 	}
 	if { $Options(Visibility,STAMP) } {
 	    # Invisible
@@ -2309,7 +2308,7 @@ proc ::tkchat::StampVis {} {
 	    set width_tstamp [expr { [font measure NAME "\[88:88\]"] + 5 }]
 	    incr width $width_tstamp
 	    if { $bookmark(id) && $w eq ".txt" } {
-		incr width_tstamp $imagewidth
+		incr width_tstamp $bookmark(width)
 	    }
 	    set tabs [list $width_tstamp $width]
 	}
@@ -5824,6 +5823,7 @@ proc ::tkchat::BookmarkInit {} {
 	-data {R0lGODlhEAAQAMIAANnZ2QAAAAD//////wlnuglnuglnuglnuiH5BAEAAAMA
 	    LAAAAAAQABAAAAMpOLrc/jDIKV8QOOPQrv6c4n2gSJLheG7mmqXu28bhoKLd
 	    WjMUBf3AXwIAOw==}
+    set bookmark(width) [image width ::tkchat::img::bookmark]
 
     menu .mbar.mm -tearoff 0
     .mbar.mm add command \
@@ -5887,15 +5887,14 @@ proc ::tkchat::BookmarkToggle {} {
 	.mbar.mm entryconfigure "Next Bookmark" -state normal
 	.mbar.mm entryconfigure "Clear Bookmarks" -state normal
 	if { $bookmark(id) == 1 } {
-	    set imagewidth [image width ::tkchat::img::bookmark]
 	    set tabs [.txt cget -tabs]
 	    foreach tab $tabs {
-		incr tab $imagewidth
+		incr tab $bookmark(width)
 		lappend newtabs $tab
 		set width $tab
 	    }
 	    .txt configure -tabs $newtabs
-	    .txt tag configure STAMP	-lmargin1 $imagewidth
+	    .txt tag configure BOOKMARK	-lmargin1 $bookmark(width)
 	    .txt tag configure MSG	-lmargin2 $width
 	}
     } else {
@@ -5907,6 +5906,9 @@ proc ::tkchat::BookmarkToggle {} {
 	}
     }
     .txt configure -state disabled
+    if { $::Options(AutoScroll) } {
+	.txt see end
+    }
 }
 
 proc ::tkchat::BookmarkNext {} {
@@ -5962,16 +5964,19 @@ proc ::tkchat::BookmarkClear {} {
     set imagewidth [image width ::tkchat::img::bookmark]
     set tabs [.txt cget -tabs]
     foreach tab $tabs {
-	incr tab -$imagewidth
+	incr tab -$bookmark(width)
 	lappend newtabs $tab
 	set width $tab
     }
     .txt configure -tabs $newtabs
-    .txt tag configure STAMP	-lmargin1 0
+    .txt tag configure BOOKMARK	-lmargin1 0
     .txt tag configure MSG	-lmargin2 $width
     .mbar.mm entryconfigure "Prev Bookmark" -state disabled
     .mbar.mm entryconfigure "Next Bookmark" -state disabled
     .mbar.mm entryconfigure "Clear Bookmarks" -state disabled
+    if { $::Options(AutoScroll) } {
+	.txt see end
+    }
 }
 
 proc ::tkchat::GoogleSelection {} {
