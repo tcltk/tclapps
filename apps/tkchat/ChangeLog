@@ -1,3 +1,16 @@
+2005-09-29  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::AddMessage): Change how smilies are
+	(::tkchat::Insert):                  determined. Fixes smilies
+	(::tkchat::SmileId):                 showing up in code
+	(::tkchat::Smile):                   fragments, but now
+	requires them to be 'space' delimited.
+
+	* tkchat.tcl:
+	Add new proc ::tkchat::InsertHistoryMark. Remove a few unused
+	variables. Re-order 'if' arguments in ::tkchat::autoStatus to
+	avoid unneeded procedure calls.
+
 2005-09-18  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::addMessage): Change how bookmark marks

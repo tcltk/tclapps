@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.305 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.306 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.305 2005/09/18 08:56:36 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.306 2005/09/29 15:50:51 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -351,8 +351,6 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
     global Options
 
     set url "$Options(JabberLogs)/$log"
-    set retList {}
-    set logTime 0
 
     # fetch log
     ::log::log info "History: Fetch log \"$url\""
@@ -389,8 +387,6 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 	}
     }
     ::http::cleanup $tok
-
-    return $retList
 }
 
 # this called on first logon and after a purge
@@ -403,11 +399,20 @@ proc ::tkchat::LoadHistory {} {
 	babelfishMenu
     }
 
-    set FinalList {}
     if {$Options(HistoryLines) != 0} {
 	set url "$Options(JabberLogs)/?pattern=*.tcl"
 	GetHistLogIdx $url
     }
+}
+
+proc ::tkchat::InsertHistoryMark {} {
+    # Set a mark for the history insertion point.
+    .txt config -state normal
+    .txt insert 0.0 \
+	    "+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
+    .txt mark set HISTORY 0.0
+    .txt config -state disabled
+    .txt see end
 }
 
 # Called once we have acquired the log file index.
@@ -415,7 +420,6 @@ proc ::tkchat::LoadHistory {} {
 proc ::tkchat::LoadHistoryFromIndex {logindex} {
     global Options
 
-    set FinalList {}
     set loglist {}
     array set logsize {}
 
@@ -469,24 +473,22 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    focus $t.ok
 	    grab $t
 	    tkwait window $t
+	    InsertHistoryMark
 	    foreach log [lrange $loglist $HistQueryNum end] {
 		if {[catch {ParseHistLog $log} new]} {
 		    ::log::log error "error parsing history: \"$new\""
-		} else {
-		    set FinalList [concat $FinalList $new]
 		}
 	    }
 	}
     } else {
 	# go thru logs in reverse until N lines loaded
 	set idx [llength $loglist]
+	InsertHistoryMark
 	for { incr idx -1 } { $idx >= 0 } { incr idx -1 } {
 	    # fetch log
 	    set log [lindex $loglist $idx]
 	    if {[catch {ParseHistLog $log 1} new]} {
 		::log::log error "error parsing history: \"$new\""
-	    } else {
-		set FinalList [concat $new $FinalList]
 	    }
 	    if { [llength $::tkjabber::HistoryLines] \
 		    >= $Options(HistoryLines) } {
@@ -494,22 +496,12 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    }
 	}
     }
-
-    # Set a mark for the history insertion point.
-    #set pos "[.txt index end] - 1 line"
-    .txt config -state normal
-    if {[lsearch [.txt mark names] HISTORY] == -1} {
-	.txt insert 0.0 \
-		"+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
-	.txt mark set HISTORY 0.0
-    }
-
-    set Options(FinalList) $FinalList
-
-    .txt config -state disabled
-    .txt see end
-
-    ::tkjabber::LoadHistoryLines
+    .txt configure -state normal
+    .txt delete "HISTORY + 1 char" "HISTORY + 1 line"
+    .txt insert "HISTORY + 1 char" \
+	    "+++++++++++++++++++++ Parsing History +++++++++++++++++++++\n"
+    .txt configure -state disabled
+    after idle [list after 0 ::tkjabber::LoadHistoryLines]
 }
 
 proc ::tkchat::logonChat {} {
@@ -980,17 +972,16 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
 
 	# Split into lines, so we can insert the proper tabs for
 	# timestamps:
-	set lines [split $str \n]
-	for { set i 0 } { $i < [llength $lines] } { incr i } {
-	    set line [lindex $lines $i]
-	    if { $i > 0 } {
+	set i 0
+	foreach line [split $str \n] {
+	    if { $i } {
 		# The first line has the timestamp, only
 		# subsequent lines need an extra tab char
 		::log::log debug "More than one line, add tabs"
-		$w insert $mark "\n" $tags "\t" [list STAMP NICK-$nick]
-		set line "\t$line"
+		$w insert $mark \n $tags \t [list STAMP NICK-$nick] \t $tags
 	    }
 	    Insert $w $line $tags $url $mark
+	    set i 1
 	}
     }
 
@@ -1043,34 +1034,32 @@ proc ::tkchat::InsertTimestamp { w nick mark timestamp {tags {}} } {
 
 proc ::tkchat::Insert { w str tags url mark } {
     global Options
-    set str [string map {"\n" "\n\t"} $str]
+
     # Don't do emoticons on URLs
     if { ($url eq "") && $Options(emoticons) } {
 	variable IMG
-	variable IMGre
-	set i 0
-	foreach match [regexp -inline -all -indices -- $IMGre $str] {
-	    foreach { start end } $match break
-	    set emot [string range $str $start $end]
-	    if { [info exists IMG($emot)] } {
-		$w insert $mark \
-			[string range $str $i [expr { $start - 1 }]] $tags
+	variable IMGlist
+
+	set countWords 0
+	set words [split $str " "]
+	set lengthWords [llength $words]
+	foreach word $words {
+	    if { [lsearch -exact $IMGlist $word] >= 0 } {
 		if { $mark eq "end" } {
 		    set idx [$w index "$mark -1 char"]
 		} else {
 		    set idx [$w index $mark]
 		}
-		$w image create $mark -image ::tkchat::img::$IMG($emot)
+		$w image create $mark -image ::tkchat::img::$IMG($word)
 		foreach tg $tags {
 		    $w tag add $tg $idx
 		}
-	    } else {
-		$w insert $mark [string range $str $i $end] $tags
+		set word ""
 	    }
-	    set i [expr { $end + 1 }]
-	}
-	if { $i <= [string length $str] } {
-	    $w insert $mark [string range $str $i end] $tags
+	    $w insert $mark $word $tags
+	    if { [incr countWords] < $lengthWords } {
+		$w insert $mark " " $tags
+	    }
 	}
     } else {
 	# no emoticons?  perish the thought ...
@@ -2256,7 +2245,7 @@ proc ::tkchat::DoVis { tag } {
     } else {
 	.txt tag lower $tag STAMP
     }
-    .txt tag config $tag -elide $::Options(Visibility,$tag)
+    .txt tag configure $tag -elide $::Options(Visibility,$tag)
     if { $::Options(AutoScroll) } {
 	.txt see end
     }
@@ -2283,7 +2272,7 @@ proc ::tkchat::StampVis {} {
 	lappend textWindows $ChatWindows($w)
     }
     foreach w $textWindows {
-	$w tag config STAMP -elide $Options(Visibility,STAMP)
+	$w tag configure STAMP -elide $Options(Visibility,STAMP)
 
 	set width $Options(Offset)
 	if { $bookmark(id) && $w eq ".txt" } {
@@ -2334,7 +2323,7 @@ proc ::tkchat::NickVisMenu {} {
 		-offvalue 0 \
 		-command "::tkchat::DoVis $tag"
 	if { $cnt > 0 && $cnt % 25 == 0 } {
-	    $m entryconfig end -columnbreak 1
+	    $m entryconfigure end -columnbreak 1
 	}
 	incr cnt
     }
@@ -3870,7 +3859,7 @@ proc ::tkchat::saveRC {} {
 
 	# Don't save these options to resource file
 	set ignore {
-	    ChatLogChannel ElideTags FetchTimerID FinalList History
+	    ChatLogChannel ElideTags FetchTimerID
 	    JabberConnect JabberDebug JabberLogs NamesWin Offset OnlineTimerID
 	    OnLineUsers PaneUsersWidth ProxyAuth ProxyPassword URL URL2 URLchk
 	    URLlogs errLog retryFailedCheckPage
@@ -3881,7 +3870,7 @@ proc ::tkchat::saveRC {} {
 	    FetchToken OnlineToken Refresh TimeFormat TimeGMT hideTraffic
 	    Popup,USERINFO Popup,WELCOME Popup,MEMO Popup,HELP
 	    Visibility,USERINFO Visibility,WELCOME Visibility,MEMO
-	    Visibility,HELP
+	    Visibility,HELP FinalList History
 	}
 
 	# Trim down NickList
@@ -3984,7 +3973,6 @@ proc ::tkchat::Debug {cmd args } {
 	    .txt config -state normal
 	    .txt delete 1.0 end
 	    .txt mark unset HISTORY
-	    set ::Options(History) {}
 	    set ::Options(Offset) 50
 	    catch {::tkchat::LoadHistory}
 	}
@@ -4089,28 +4077,11 @@ proc ::tkchat::anim {image {idx 0}} {
 proc ::tkchat::SmileId {{image {}} args} {
     # Here be magic
     variable IMG
-    foreach arg $args {	set IMG($arg) $image }
-    # Do some checking so that things like 'C:/temp/tcl98/blah' and
-    # 'lollipop' don't get smileys inserted
-    set ids ""
-    foreach arg [array names IMG] {
-	if {[string is alnum -strict -failindex i $arg]} {
-	    lappend ids "\1$arg\1"
-	} elseif {$i > 0} {
-	    lappend ids "\2$arg"
-	} else {
-	    lappend ids "\3$arg"
-	}
+    variable IMGlist
+    foreach arg $args {
+	set IMG($arg) $image
+	lappend IMGlist $arg
     }
-    set ids [join $ids "\0"]
-    # The double-back is needed because when map is converted to a list,
-    # it will become a single-back.
-    set map {
-	| \\| ( \\( ) \\) [ \\[ - \\- . \\. * \\* ? \\?
-				\\ \\\\ ^ \\^ $ \\$ \1 \\y \2 \\m \3 \\Y \0 |
-    }
-    # If we ever change this to use () capturing, change tkchat::Insert too.
-    set ::tkchat::IMGre [string map $map $ids]
 }
 
 proc ::tkchat::Smile {} {
@@ -4369,7 +4340,7 @@ proc ::tkchat::Smile {} {
 	pOFQEA8FADs=
     }
 
-    SmileId donuts "donuts"
+    SmileId donuts "donuts" "donuts,"
     image create photo ::tkchat::img::donuts -format GIF -data {
 	R0lGODlhKAAPALIBAAAAAP//AGNjY0JC/0JCQjExMQAAAAAAACH/C05FVFND
 	QVBFMi4wAwEAAAAh+QQJCgAGACwAAAAAKAAPAAADfmiq0L0wyklbuPfRKboX
@@ -4476,7 +4447,6 @@ proc ::tkchat::Init {args} {
 	AutoConnect		0
 	DisplayUsers		1
 	NickList		{{} {}}
-	History			{}
 	AutoScroll		0
 	Geometry		600x500
 	Pane			{520 2}
@@ -4605,7 +4575,6 @@ proc ::tkchat::Init {args} {
 	JabberLogs	"http://tclers.tk/conferences/tcl"
 	Offset		50
 	ElideTags	{ SINGLEDOT AVAILABILITY TRAFFIC SYSTEM ERROR }
-	History		{}
 	OnLineUsers	{}
     }
 
@@ -6880,7 +6849,7 @@ proc tkjabber::IqCB {jlibName type args} {
     ::log::log debug "|| MyIqCB > type=$type, args=$args"
 }
 
-proc tkjabber::MsgCB {jlibName type args} {
+proc ::tkjabber::MsgCB {jlibName type args} {
     variable conference
     variable muc
     variable topic
@@ -6974,7 +6943,7 @@ proc tkjabber::MsgCB {jlibName type args} {
 		}
 	    } else {
 		if { [info exists m(-body)] > 0 } {
-		    ::tkjabber::parseMsg $from $m(-body) $color end $timestamp
+		    parseMsg $from $m(-body) $color end $timestamp
 		} else {
 		    ::log::log notice "Unknown message from $from: '$args'"
 		}
@@ -7019,16 +6988,8 @@ proc tkjabber::MsgCB {jlibName type args} {
 		}
 	    }
 	}
-	#get {
-	    if { [info exists m(-query)] } {
-		::log::log debug "Jabber query\n$args"
-		array set iq $m(-query)
-	    } else {
-		tkchat::addSystem .txt "|| MsgCB > type=$type, args=$args"
-	    }
-	}
 	default {
-	    tkchat::addSystem .txt "|| MsgCB > type=$type, args=$args"
+	    ::tkchat::addSystem .txt "|| MsgCB > type=$type, args=$args"
 	}
     }
 }
@@ -7228,7 +7189,7 @@ proc tkjabber::VCardGetProc {jlibName type theQuery} {
 proc tkjabber::GenericIQProc {jlibName type theQuery} {
     tkchat::addSystem .txt  "GenericIQProc: type=$type, theQuery='$theQuery'"
 }
-proc tkjabber::MucEnterCB {mucName type args} {
+proc ::tkjabber::MucEnterCB {mucName type args} {
     variable conference
     variable muc
     variable nickTries
@@ -7279,7 +7240,7 @@ proc tkjabber::MucEnterCB {mucName type args} {
 	    if {$conference eq "tcl@tach.tclers.tk" \
 		    &&  !$tkjabber::HaveHistory } {
 		# Force history loading to the background
-		after 10 [list tkchat::LoadHistory]
+		after idle [list after 0 tkchat::LoadHistory]
 	    }
 	    autoStatus
 	}
@@ -7686,8 +7647,6 @@ proc ::tkjabber::LoadHistoryLines {} {
     set alerts [array get Options Alert,*]
     foreach {alert value} $alerts { set Options($alert) 0 }
 
-    if {![info exists Options(FinalList)]} {set Options(FinalList) {}}
-
     set count 0
     foreach entry $HistoryLines {
 	set timestamp [lindex $entry 0]
@@ -7697,7 +7656,7 @@ proc ::tkjabber::LoadHistoryLines {} {
 	::tkjabber::parseMsg $nick $msg "" HISTORY $timestamp
 
 	incr count
-	if {$count > 35 } { break }
+	if { $count > 35 } { break }
     }
     .txt see end
     set HistoryLines [lrange $HistoryLines $count end]
@@ -7710,7 +7669,7 @@ proc ::tkjabber::LoadHistoryLines {} {
 	.txt configure -state normal
 	.txt delete "HISTORY + 1 char" "HISTORY + 1 line"
 	.txt insert "HISTORY + 1 char" \
-	    "+++++++++++++++++++++ End Of History +++++++++++++++++++++\n"
+		"+++++++++++++++++++++ End Of History ++++++++++++++++++++++\n"
     } else {
 	after idle [list after 0 ::tkjabber::LoadHistoryLines]
     }
@@ -7932,7 +7891,7 @@ proc tkjabber::deleteChatWidget { jid } {
     }
 }
 
-proc tkjabber::autoStatus {} {
+proc ::tkjabber::autoStatus {} {
     variable autoStatusAfterId
     variable Away
     variable AutoAway
@@ -7965,13 +7924,13 @@ proc tkjabber::autoStatus {} {
     #set idle_time 5
     #set xa_time 10
 
-    if { [idle::idletime] < $idle_time && $AutoAway > 0 } {
+    if { $AutoAway > 0 && [idle::idletime] < $idle_time } {
 	set AutoAway 0
 	back ""
-    } elseif { [idle::idletime] > $idle_time && $AutoAway == 0  } {
+    } elseif { $AutoAway == 0 && [idle::idletime] > $idle_time } {
 	set AutoAway 1
 	away "no activity" away
-    } elseif { [idle::idletime] > $xa_time && $AutoAway == 1 } {
+    } elseif { $AutoAway == 1 && [idle::idletime] > $xa_time } {
 	set AutoAway 2
 	away "no activity" xa
     }
