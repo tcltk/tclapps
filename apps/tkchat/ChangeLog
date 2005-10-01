@@ -1,10 +1,9 @@
-2005-09-29  Daniel South  <wildcard_25@users.sourceforge.net>
+2005-10-01  Daniel South  <wildcard_25@users.sourceforge.net>
 
-	* tkchat.tcl (::tkchat::AddMessage): Change how smilies are
-	(::tkchat::Insert):                  determined. Fixes smilies
-	(::tkchat::SmileId):                 showing up in code
-	(::tkchat::Smile):                   fragments, but now
-	requires them to be 'space' delimited.
+	* tkchat.tcl (::tkchat::AddMessage): Modify the Image RE to
+	(::tkchat::Insert):                  make it a little more
+	(::tkchat::SmileId):                 accurate finding smilies.
+	(::tkchat::Smile):
 
 	* tkchat.tcl:
 	Add new proc ::tkchat::InsertHistoryMark. Remove a few unused

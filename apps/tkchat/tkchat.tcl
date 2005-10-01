@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.306 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.307 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.306 2005/09/29 15:50:51 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.307 2005/10/01 06:48:22 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1038,28 +1038,25 @@ proc ::tkchat::Insert { w str tags url mark } {
     # Don't do emoticons on URLs
     if { ($url eq "") && $Options(emoticons) } {
 	variable IMG
-	variable IMGlist
-
-	set countWords 0
-	set words [split $str " "]
-	set lengthWords [llength $words]
-	foreach word $words {
-	    if { [lsearch -exact $IMGlist $word] >= 0 } {
-		if { $mark eq "end" } {
-		    set idx [$w index "$mark -1 char"]
-		} else {
-		    set idx [$w index $mark]
-		}
-		$w image create $mark -image ::tkchat::img::$IMG($word)
-		foreach tg $tags {
-		    $w tag add $tg $idx
-		}
-		set word ""
+	variable IMGre
+	set i 0
+	foreach match [regexp -inline -all -indices -- $IMGre $str] {
+	    foreach { start end } $match break
+	    set emot [string range $str $start $end]
+	    $w insert $mark [string range $str $i [expr { $start - 1 }]] $tags
+	    if { $mark eq "end" } {
+		set idx [$w index "$mark -1 char"]
+	    } else {
+		set idx [$w index $mark]
 	    }
-	    $w insert $mark $word $tags
-	    if { [incr countWords] < $lengthWords } {
-		$w insert $mark " " $tags
+	    $w image create $mark -image ::tkchat::img::$IMG($emot)
+	    foreach tg $tags {
+		$w tag add $tg $idx
 	    }
+	    set i [expr { $end + 1 }]
+	}
+	if { $i <= [string length $str] } {
+	    $w insert $mark [string range $str $i end] $tags
 	}
     } else {
 	# no emoticons?  perish the thought ...
@@ -4077,11 +4074,44 @@ proc ::tkchat::anim {image {idx 0}} {
 proc ::tkchat::SmileId {{image {}} args} {
     # Here be magic
     variable IMG
-    variable IMGlist
+
+    # Do some checking so that things like 'C:/temp/tcl98/blah' and
+    # 'lollipop' don't get smileys inserted
+    set ids ""
     foreach arg $args {
 	set IMG($arg) $image
-	lappend IMGlist $arg
+	if { [string is alnum -strict -failindex i $arg] } {
+	    lappend ids "\1$arg\2"
+	} elseif { [string is alnum -strict [string index $arg end]] } {
+	    if {$i > 0} {
+		lappend ids "\1$arg\2"
+	    } else {
+		lappend ids "\3$arg\2"
+	    }
+	} else {
+	    if {$i > 0} {
+		lappend ids "\1$arg"
+	    } else {
+		lappend ids "\3$arg"
+	    }
+	}
     }
+    set ids [join $ids "\0"]
+    # The double-back is needed because when map is converted to a list,
+    # it will become a single-back.
+    set map [list \
+	|   \\|		(   \\(		)   \\)		\[   \\\[	\
+	-   \\-		.   \\.		*   \\*		?    \\?	\
+	\\  \\\\	^   \\^		$   \\$		\1   \\m	\
+	\2  \\M		\3  \\Y		\0  |				\
+    ]
+    # If we ever change this to use () capturing, change tkchat::Insert too.
+    if { [info exists ::tkchat::IMGre] } {
+	append ::tkchat::IMGre |[string map $map $ids]
+    } else {
+	set ::tkchat::IMGre [string map $map $ids]
+    }
+::log::log debug "::tkchat::IMGre '$::tkchat::IMGre'"
 }
 
 proc ::tkchat::Smile {} {
@@ -4340,7 +4370,7 @@ proc ::tkchat::Smile {} {
 	pOFQEA8FADs=
     }
 
-    SmileId donuts "donuts" "donuts,"
+    SmileId donuts "donuts"
     image create photo ::tkchat::img::donuts -format GIF -data {
 	R0lGODlhKAAPALIBAAAAAP//AGNjY0JC/0JCQjExMQAAAAAAACH/C05FVFND
 	QVBFMi4wAwEAAAAh+QQJCgAGACwAAAAAKAAPAAADfmiq0L0wyklbuPfRKboX
