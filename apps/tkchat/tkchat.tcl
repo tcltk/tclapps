@@ -92,7 +92,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.307 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.308 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -108,7 +108,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.307 2005/10/01 06:48:22 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.308 2005/10/15 17:56:25 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -341,9 +341,9 @@ proc ::tkchat::GotHistLogIdx {tok} {
     }
 
     # Only show 7 days worth.
-    set loglist [lrange $loglist end-13 end]
+    set loglist [list [lrange $loglist end-13 end]]
     ::log::log debug "Logs: $loglist"
-    after idle [list [namespace origin LoadHistoryFromIndex] $loglist]
+    after idle [list after 0 ::tkchat::LoadHistoryFromIndex $loglist]
     return
 }
 
@@ -407,11 +407,11 @@ proc ::tkchat::LoadHistory {} {
 
 proc ::tkchat::InsertHistoryMark {} {
     # Set a mark for the history insertion point.
-    .txt config -state normal
+    .txt configure -state normal
     .txt insert 0.0 \
 	    "+++++++++++++++++++++ Loading History +++++++++++++++++++++\n"
     .txt mark set HISTORY 0.0
-    .txt config -state disabled
+    .txt configure -state disabled
     .txt see end
 }
 
@@ -714,7 +714,7 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
     }
 
     foreach w $windows {
-	$w configure -bg $MsgToColors($w,$type)
+	$w configure -background $MsgToColors($w,$type)
     }
 
     set Options(MsgTo) $user
@@ -815,12 +815,10 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 
     set nickWidth [expr { [font measure NAME <$nick>] + 10 }]
     if { $nickWidth > $Options(Offset) } {
-	set Options(Offset) $nickWidth
-
 	# Maybe limit the nick column width a bit...
 	set max [expr { [font measure NAME [string repeat X 12]] + 10 }]
-	if { $Options(Offset) > $max } {
-	    set Options(Offset) $max
+	if { $nickWidth <= $max } {
+	    set Options(Offset) $nickWidth
 	}
 
 	# Set tabs appropriate for STAMP visibility
@@ -953,7 +951,7 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
     checkNick $w $nick $clr $timestamp
     checkAlert NORMAL $nick $str
 
-    $w config -state normal
+    $w configure -state normal
     InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
     $w insert $mark "$displayNick\t" [list BOOKMARK NICK NICK-$nick]
     foreach { str url } [parseStr $str] {
@@ -990,7 +988,7 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
 	eval $cmd
     }
     $w insert $mark "\n" [list NICK NICK-$nick]
-    $w config -state disabled
+    $w configure -state disabled
     if { $Options(AutoScroll) } {
 	$w see end
     }
@@ -999,11 +997,16 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
 # Provide an indication of the number of messages since the window was last
 # in focus.
 proc ::tkchat::IncrMessageCounter {} {
-    variable chatWindowTitle
-    variable MessageCounter
     if {[focus] != {} } {
-	ResetMessageCounter
+	after 5000 ::tkchat::ResetMessageCounter
     } else {
+	variable chatWindowTitle
+	variable MessageCounter
+
+	if { !$MessageCounter & $::Options(AutoBookmark) } {
+	    .txt mark set AddBookmark "end - 1 line linestart"
+	    BookmarkToggle auto
+	}
 	incr MessageCounter
 	set title "$MessageCounter - $chatWindowTitle"
 	wm title . $title
@@ -1013,13 +1016,16 @@ proc ::tkchat::IncrMessageCounter {} {
 }
 
 proc ::tkchat::ResetMessageCounter {} {
-    variable MessageCounter
-    variable chatWindowTitle
-    set MessageCounter 0
-    set title $chatWindowTitle
-    wm title . $title
-    wm iconname . $title
-    WinicoUpdate
+    if { [focus] != {} } {
+	variable MessageCounter
+	variable chatWindowTitle
+
+	set MessageCounter 0
+	set title $chatWindowTitle
+	wm title . $title
+	wm iconname . $title
+	WinicoUpdate
+    }
 }
 
 proc ::tkchat::InsertTimestamp { w nick mark timestamp {tags {}} } {
@@ -1118,8 +1124,8 @@ proc ::tkchat::findExecutable {progname varname} {
 
 proc ::tkchat::gotoURL {url} {
     # this can take a bit
-    . config -cursor watch
-    .txt config -cursor watch
+    . configure -cursor watch
+    .txt configure -cursor watch
     update
     if {[regexp -nocase -- {&url=(.*)} $url -> trueUrl]} {
 	# this was a redirect - just get final destination
@@ -1225,8 +1231,8 @@ proc ::tkchat::gotoURL {url} {
 		"::tkchat::gotoURL: Unknown platform '$tcl_platform(platform)'"
 	}
     }
-    . config -cursor {}
-    .txt config -cursor left_ptr
+    . configure -cursor {}
+    .txt configure -cursor left_ptr
 }
 
 proc ::tkchat::addAction { w clr nick str mark timestamp {extraOpts ""} } {
@@ -1243,15 +1249,17 @@ proc ::tkchat::addAction { w clr nick str mark timestamp {extraOpts ""} } {
     checkAlert ACTION $nick $str
 
     # Special handling for single dot action message
+    set tags [list NICK-$nick]
     set singleDot 0
     if { [string trim $str] eq "." && $Options(Username) ne $nick } {
+	lappend tags SINGLEDOT
 	set singleDot 1
     }
 
-    $w config -state normal
-    InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
-    $w insert $mark "   * $displayNick " [list NICK NICK-$nick]
-    set tags [list MSG ACTION NICK-$nick]; # in case we get an empty action
+    $w configure -state normal
+    InsertTimestamp $w $nick $mark $timestamp $tags
+    $w insert $mark "   * $displayNick " [concat BOOKMARK NICK $tags]
+    set tags [list MSG ACTION NICK-$nick]
     foreach { str url } [parseStr $str] {
 	if { [info exists opts(nolog)] } {
 	    set tags [list MSG ACTION NOLOG NOLOG-$nick NICK-$nick]
@@ -1268,17 +1276,17 @@ proc ::tkchat::addAction { w clr nick str mark timestamp {extraOpts ""} } {
 	Insert $w $str $tags $url $mark
     }
     $w insert $mark "\n" $tags
-    $w config -state disabled
+    $w configure -state disabled
     if { $Options(AutoScroll) } {
 	$w see $mark
     }
 }
 
 proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {timestamp 0} } {
-    $w config -state normal
+    $w configure -state normal
     InsertTimestamp $w "" $mark $timestamp $tags
     $w insert $mark "\t$str\n" [concat MSG $tags]
-    $w config -state disabled
+    $w configure -state disabled
     if { $::Options(AutoScroll) } {
 	$w see $mark
     }
@@ -1294,7 +1302,7 @@ proc ::tkchat::addTraffic { w who action mark timestamp } {
 
     set newwho ""
 
-    $w config -state normal
+    $w configure -state normal
     if { [info exists MSGS($action)] } {
 	if { $action eq "nickchange" } {
 	    set newwho [lindex $who 1]
@@ -1308,7 +1316,7 @@ proc ::tkchat::addTraffic { w who action mark timestamp } {
     }
     InsertTimestamp $w "" $mark $timestamp TRAFFIC
     $w insert $mark "\t$msg\n" [list MSG TRAFFIC [string toupper $action]]
-    $w config -state disabled
+    $w configure -state disabled
     if { $Options(AutoScroll) } {
 	$w see $mark
     }
@@ -1330,8 +1338,8 @@ proc ::tkchat::showInfo {title str} {
     pack $t.txt -expand 1 -fill both
     bind $t.txt <1> { focus %W }
     $t.txt tag configure URL -underline 1
-    $t.txt tag bind URL <Enter> [list $t.txt config -cursor hand2]
-    $t.txt tag bind URL <Leave> [list $t.txt config -cursor left_ptr]
+    $t.txt tag bind URL <Enter> [list $t.txt configure -cursor hand2]
+    $t.txt tag bind URL <Leave> [list $t.txt configure -cursor left_ptr]
     foreach {str url} [parseStr $str] {
 	if { $url eq "" } {
 	    $t.txt insert end "$str " INFO
@@ -1341,7 +1349,7 @@ proc ::tkchat::showInfo {title str} {
 	}
     }
     $t.txt insert end "\n"
-    $t.txt config -state disabled
+    $t.txt configure -state disabled
     button $t.close -text Close -command [list destroy $t]
     focus $t.close
     pack $t.close -side right
@@ -1392,13 +1400,13 @@ proc ::tkchat::findCommonRoot { words } {
 }
 
 proc ::tkchat::deleteCompletions {} {
-    .txt config -state normal
+    .txt configure -state normal
     set range [.txt tag nextrange NICKCOMPLETE 0.0]
     while { [llength $range] > 0 } {
 	.txt delete [lindex $range 0] [lindex $range 1]
 	set range [.txt tag nextrange NICKCOMPLETE [lindex $range 0]]
     }
-    .txt config -state disabled
+    .txt configure -state disabled
 }
 
 proc ::tkchat::nickComplete {} {
@@ -1449,10 +1457,10 @@ proc ::tkchat::nickComplete {} {
 		}
 		if { [string length $match] > 0
 			&& [lindex $lastCompletion 1] eq $match } {
-		    .txt config -state normal
+		    .txt configure -state normal
 		    .txt insert end "Completions: $matches\n" \
 			    [list MSG NICKCOMPLETE]
-		    .txt config -state disabled
+		    .txt configure -state disabled
 		    if {$Options(AutoScroll)} { .txt see end }
 		    after 5500 {
 			if { [llength $::tkchat::lastCompletion] > 0 \
@@ -1508,7 +1516,7 @@ proc ::tkchat::CreateGUI {} {
     catch { createFonts }
 
     menu .mbar
-    . config -menu .mbar
+    . configure -menu .mbar
 
     menu .mbar.file  -tearoff 0
     menu .mbar.edit  -tearoff 0
@@ -1555,6 +1563,17 @@ proc ::tkchat::CreateGUI {} {
 	    -underline 0 \
 	    -variable Options(DisplayUsers) \
 	    -command ::tkchat::displayUsers
+    $m add checkbutton \
+	    -label "Enable Whiteboard" \
+	    -underline 0 \
+	    -variable Options(EnableWhiteboard)
+    $m add checkbutton \
+	    -label "Auto Bookmark" \
+	    -underline 5 \
+	    -variable Options(AutoBookmark)
+
+    $m add separator
+
     $m add command \
 	    -label "Colors ..." \
 	    -underline 0 \
@@ -1594,20 +1613,6 @@ proc ::tkchat::CreateGUI {} {
 		    -command [list ::tkchat::SetTheme $theme]
 	}
 	$m add separator
-    }
-
-    # Window Buffer Cascade Menu
-    menu $m.buffer -tearoff 0
-    $m add cascade \
-	    -label "Max Window Buffer" \
-	    -underline 3 \
-	    -menu $m.buffer
-    foreach l { 500 1000 1500 2500 5000 10000 } {
-	$m.buffer add radiobutton \
-		-label "$l lines" \
-		-underline 0 \
-		-variable Options(MaxLines) \
-		-value $l
     }
 
     # Local Chat Logging Cascade Menu
@@ -1711,12 +1716,6 @@ proc ::tkchat::CreateGUI {} {
 		-variable Options(AutoAway) \
 		-value $minutes
     }
-
-    $m add separator
-    $m add checkbutton \
-	    -label "Enable Whiteboard" \
-	    -underline 0 \
-	    -variable Options(EnableWhiteboard)
 
     ## Emoticon Menu
     ##
@@ -1901,7 +1900,7 @@ proc ::tkchat::CreateGUI {} {
 	    -state disabled
     set ::tkchat::_console 0
     if { [llength [info commands ::tkcon]] } {
-	$m entryconfig "Console" \
+	$m entryconfigure "Console" \
 		-state normal \
 		-command {
 		    if { $::tkchat::_console } {
@@ -1912,7 +1911,7 @@ proc ::tkchat::CreateGUI {} {
 		}
     } elseif { $::tcl_platform(platform) ne "unix" \
 	    && [llength [info commands ::console]] > 0 } {
-	$m entryconfig "Console" -state normal
+	$m entryconfigure "Console" -state normal
 	console eval {
 	    bind .console <Map> {
 		consoleinterp eval {
@@ -2007,13 +2006,13 @@ proc ::tkchat::CreateGUI {} {
 	    -label "All Users" \
 	    -command { ::tkchat::MsgTo "All Users" }
 
-    .names tag config NICK -font NAME
-    .names tag config TITLE -font SYS -justify center
-    .names tag config URL -underline 1
-    .names tag bind URL <Enter> { .names config -cursor hand2 }
-    .names tag bind URL <Leave> { .names config -cursor {} }
+    .names tag configure NICK -font NAME
+    .names tag configure TITLE -font SYS -justify center
+    .names tag configure URL -underline 1
+    .names tag bind URL <Enter> { .names configure -cursor hand2 }
+    .names tag bind URL <Leave> { .names configure -cursor {} }
 
-    bind . <FocusIn> ::tkchat::ResetMessageCounter
+    bind . <FocusIn> [list after 5000 ::tkchat::ResetMessageCounter]
     if { [lsearch [wm attributes .] -alpha] != -1 } {
 	bind Tkchat <FocusIn>  { ::tkchat::FocusInHandler %W }
 	bind Tkchat <FocusOut> { ::tkchat::FocusOutHandler %W }
@@ -2105,12 +2104,13 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure ERROR -background red
     $txt tag configure ENTERED -foreground $Options(EntryMessageColor)
     $txt tag configure LEFT -foreground $Options(ExitMessageColor)
+    $txt tag configure NICKCHANGE
     $txt tag configure URL -underline 1
     $txt tag configure STAMP -font STAMP -foreground "#[getColor MainFG]"
     $txt tag configure SINGLEDOT
     $txt tag configure BOOKMARK
-    $txt tag bind URL <Enter> [list $txt config -cursor hand2]
-    $txt tag bind URL <Leave> [list $txt config -cursor {}]
+    $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
+    $txt tag bind URL <Leave> [list $txt configure -cursor {}]
 
     # Adjust tag ordering for hidden text
     foreach tag $Options(ElideTags) {
@@ -2370,9 +2370,9 @@ proc ::tkchat::About {} {
     text $w.text -height 19 -bd 1 -width 80
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
-    $w.text tag config center -justify center
-    $w.text tag config title -justify center -font {Courier -18 bold}
-    $w.text tag config h1 -justify left -font {Sans -12 bold}
+    $w.text tag configure center -justify center
+    $w.text tag configure title -justify center -font {Courier -18 bold}
+    $w.text tag configure h1 -justify left -font {Sans -12 bold}
     $w.text insert 1.0 \
 	"TkChat v$rcsVersion\n" title \
 	"Copyright (c) 2001-2005  Bruce B Hartweg <brhartweg@bigfoot.com>\n" \
@@ -2394,7 +2394,7 @@ proc ::tkchat::About {} {
 
     insertHelpText $w.text $txt
 
-    $w.text config -state disabled
+    $w.text configure -state disabled
     bind $w <Return> [list $w.b invoke]
     bind $w <Escape> [list $w.b invoke]
     catch {::tk::PlaceWindow $w widget .}
@@ -2415,8 +2415,8 @@ proc ::tkchat::Help {} {
     text $w.text -height 30 -bd 1 -width 100 -wrap word
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
-    $w.text tag config title -justify center -font {Courier -18 bold}
-    $w.text tag config h1 -justify left -font {Sans -12 bold}
+    $w.text tag configure title -justify center -font {Courier -18 bold}
+    $w.text tag configure h1 -justify left -font {Sans -12 bold}
     $w.text insert 1.0 "TkChat v$rcsVersion Help\n" title
 
     $w.text insert end "Commands\n" h1
@@ -2489,7 +2489,7 @@ proc ::tkchat::Help {} {
 
     insertHelpText $w.text $txt
 
-    $w.text config -state disabled
+    $w.text configure -state disabled
     catch {::tk::PlaceWindow $w widget .}
     wm deiconify $w
 }
@@ -2500,7 +2500,7 @@ proc ::tkchat::insertHelpText { w txt } {
 	set cmdWidth [expr { [font measure [$w cget -font] $cmd] + 10 }]
 	if { $cmdWidth > $tabOffset } {
 	    set tabOffset $cmdWidth
-	    $w config -tabs $cmdWidth
+	    $w configure -tabs $cmdWidth
 	    $w tag configure USAGE -lmargin2 $cmdWidth
 	}
 	$w insert end $cmd
@@ -3142,8 +3142,8 @@ proc ::tkchat::entryDown {} {
 
 proc ::tkchat::hideExtra {{p ""}} {
     grid remove $p.tMsg
-    grid config $p.eMsg -in $p.btm -row 0 -column 1 -sticky ew
-    $p.ml config -text ">>" -command [list ::tkchat::showExtra $p]
+    grid configure $p.eMsg -in $p.btm -row 0 -column 1 -sticky ew
+    $p.ml configure -text ">>" -command [list ::tkchat::showExtra $p]
     $p.eMsg delete 0 end
     $p.eMsg insert end [string trim [$p.tMsg get 1.0 end]]
     if { $::Options(AutoScroll) } {
@@ -3155,8 +3155,8 @@ proc ::tkchat::hideExtra {{p ""}} {
 proc ::tkchat::showExtra {{p ""}} {
     global Options
     grid remove $p.eMsg
-    grid config $p.tMsg -in $p.btm -row 0 -column 1 -sticky ew
-    $p.ml config -text "<<" -command [list ::tkchat::hideExtra $p]
+    grid configure $p.tMsg -in $p.btm -row 0 -column 1 -sticky ew
+    $p.ml configure -text "<<" -command [list ::tkchat::hideExtra $p]
     $p.tMsg delete 1.0 end
     $p.tMsg insert end [$p.eMsg get]
     if { $::Options(AutoScroll) } {
@@ -3310,12 +3310,12 @@ proc ::tkchat::optSet {args} {
 	set s disabled
     }
     foreach w {lph eph epp lpan epan lpap epap} {
-	.logon.$w config -state $s
+	.logon.$w configure -state $s
     }
     if {$Options(SavePW)} {
-	.logon.atc config -state normal
+	.logon.atc configure -state normal
     } else {
-	.logon.atc config -state disabled
+	.logon.atc configure -state disabled
 	set Options(AutoConnect) 0
     }
 }
@@ -3477,7 +3477,7 @@ proc ::tkchat::newColor { w idx } {
     set tmp [tk_chooseColor -title "Select Override Color" -initialcolor $init]
     if { $tmp ne "" } {
 	lset ::DlgData(Color,$idx) 3 [string range $tmp 1 end]
-	$w config -foreground $tmp -selectcolor $tmp
+	$w configure -foreground $tmp -selectcolor $tmp
     }
 }
 
@@ -3636,7 +3636,7 @@ proc ::tkchat::ChangeColors {} {
 		       -title "Select Your User Color" \
 		       -initialcolor \#$::DlgData(MyColor)]
 	if { $tmp ne "" } {
-	    .opts.l2 config -foreground $tmp
+	    .opts.l2 configure -foreground $tmp
 	    set ::DlgData(MyColor) [string range $tmp 1 end]
 	}
     }
@@ -3651,7 +3651,7 @@ proc ::tkchat::ChangeColors {} {
     set f [frame $t.f.cvs.frm]
     $t.f.cvs create window 0 0 -anchor nw -window $f
     bind $f <Configure> {
-	[winfo parent %W] config -width [expr {%w+5}] -scrollregion [list 0 0 %w %h]
+	[winfo parent %W] configure -width [expr {%w+5}] -scrollregion [list 0 0 %w %h]
     }
     foreach {key str} { 1 "All\nDefault" 2 "All\nInverted" 3 "All\nCustom"} {
 	button $f.all$key -text $str -padx 0 -pady 0 -font SYS -command \
@@ -3731,14 +3731,18 @@ proc ::tkchat::applyColors { {txt .txt} } {
     global Options
 
     # update colors
-    $txt config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
-    .names config -bg "#[getColor MainBG]" -fg "#[getColor MainFG]"
+    $txt configure \
+	    -background "#[getColor MainBG]" \
+	    -foreground "#[getColor MainFG]"
+    .names configure \
+	    -background "#[getColor MainBG]" \
+	    -foreground "#[getColor MainFG]"
     $txt tag configure found -background "#[getColor SearchBG]"
     foreach nk $Options(NickList) {
 	set nk [lindex $nk 0]
 	set clr [getColor $nk]
-	$txt tag config NICK-$nk -foreground "#$clr"
-	$txt tag config NOLOG-$nk -foreground "#[fadeColor $clr]"
+	$txt tag configure NICK-$nk -foreground "#$clr"
+	$txt tag configure NOLOG-$nk -foreground "#[fadeColor $clr]"
 	if { $Options(Visibility,STAMP) } {
 	    $txt tag raise NICK-$nk STAMP
 	    $txt tag raise NOLOG-$nk STAMP
@@ -3867,7 +3871,7 @@ proc ::tkchat::saveRC {} {
 	    FetchToken OnlineToken Refresh TimeFormat TimeGMT hideTraffic
 	    Popup,USERINFO Popup,WELCOME Popup,MEMO Popup,HELP
 	    Visibility,USERINFO Visibility,WELCOME Visibility,MEMO
-	    Visibility,HELP FinalList History
+	    Visibility,HELP FinalList History MaxLines
 	}
 
 	# Trim down NickList
@@ -3879,15 +3883,14 @@ proc ::tkchat::saveRC {} {
 	    if { !$Options(Visibility,NICK-$nick) } {
 		lappend ignore Visibility,NICK-$nick
 	    } else {
-		incr keepNick
+		set keepNick 1
 	    }
 	    if { [lindex $Options(Color,NICK-$nick) 0] == 1 \
 		    && [lindex $Options(Color,NICK-$nick) 1] eq $MainFG } {
 		lappend ignore Color,NICK-$nick
 	    } else {
-		incr keepNick
+		set keepNick 1
 	    }
-
 	    if { $keepNick } {
 		lappend tmp(NickList) $nk
 	    }
@@ -3967,9 +3970,9 @@ proc ::tkchat::Debug {cmd args } {
 	    Retrieve
 	}
 	purge {
-	    .txt config -state normal
+	    .txt configure -state normal
 	    .txt delete 1.0 end
-	    .txt mark unset HISTORY
+	    BookmarkClear
 	    set ::Options(Offset) 50
 	    catch {::tkchat::LoadHistory}
 	}
@@ -4448,6 +4451,7 @@ proc ::tkchat::ShowSmiles {} {
 	}
     }
 }
+
 proc ::tkchat::Init {args} {
     global Options env
 
@@ -4478,12 +4482,12 @@ proc ::tkchat::Init {args} {
 	DisplayUsers		1
 	NickList		{{} {}}
 	AutoScroll		0
+	AutoBookmark		0
 	Geometry		600x500
 	Pane			{520 2}
 	UsePane			1
 	Font,-family		Helvetica
 	Font,-size		-12
-	MaxLines		500
 	ChatLogFile		""
 	LogFile			""
 	LogLevel		notice
@@ -4677,7 +4681,7 @@ proc ::tkchat::Init {args} {
     CreateGUI
     foreach idx [array names Options Visibility,*] {
 	set tag [string range $idx 11 end]
-	.txt tag config $tag -elide $Options($idx)
+	.txt tag configure $tag -elide $Options($idx)
     }
 
     Hook add chat [namespace origin IncrMessageCounter]
@@ -4851,7 +4855,7 @@ proc ::dict.leo.org::init {} {
     wm protocol $w WM_DELETE_WINDOW [list wm withdraw $w]
     frame $w.main
     frame  $w.top
-    entry  $w.top.ent -bg white -textvariable [namespace current]::Query
+    entry  $w.top.ent -background white -textvariable [namespace current]::Query
     button $w.top.but -text "ask LEO" -command [namespace code askLEO]
     bind   $w.top.ent <Return> [list $w.top.but invoke]
 
@@ -4879,7 +4883,7 @@ proc ::dict.leo.org::init {} {
 
     if { $::tcl_platform(platform) ne "windows" } {
 	image create photo LEOlogo -data $LEOlogo
-	toplevel $w.icon -bg ""
+	toplevel $w.icon -background ""
 	pack [label $w.icon.l -image LEOlogo]
 	wm iconwindow $w $w.icon
     }
@@ -5761,9 +5765,9 @@ proc ::tkchat::WinicoInit {} {
 	if {[file exists $icofile]} {
 	    set TaskbarIcon [winico createfrom $icofile]
 	    winico taskbar add $TaskbarIcon \
-		-pos 0 \
-		-text [wm title .] \
-		-callback [list [namespace origin WinicoCallback] %m %i]
+		    -pos 0 \
+		    -text [wm title .] \
+		    -callback [list [namespace origin WinicoCallback] %m %i]
 	    bind . <Destroy> [namespace origin WinicoCleanup]
 	}
     } else {
@@ -5774,15 +5778,16 @@ proc ::tkchat::WinicoInit {} {
 proc ::tkchat::WinicoUpdate {} {
     variable MessageCounter
     variable TaskbarIcon
+
     if {[llength [info commands winico]] < 1} { return }
-    if {$MessageCounter > 0} {
+    if { $MessageCounter > 0 } {
 	winico taskbar modify $TaskbarIcon \
-	    -pos 2 \
-	    -text "$MessageCounter - Tcl'ers chat"
+		-pos 2 \
+		-text "$MessageCounter - Tcl'ers chat"
     } else {
 	winico taskbar modify $TaskbarIcon \
-	    -pos 0 \
-	    -text "Tcl'ers chat"
+		-pos 0 \
+		-text "Tcl'ers chat"
     }
 }
 
@@ -5799,7 +5804,7 @@ proc ::tkchat::WinicoCallback {msg icn} {
 		wm state . $WinicoWmState
 		wm deiconify .
 		focus .eMsg
-		ResetMessageCounter
+		after 5000 ::tkchat::ResetMessageCounter
 	    } else {
 		set WinicoWmState [wm state .]
 		wm withdraw .
@@ -5817,12 +5822,21 @@ proc ::tkchat::BookmarkInit {} {
     set bookmark(removed) 0
     set bookmark(last) 0.0
 
-    # FIX ME: need to make a better image :)
-    image create photo ::tkchat::img::bookmark -format GIF \
-	-data {R0lGODlhEAAQAMIAANnZ2QAAAAD//////wlnuglnuglnuglnuiH5BAEAAAMA
-	    LAAAAAAQABAAAAMpOLrc/jDIKV8QOOPQrv6c4n2gSJLheG7mmqXu28bhoKLd
-	    WjMUBf3AXwIAOw==}
+    image create photo ::tkchat::img::bookmark -format GIF -data {
+	R0lGODlhEAAMAJEAANnZ2QAAAAD//////yH5BAEAAAAALAAAAAAQAAwAAAI9
+	hE3xCf4FyQ+CD0HyLQh2kHwMAAAK5WMAAFAoHwMAgEL5GAAAFMrHAACgUD4G
+	wQ6Sb0HwIUh+EPyj+AS7AAA7
+    }
+    image create photo ::tkchat::img::bookmarkauto -format GIF -data {
+	R0lGODlhEAAMAJEAANnZ2QAAAAD/AP///yH5BAEAAAAALAAAAAAQAAwAAAI9
+	hE3xCf4FyQ+CD0HyLQh2kHwMAAAK5WMAAFAoHwMAgEL5GAAAFMrHAACgUD4G
+	wQ6Sb0HwIUh+EPyj+AS7AAA7
+    }
     set bookmark(width) [image width ::tkchat::img::bookmark]
+    set tempWidth [image width ::tkchat::img::bookmarkauto]
+    if { $tempWidth > $bookmark(width) } {
+	set bookmark(width) $temp
+    }
 
     menu .mbar.mm -tearoff 0
     .mbar.mm add command \
@@ -5869,19 +5883,20 @@ proc ::tkchat::BookmarkInit {} {
     bind . <Control-g>	::tkchat::GoogleSelection
 }
 
-proc ::tkchat::BookmarkToggle {} {
+proc ::tkchat::BookmarkToggle { {auto ""} } {
     variable bookmark
 
     set index1 [.txt index "AddBookmark linestart"]
     set index2 [.txt index "AddBookmark lineend"]
     set imagedump [.txt dump -image $index1 $index2]
     set index3 [lsearch $imagedump bookmark*]
+    set state [.txt cget -state]
     .txt configure -state normal
     if { $index3 == -1 } {
 	incr bookmark(id)
 	.txt image create AddBookmark \
-		-name bookmark$bookmark(id) \
-		-image ::tkchat::img::bookmark
+		-name bookmark$auto$bookmark(id) \
+		-image ::tkchat::img::bookmark$auto
 	.mbar.mm entryconfigure "Prev Bookmark" -state normal
 	.mbar.mm entryconfigure "Next Bookmark" -state normal
 	.mbar.mm entryconfigure "Clear Bookmarks" -state normal
@@ -5898,15 +5913,35 @@ proc ::tkchat::BookmarkToggle {} {
 	}
     } else {
 	.txt delete [lindex $imagedump $index3]
+	set bookmark(last) $index1
 	incr bookmark(removed)
 	if { $bookmark(removed) == $bookmark(id) } {
 	    BookmarkClear
-	    set bookmark(removed) 0
 	}
     }
-    .txt configure -state disabled
+    .txt configure -state $state
     if { $::Options(AutoScroll) } {
 	.txt see end
+    }
+}
+
+proc ::tkchat::BookmarkRemoveAuto { index1 } {
+    variable bookmark
+
+    set index1 [.txt index "$index1 linestart"]
+    set index2 [.txt index "$index1 lineend"]
+    set imagedump [.txt dump -image $index1 $index2]
+    set index3 [lsearch $imagedump bookmarkauto*]
+    if { $index3 != 0 } {
+	set state [.txt cget -state]
+	.txt configure -state normal
+	.txt delete [lindex $imagedump $index3]
+	set bookmark(last) $index1
+	incr bookmark(removed)
+	if { $bookmark(removed) == $bookmark(id) } {
+	    BookmarkClear
+	}
+	.txt configure -state $state
     }
 }
 
@@ -5925,6 +5960,10 @@ proc ::tkchat::BookmarkNext {} {
 	set bookmark(last) end
     } else {
 	set bookmark(last) [lindex $imagedump $index2]
+    }
+    if { [string match "bookmarkauto*" $bookmark(last)] } {
+	set index1 [.txt index $bookmark(last)]
+	after 5000 [list ::tkchat::BookmarkRemoveAuto $index1]
     }
     .txt see $bookmark(last)
     return $bookmark(last)
@@ -5947,6 +5986,10 @@ proc ::tkchat::BookmarkPrev {} {
     } else {
 	set bookmark(last) $index2
     }
+    if { [string match "bookmarkauto*" $bookmark(last)] } {
+	set index1 [.txt index $bookmark(last)]
+	after 5000 [list ::tkchat::BookmarkRemoveAuto $index1]
+    }
     .txt see $bookmark(last)
     return $bookmark(last)
 }
@@ -5954,27 +5997,30 @@ proc ::tkchat::BookmarkPrev {} {
 proc ::tkchat::BookmarkClear {} {
     variable bookmark
 
-    while { $bookmark(id) } {
+    if { $bookmark(id) } {
+	set state [.txt cget -state]
 	.txt configure -state normal
-	catch { .txt delete bookmark$bookmark(id) }
-	.txt configure -state disabled
-	incr bookmark(id) -1
-    }
-    set imagewidth [image width ::tkchat::img::bookmark]
-    set tabs [.txt cget -tabs]
-    foreach tab $tabs {
-	incr tab -$bookmark(width)
-	lappend newtabs $tab
-	set width $tab
-    }
-    .txt configure -tabs $newtabs
-    .txt tag configure BOOKMARK	-lmargin1 0
-    .txt tag configure MSG	-lmargin2 $width
-    .mbar.mm entryconfigure "Prev Bookmark" -state disabled
-    .mbar.mm entryconfigure "Next Bookmark" -state disabled
-    .mbar.mm entryconfigure "Clear Bookmarks" -state disabled
-    if { $::Options(AutoScroll) } {
-	.txt see end
+	while { $bookmark(id) } {
+	    catch { .txt delete bookmark$bookmark(id) }
+	    incr bookmark(id) -1
+	}
+	.txt configure -state $state
+	set bookmark(removed) 0
+	set tabs [.txt cget -tabs]
+	foreach tab $tabs {
+	    incr tab -$bookmark(width)
+	    lappend newtabs $tab
+	    set width $tab
+	}
+	.txt configure -tabs $newtabs
+	.txt tag configure BOOKMARK	-lmargin1 0
+	.txt tag configure MSG	-lmargin2 $width
+	.mbar.mm entryconfigure "Prev Bookmark" -state disabled
+	.mbar.mm entryconfigure "Next Bookmark" -state disabled
+	.mbar.mm entryconfigure "Clear Bookmarks" -state disabled
+	if { $::Options(AutoScroll) } {
+	    .txt see end
+	}
     }
 }
 
@@ -6375,9 +6421,9 @@ proc tkchat::whiteboard_open {} {
     if { ![winfo exists .wb] } {
 	set wb [toplevel .wb]
 
-	entry $wb.e -textvar ::wbentry -bg white -width 80
+	entry $wb.e -textvar ::wbentry -background white -width 80
 	bind $wb.e <Return> {interp eval .wbinterp $::wbentry}
-	set white_board [canvas $wb.c -bg white -width 350 -height 300]
+	set white_board [canvas $wb.c -background white -width 350 -height 300]
 	button $wb.bclear -text "clear" -command ::tkchat::whiteboard_clear
 	bind $wb.c <1> {set entry ""; set id [%W create line %x %y %x %y]}
 	bind $wb.c <B1-Motion> {%W coords $id [concat [%W coords $id] %x %y]}
@@ -6956,9 +7002,15 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	    set msg ""
 	    if { [info exists m(-subject)] } {
 		# changing topic.
-		set topic $m(-subject)
-		set ::tkchat::chatWindowTitle "The Tcler's Chat - $topic"
-		wm title . $::tkchat::chatWindowTitle
+		variable ::tkchat::chatWindowTitle
+		variable ::tkchat::MessageCounter
+
+		set chatWindowTitle "The Tcler's Chat - $m(-subject)"
+		if { $MessageCounter } {
+		    wm title . "$MessageCounter - $chatWindowTitle"
+		} else {
+		    wm title . $chatWindowTitle
+		}
 		set msg " changed the topic to: $m(-subject)"
 		if { [info exists m(-body)] } {
 		    if { $from eq $conference } {
@@ -7473,7 +7525,7 @@ proc ::tkchat::updateJabberNames {} {
     }
 
     set i 0
-    .names config -state normal
+    .names configure -state normal
     .names delete 1.0 end
     .mb.mnu delete 0 end
     .mb.mnu add command -label "All Users" \
@@ -7527,7 +7579,7 @@ proc ::tkchat::updateJabberNames {} {
 
     .names insert 1.0 "$i Users Online\n\n" TITLE
     .names configure -yscrollcommand $scrollcmd
-    .names config -state disabled
+    .names configure -state disabled
 }
 
 proc ::tkchat::createRosterImages {} {
@@ -7937,7 +7989,7 @@ proc ::tkjabber::autoStatus {} {
     set autoStatusAfterId [after 1000 [namespace origin autoStatus]]
 
     if { $Options(AutoAway) == -1 } {
-	# Auto Away disabled in config menu
+	# Auto Away disabled in configure menu
 	return
     }
 

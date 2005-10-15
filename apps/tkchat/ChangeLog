@@ -1,3 +1,23 @@
+2005-10-16  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::CreateGUI): Add auto bookmark. This is
+	(::tkchat::IncrMessageCounter):     set when a message is
+	(::tkchat::BookmarkInit):           received while tkchat does
+	(::tkchat::BookmarkToggle):         not have focus, making it
+	(::tkchat::BookmarkRemoveAuto):     easier to find the point in
+	(::tkchat::BookmarkNext):           history that the user was
+	(::tkchat::BookmarkPrev):           last active. Can be
+	(::tkchat::BookmarkClear):          de/activated via menu.
+	(::tkjabber::MsgCB):                Delayed the resetting of
+	the message counter in the window title for 5 seconds. Fixed
+	a bug found where deleting the current bookmark and then
+	attempting to go to the next/prev caused a crash.
+
+	* tkchat.tcl:
+	Remove an unused Option, MaxLines, and associated menu.
+	Background History loading a bit more.
+	Fix singledot elide in tkchat::addAction.
+
 2005-10-01  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::AddMessage): Modify the Image RE to
@@ -29,7 +49,7 @@
 	(::tkchat::BookmarkNext):          required. Fix bug were
 	(::tkchat::BookmarkPrev):          bookmark could be set on
 	(::tkchat::BookmarkClear):         wrong line from menu. Rename
-	BookmarkAdd to BookmarkToggle. Change how bokmarks are added
+	BookmarkAdd to BookmarkToggle. Change how bookmarks are added
 	and searched for in text. Only one bookmark can be added to a
 	logical line of text. BookmarkClear now does clear all
 	bookmarks.
