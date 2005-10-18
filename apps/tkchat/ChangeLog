@@ -1,3 +1,8 @@
+2005-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed the way we use tile widgets to work with
+	              tile 0.7+ as well as tile 0.6.
+
 2005-10-16  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::CreateGUI): Add auto bookmark. This is
