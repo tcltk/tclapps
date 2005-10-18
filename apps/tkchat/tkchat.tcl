@@ -87,7 +87,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.309 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.310 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -103,7 +103,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.309 2005/10/18 09:23:05 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.310 2005/10/18 10:39:33 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -696,12 +696,22 @@ proc ::tkchat::babelfishMenuPost {x y} {
 proc ::tkchat::MsgTo {{user "All Users"}} {
     global Options
     variable MsgToColors
+    set tile_version [package provide tile]
+    set have_tile [llength $tile_version]
+ 
+    # There is a bug in 0.6 that messes up all this stuff.
+    if {$have_tile && [package vsatisfies $tile_version 0.6] \
+            && ![package vsatisfies $tile_version 0.7]} {
+        return
+    }
 
     set windows [list .eMsg .tMsg]
     if {![info exists MsgToColors]} {
 	foreach w $windows {
-	    catch {set MsgToColors($w,normal) [$w cget -bg]}
-	    set MsgToColors($w,whisper) $Options(WhisperIndicatorColor)
+	    catch {
+                set MsgToColors($w,normal) [$w cget -background]
+                set MsgToColors($w,whisper) $Options(WhisperIndicatorColor)
+            }
 	}
     }
 
@@ -1983,11 +1993,10 @@ proc ::tkchat::CreateGUI {} {
 	    -state disabled
 
     # bottom frame for entry
-    if {$have_tile} {
-        ${NS}::frame .btm
-        ${NS}::button .ml
-        ${NS}::entry .eMsg
-    }
+    ${NS}::frame .btm
+    ${NS}::button .ml
+    ${NS}::entry .eMsg
+    .eMsg configure -foreground black
     .ml configure -text ">>" -width 0 -command ::tkchat::showExtra
 
     bind .eMsg <Return>		::tkchat::userPost
