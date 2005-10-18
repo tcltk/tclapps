@@ -87,7 +87,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.310 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.311 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -103,7 +103,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.310 2005/10/18 10:39:33 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.311 2005/10/18 12:38:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6746,7 +6746,7 @@ proc tkjabber::SendAuth {} {
 
     if {[info command ::jlib::havesasl] ne "" && [::jlib::havesasl]} {
 	jlib::auth_sasl $jabber $user $ress $pass \
-	    [namespace origin OnSaslFinish]
+            [namespace origin OnSaslFinish]
     } else {
 	SendAuthOld
     }
@@ -7238,6 +7238,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
     variable muc
     variable baseNick
     variable nickTries
+    variable myId
 
     global Options
     ::log::log debug "LoginCB: type=$type, theQuery='$theQuery'"
@@ -7270,6 +7271,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	result {
 	    tkchat::addSystem .txt "Logged in."
 	    #after 20000 [list jlib::schedule_keepalive $jlibname]
+            if {$myId == {}} { set myId [$jabber myjid] }
 	    set tkjabber::reconnect 1
 	    set tkjabber::connectionRetryTime [expr {int(5+rand()*5.0)}]
 	    $jabber send_presence -type available
@@ -7279,7 +7281,8 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	    }
 	    set baseNick $::Options(Nickname)
 	    set nickTries 0
-	    $muc enter $conference $::Options(Nickname) -command [namespace current]::MucEnterCB
+	    $muc enter $conference $::Options(Nickname) \
+                -command [namespace current]::MucEnterCB
 	    # We are logged in. Now any of the callbacks can be called,
 	    # Likely ones are MsgCB, MucEnterCB, RosterCB for normal traffic.
 	}
