@@ -87,7 +87,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.312 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.313 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -103,7 +103,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.312 2005/10/19 00:14:42 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.313 2005/10/19 12:49:38 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -698,15 +698,16 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
     variable MsgToColors
     set tile_version [package provide tile]
     set have_tile [llength $tile_version]
+    set do_bg 1
  
     # There is a bug in 0.6 that messes up all this stuff.
     if {$have_tile && [package vsatisfies $tile_version 0.6] \
             && ![package vsatisfies $tile_version 0.7]} {
-        return
+        set do_bg 0
     }
-
+    
     set windows [list .eMsg .tMsg]
-    if {![info exists MsgToColors]} {
+    if {$do_bg && ![info exists MsgToColors]} {
 	foreach w $windows {
 	    catch {
                 set MsgToColors($w,normal) [$w cget -background]
@@ -714,17 +715,19 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
             }
 	}
     }
-
+    
     if { $user eq "All Users" } {
 	set type normal
     } else {
 	set type whisper
     }
 
-    foreach w $windows {
-	catch {$w configure -background $MsgToColors($w,$type)}
+    if {$do_bg} {
+        foreach w $windows {
+            catch {$w configure -background $MsgToColors($w,$type)}
+        }
     }
-
+    
     set Options(MsgTo) $user
 }
 
@@ -4451,10 +4454,13 @@ proc ::tkchat::ShowSmiles {} {
 	foreach {i e} [array get IMG] {
 	    lappend tmp($e) $i
 	}
+        set have_tile [llength [package provide tile]]
+        set NS [expr {$have_tile == 0 ? "::tk" : "::ttk"}]
 	toplevel $t
-	catch {::tk::PlaceWindow $t widget .}
 	wm title $t "Available Emoticons"
+        wm withdraw $t
 	wm protocol $t WM_DELETE_WINDOW [list wm withdraw $t]
+        bind $t <Escape> [list wm withdraw $t]
 	set txt [text $t.txt -font NAME -tabs {1.5i l 2.0i l} \
 		       -height [expr {[llength [image names]] + 5}]]
 	if { [tk windowingsystem] eq "win32" } {
@@ -4462,7 +4468,7 @@ proc ::tkchat::ShowSmiles {} {
 	} else {
 	    $txt configure -background "#c0c0c0" -foreground black
 	}
-	set sb [scrollbar $t.sb -command [list $txt yview]]
+	set sb [${NS}::scrollbar $t.sb -command [list $txt yview]]
 	$txt configure -yscrollcommand [list $sb set]
 
 	foreach image [lsort [image names]] {
@@ -4478,6 +4484,7 @@ proc ::tkchat::ShowSmiles {} {
 	grid $txt $sb -sticky news
 	grid rowconfigure $t 0 -weight 1
 	grid columnconfigure $t 0 -weight 1
+        wm deiconify $t
 	if {[llength [info command ::tk::PlaceWindow]] > 0} {
 	    tk::PlaceWindow $t widget .
 	}
@@ -7589,7 +7596,8 @@ proc ::tkchat::updateJabberNames {} {
 	if {[info exists members($name,status)]} {
 	    set status $members($name,status)
 	}
-        if {$Options(Visibility,NICK-$name)} {
+        if {[info exists Options(Visibility,NICK-$name)] \
+                && $Options(Visibility,NICK-$name)} {
             set status disabled
         }
 
@@ -7646,7 +7654,11 @@ proc ::tkchat::OnNameClick {name} {
 proc ::tkchat::OnNameToggleVis {name} {
     global Options
     set tag NICK-$name
-    set Options(Visibility,$tag) [expr {!$Options(Visibility,$tag)}]
+    if {[info exists Options(Visibility,$tag)]} {
+        set Options(Visibility,$tag) [expr {!$Options(Visibility,$tag)}]
+    } else {
+        set Options(Visibility,$tag) 1
+    }
     DoVis $tag
 }
 
@@ -7660,7 +7672,8 @@ proc ::tkchat::OnNamePopup {name x y} {
     }
     $m entryconfigure 0 \
         -command [list [namespace origin OnNameClick] $name]
-    if {$Options(Visibility,NICK-$name)} {
+    if {[info exists Options(Visibility,NICK-$name)] \
+            && $Options(Visibility,NICK-$name)} {
         set label "Show user"
     } else {
         set label "Hide user"
@@ -8012,8 +8025,8 @@ proc tkjabber::getChatWidget { jid from } {
     global Options
     # Look in ChatWindows and maybe popup a new chat window
 
+    set jwr [jid !resource $jid]
     if {![info exists ChatWindows(txt.$jid)] &&
-	[regexp {([^/]+)/} $jid -> jwr] &&
 	[info exists ChatWindows(txt.$jwr)]
     } then {
 	# We have a window for that JID with no resource.
