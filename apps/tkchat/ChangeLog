@@ -1,3 +1,10 @@
+2005-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added mouse binding suitable for Macs with only one
+	mouse button to the user names. Added facility to ignore users
+	using context menu raised from the user names list. Show user
+	visibility in the names list with a disabled icon.
+
 2005-10-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: New users were unable to setup their user

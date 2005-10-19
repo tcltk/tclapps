@@ -87,7 +87,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.311 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.312 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -103,7 +103,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.311 2005/10/18 12:38:35 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.312 2005/10/19 00:14:42 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2270,6 +2270,7 @@ proc ::tkchat::DoVis { tag } {
     if { $::Options(AutoScroll) } {
 	.txt see end
     }
+    after 10 {::tkchat::updateJabberNames}
 }
 
 proc ::tkchat::NickVis { val } {
@@ -7588,6 +7589,9 @@ proc ::tkchat::updateJabberNames {} {
 	if {[info exists members($name,status)]} {
 	    set status $members($name,status)
 	}
+        if {$Options(Visibility,NICK-$name)} {
+            set status disabled
+        }
 
 	lappend Options(OnLineUsers) $name
 	# NOTE : the URL's don't work because of the & in them
@@ -7611,13 +7615,19 @@ proc ::tkchat::updateJabberNames {} {
 	    xa {
 		.names image create end -image ::tkchat::roster::xa
 	    }
+            disabled {
+                .names image create end -image ::tkchat::roster::disabled
+            }
 	}
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
 	.names tag bind URL-$::URLID <Double-Button-1> \
 	    "[list ::tkjabber::getChatWidget $::tkjabber::conference/$name $name]"
-	.names tag bind URL-$::URLID <3> \
-	    "set ::tkchat::UserClicked 1;\
-	       [list ::tkjabber::msgSend "/userinfo $name"]"
+        
+        .names tag bind URL-$::URLID <3> \
+            [list [namespace origin OnNamePopup] $name %X %Y]
+        .names tag bind URL-$::URLID <Command-1> \
+            [list [namespace origin OnNamePopup] $name %X %Y]
+
 	incr i
 	.mb.mnu add command -label $name \
 	    -command [list ::tkchat::MsgTo $name]
@@ -7626,6 +7636,38 @@ proc ::tkchat::updateJabberNames {} {
     .names insert 1.0 "$i Users Online\n\n" TITLE
     .names configure -yscrollcommand $scrollcmd
     .names configure -state disabled
+}
+
+proc ::tkchat::OnNameClick {name} {
+    set ::tkchat::UserClicked 1
+    tkjabber::msgSend "/userinfo $name"
+}
+
+proc ::tkchat::OnNameToggleVis {name} {
+    global Options
+    set tag NICK-$name
+    set Options(Visibility,$tag) [expr {!$Options(Visibility,$tag)}]
+    DoVis $tag
+}
+
+proc ::tkchat::OnNamePopup {name x y} {
+    global Options
+    set m .names_popup
+    if {![winfo exists $m]} {
+        set m [menu $m -tearoff 0]
+        $m add command -label "User info"
+        $m add command -label "Hide user"
+    }
+    $m entryconfigure 0 \
+        -command [list [namespace origin OnNameClick] $name]
+    if {$Options(Visibility,NICK-$name)} {
+        set label "Show user"
+    } else {
+        set label "Hide user"
+    }
+    $m entryconfigure 1 -label $label \
+        -command [list [namespace origin OnNameToggleVis] $name]
+    tk_popup $m $x $y
 }
 
 proc ::tkchat::createRosterImages {} {
@@ -7656,6 +7698,11 @@ proc ::tkchat::createRosterImages {} {
 	/////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ4ECFAJQo4WCD6
 	uERIaFMnDIFIAGMpFKjIttNgp+usAYZxHLgQK8Dr+YCqnfF4yUiKvZ9lCmVO
 	JREAOw==
+    }
+    image create photo ::tkchat::roster::disabled -data {
+        R0lGODlhDgAKAMIGAAAAAD09PW9vb4CAQICAgP//gP///////yH5BAEKAAcA
+        LAAAAAAOAAoAAAMkeAes/qtIAh+QhVZ1y9DbQozhIghBEALnmW5s+1axq9It
+        ekMJADs=
     }
 }
 
