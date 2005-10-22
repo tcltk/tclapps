@@ -63,11 +63,10 @@ if { ![catch { tk inactive }] } {
 # if we are using Ttk widgets as sometimes we need the originals.
 #
 if {[llength [info commands ::tk::label]] < 1} {
-    foreach cmd {label entry text canvas menubutton button \
-                     frame labelframe radiobutton checkbutton \
-                     scale scrollbar} {
+    foreach cmd { label entry text canvas menubutton button frame labelframe \
+	    radiobutton checkbutton scale scrollbar} {
 	rename ::$cmd ::tk::$cmd
-        interp alias {} ::$cmd {} ::tk::$cmd
+	interp alias {} ::$cmd {} ::tk::$cmd
     }
 }
 
@@ -87,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.313 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.314 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -103,7 +102,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.313 2005/10/19 12:49:38 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.314 2005/10/22 13:55:09 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -437,7 +436,7 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    wm title $t "Load History From Logs"
 
 	    ${NS}::label $t.lbl \
-                -text "Please select how far back you want to load:"
+		    -text "Please select how far back you want to load:"
 	    grid $t.lbl -sticky ew -padx 5 -pady 5 -columnspan 3
 
 	    set i 0
@@ -699,23 +698,23 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
     set tile_version [package provide tile]
     set have_tile [llength $tile_version]
     set do_bg 1
- 
+
     # There is a bug in 0.6 that messes up all this stuff.
     if {$have_tile && [package vsatisfies $tile_version 0.6] \
-            && ![package vsatisfies $tile_version 0.7]} {
-        set do_bg 0
+	    && ![package vsatisfies $tile_version 0.7]} {
+	set do_bg 0
     }
-    
+
     set windows [list .eMsg .tMsg]
     if {$do_bg && ![info exists MsgToColors]} {
 	foreach w $windows {
 	    catch {
-                set MsgToColors($w,normal) [$w cget -background]
-                set MsgToColors($w,whisper) $Options(WhisperIndicatorColor)
-            }
+		set MsgToColors($w,normal) [$w cget -background]
+		set MsgToColors($w,whisper) $Options(WhisperIndicatorColor)
+	    }
 	}
     }
-    
+
     if { $user eq "All Users" } {
 	set type normal
     } else {
@@ -723,11 +722,11 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
     }
 
     if {$do_bg} {
-        foreach w $windows {
-            catch {$w configure -background $MsgToColors($w,$type)}
-        }
+	foreach w $windows {
+	    catch {$w configure -background $MsgToColors($w,$type)}
+	}
     }
-    
+
     set Options(MsgTo) $user
 }
 
@@ -873,11 +872,17 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 #
 proc ::tkchat::alertWhenIdle {} {
     variable alert_pending
-    if {![info exists alert_pending]} {
+
+    if { ![info exists alert_pending] } {
 	set alert_pending 1
+	if { $::Options(AutoBookmark) && [focus] == {} } {
+	    .txt mark set AddBookmark "end - 1 line linestart"
+	    BookmarkToggle auto
+	}
 	after idle [namespace origin alertCallback]
     }
 }
+
 proc ::tkchat::alertCallback {} {
     variable alert_pending
     global Options
@@ -889,7 +894,6 @@ proc ::tkchat::alertCallback {} {
     }
     if {$Options(Alert,SOUND)} bell
 }
-
 
 # Check to see if an alert is desired for the given message.  Issue
 # the alert if so.
@@ -1008,7 +1012,7 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
 # Provide an indication of the number of messages since the window was last
 # in focus.
 proc ::tkchat::IncrMessageCounter {} {
-    if {[focus] != {} } {
+    if { [focus] != {} } {
 	after 5000 ::tkchat::ResetMessageCounter
     } else {
 	variable chatWindowTitle
@@ -1772,8 +1776,13 @@ proc ::tkchat::CreateGUI {} {
     ## Visibility Menu
     ##
     set m .mbar.vis
-    foreach tag $Options(ElideTags) text { "Single Dot" "Online/Away Status" \
-		"Logon/Logoff" "All System" "Error" } {
+    foreach tag $Options(ElideTags) text {
+	"Single Dot"
+	"Online/Away Status"
+	"Logon/Logoff"
+	"All System"
+	"Error"
+    } {
 	$m add checkbutton \
 		-label "Hide $text Messages" \
 		-underline 5 \
@@ -1962,15 +1971,15 @@ proc ::tkchat::CreateGUI {} {
 
     # main display
     if {$have_tile} {
-        set NS ::ttk
+	set NS ::ttk
     } else {
-        set NS ::tk
+	set NS ::tk
     }
 
     if { [info commands ::panedwindow] != {} && $Options(UsePane) } {
 	set UsePane 1
 	panedwindow .pane -sashpad 4 -sashrelief ridge
-        ${NS}::frame .txtframe
+	${NS}::frame .txtframe
     } else {
 	set UsePane 0
     }
@@ -1984,7 +1993,7 @@ proc ::tkchat::CreateGUI {} {
 
     # user display
     text .names \
-            -background "#[getColor MainBG]" \
+	    -background "#[getColor MainBG]" \
 	    -foreground "#[getColor MainFG]" \
 	    -relief sunken \
 	    -borderwidth 2 \
@@ -2016,15 +2025,17 @@ proc ::tkchat::CreateGUI {} {
     ${NS}::button .post -text "Post" -command ::tkchat::userPost
 
     if {$have_tile} {
-        ttk::menubutton .mb -menu .mb.mnu \
-            -textvar Options(MsgTo) -direction above
+	ttk::menubutton .mb \
+		-menu .mb.mnu \
+		-textvariable Options(MsgTo) \
+		-direction above
     } else {
-        tk::menubutton .mb \
-	    -indicatoron 1 \
-	    -pady 4 \
-	    -menu .mb.mnu \
-	    -textvar Options(MsgTo) \
-	    -direction above
+	tk::menubutton .mb \
+		-indicatoron 1 \
+		-pady 4 \
+		-menu .mb.mnu \
+		-textvar Options(MsgTo) \
+		-direction above
     }
     menu .mb.mnu -tearoff 0
     .mb.mnu add command \
@@ -3208,51 +3219,73 @@ proc ::tkchat::logonScreen {} {
 	wm title .logon "Logon to the Tcl'ers Chat"
 
 	set lf [${NS}::frame .logon.frame]
-	${NS}::checkbutton .logon.prx -text "Use Proxy" \
-            -var Options(UseProxy) -underline 7
+	${NS}::checkbutton .logon.prx \
+		-text "Use Proxy" \
+		-variable Options(UseProxy) \
+		-underline 7
 	${NS}::label .logon.lph -text "Proxy host:port" -underline 0
 	${NS}::frame .logon.fpx
-	${NS}::entry .logon.eph -textvar Options(ProxyHost)
-	${NS}::entry .logon.epp -textvar Options(ProxyPort) -width 5
+	${NS}::entry .logon.eph -textvariable Options(ProxyHost)
+	${NS}::entry .logon.epp -textvariable Options(ProxyPort) -width 5
 	${NS}::label .logon.lpan -text "Proxy Auth Username" -underline 11
 	${NS}::label .logon.lpap -text "Proxy Auth Password" -underline 13
-	${NS}::entry .logon.epan -textvar Options(ProxyUsername)
-	${NS}::entry .logon.epap -textvar Options(ProxyPassword) -show {*}
+	${NS}::entry .logon.epan -textvariable Options(ProxyUsername)
+	${NS}::entry .logon.epap -textvariable Options(ProxyPassword) -show {*}
 	${NS}::label .logon.lnm -text "Chat Username" -underline 9
 	${NS}::label .logon.lpw -text "Chat Password" -underline 6
-	${NS}::entry .logon.enm -textvar Options(Username)
-	${NS}::entry .logon.epw -textvar Options(Password) -show *
-	${NS}::checkbutton .logon.rpw -text "Remember Chat Password" \
-            -var Options(SavePW) -underline 0
+	${NS}::entry .logon.enm -textvariable Options(Username)
+	${NS}::entry .logon.epw -textvariable Options(Password) -show *
+	${NS}::checkbutton .logon.rpw \
+		-text "Remember Chat Password" \
+		-variable Options(SavePW) \
+		-underline 0
 	${NS}::frame .logon.fjsrv
 	${NS}::label .logon.ljsrv -text "Jabber server:port" -underline 0
-	${NS}::entry .logon.ejsrv -textvar Options(JabberServer)
-	${NS}::entry .logon.ejprt -textvar Options(JabberPort) -width 5
+	${NS}::entry .logon.ejsrv -textvariable Options(JabberServer)
+	${NS}::entry .logon.ejprt -textvariable Options(JabberPort) -width 5
 	${NS}::label .logon.ljres -text "Jabber resource" -underline 3
-	${NS}::entry .logon.ejres -textvar Options(JabberResource)
+	${NS}::entry .logon.ejres -textvariable Options(JabberResource)
 	${NS}::label .logon.lconf -text "Jabber conference" -underline 10
-	${NS}::entry .logon.econf -textvar Options(JabberConference)
-	#checkbutton .logon.rjabberpoll -text "Use Jabber HTTP Polling" \
-	#      -var Options(UseJabberPoll)
+	${NS}::entry .logon.econf -textvariable Options(JabberConference)
 
 	${NS}::frame .logon.sslopt -borderwidth 0
-	${NS}::radiobutton .logon.nossl -text "No SSL" \
-	    -var Options(UseJabberSSL) -value no -underline 1 \
-	    -command ::tkjabber::TwiddlePort
-	${NS}::radiobutton .logon.rjabberssl -text "Jabber SSL" \
-	    -var Options(UseJabberSSL) -value ssl \
-	    -command ::tkjabber::TwiddlePort
-	${NS}::radiobutton .logon.rstarttls -text "STARTTLS" \
-	    -var Options(UseJabberSSL) -value starttls \
-	    -command ::tkjabber::TwiddlePort
+	${NS}::radiobutton .logon.nossl \
+		-text "No SSL" \
+		-variable Options(UseJabberSSL) \
+		-value no \
+		-underline 1 \
+		-command ::tkjabber::TwiddlePort
+	${NS}::radiobutton .logon.rjabberssl \
+		-text "Jabber SSL" \
+		-variable Options(UseJabberSSL) \
+		-value ssl \
+		-command ::tkjabber::TwiddlePort
+	${NS}::radiobutton .logon.rstarttls \
+		-text "STARTTLS" \
+		-variable Options(UseJabberSSL) \
+		-value starttls \
+		-command ::tkjabber::TwiddlePort
 
-	${NS}::checkbutton .logon.atc -text "Auto-connect" \
-            -var Options(AutoConnect) -underline 5
+	${NS}::checkbutton .logon.atc \
+		-text "Auto-connect" \
+		-variable Options(AutoConnect) \
+		-underline 5
 	${NS}::frame  .logon.f  -border 0
-	${NS}::button .logon.ok -text "Logon" -command "set LOGON 1" -width 8 -underline 0
-	${NS}::button .logon.cn -text "Cancel" -command "set LOGON 0" -width 8 -underline 0
-	${NS}::button .logon.qu -text "Quit" -width 8 -underline 0 \
-	    -command [namespace origin quit]
+	${NS}::button .logon.ok \
+		-text "Logon" \
+		-command "set LOGON 1" \
+		-width 8 \
+		-underline 0
+	${NS}::button .logon.cn \
+		-text "Cancel" \
+		-command "set LOGON 0" \
+		-width 8 \
+		-underline 0
+	${NS}::button .logon.qu \
+		-text "Quit" \
+		-width 8 \
+		-underline 0 \
+		-command [namespace origin quit]
 	catch {.logon.ok configure -default active}
 	pack .logon.qu .logon.cn .logon.ok -in .logon.f -side right
 
@@ -3283,21 +3316,22 @@ proc ::tkchat::logonScreen {} {
 	pack .logon.eph -in .logon.fpx -side right -fill both -expand 1
 
 	pack .logon.nossl .logon.rjabberssl .logon.rstarttls \
-	    -in .logon.sslopt -side left
+		-in .logon.sslopt \
+		-side left
 
-	grid .logon.prx -           -           -in $lf -sticky w -pady 3
-	grid  x         .logon.lph  .logon.fpx  -in $lf -sticky w -pady 3
-	grid  x         .logon.lpan .logon.epan -in $lf -sticky w -pady 3
-	grid  x         .logon.lpap .logon.epap -in $lf -sticky w -pady 3
-	grid .logon.lnm .logon.enm  -           -in $lf -sticky ew -pady 5
-	grid .logon.lpw .logon.epw  -           -in $lf -sticky ew
-	grid x          .logon.rpw  -           -in $lf -sticky w -pady 3
-	grid x        .logon.ljsrv .logon.fjsrv -in $lf -sticky w -pady 3
-	grid x        .logon.ljres .logon.ejres -in $lf -sticky w -pady 3
-	grid x        .logon.lconf .logon.econf -in $lf -sticky w -pady 3
-	grid x        .logon.sslopt -           -in $lf -sticky w -pady 3
-	grid x        .logon.atc    -           -in $lf -sticky w -pady 3
-	grid x        x             .logon.f    -in $lf -sticky e -pady 4
+	grid .logon.prx	-	      -		   -in $lf -sticky w  -pady 3
+	grid x		.logon.lph    .logon.fpx   -in $lf -sticky w  -pady 3
+	grid x		.logon.lpan   .logon.epan  -in $lf -sticky w  -pady 3
+	grid x		.logon.lpap   .logon.epap  -in $lf -sticky w  -pady 3
+	grid .logon.lnm	.logon.enm    -		   -in $lf -sticky ew -pady 5
+	grid .logon.lpw	.logon.epw    -		   -in $lf -sticky ew
+	grid x		.logon.rpw    -		   -in $lf -sticky w  -pady 3
+	grid x		.logon.ljsrv  .logon.fjsrv -in $lf -sticky w  -pady 3
+	grid x		.logon.ljres  .logon.ejres -in $lf -sticky w  -pady 3
+	grid x		.logon.lconf  .logon.econf -in $lf -sticky w  -pady 3
+	grid x		.logon.sslopt -		   -in $lf -sticky w  -pady 3
+	grid x		.logon.atc    -		   -in $lf -sticky w  -pady 3
+	grid x		x	      .logon.f	   -in $lf -sticky e  -pady 4
 
 	pack $lf -side top -fill both -expand 1
 	wm resizable .logon 0 0
@@ -3326,8 +3360,9 @@ proc ::tkchat::logonScreen {} {
     if {$LOGON} {
 	if {$Options(UseProxy)} {
 	    catch {unset Options(ProxyAuth)}
-	    ::http::config -proxyhost $Options(ProxyHost) \
-		-proxyport $Options(ProxyPort)
+	    ::http::config \
+		    -proxyhost $Options(ProxyHost) \
+		    -proxyport $Options(ProxyPort)
 	}
 	# connect
 	logonChat
@@ -4454,13 +4489,13 @@ proc ::tkchat::ShowSmiles {} {
 	foreach {i e} [array get IMG] {
 	    lappend tmp($e) $i
 	}
-        set have_tile [llength [package provide tile]]
-        set NS [expr {$have_tile == 0 ? "::tk" : "::ttk"}]
+	set have_tile [llength [package provide tile]]
+	set NS [expr {$have_tile == 0 ? "::tk" : "::ttk"}]
 	toplevel $t
 	wm title $t "Available Emoticons"
-        wm withdraw $t
+	wm withdraw $t
 	wm protocol $t WM_DELETE_WINDOW [list wm withdraw $t]
-        bind $t <Escape> [list wm withdraw $t]
+	bind $t <Escape> [list wm withdraw $t]
 	set txt [text $t.txt -font NAME -tabs {1.5i l 2.0i l} \
 		       -height [expr {[llength [image names]] + 5}]]
 	if { [tk windowingsystem] eq "win32" } {
@@ -4484,7 +4519,7 @@ proc ::tkchat::ShowSmiles {} {
 	grid $txt $sb -sticky news
 	grid rowconfigure $t 0 -weight 1
 	grid columnconfigure $t 0 -weight 1
-        wm deiconify $t
+	wm deiconify $t
 	if {[llength [info command ::tk::PlaceWindow]] > 0} {
 	    tk::PlaceWindow $t widget .
 	}
@@ -5744,16 +5779,16 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 			    PHOTO_EXTVAL "Photo URL" BDAY "Birthday"} {
 	set l [${NS}::label $f.l$key -text $text -anchor nw]
 	set e [${NS}::entry $f.e$key -textvariable [set uivar]($key)]
-        if {!$have_tile} { $f.e$key configure -bd 1 -background white }
+	if {!$have_tile} { $f.e$key configure -bd 1 -background white }
 	grid configure $l $e -sticky news -padx 1 -pady 1
     }
     set l [${NS}::label $f.lstuff -text "Anything else" -anchor nw]
     set e [${NS}::frame $f.estuff]
     set et [text $e.text -height 6 -bd 1 -background white]
     set es [${NS}::scrollbar $e.scroll -command [list $et yview]]
-    if {!$have_tile} { 
-        $f.estuff configure -bd 0 
-        $e.scroll configure -bd 1
+    if {!$have_tile} {
+	$f.estuff configure -bd 0
+	$e.scroll configure -bd 1
     }
     $et configure -yscrollcommand [list $es set]
     catch {$et insert 0.0 $UI(DESC)}
@@ -5959,11 +5994,13 @@ proc ::tkchat::BookmarkToggle { {auto ""} } {
 	    .txt tag configure MSG	-lmargin2 $width
 	}
     } else {
-	.txt delete [lindex $imagedump $index3]
-	set bookmark(last) $index1
-	incr bookmark(removed)
-	if { $bookmark(removed) == $bookmark(id) } {
-	    BookmarkClear
+	if { $auto eq "" } {
+	    .txt delete [lindex $imagedump $index3]
+	    set bookmark(last) $index1
+	    incr bookmark(removed)
+	    if { $bookmark(removed) == $bookmark(id) } {
+		BookmarkClear
+	    }
 	}
     }
     .txt configure -state $state
@@ -5979,7 +6016,7 @@ proc ::tkchat::BookmarkRemoveAuto { index1 } {
     set index2 [.txt index "$index1 lineend"]
     set imagedump [.txt dump -image $index1 $index2]
     set index3 [lsearch $imagedump bookmarkauto*]
-    if { $index3 != 0 } {
+    if { $index3 != -1 } {
 	set state [.txt cget -state]
 	.txt configure -state normal
 	.txt delete [lindex $imagedump $index3]
@@ -6472,7 +6509,7 @@ proc tkchat::whiteboard_open {} {
 	set wb [toplevel .wb]
 
 	${NS}::entry $wb.e -textvar ::wbentry -width 80
-        if {$have_tile == 0} { $wb.e configure -background white }
+	if {$have_tile == 0} { $wb.e configure -background white }
 	bind $wb.e <Return> {interp eval .wbinterp $::wbentry}
 	set white_board [canvas $wb.c -background white -width 350 -height 300]
 	${NS}::button $wb.bclear -text "clear" -command ::tkchat::whiteboard_clear
@@ -6754,7 +6791,7 @@ proc tkjabber::SendAuth {} {
 
     if {[info command ::jlib::havesasl] ne "" && [::jlib::havesasl]} {
 	jlib::auth_sasl $jabber $user $ress $pass \
-            [namespace origin OnSaslFinish]
+	    [namespace origin OnSaslFinish]
     } else {
 	SendAuthOld
     }
@@ -7279,7 +7316,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	result {
 	    tkchat::addSystem .txt "Logged in."
 	    #after 20000 [list jlib::schedule_keepalive $jlibname]
-            if {$myId == {}} { set myId [$jabber myjid] }
+	    if {$myId == {}} { set myId [$jabber myjid] }
 	    set tkjabber::reconnect 1
 	    set tkjabber::connectionRetryTime [expr {int(5+rand()*5.0)}]
 	    $jabber send_presence -type available
@@ -7290,7 +7327,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	    set baseNick $::Options(Nickname)
 	    set nickTries 0
 	    $muc enter $conference $::Options(Nickname) \
-                -command [namespace current]::MucEnterCB
+		    -command [namespace current]::MucEnterCB
 	    # We are logged in. Now any of the callbacks can be called,
 	    # Likely ones are MsgCB, MucEnterCB, RosterCB for normal traffic.
 	}
@@ -7596,10 +7633,10 @@ proc ::tkchat::updateJabberNames {} {
 	if {[info exists members($name,status)]} {
 	    set status $members($name,status)
 	}
-        if {[info exists Options(Visibility,NICK-$name)] \
-                && $Options(Visibility,NICK-$name)} {
-            set status disabled
-        }
+	if {[info exists Options(Visibility,NICK-$name)] \
+		&& $Options(Visibility,NICK-$name)} {
+	    set status disabled
+	}
 
 	lappend Options(OnLineUsers) $name
 	# NOTE : the URL's don't work because of the & in them
@@ -7623,18 +7660,18 @@ proc ::tkchat::updateJabberNames {} {
 	    xa {
 		.names image create end -image ::tkchat::roster::xa
 	    }
-            disabled {
-                .names image create end -image ::tkchat::roster::disabled
-            }
+	    disabled {
+		.names image create end -image ::tkchat::roster::disabled
+	    }
 	}
 	.names insert end "$name" [list NICK URL URL-[incr ::URLID]] "\n"
 	.names tag bind URL-$::URLID <Double-Button-1> \
 	    "[list ::tkjabber::getChatWidget $::tkjabber::conference/$name $name]"
-        
-        .names tag bind URL-$::URLID <3> \
-            [list [namespace origin OnNamePopup] $name %X %Y]
-        .names tag bind URL-$::URLID <Command-1> \
-            [list [namespace origin OnNamePopup] $name %X %Y]
+
+	.names tag bind URL-$::URLID <3> \
+	    [list [namespace origin OnNamePopup] $name %X %Y]
+	.names tag bind URL-$::URLID <Command-1> \
+	    [list [namespace origin OnNamePopup] $name %X %Y]
 
 	incr i
 	.mb.mnu add command -label $name \
@@ -7655,9 +7692,9 @@ proc ::tkchat::OnNameToggleVis {name} {
     global Options
     set tag NICK-$name
     if {[info exists Options(Visibility,$tag)]} {
-        set Options(Visibility,$tag) [expr {!$Options(Visibility,$tag)}]
+	set Options(Visibility,$tag) [expr {!$Options(Visibility,$tag)}]
     } else {
-        set Options(Visibility,$tag) 1
+	set Options(Visibility,$tag) 1
     }
     DoVis $tag
 }
@@ -7666,20 +7703,20 @@ proc ::tkchat::OnNamePopup {name x y} {
     global Options
     set m .names_popup
     if {![winfo exists $m]} {
-        set m [menu $m -tearoff 0]
-        $m add command -label "User info"
-        $m add command -label "Hide user"
+	set m [menu $m -tearoff 0]
+	$m add command -label "User info"
+	$m add command -label "Hide user"
     }
     $m entryconfigure 0 \
-        -command [list [namespace origin OnNameClick] $name]
+	    -command [list [namespace origin OnNameClick] $name]
     if {[info exists Options(Visibility,NICK-$name)] \
-            && $Options(Visibility,NICK-$name)} {
-        set label "Show user"
+	    && $Options(Visibility,NICK-$name)} {
+	set label "Show user"
     } else {
-        set label "Hide user"
+	set label "Hide user"
     }
     $m entryconfigure 1 -label $label \
-        -command [list [namespace origin OnNameToggleVis] $name]
+	    -command [list [namespace origin OnNameToggleVis] $name]
     tk_popup $m $x $y
 }
 
@@ -7713,9 +7750,9 @@ proc ::tkchat::createRosterImages {} {
 	JREAOw==
     }
     image create photo ::tkchat::roster::disabled -data {
-        R0lGODlhDgAKAMIGAAAAAD09PW9vb4CAQICAgP//gP///////yH5BAEKAAcA
-        LAAAAAAOAAoAAAMkeAes/qtIAh+QhVZ1y9DbQozhIghBEALnmW5s+1axq9It
-        ekMJADs=
+	R0lGODlhDgAKAMIGAAAAAD09PW9vb4CAQICAgP//gP///////yH5BAEKAAcA
+	LAAAAAAOAAoAAAMkeAes/qtIAh+QhVZ1y9DbQozhIghBEALnmW5s+1axq9It
+	ekMJADs=
     }
 }
 

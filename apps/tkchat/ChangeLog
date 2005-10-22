@@ -1,3 +1,18 @@
+2005-10-23  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::alertWhenIdle): Add auto bookmark at
+	alert point.
+
+	* tkchat.tcl (::tkchat::BookmarkToggle): Stop auto bookmark from
+	removing itself or a standard bookmark when it tried to set one
+	in the same place that another already existed.
+
+	* tkchat.tcl (::tkchat::BookmarkRemoveAuto): Fix a bug that
+	caused a crash when an auto bookmark tried to remove itself
+	twice.
+
+	* tkchat.tcl: Minor whitespace/style fixes.
+
 2005-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added mouse binding suitable for Macs with only one
