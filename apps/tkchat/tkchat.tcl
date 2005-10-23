@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.314 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.315 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -102,7 +102,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.314 2005/10/22 13:55:09 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.315 2005/10/23 04:42:05 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5983,6 +5983,9 @@ proc ::tkchat::BookmarkToggle { {auto ""} } {
 	.mbar.mm entryconfigure "Next Bookmark" -state normal
 	.mbar.mm entryconfigure "Clear Bookmarks" -state normal
 	if { $bookmark(id) == 1 } {
+	    # Make sure tabs have been set
+	    StampVis
+
 	    set tabs [.txt cget -tabs]
 	    foreach tab $tabs {
 		incr tab $bookmark(width)

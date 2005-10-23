@@ -5,7 +5,9 @@
 
 	* tkchat.tcl (::tkchat::BookmarkToggle): Stop auto bookmark from
 	removing itself or a standard bookmark when it tried to set one
-	in the same place that another already existed.
+	in the same place that another already existed. Fix a race
+	condition with tabs not being set (encountered while PC under
+	heavy load).
 
 	* tkchat.tcl (::tkchat::BookmarkRemoveAuto): Fix a bug that
 	caused a crash when an auto bookmark tried to remove itself
