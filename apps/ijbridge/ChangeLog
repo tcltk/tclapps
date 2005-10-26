@@ -1,3 +1,9 @@
+2005-10-26  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+
+	* ijbridge.tcl: Added facility to identify with FreeNode's
+	nickserv as unidentified users cannot send private
+	messages. Registered ijtest and ijchain users with nickserv.
+
 2004-12-05  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
 
 	* ijbridge.tcl: Added a map to remove all ASCII < 32 except those

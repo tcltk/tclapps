@@ -29,3 +29,8 @@ IrcPort        6667
 IrcUser        IRCNICK
 IrcChannel     #IRCCHANNEL
 
+# FreeNode restricts PRIVMSG to identified users.
+# Provide your IrcUser nick's pasword for use in identifying this
+# client to FreenNode's nickserv.
+#
+IrcNickPasswd  IRCNICKSERVPASSWORD

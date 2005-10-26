@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.4 2004/12/05 22:31:00 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.5 2005/10/26 15:20:55 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -47,6 +47,7 @@ namespace eval ::ijbridge {
             IrcPort        6667
             IrcUser        {}
             IrcChannel     {}
+            IrcNickPasswd  {}
         }
     }
 
@@ -274,6 +275,8 @@ proc ::ijbridge::OnMessage {token type args} {
 proc ::ijbridge::OnMessageBody {token type args} {
     variable Options
     variable conn
+    variable IrcUserList
+
     switch -exact -- $type {
         groupchat {
             # xmit to irc
@@ -286,17 +289,21 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 log::log debug "avoid resend"
             } else {
 
-                if {0} {
-                if {[info exists a(-x)]} {
+                # This permits us to issue the last 30 seconds of Jabber room
+                # chat to the IRC channel on connection. In general this is
+                # probably not helpful, hence it is disabled.
+                if {0 && [info exists a(-x)]} {
                     foreach chunk $a(-x) {
                         if {[lsearch -exact [wrapper::getattrlist $chunk] \
                                  jabber:x:delay] != -1} {
-                            # We don't xmit history items.
-                            log::log debug "avoid xmit history item"
-                            return
+                            set stamp [wrapper::getattribute $chunk stamp]
+                            if {[clock seconds]-[clock scan $stamp -gmt 1] > 30} {
+                                # We don't xmit history items.
+                                log::log debug "avoid xmit history items > 30s old"
+                                return
+                            }
                         }
                     }
-                }
                 }
 
                 set nickndx [string first / $a(-from)]
@@ -319,10 +326,19 @@ proc ::ijbridge::OnMessageBody {token type args} {
             array set a $args
             log::log debug "chat --> $args"
             switch -glob -- $a(-body) {
-                HELP* {
+                HELP* - help* {
                     send -user $a(-from) \
                         -id $Options(Conference)/$Options(JabberUser) \
-                        "No help yet"
+                        "help  show this message\nwhois irc-nick"
+                }
+                WHOIS* - whois* {
+                    xmit "WHOIS [string range $a(-body) 6 end]"
+                }
+                NAMES* - names* {
+                    xmit "NAMES $::client::channel"
+                    send -user $a(-from) \
+                        -id $Options(Conference)/$Options(JabberUser) \
+                        $IrcUserList
                 }
                 /msg* {
                     if {[regexp {^/msg (\w+) (.*)$} $a(-body) -> who msg]} {
@@ -357,7 +373,7 @@ proc ::ijbridge::OnPresence {token type args} {
 #
 #	This procedure is called to copy messages from the IRC channel
 #	to the Jabber conference. Currently the Tcl channel is also
-#	bridging to a webcht with something called 'ircbridge' and
+#	bridging to a webchat with something called 'ircbridge' and
 #	this is using the nick 'azbridge'. To avoid having excessive
 #	nick prefixes, we trim this one here.
 #
@@ -375,6 +391,18 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     if {[string equal $who "azbridge"]} {
         regexp {^<(.*?)> (.*)$}  $msg -> who msg
         set emote [regexp {^\*{1,3} (\w+) (.*)$} $msg -> who msg]
+    }
+
+    if {[string match -nocase "${::client::nick}\[:,;. |\]*" $msg]} {
+        # The IRC user is addressing someone on the jabber side as
+        # 'ijchain' ... lets notify them that ijchain is a bot.
+        set notice "$::client::nick is a bot connecting this\
+                    $::client::channel to a Jabber chat-room \
+                    (xmpp:$Options(Conference)).\
+                    When you see \"<${::client::nick}> <nickname> ...\"\
+                    this really means that <nickname> said something,\
+                    not me!"
+        ijbridge::xmit "PRIVMSG $who :$notice"
     }
 
     set msg [string map $xmlmap $msg]
@@ -506,8 +534,8 @@ proc ::ijbridge::LoadConfig {} {
         while {![eof $f]} {
             gets $f line
             string trim $line
-            if {[string match "#*" $line]} continue
-            if {[string length $line] < 1} continue
+            if {[string match "#*" $line]} { incr n ; continue }
+            if {[string length $line] < 1} { incr n ; continue }
             if {[llength $line] != 2} {
                 return -code error "invalid config line $n: \"$line\""
             }
@@ -559,6 +587,16 @@ proc client::create { server port nk chan } {
                     [lreplace $::ijbridge::IrcUserList $item $item]
             }
 	}
+    }
+
+    $cn registerevent 376 {
+        # 376 is End of /MOTD message
+        variable ::ijbridge::Options
+        if {[catch {
+            if {[string length $Options(IrcNickPasswd)] > 0} {
+                cmd-send "PRIVMSG nickserv :IDENTIFY $Options(IrcNickPasswd)"
+            }
+        } err]} { puts stderr $err }
     }
 
     $cn registerevent defaultcmd {
@@ -702,10 +740,12 @@ proc ::ijbridge::ReadControl {chan} {
 log::lvSuppressLE emerg 0
 ::ijbridge::LoadConfig
 
-if {!$tcl_interactive} {
+proc Main {args} {
+    global tcl_platform tcl_interactive tcl_service
     
     # Setup control stream.
-    if {$tcl_platform(platform) eq "unix"} {
+    if {$tcl_platform(platform) eq "unix" \
+            && [llength [info commands tkcon]] == 0} {
         set tcl_interactive 1; # fake it so we can re-source this file
         puts "Tcl IRC-Jabber bridge $::ijbridge::version started"
         puts -nonewline "Reading control commands from stdin.\n> "
@@ -720,17 +760,25 @@ if {!$tcl_interactive} {
         $ijbridge::Options(IrcChannel)
     
     # Connect to Jabber.
-    eval [linsert $argv 0 ::ijbridge::connect]
+    eval [linsert $args 0 ::ijbridge::connect]
     
     # Loop forever, dealing with Wish or Tclsh
-    if {[info exists tk_version]} {
-        if {[tk windowingsystem] eq "win32"} { console show }
-        wm withdraw .
-        tkwait variable ::forever
-    } else {
-        # Permit running as a Windows service.
-        if {![info exists tcl_service]} {
-            vwait ::forever
+    if {[llength [info commands tkcon]] == 0} {
+        if {[info exists tk_version]} {
+            if {[tk windowingsystem] eq "win32"} { console show }
+            wm withdraw .
+            tkwait variable ::forever
+        } else {
+            # Permit running as a Windows service.
+            if {![info exists tcl_service]} {
+                vwait ::forever
+            }
         }
     }
+}
+
+if {!$tcl_interactive} {
+    set r [catch [linsert $argv 0 Main] err]
+    if {$r} {puts $errorInfo}
+    exit $r
 }
