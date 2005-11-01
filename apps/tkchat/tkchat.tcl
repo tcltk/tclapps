@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.315 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.316 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -102,7 +102,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.315 2005/10/23 04:42:05 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.316 2005/11/01 14:39:56 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1162,34 +1162,52 @@ proc ::tkchat::gotoURL {url} {
     # this code from  http://purl.org/mini/tcl/557.html
     switch -- $tcl_platform(platform) {
 	"unix" {
-	    expr {
-		[info exists Options(BROWSER)]
-		|| [findExecutable mozilla		Options(BROWSER)]
-		|| [findExecutable mozilla-firefox	Options(BROWSER)]
-		|| [findExecutable mozilla-firebird	Options(BROWSER)]
-		|| [findExecutable konqueror		Options(BROWSER)]
-		|| [findExecutable netscape		Options(BROWSER)]
-		|| [findExecutable iexplorer		Options(BROWSER)]
-		|| [findExecutable lynx			Options(BROWSER)]
-	    }
+	    # special case for MacOS X:
+	    if {$tcl_platform(os) == "Darwin"} {
+		    # assume all goes well:
+		    set notOK 0
+		    if {[info exists Options(BROWSER)]} {
+			    set noOK [catch {exec open -a $Options(BROWSER) $url} emsg]
+			    
+		    }
+		    if {$notOK} {
+		    	# Safari should always be there:
+			set notOK [catch {exec open -a Safari $url} emsg]
+			if {$notOK} {
+				tk_messageBox -message \
+					"Error displaying $url in browser\n$emsg"
+			}
+		    }
+	    } else {
+		expr {
+		    [info exists Options(BROWSER)]
+		    || [findExecutable mozilla		Options(BROWSER)]
+		    || [findExecutable mozilla-firefox	Options(BROWSER)]
+		    || [findExecutable mozilla-firebird	Options(BROWSER)]
+		    || [findExecutable konqueror		Options(BROWSER)]
+		    || [findExecutable netscape		Options(BROWSER)]
+		    || [findExecutable iexplorer		Options(BROWSER)]
+		    || [findExecutable lynx			Options(BROWSER)]
+		}
 
-	    # lynx can also output formatted text to a variable
-	    # with the -dump option, as a last resort:
-	    # set formatted_text [ exec lynx -dump $url ] - PSE
-	    #
-	    # -remote argument might need formatting as a command
-	    # 		Try that first
-	    if { [catch {
-		exec $Options(BROWSER) -remote openURL($url) 2> /dev/null
-	    }] } then {
-		# Try -remote with raw URL argument
+		# lynx can also output formatted text to a variable
+		# with the -dump option, as a last resort:
+		# set formatted_text [ exec lynx -dump $url ] - PSE
+		#
+		# -remote argument might need formatting as a command
+		# 		Try that first
 		if { [catch {
-		    exec $Options(BROWSER) -remote $url 2> /dev/null
-		}]} then {
-		    # perhaps browser doesn't understand -remote flag
-		    if { [catch { exec $Options(BROWSER) $url & } emsg] } {
-			tk_messageBox -message \
-				"Error displaying $url in browser\n$emsg"
+		    exec $Options(BROWSER) -remote openURL($url) 2> /dev/null
+		}] } then {
+		    # Try -remote with raw URL argument
+		    if { [catch {
+			exec $Options(BROWSER) -remote $url 2> /dev/null
+		    }]} then {
+			# perhaps browser doesn't understand -remote flag
+			if { [catch { exec $Options(BROWSER) $url & } emsg] } {
+			    tk_messageBox -message \
+				    "Error displaying $url in browser\n$emsg"
+			}
 		    }
 		}
 	    }

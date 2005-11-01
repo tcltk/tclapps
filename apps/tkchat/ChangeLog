@@ -1,3 +1,8 @@
+2005-11-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch #1344350 by Torsten Reincke to fix 
+	browser launching on MacOS X.
+
 2005-10-23  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::alertWhenIdle): Add auto bookmark at
