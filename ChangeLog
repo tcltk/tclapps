@@ -1,3 +1,7 @@
+2005-10-31  Bob Techentin <techentin@users.sourceforge.net>
+
+	* apps/tclunit/*:  added to CVS.
+
 2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* apps/asteroids/*: added to CVS.  Original author Jeff Godfrey.
