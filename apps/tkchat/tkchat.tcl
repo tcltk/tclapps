@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.316 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.317 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -102,7 +102,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.316 2005/11/01 14:39:56 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.317 2005/11/07 16:40:45 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -928,7 +928,7 @@ proc ::tkchat::checkAlert { msgtype nick str } {
 	    }
 	}
     }
-    if {$alert} {
+    if { $alert } {
 	alertWhenIdle
     }
     set LastPost($nick) $now
@@ -947,40 +947,53 @@ proc ::tkchat::setAlert { tag } {
     }
 }
 
-proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
+proc ::tkchat::addMessage \
+	{ w clr nick str msgtype mark timestamp {extraOpts ""} } {
     global Options
-    variable map
     variable MessageHooks
 
     array set opts $extraOpts
-
-    if { [nickIsNoisy $nick] } {
-	return
-    }
 
     #for colors, it is better to extract the displayed nick from the one used
     #for tags.
     set displayNick $nick
     regexp -- {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
+    if { [nickIsNoisy $nick] } {
+	return
+    }
     checkNick $w $nick $clr $timestamp
-    checkAlert NORMAL $nick $str
+    checkAlert $msgtype $nick $str
+
+    # Special handling for single dot action message
+    set tags [list NICK-$nick]
+    set singleDot 0
+    if { [string trim $str] eq "." && $Options(Username) ne $nick } {
+	lappend tags SINGLEDOT
+	set singleDot 1
+    }
 
     $w configure -state normal
-    InsertTimestamp $w $nick $mark $timestamp [list NICK-$nick]
-    $w insert $mark "$displayNick\t" [list BOOKMARK NICK NICK-$nick]
+    InsertTimestamp $w $nick $mark $timestamp $tags
+    if { $msgtype eq "ACTION" } {
+	$w insert $mark "   * $displayNick " [concat BOOKMARK NICK $tags]
+	lappend tags ACTION
+    } else {
+	$w insert $mark "$displayNick\t" [concat BOOKMARK NICK $tags]
+    }
+    lappend tags MSG [list NICK-$nick]
+    if { [info exists opts(nolog)] } {
+	lappend tags [list NOLOG-$nick NOLOG]
+    }
     foreach { str url } [parseStr $str] {
 	foreach cmd [array names MessageHooks] {
 	    eval $cmd [list $nick $str $url]
 	}
-	if { [info exists opts(nolog)] } {
-	    set tags [list MSG NOLOG-$nick NOLOG NICK-$nick]
-	} else {
-	    set tags [list MSG NICK-$nick]
-	}
 	if { $url ne "" } {
-	    lappend tags URL URL-[incr ::URLID]
+	    set urltag [concat $tags URL URL-[incr ::URLID]]
 	    $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
+	} else {
+	    set urltag $tags
 	}
 
 	# Split into lines, so we can insert the proper tabs for
@@ -993,7 +1006,7 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
 		::log::log debug "More than one line, add tabs"
 		$w insert $mark \n $tags \t [list STAMP NICK-$nick] \t $tags
 	    }
-	    Insert $w $line $tags $url $mark
+	    Insert $w $line $urltag $url $mark
 	    set i 1
 	}
     }
@@ -1002,7 +1015,7 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
     foreach cmd [array names ::tkchat::ChatActivityHooks] {
 	eval $cmd
     }
-    $w insert $mark "\n" [list NICK NICK-$nick]
+    $w insert $mark "\n" $tags
     $w configure -state disabled
     if { $Options(AutoScroll) } {
 	$w see end
@@ -1012,9 +1025,7 @@ proc ::tkchat::addMessage { w clr nick str mark timestamp {extraOpts ""} } {
 # Provide an indication of the number of messages since the window was last
 # in focus.
 proc ::tkchat::IncrMessageCounter {} {
-    if { [focus] != {} } {
-	after 5000 ::tkchat::ResetMessageCounter
-    } else {
+    if { [focus] == {} } {
 	variable chatWindowTitle
 	variable MessageCounter
 
@@ -1164,30 +1175,29 @@ proc ::tkchat::gotoURL {url} {
 	"unix" {
 	    # special case for MacOS X:
 	    if {$tcl_platform(os) == "Darwin"} {
-		    # assume all goes well:
-		    set notOK 0
-		    if {[info exists Options(BROWSER)]} {
-			    set noOK [catch {exec open -a $Options(BROWSER) $url} emsg]
-			    
-		    }
+		# assume all goes well:
+		set notOK 0
+		if {[info exists Options(BROWSER)]} {
+		    set noOK [catch {exec open -a $Options(BROWSER) $url} emsg]
+		}
+		if {$notOK} {
+		    # Safari should always be there:
+		    set notOK [catch {exec open -a Safari $url} emsg]
 		    if {$notOK} {
-		    	# Safari should always be there:
-			set notOK [catch {exec open -a Safari $url} emsg]
-			if {$notOK} {
-				tk_messageBox -message \
-					"Error displaying $url in browser\n$emsg"
-			}
+			tk_messageBox -message \
+				"Error displaying $url in browser\n$emsg"
 		    }
+		}
 	    } else {
 		expr {
 		    [info exists Options(BROWSER)]
 		    || [findExecutable mozilla		Options(BROWSER)]
 		    || [findExecutable mozilla-firefox	Options(BROWSER)]
 		    || [findExecutable mozilla-firebird	Options(BROWSER)]
-		    || [findExecutable konqueror		Options(BROWSER)]
+		    || [findExecutable konqueror	Options(BROWSER)]
 		    || [findExecutable netscape		Options(BROWSER)]
-		    || [findExecutable iexplorer		Options(BROWSER)]
-		    || [findExecutable lynx			Options(BROWSER)]
+		    || [findExecutable iexplorer	Options(BROWSER)]
+		    || [findExecutable lynx		Options(BROWSER)]
 		}
 
 		# lynx can also output formatted text to a variable
@@ -1268,60 +1278,13 @@ proc ::tkchat::gotoURL {url} {
     .txt configure -cursor left_ptr
 }
 
-proc ::tkchat::addAction { w clr nick str mark timestamp {extraOpts ""} } {
-    global Options
-
-    array set opts $extraOpts
-
-    #for colors, it is better to extract the displayed nick from the one used
-    #for tags.
-    set displayNick $nick
-    regexp -- {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
-
-    checkNick $w $nick $clr $timestamp
-    checkAlert ACTION $nick $str
-
-    # Special handling for single dot action message
-    set tags [list NICK-$nick]
-    set singleDot 0
-    if { [string trim $str] eq "." && $Options(Username) ne $nick } {
-	lappend tags SINGLEDOT
-	set singleDot 1
-    }
-
-    $w configure -state normal
-    InsertTimestamp $w $nick $mark $timestamp $tags
-    $w insert $mark "   * $displayNick " [concat BOOKMARK NICK $tags]
-    set tags [list MSG ACTION NICK-$nick]
-    foreach { str url } [parseStr $str] {
-	if { [info exists opts(nolog)] } {
-	    set tags [list MSG ACTION NOLOG NOLOG-$nick NICK-$nick]
-	} else {
-	    set tags [list MSG ACTION NICK-$nick]
-	}
-	if { $url ne "" } {
-	    lappend tags URL URL-[incr ::URLID]
-	    $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
-	}
-	if { $singleDot } {
-	    lappend tags SINGLEDOT
-	}
-	Insert $w $str $tags $url $mark
-    }
-    $w insert $mark "\n" $tags
-    $w configure -state disabled
-    if { $Options(AutoScroll) } {
-	$w see $mark
-    }
-}
-
 proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {timestamp 0} } {
     $w configure -state normal
     InsertTimestamp $w "" $mark $timestamp $tags
     $w insert $mark "\t$str\n" [concat MSG $tags]
     $w configure -state disabled
     if { $::Options(AutoScroll) } {
-	$w see $mark
+	$w see end
     }
 }
 
@@ -1351,7 +1314,7 @@ proc ::tkchat::addTraffic { w who action mark timestamp } {
     $w insert $mark "\t$msg\n" [list MSG TRAFFIC [string toupper $action]]
     $w configure -state disabled
     if { $Options(AutoScroll) } {
-	$w see $mark
+	$w see end
     }
 }
 
@@ -1494,7 +1457,9 @@ proc ::tkchat::nickComplete {} {
 		    .txt insert end "Completions: $matches\n" \
 			    [list MSG NICKCOMPLETE]
 		    .txt configure -state disabled
-		    if {$Options(AutoScroll)} { .txt see end }
+		    if { $Options(AutoScroll) } {
+			.txt see end
+		    }
 		    after 5500 {
 			if { [llength $::tkchat::lastCompletion] > 0 \
 				&& [clock seconds] - 4 \
@@ -2066,7 +2031,8 @@ proc ::tkchat::CreateGUI {} {
     .names tag bind URL <Enter> { .names configure -cursor hand2 }
     .names tag bind URL <Leave> { .names configure -cursor {} }
 
-    bind . <FocusIn> [list after 5000 ::tkchat::ResetMessageCounter]
+    bind . <FocusIn> \
+	[list after 5000 [list after idle ::tkchat::ResetMessageCounter]]
     if { [lsearch [wm attributes .] -alpha] != -1 } {
 	bind Tkchat <FocusIn>  { ::tkchat::FocusInHandler %W }
 	bind Tkchat <FocusOut> { ::tkchat::FocusOutHandler %W }
@@ -2910,17 +2876,17 @@ proc ::tkchat::userPostOneToOne {p jid} {
     tkjabber::msgSend $msg -tojid $jid -type chat
     if { [string match "/me *" $msg] } {
 	set $msg [string range $msg 4 end]
-	addAction $p.txt "" $::Options(Nickname) $msg end 0
+	set msgtype ACTION
     } else {
-	addMessage $p.txt "" $::Options(Nickname) $msg end 0
+	set msgtype NORMAL
     }
+    addMessage $p.txt "" $::Options(Nickname) $msg $msgtype end 0
     $p.eMsg delete 0 end
     $p.tMsg delete 1.0 end
 }
 
 proc ::tkchat::userPost {{jid ""}} {
     global Options
-    variable UserClicked
 
     if {[winfo ismapped .eMsg]} {
 	set str [.eMsg get]
@@ -2935,193 +2901,7 @@ proc ::tkchat::userPost {{jid ""}} {
 	}
 	"/*" {
 	    # possible command
-	    switch -re -- $msg {
-		{^/smiley?s?$} {
-		    ShowSmiles
-		}
-		{^/colou?rs?$} {
-		    ChangeColors
-		}
-		{^/font } {
-		    set name [string trim [string range $msg 5 end]]
-		    catch {ChangeFont -family $name}
-		}
-		{^/(font)?size [0-9]+} {
-		    regexp -- {[0-9]+} $msg size
-		    catch {ChangeFont -size $size}
-		}
-		{^/macros?$} {
-		    EditMacros
-		}
-		{^/userinfo} {
-		    set UserClicked 1
-		    ::tkjabber::msgSend $msg
-		}
-		{^/\?} {
-		    doSearch $msg
-		}
-		{^/!} {
-		    resetSearch
-		}
-		{^/(urn:)?tip[: ]\d+} {
-		    if {[regexp {(?:urn:)?tip[: ](\d+)} $msg -> tip]} {
-			gotoURL http://tip.tcl.tk/$tip
-		    }
-		}
-		{^/bug[: ]} {
-		    doBug [split $msg ": "]
-		}
-		{^/wiki[: ]} {
-		    set q [http::formatQuery [string range $msg 6 end]]
-		    gotoURL http://wiki.tcl.tk/$q
-		}
-		{^/help} {
-		    gotoURL http://wiki.tcl.tk/tkchat
-		}
-		{^/google\s} {
-		    set msg [string range $msg 8 end]
-		    ::log::log debug "Google query \"$msg\""
-		    if {[string length $msg] > 0} {
-			set    q {http://www.google.com/search}
-			append q {?hl=en&ie=UTF-8&oe=UTF-8&btnG=Google+Search}
-			append q "&q=$msg"
-			gotoURL $q
-		    }
-		}
-		{^/see\s} {
-		    .txt see [lindex $msg 1]
-		}
-		{^/alias\s?}   -
-		{^/unalias\s?} {
-		    processAliasCommand $msg
-		}
-		{^/noisy\s?} {
-		    noisyUser $msg
-		}
-		{^/googlefight\s?} {
-		    set q {http://www.googlefight.com/cgi-bin/compare.pl}
-		    set n 1
-		    foreach word [lrange $msg 1 end] {
-			append q [expr {($n == 1) ? "?" : "&"}]
-			append q q$n=$word
-			incr n
-		    }
-		    if {[string match fr_* [msgcat::mclocale]]} {
-			append q &langue=fr
-		    } else {
-			append q &langue=us
-		    }
-		    gotoURL $q
-		}
-		{^/log\s?} {
-		    if { $msg eq "/log" } {
-			# Set the global logging state
-			set Options(ServerLogging) all
-			addSystem .txt "Your messages will be logged by the server."
-		    } else {
-			# Send a single message with logging enabled:
-			::tkjabber::msgSend [string trim [string range $msg 4 end]]
-		    }
-		}
-		{^/nolog\s?} {
-		    if { $msg eq "/nolog" } {
-			# Set the global logging state
-			set Options(ServerLogging) none
-			addSystem .txt "Your messages will not be logged by the server."
-		    } else {
-			# Send a single message without logging:
-			tkjabber::msgSend $msg -attrs [list nolog 1]
-		    }
-		}
-		{^/nick\s?} {
-		    tkjabber::setNick [string range $msg 6 end]
-		}
-		{^/topic\s?} {
-		    tkjabber::setTopic [string range $msg 7 end]
-		}
-		{^/memo\s?} {
-		    if { [regexp {^/memo ([^ ]+) (.+)} $msg -> toNick privMsg] } {
-			tkjabber::send_memo $toNick $privMsg
-		    }
-		}
-		{^/me\s?} {
-		    switch $Options(ServerLogging) {
-			oldStyle -
-			none {
-			    tkjabber::msgSend "/nolog$msg" -attrs [list nolog 1]
-			}
-			default {
-			    tkjabber::msgSend $msg
-			}
-		    }
-		}
-		{^/ot\s?} {
-		    if { [regexp {^/ot/?me (.+)$} $msg -> action] } {
-			tkjabber::msgSend "/nolog/me $action"  -attrs [list nolog 1]
-		    } else {
-			tkjabber::msgSend "/nolog [string range $msg 4 end]" -attrs [list nolog 1]
-		    }
-		}
-		{^/msg\s} {
-		    if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
-			if {[regexp {@} $toNick]} {
-			    tkjabber::msgSend $privMsg -tojid $toNick -type normal
-			} else {
-			    tkjabber::msgSend $privMsg -user $toNick -type normal
-			}
-		    }
-		}
-		{^/chat\s?} {
-		    if { [regexp {^/chat ([^ ]+)(?:\ (.*))?} $msg -> toNick privMsg] } {
-			# Are we talking to a nick in this MUC or to an arbitrary JID?
-			if {![regexp {([^@]+)@.*} $toNick toJID toNick]} {
-			    set toJID $::tkjabber::conference/$toNick
-			}
-			set w [tkjabber::getChatWidget $toJID $toNick]
-			set privMsg [string trim $privMsg]
-			if {$privMsg ne ""} {
-			    if { $w ne ".txt" } {
-				addMessage \
-					$w "" $Options(Nickname) $privMsg end 0
-				tkjabber::msgSend $privMsg -tojid $toJID -type chat
-			    } else {
-				tkjabber::msgSend $privMsg -user $toNick -type chat
-			    }
-			}
-		    }
-		}
-		{^/afk}  -
-		{^/away} {
-		    set status ""
-		    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
-		    set tkjabber::AutoAway -1
-		    tkjabber::away $status
-		}
-		{^/dnd}  -
-		{^/busy} {
-		    set status ""
-		    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
-		    set tkjabber::AutoAway -1
-		    tkjabber::away $status dnd
-		}
-		{^/back} {
-		    set status [string range $msg 5 end]
-		    tkjabber::back $status
-		}
-		default {
-		    if {![checkAlias $msg]} then {
-			# might be server command - pass it on
-			switch $Options(ServerLogging) {
-			    none {
-				tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
-			    }
-			    default {
-				tkjabber::msgSend $msg
-			    }
-			}
-		    }
-		}
-	    }
+	    checkCommand $msg
 	}
 	default {
 	    # check for user defined macro
@@ -3167,6 +2947,201 @@ proc ::tkchat::userPost {{jid ""}} {
 	    set cur [llength $hist]
 	} elseif { [info exists hist] } {
 	    set cur [llength $hist]
+	}
+    }
+}
+
+proc ::tkchat::checkCommand { msg } {
+    global Options
+    variable UserClicked
+
+    switch -re -- $msg {
+	{^/smiley?s?$} {
+	    ShowSmiles
+	}
+	{^/colou?rs?$} {
+	    ChangeColors
+	}
+	{^/font } {
+	    set name [string trim [string range $msg 5 end]]
+	    catch {ChangeFont -family $name}
+	}
+	{^/(font)?size [0-9]+} {
+	    regexp -- {[0-9]+} $msg size
+	    catch {ChangeFont -size $size}
+	}
+	{^/macros?$} {
+	    EditMacros
+	}
+	{^/userinfo} {
+	    set UserClicked 1
+	    ::tkjabber::msgSend $msg
+	}
+	{^/\?} {
+	    doSearch $msg
+	}
+	{^/!} {
+	    resetSearch
+	}
+	{^/(urn:)?tip[: ]\d+} {
+	    if {[regexp {(?:urn:)?tip[: ](\d+)} $msg -> tip]} {
+		gotoURL http://tip.tcl.tk/$tip
+	    }
+	}
+	{^/bug[: ]} {
+	    doBug [split $msg ": "]
+	}
+	{^/wiki[: ]} {
+	    set q [http::formatQuery [string range $msg 6 end]]
+	    gotoURL http://wiki.tcl.tk/$q
+	}
+	{^/help} {
+	    gotoURL http://wiki.tcl.tk/tkchat
+	}
+	{^/google\s} {
+	    set msg [string range $msg 8 end]
+	    ::log::log debug "Google query \"$msg\""
+	    if {[string length $msg] > 0} {
+		set    q {http://www.google.com/search}
+		append q {?hl=en&ie=UTF-8&oe=UTF-8&btnG=Google+Search}
+		append q "&q=$msg"
+		gotoURL $q
+	    }
+	}
+	{^/see\s} {
+	    .txt see [lindex $msg 1]
+	}
+	{^/alias\s?}   -
+	{^/unalias\s?} {
+	    processAliasCommand $msg
+	}
+	{^/noisy\s?} {
+	    noisyUser $msg
+	}
+	{^/googlefight\s?} {
+	    set q {http://www.googlefight.com/cgi-bin/compare.pl}
+	    set n 1
+	    foreach word [lrange $msg 1 end] {
+		append q [expr {($n == 1) ? "?" : "&"}]
+		append q q$n=$word
+		incr n
+	    }
+	    if {[string match fr_* [msgcat::mclocale]]} {
+		append q &langue=fr
+	    } else {
+		append q &langue=us
+	    }
+	    gotoURL $q
+	}
+	{^/log\s?} {
+	    if { $msg eq "/log" } {
+		# Set the global logging state
+		set Options(ServerLogging) all
+		addSystem .txt "Your messages will be logged by the server."
+	    } else {
+		# Send a single message with logging enabled:
+		::tkjabber::msgSend [string trim [string range $msg 4 end]]
+	    }
+	}
+	{^/nolog\s?} {
+	    if { $msg eq "/nolog" } {
+		# Set the global logging state
+		set Options(ServerLogging) none
+		addSystem .txt \
+			"Your messages will not be logged by the server."
+	    } else {
+		# Send a single message without logging:
+		tkjabber::msgSend $msg -attrs [list nolog 1]
+	    }
+	}
+	{^/nick\s?} {
+	    tkjabber::setNick [string range $msg 6 end]
+	}
+	{^/topic\s?} {
+	    tkjabber::setTopic [string range $msg 7 end]
+	}
+	{^/memo\s?} {
+	    if { [regexp {^/memo ([^ ]+) (.+)} $msg -> toNick privMsg] } {
+		tkjabber::send_memo $toNick $privMsg
+	    }
+	}
+	{^/me\s?} {
+	    switch $Options(ServerLogging) {
+		oldStyle -
+		none {
+		    tkjabber::msgSend "/nolog$msg" -attrs [list nolog 1]
+		}
+		default {
+		    tkjabber::msgSend $msg
+		}
+	    }
+	}
+	{^/ot\s?} {
+	    if { [regexp {^/ot/?me (.+)$} $msg -> action] } {
+		tkjabber::msgSend "/nolog/me $action"  -attrs [list nolog 1]
+	    } else {
+		tkjabber::msgSend "/nolog [string range $msg 4 end]" \
+			-attrs [list nolog 1]
+	    }
+	}
+	{^/msg\s} {
+	    if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
+		if {[regexp {@} $toNick]} {
+		    tkjabber::msgSend $privMsg -tojid $toNick -type normal
+		} else {
+		    tkjabber::msgSend $privMsg -user $toNick -type normal
+		}
+	    }
+	}
+	{^/chat\s?} {
+	    if {[regexp {^/chat ([^ ]+)(?:\ (.*))?} $msg -> toNick privMsg]} {
+		# Are we talking to a nick in this MUC or to an arbitrary JID?
+		if {![regexp {([^@]+)@.*} $toNick toJID toNick]} {
+		    set toJID $::tkjabber::conference/$toNick
+		}
+		set w [tkjabber::getChatWidget $toJID $toNick]
+		set privMsg [string trim $privMsg]
+		if {$privMsg ne ""} {
+		    if { $w ne ".txt" } {
+			addMessage \
+				$w "" $Options(Nickname) $privMsg NORMAL end 0
+			tkjabber::msgSend $privMsg -tojid $toJID -type chat
+		    } else {
+			tkjabber::msgSend $privMsg -user $toNick -type chat
+		    }
+		}
+	    }
+	}
+	{^/afk}  -
+	{^/away} {
+	    set status ""
+	    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
+	    set tkjabber::AutoAway -1
+	    tkjabber::away $status
+	}
+	{^/dnd}  -
+	{^/busy} {
+	    set status ""
+	    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
+	    set tkjabber::AutoAway -1
+	    tkjabber::away $status dnd
+	}
+	{^/back} {
+	    set status [string range $msg 5 end]
+	    tkjabber::back $status
+	}
+	default {
+	    if {![checkAlias $msg]} then {
+		# might be server command - pass it on
+		switch $Options(ServerLogging) {
+		    none {
+			tkjabber::msgSend "/nolog $msg" -attrs [list nolog 1]
+		    }
+		    default {
+			tkjabber::msgSend $msg
+		    }
+		}
+	    }
 	}
     }
 }
@@ -4202,7 +4177,6 @@ proc ::tkchat::SmileId {{image {}} args} {
     } else {
 	set ::tkchat::IMGre [string map $map $ids]
     }
-::log::log debug "::tkchat::IMGre '$::tkchat::IMGre'"
 }
 
 proc ::tkchat::Smile {} {
@@ -5904,7 +5878,6 @@ proc ::tkchat::WinicoCallback {msg icn} {
 		wm state . $WinicoWmState
 		wm deiconify .
 		focus .eMsg
-		after 5000 ::tkchat::ResetMessageCounter
 	    } else {
 		set WinicoWmState [wm state .]
 		wm withdraw .
@@ -6001,10 +5974,12 @@ proc ::tkchat::BookmarkToggle { {auto ""} } {
 	.mbar.mm entryconfigure "Next Bookmark" -state normal
 	.mbar.mm entryconfigure "Clear Bookmarks" -state normal
 	if { $bookmark(id) == 1 } {
-	    # Make sure tabs have been set
-	    StampVis
-
 	    set tabs [.txt cget -tabs]
+	    if { $tabs eq {} } {
+		# Make sure tabs have been set
+		StampVis
+		set tabs [.txt cget -tabs]
+	    }
 	    foreach tab $tabs {
 		incr tab $bookmark(width)
 		lappend newtabs $tab
@@ -6142,63 +6117,47 @@ proc ::tkchat::GoogleSelection {} {
 proc ::tkchat::noisyUser { msg } {
     variable noisyUsers
 
-    #Assign msg elements to cmd, nick and time:
-    foreach {cmd nick time} [lrange [split $msg " "] 0 2] {}
+    #Assign msg elements to nick and time:
+    foreach { - nick time } [lrange [split $msg " "] 0 2] {}
 
     if { $nick eq "" } {
 	set cnt 0
-	foreach {nick time} [array get noisyUsers] {
-	    incr cnt
-	    if { $time < [clock seconds] } {
-		addSystem .txt "$nick is no longer noisy (timeout expired)"
-		unset noisyUsers($nick)
-	    } else {
-		addSystem .txt "$nick is noisy until [clock format $time -format %H:%M:%S]"
+	foreach { nick } [lsort -dictionary [array names noisyUsers]] {
+	    set cnt 1
+	    if { [nickIsNoisy $nick] } {
+		set time [clock format $noisyUsers($nick) -format %H:%M:%S]
+		addSystem .txt "$nick is noisy until $time"
 	    }
 	}
-	if { $cnt == 0 } {
+	if { !$cnt } {
 	    addSystem .txt "You don't consider anyone noisy right now"
-	}
-	return
-    }
-
-    if { [info exists noisyUsers($nick)] } {
-	if { [string is integer -strict $time] } {
-	    switch $time {
-		-1 -
-		0 {
-		    unset noisyUsers($nick)
-		    addSystem .txt "$nick is no longer considered noisy."
-		}
-		default {
-		    set noisyUsers($nick) [expr {[clock seconds] + 60*$time}]
-		    if { $time > 1 } {
-			addSystem .txt "$nick is considered noisy for $time minutes."
-		    } else {
-			addSystem .txt "$nick is considered noisy for $time minute."
-		    }
-		}
-	    }
-	} else {
-	    #No time given, remove from noisyUsers
-	    unset noisyUsers($nick)
-	    addSystem .txt "$nick is no longer considered noisy."
 	}
     } else {
 	if { ![string is integer -strict $time] } {
-	    set time 5
+	    if { [info exists noisyUsers($nick)] } {
+		set time 0
+	    } else {
+		set time 5
+	    }
 	}
-	switch $time {
+	switch -- $time {
 	    -1 -
 	    0 {
-		addSystem .txt "$nick not considered noisy at this time."
+		if { [info exists noisyUsers($nick)] } {
+		    unset noisyUsers($nick)
+		    addSystem .txt "$nick is no longer considered noisy."
+		} else {
+		    addSystem .txt "$nick not considered noisy at this time."
+		}
 	    }
 	    default {
-		set noisyUsers($nick) [expr {[clock seconds] + 60*$time}]
+		set noisyUsers($nick) [expr { [clock seconds] + 60 * $time }]
 		if { $time > 1 } {
-		    addSystem .txt "$nick is considered noisy for $time minutes."
+		    addSystem .txt \
+			    "$nick is considered noisy for $time minutes."
 		} else {
-		    addSystem .txt "$nick is considered noisy for $time minute."
+		    addSystem .txt \
+			    "$nick is considered noisy for $time minute."
 		}
 	    }
 	}
@@ -6212,7 +6171,8 @@ proc ::tkchat::nickIsNoisy { nick } {
 	if { [clock seconds] < $noisyUsers($nick) } {
 	    return 1
 	} else {
-	    addSystem .txt "$nick is no longer considered noisy (timeout expired)."
+	    addSystem .txt \
+		    "$nick is no longer considered noisy (timeout expired)."
 	    unset noisyUsers($nick)
 	    return 0
 	}
@@ -7093,16 +7053,17 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		set w [getChatWidget $m(-from) $name]
 	    }
 	    if {$w eq ".txt"} {
-		::tkchat::addAction \
-			$w $color $name " whispers: $m(-body)" end $timestamp
+		::tkchat::addMessage $w $color $name " whispers: $m(-body)" \
+			ACTION end $timestamp
 	    } else {
 		if { [string match -nocase "/me *" $m(-body)] } {
-		    ::tkchat::addAction $w $color $name \
-			    [string range $m(-body) 4 end] end $timestamp
+		    set m(body) [string range $m(-body) 4 end]
+		    set msgtype ACTION
 		} else {
-		    ::tkchat::addMessage \
-			    $w $color $name $m(-body) end $timestamp
+		    set msgtype NORMAL
 		}
+		::tkchat::addMessage \
+			$w $color $name $m(-body) $msgtype end $timestamp
 	    }
 	}
 	groupchat {
@@ -7126,11 +7087,12 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 			tkchat::addSystem .txt $m(-body)
 		    } else {
 			append msg "\n ... $m(-body)"
-			::tkchat::addAction \
-				.txt $color $from $msg end $timestamp
+			::tkchat::addMessage \
+				.txt $color $from $msg ACTION end $timestamp
 		    }
 		} else {
-		    ::tkchat::addAction .txt $color $from $msg end $timestamp
+		    ::tkchat::addMessage .txt \
+			    $color $from $msg ACTION end $timestamp
 		}
 	    } else {
 		if { [info exists m(-body)] > 0 } {
@@ -7155,8 +7117,8 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		lappend msg "$m(-body)"
 	    }
 	    if { [llength $msg] > 0 } {
-		::tkchat::addAction .txt \
-			"" $from " whispers: [join $msg \n]" end 0
+		::tkchat::addMessage .txt \
+			"" $from " whispers: [join $msg \n]" ACTION end 0
 	    } else {
 		::log::log notice "Unknown message from $from: '$args'"
 	    }
@@ -7234,12 +7196,16 @@ proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
 	} elseif { [string match "has left*" [lrange $msg 1 2]] } {
 	    ::tkchat::addTraffic .txt [lindex $msg 0] left $mark $timestamp
 	}
-    } elseif { [lindex $msg 0] eq "/me" } {
-	set msg [join [lrange $msg 1 end]]
-	::tkchat::addAction .txt $color $nick $msg $mark $timestamp $opts
     } else {
-	set msg [join $msg]
-	::tkchat::addMessage .txt $color $nick $msg $mark $timestamp $opts
+	if { [lindex $msg 0] eq "/me" } {
+	    set msg [join [lrange $msg 1 end]]
+	    set msgtype ACTION
+	} else {
+	    set msg [join $msg]
+	    set msgtype NORMAL
+	}
+	::tkchat::addMessage \
+		.txt $color $nick $msg $msgtype $mark $timestamp $opts
     }
 }
 
@@ -7523,8 +7489,8 @@ proc tkjabber::msgSend { msg args } {
 	    if { $name eq $user } {
 		set user $person
 		set found 1
-		::tkchat::addAction .txt "" $::Options(Username) \
-			" whispered to $name: $msg" end 0
+		::tkchat::addMessage .txt "" $::Options(Username) \
+			" whispered to $name: $msg" ACTION end 0
 		break
 	    }
 	}
@@ -7537,8 +7503,9 @@ proc tkjabber::msgSend { msg args } {
 		    ::log::log debug "Roster user: $user/$pres(-resource)"
 		    lappend users $user/$pres(-resource)
 		    incr found
-		    ::tkchat::addAction .txt "" $::Options(Username) \
-			    " whispered to $user/$pres(-resource): $msg" end 0
+		    ::tkchat::addMessage .txt "" $::Options(Username) \
+			    " whispered to $user/$pres(-resource): $msg" \
+			    ACTION end 0
 		}
 		unset pres
 	    }

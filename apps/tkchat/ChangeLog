@@ -1,3 +1,18 @@
+2005-11-08  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addMessage): Consolidate duplicate code into
+	(::tkchat::addAction):               addMessage. Removed addAction.
+	Fixes multi-line /me indentation.
+
+	* tkchat.tcl (::tkchat::userPost): Move switch arm out to new procedure
+	(::tkchat::checkCommand):          checkCommand.
+
+	* tkchat.tcl (::tkchat::CreateGUI): Remove unneeded calls to
+	(::tkchat::IncrMessageCounter):     ResetMessageCounter. Make the
+	(::tkchat::WinicoCallback):         remaining one an idle callback.
+
+	* tkchat.tcl (::tkchat::noisyUser): Reduce duplicate code.
+
 2005-11-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Applied patch #1344350 by Torsten Reincke to fix 
