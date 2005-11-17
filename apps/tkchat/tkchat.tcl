@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.317 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.318 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -94,15 +94,13 @@ namespace eval ::tkchat {
     # Everything will eventually be namespaced
     variable MessageHooks
     array set MessageHooks {}
-    variable ChatActivityHooks
-    array set ChatActivityHooks {}
     variable UserClicked 0
 
     # this is http://mini.net - but that recently had a dns problem
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.317 2005/11/07 16:40:45 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.318 2005/11/17 12:44:18 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -901,7 +899,7 @@ proc ::tkchat::alertCallback {} {
 # As a side effect, record the time of last post for user $nick in
 # the global LastPost() array.
 #
-proc ::tkchat::checkAlert { msgtype nick str } {
+proc ::tkchat::checkAlert { msgtype nick msg } {
     global Options LastPost
 
     set now [clock seconds]
@@ -914,7 +912,7 @@ proc ::tkchat::checkAlert { msgtype nick str } {
 	    if { $Options(Alert,ME) } {
 		set myname [string tolower $Options(Username)]
 		set mynick [string tolower $Options(Nickname)]
-		set txt [string tolower $str]
+		set txt [string tolower $msg]
 		if { [string first $myname $txt] >=0 \
 			|| [string first $mynick $txt] >=0 } {
 		    set alert 1
@@ -948,7 +946,7 @@ proc ::tkchat::setAlert { tag } {
 }
 
 proc ::tkchat::addMessage \
-	{ w clr nick str msgtype mark timestamp {extraOpts ""} } {
+	{ w clr nick msg msgtype mark timestamp {extraOpts ""} } {
     global Options
     variable MessageHooks
 
@@ -963,18 +961,26 @@ proc ::tkchat::addMessage \
 	return
     }
     checkNick $w $nick $clr $timestamp
-    checkAlert $msgtype $nick $str
+    checkAlert $msgtype $nick $msg
 
     # Special handling for single dot action message
     set tags [list NICK-$nick]
     set singleDot 0
-    if { [string trim $str] eq "." && $Options(Username) ne $nick } {
+    if { [string trim $msg] eq "." && $Options(Username) ne $nick } {
 	lappend tags SINGLEDOT
 	set singleDot 1
     }
 
     $w configure -state normal
     InsertTimestamp $w $nick $mark $timestamp $tags
+
+    # Call message activity hooks
+    if { $mark ne "HISTORY" } {
+	foreach cmd [array names MessageHooks] {
+	    eval $cmd [list $nick $msg $msgtype $mark $timestamp]
+	}
+    }
+
     if { $msgtype eq "ACTION" } {
 	$w insert $mark "   * $displayNick " [concat BOOKMARK NICK $tags]
 	lappend tags ACTION
@@ -985,10 +991,7 @@ proc ::tkchat::addMessage \
     if { [info exists opts(nolog)] } {
 	lappend tags [list NOLOG-$nick NOLOG]
     }
-    foreach { str url } [parseStr $str] {
-	foreach cmd [array names MessageHooks] {
-	    eval $cmd [list $nick $str $url]
-	}
+    foreach { str url } [parseStr $msg] {
 	if { $url ne "" } {
 	    set urltag [concat $tags URL URL-[incr ::URLID]]
 	    $w tag bind URL-$::URLID <1> [list ::tkchat::gotoURL $url]
@@ -1010,11 +1013,6 @@ proc ::tkchat::addMessage \
 	    set i 1
 	}
     }
-
-    # Call chat activity hooks
-    foreach cmd [array names ::tkchat::ChatActivityHooks] {
-	eval $cmd
-    }
     $w insert $mark "\n" $tags
     $w configure -state disabled
     if { $Options(AutoScroll) } {
@@ -1024,7 +1022,7 @@ proc ::tkchat::addMessage \
 
 # Provide an indication of the number of messages since the window was last
 # in focus.
-proc ::tkchat::IncrMessageCounter {} {
+proc ::tkchat::IncrMessageCounter { args } {
     if { [focus] == {} } {
 	variable chatWindowTitle
 	variable MessageCounter
@@ -1098,11 +1096,13 @@ proc ::tkchat::Insert { w str tags url mark } {
 
 proc ::tkchat::Hook {do type cmd} {
     switch -glob -- $type {
-	msg - mes* { set var [namespace current]::MessageHooks }
-	chat       { set var [namespace current]::ChatActivityHooks }
+	msg -
+	mes* {
+	    set var [namespace current]::MessageHooks
+	}
 	default {
-	    return -code error "unknown hook type \"$type\": must be\
-		    message or chat"
+	    return -code error \
+		    "unknown hook type \"$type\": must be message"
 	}
     }
     switch -exact -- $do {
@@ -1110,16 +1110,16 @@ proc ::tkchat::Hook {do type cmd} {
 	    set ${var}($cmd) {}
 	}
 	remove {
-	    catch {unset -- ${var}($cmd)}
+	    catch { unset -- ${var}($cmd) }
 	}
 	default {
-	    return -code error "unknown hook action \"$type\": must be\
-		    add or remove"
+	    return -code error \
+		    "unknown hook action \"$type\": must be add or remove"
 	}
     }
 }
 
-proc ::tkchat::say { who msg args } {
+proc ::tkchat::say { nick msg args } {
     # I've added a few lines to make this speak new messages via the
     # festival synthesiser. It doesn't do it robustly as yet (you'll need
     # festival installed) but as a quick (1min) hack it's got heaps of
@@ -1278,10 +1278,10 @@ proc ::tkchat::gotoURL {url} {
     .txt configure -cursor left_ptr
 }
 
-proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {timestamp 0} } {
+proc ::tkchat::addSystem { w msg {mark end} {tags SYSTEM} {timestamp 0} } {
     $w configure -state normal
     InsertTimestamp $w "" $mark $timestamp $tags
-    $w insert $mark "\t$str\n" [concat MSG $tags]
+    $w insert $mark "\t$msg\n" [concat MSG $tags]
     $w configure -state disabled
     if { $::Options(AutoScroll) } {
 	$w see end
@@ -1291,26 +1291,35 @@ proc ::tkchat::addSystem { w str {mark end} {tags SYSTEM} {timestamp 0} } {
 # Add notification of user entering or leaving.
 # Always add these to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
-proc ::tkchat::addTraffic { w who action mark timestamp } {
-    # Action should be entered or left
+proc ::tkchat::addTraffic { w nick action mark timestamp } {
+    # Action should be entered, left or nickchange
     global Options
     variable MSGS
+    variable MessageHooks
 
-    set newwho ""
+    set newnick ""
+
+    # Call message activity hooks
+    if { $mark ne "HISTORY" } {
+	foreach cmd [array names MessageHooks] {
+	    eval $cmd [list $nick $action TRAFFIC $mark $timestamp]
+	}
+    }
 
     $w configure -state normal
     if { [info exists MSGS($action)] } {
 	if { $action eq "nickchange" } {
-	    set newwho [lindex $who 1]
-	    set who [lindex $who 0]
+	    set newnick [lindex $nick 1]
+	    set nick [lindex $nick 0]
 	}
-	set msg [string map -nocase [list %user% $who %newuser% $newwho] \
+	set msg [string map -nocase [list %user% $nick %newuser% $newnick] \
 		[lindex $MSGS($action) \
 		[expr { int(rand() * [llength $MSGS($action)]) }]]]
     } else {
-	set msg "$who has $action the chat!!"
+	set msg "$nick has $action the chat!!"
     }
     InsertTimestamp $w "" $mark $timestamp TRAFFIC
+
     $w insert $mark "\t$msg\n" [list MSG TRAFFIC [string toupper $action]]
     $w configure -state disabled
     if { $Options(AutoScroll) } {
@@ -1630,6 +1639,10 @@ proc ::tkchat::CreateGUI {} {
 	    -label "To File..." \
 	    -underline 0 \
 	    -command { ::tkchat::OpenChatLog open }
+    $m.chatLog add command \
+	    -label "Load File..." \
+	    -underline 0 \
+	    -command { ::tkchat::OpenChatLog load }
 
     # Server Chat Logging Cascade Menu
     menu $m.chatServLog -tearoff 0
@@ -3849,14 +3862,66 @@ proc ::tkchat::OpenChatLog {opt} {
 		}
 	    }
 	}
+	load {
+	    set loadFileName [tk_getOpenFile]
+	    if { [string length $loadFileName] > 0 } {
+		.txt configure -state normal
+		.txt delete 1.0 end
+		.txt configure -state disabled
+		BookmarkClear
+		set ::Options(Offset) 50
+		InsertHistoryMark
+		after idle [list after 0 ::tkchat::LoadChatLog $loadFileName]
+	    }
+	}
     }
 }
 
-proc ::tkchat::ChatLogHook {who str url} {
+proc ::tkchat::LoadChatLog { loadFileName } {
+    if { [catch {
+	set f [open $loadFileName r]
+	fconfigure $f -encoding utf-8
+	set I [interp create -safe]
+	interp alias $I m {} ::tkjabber::ParseLogMsg
+	$I eval [read $f]
+	close $f
+    } err] } then {
+	# Handle file access problems.
+	::log::log error $err
+	bgerror $err
+	return
+    }
+    .txt configure -state normal
+    .txt delete "HISTORY + 1 char" "HISTORY + 1 line"
+    .txt insert "HISTORY + 1 char" \
+	    "+++++++++++++++++++++ Parsing History +++++++++++++++++++++\n"
+    .txt configure -state disabled
+    after idle [list after 0 ::tkjabber::LoadHistoryLines]
+}
+
+proc ::tkchat::ChatLogHook { nick msg msgtype mark timestamp } {
     global Options
-    if {! $Options(ChatLogOff)} {
-	set T [clock format [clock seconds] -format "%Y%m%dT%H:%M:%S"]
-	puts $Options(ChatLogChannel) "$T: $who\t$str"
+
+    if { !$Options(ChatLogOff) } {
+	set timestamp \
+		[clock format $timestamp -format "%Y%m%dT%H:%M:%S" -gmt 1]
+	if { $msgtype eq "TRAFFIC" } {
+	    switch -- $msg {
+		entered {
+		    set msg "$nick has become available"
+		}
+		left {
+		    set msg "$nick has left"
+		}
+		nickchange {
+		    set msg "[lindex $nick 0] is now known as [lindex $nick 1]"
+		}
+	    }
+	    set nick {}
+	} elseif { $msgtype eq "ACTION" } {
+	    set msg "/me $msg"
+	}
+	puts $Options(ChatLogChannel) [list m $timestamp $nick $msg]
     }
 }
 
@@ -4035,6 +4100,7 @@ proc ::tkchat::Debug {cmd args } {
 	purge {
 	    .txt configure -state normal
 	    .txt delete 1.0 end
+	    .txt configure -state disabled
 	    BookmarkClear
 	    set ::Options(Offset) 50
 	    catch {::tkchat::LoadHistory}
@@ -4735,6 +4801,7 @@ proc ::tkchat::Init {args} {
 	set Options(ChatLogChannel) [open $Options(ChatLogFile) a]
 	fconfigure $Options(ChatLogChannel) -buffering line -encoding utf-8
 	set Options(ChatLogOff) 0
+	Hook add message [namespace origin ChatLogHook]
     } else {
 	set Options(ChatLogOff) 1
     }
@@ -4750,7 +4817,7 @@ proc ::tkchat::Init {args} {
 	.txt tag configure $tag -elide $Options($idx)
     }
 
-    Hook add chat [namespace origin IncrMessageCounter]
+    Hook add message [namespace origin IncrMessageCounter]
     BookmarkInit
     WinicoInit
 
@@ -7195,6 +7262,9 @@ proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
 	    ::tkchat::addTraffic .txt [lindex $msg 0] entered $mark $timestamp
 	} elseif { [string match "has left*" [lrange $msg 1 2]] } {
 	    ::tkchat::addTraffic .txt [lindex $msg 0] left $mark $timestamp
+	} elseif { [string match "is now known as" [lrange $msg 1 4]] } {
+	    set nick [list [lindex $msg 0] [lindex $msg end]]
+	    ::tkchat::addTraffic .txt $nick nickchange $mark $timestamp
 	}
     } else {
 	if { [lindex $msg 0] eq "/me" } {
