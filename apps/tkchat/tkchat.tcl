@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.318 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.319 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.318 2005/11/17 12:44:18 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.319 2006/01/19 12:38:30 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4187,20 +4187,22 @@ proc ::tkchat::DoAnim {} {
     }
 }
 
-proc ::tkchat::anim {image {idx 0}} {
+proc ::tkchat::anim {image {idx -1}} {
     namespace eval ::tkchat::img {} ; # create img namespace
-    set this [lindex [info level 0] 0]
+    incr idx
     if {[catch {$image configure -format "GIF -index $idx"}]} {
 	if {$idx == 1} {
 	    # stop animating, only base image exists
 	    return
+	} else {
+	    # restart the cycle
+	    set idx 0
+	    $image configure -format "GIF -index $idx"
 	}
-	set cmd [list ::tkchat::anim $image]
-    } else {
-	set cmd [list ::tkchat::anim $image [expr {$idx + 1}]]
     }
     catch {after cancel $::tkchat::img::id($image)}
-    set ::tkchat::img::id($image) [after $::tkchat::img::delay $cmd]
+    set ::tkchat::img::id($image) \
+	[after $::tkchat::img::delay [list ::tkchat::anim $image $idx]]
 }
 
 proc ::tkchat::SmileId {{image {}} args} {
@@ -4247,7 +4249,7 @@ proc ::tkchat::SmileId {{image {}} args} {
 
 proc ::tkchat::Smile {} {
     namespace eval ::tkchat::img {} ; # create img namespace
-    set ::tkchat::img::delay 400
+    set ::tkchat::img::delay 150
     SmileId cry ":-(" ":^(" ":("
     image create photo ::tkchat::img::cry -format GIF -data {
 	R0lGODlhDwAPANUAAP8AzeEDueQFvcUFp8kKq1AqdFJDkCQhUiIvaQASIQUr
@@ -4485,13 +4487,28 @@ proc ::tkchat::Smile {} {
 	AREmTJgwIcCEABMmBIgwIMKEAAECTIgQYMKEAAECDJgQIECECRMmBIgwYcKE
 	CRMmBQA7
     }
-    SmileId beer |_P
+    SmileId beer "|_P"
     image create photo ::tkchat::img::beer -format GIF -data {
-	R0lGODlhEAAQAPECAAAAAP//AP///wAAACH5BAEAAAIALAAAAAAQABAAAAKR
-	lChRokSJEiVKhChRokSJECVKhCgQoECAECVKBAgwIMCEACFKRJgwYcKEAAFK
-	RBgwYcKEEAVCRJgwYcKEECUCRJgwYcKEECUCRJgwIcKEECUCRIgwYcKEECUC
-	RJgwYUKEEAVCRJgwYcKEAAFKRJgwYMKEACFKRJgwYcKEECVKRJgwYcKEECVK
-	BAgQIECAECVKBQA7
+	R0lGODlhEAAQAKECAAAAAP//AP///////yH/C05FVFNDQVBFMi4wAwEAAAAh
+	/hVDcmVhdGVkIHdpdGggVGhlIEdJTVAAIfkECQEAAgAsAAAAABAAEAAAAjWU
+	jymgx/iAXPK5GnCeBoQPglX0eWHWMeZZXitraaLoZiyavnOk3mXVCb2AQZ+l
+	eDtSRsxEAQAh+QQJAQADACwAAAAAEAAQAAACNZyPOaDH+IBc8rkacJ4GhPyF
+	G+eJYsSU5mdpodpK4BqrZ3bZJrrcb9VZ/VpCVkJ3OlaWQEQBACH5BAkBAAMA
+	LAAAAAAQABAAAAI1nI85oMf4gFzyuRpwngaED4JVFJYR44Vpdnmr2pafG8tz
+	PcPUYs9V19tYXqZEisiCjJYWQwEAIfkECQEAAwAsAAAAABAAEAAAAjWcjzmg
+	x/iAXPK5GnCeBoQPglUUZmLHeF6ZXWupuuyJviZN2TC6zN/Y8W0sK10LIrTU
+	RkBEAQAh+QQJAQADACwAAAAAEAAQAAACNpyPOaDH+IBc8rkacJ4GhP95YdVl
+	4Bkx4mlaGhteqwm6ElzLeEwt+8YRzUaun6W0O1IqTM6hAAAh+QQJAQADACwA
+	AAAAEAAQAAACNZyPOaDH+IBc8rkacJ4G5ACGG+eJoBcxpXle6xdaGpu5dNtJ
+	d00tJ1uJ7CqOYeIF47mCwUQBACH5BAkBAAMALAAAAAAQABAAAAI2nI85oMf4
+	gFzyuRpwngaED2Yb54VhxJSfml2saWnm6s5gLK0zuthr1fGNHLBbwvOiQSpM
+	IKIAACH5BAkBAAMALAAAAAAQABAAAAI0nI85oMf4gFzyuRpwngaED4JVFHpi
+	x5jhiaprdrmrpclw+7KTLVbd3KNlcpbfy1OkjJaJAgAh+QQJAQADACwAAAAA
+	EAAQAAACNpyPOaDH+IBc8rkacJ4GhJ+BG+eJYsSU5mdpa3aVKthKLxvfMLWY
+	ahUJrSqOl8fS0SEpwGaiAAAh+QQJAQADACwAAAAAEAAQAAACNJyPOaDH+IBc
+	8rkacJ4GhA+CVRSWEeOV4pWmoaWpGSt/sGSu1JLJY+fbwGozyOuVGCk5hwIA
+	IfkECQEAAwAsAAAAABAAEAAAAjWcjzmgx/iAXPK5GnCeBoQPglUUlhHjZWV2
+	pSvbSe9naaLYquu5vN7YmW1qIRfMIbTERsxEAQA7
     }
 
     SmileId cyclops "O-\]" "O-)" "0-\]" "0-)"

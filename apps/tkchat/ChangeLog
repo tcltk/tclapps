@@ -1,3 +1,10 @@
+2006-01-19  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::anim): Fixed a bug that made animated GIFs
+	stop for one delay period when restarting the animation. Lowered
+	the delay time to make the animations a bit faster and
+	smoother. Added animated bubbles to the beer emoticon.
+
 2005-11-17  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::addMessage): Change format of local log to
