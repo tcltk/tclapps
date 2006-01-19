@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.319 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.320 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.319 2006/01/19 12:38:30 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.320 2006/01/19 13:42:07 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2460,8 +2460,12 @@ proc ::tkchat::Help {} {
 
     $w.text insert end "Commands\n" h1
 
-    lappend txt "/msg <nick> <text>"
-    lappend txt [list "Send private message to user <nick>"]
+    lappend txt "/msg <nick|JID> <text>"
+    lappend txt [list "Send private message to a user identified by nickname or JID"]
+
+    lappend txt "/chat <nick|JID> ?text?"
+    lappend txt [list "Open a separate window to privately chat with the user identified " \
+		     "by nickname or JID, optionally posting an initial message"]
 
     lappend txt "/userinfo <nick>"
     lappend txt [list "Display registered information for user <nick>"]
