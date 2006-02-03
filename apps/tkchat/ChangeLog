@@ -1,3 +1,47 @@
+2006-02-03  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::IncrMessageCounter): Don't count traffic
+	messages.
+
+	* tkchat.tcl (::tkchat::DoVis): Prevent crash when changing a nick's
+	(::tkjabber::connect):          visibility status while not logged in.
+	(::tkjabber::cleanup):
+
+	* tkchat.tcl (::tkchat::NickVisMenu): Prevent nick from being eval'ed
+	if it contains [].
+
+	* tkchat.tcl (::tkchat::CheckCommands): Split into online and offline
+	commands.
+
+	* tkchat.tcl (::tkchat::saveRC): only save options that are different
+	(::tkchat::Init):                from defaults. Re-written so that it
+	(::tkchat::GetDefaultOptions):   builds up the options to save rather
+	than remove the one not to be saved. New procedure
+	::tkchat::GetDefaultOptions.
+
+	* tkchat.tcl (::tkchat::DoAnim): Reset animation to first frame when
+	stopped.
+
+	* tkchat.tcl (::tkchat::Init): Fix error converting some older client's
+	color list.
+
+	* tkchat.tcl (::tkchat::noisyUser): Fix error where nick has a space in
+	it.
+
+	* tkchat.tcl (::tkjabber::cleanup): Remove added underscores from nick
+	(::tkjabber::setNick):              when exiting conference.
+
+	* tkchat.tcl (::tkjabber::MsgCB): Make nick xml safe when sending
+	(::tkjabber::LoginCB):            request to jabber server.
+	(::tkjabber::MucEnterCB):         New procedure ::tkjabber::xmlSafe.
+	(::tkjabber::xmlSafe):
+	(::tkjabber::setNick):
+	(::tkjabber::transferNick):
+
+	* tkchat.tcl (::tkchat::parseStr): Fix % quoting in URLs.
+
+	* tkchat.tcl: Remove some unused globals. Trim some unused code.
+
 2006-01-19  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::anim): Fixed a bug that made animated GIFs
