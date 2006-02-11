@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.321 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.322 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.321 2006/02/03 06:52:53 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.322 2006/02/11 09:06:55 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -861,12 +861,12 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 # to alert in a row and we want to batch them all together into one
 # action.
 #
-proc ::tkchat::alertWhenIdle {} {
+proc ::tkchat::alertWhenIdle { w } {
     variable alert_pending
 
     if { ![info exists alert_pending] } {
 	set alert_pending 1
-	if { $::Options(AutoBookmark) && [focus] == {} } {
+	if { $::Options(AutoBookmark) && $w eq ".txt" && [focus] == {} } {
 	    .txt mark set AddBookmark "end - 1 line linestart"
 	    BookmarkToggle auto
 	}
@@ -892,13 +892,14 @@ proc ::tkchat::alertCallback {} {
 # As a side effect, record the time of last post for user $nick in
 # the global LastPost() array.
 #
-proc ::tkchat::checkAlert { msgtype nick msg } {
-    global Options LastPost
+proc ::tkchat::checkAlert { w msgtype nick msg } {
+    global Options
+    variable LastPost
 
     set now [clock seconds]
     set alert 0
 
-    if { $Options(Alert,$msgtype) } {
+    if { $Options(Alert,$msgtype) && $nick ne $Options(Nickname) } {
 	if { $Options(Alert,ALL) } {
 	    set alert 1
 	} else {
@@ -906,7 +907,8 @@ proc ::tkchat::checkAlert { msgtype nick msg } {
 		set myname [string tolower $Options(Username)]
 		set mynick [string tolower $Options(Nickname)]
 		set txt [string tolower $msg]
-		if { [string first $myname $txt] >=0 \
+		if { ($w eq ".txt" && [string match " whispers*" $txt]) \
+			|| [string first $myname $txt] >=0 \
 			|| [string first $mynick $txt] >=0 } {
 		    set alert 1
 		}
@@ -920,7 +922,7 @@ proc ::tkchat::checkAlert { msgtype nick msg } {
 	}
     }
     if { $alert } {
-	alertWhenIdle
+	alertWhenIdle $w
     }
     set LastPost($nick) $now
 }
@@ -954,7 +956,7 @@ proc ::tkchat::addMessage \
 	return
     }
     checkNick $w $nick $clr $timestamp
-    checkAlert $msgtype $nick $msg
+    checkAlert $w $msgtype $nick $msg
 
     # Special handling for single dot action message
     set tags [list NICK-$nick]
@@ -966,7 +968,7 @@ proc ::tkchat::addMessage \
     InsertTimestamp $w $nick $mark $timestamp $tags
 
     # Call message activity hooks
-    if { $mark ne "HISTORY" } {
+    if { $mark ne "HISTORY" && $w eq ".txt" } {
 	foreach cmd [array names MessageHooks] {
 	    eval $cmd [list $nick $msg $msgtype $mark $timestamp]
 	}
@@ -1987,6 +1989,7 @@ proc ::tkchat::CreateGUI {} {
 	    -wrap word \
 	    -cursor left_ptr \
 	    -state disabled
+    applyColors .txt All
 
     # bottom frame for entry
     ${NS}::frame .btm
@@ -2162,7 +2165,7 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
 	    [list ::tkchat::DeleteChatWindow $parent $jid]
     bind $parent <FocusIn> \
 	    [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
-    applyColors $parent.txt
+    applyColors $parent.txt $jid
 }
 
 proc ::tkchat::CreateNewChatWindow { parent } {
@@ -2885,7 +2888,7 @@ proc ::tkchat::userPostOneToOne {p jid} {
 
     tkjabber::msgSend $msg -tojid $jid -type chat
     if { [string match "/me *" $msg] } {
-	set $msg [string range $msg 4 end]
+	set msg [string range $msg 4 end]
 	set msgtype ACTION
     } else {
 	set msgtype NORMAL
@@ -3842,13 +3845,13 @@ proc ::tkchat::ChangeColors {} {
 	    array set Options [array get DlgData Color,*]
 	    set Options(MyColor) $DlgData(MyColor)
 	    # update colors
-	    applyColors
+	    applyColors .txt All
 	}
     }
     destroy $t
 }
 
-proc ::tkchat::applyColors { {txt .txt} } {
+proc ::tkchat::applyColors { txt jid } {
     global Options
 
     # update colors
@@ -3859,7 +3862,13 @@ proc ::tkchat::applyColors { {txt .txt} } {
 	    -background "#[getColor MainBG]" \
 	    -foreground "#[getColor MainFG]"
     $txt tag configure found -background "#[getColor SearchBG]"
-    foreach nk $Options(NickList) {
+    if { $jid eq "All" } {
+	set nicks $Options(NickList)
+    } else {
+	regexp {[^/]/(.+)} $jid -> nicks
+	lappend nicks $Options(Nickname)
+    }
+    foreach nk $nicks {
 	set nk [lindex $nk 0]
 	set clr [getColor $nk]
 	$txt tag configure NICK-$nk -foreground "#$clr"
@@ -4857,7 +4866,6 @@ proc ::tkchat::Init {args} {
     ChangeFont -family $Options(Font,-family)
     ChangeFont -size $Options(Font,-size)
 
-    applyColors
     createRosterImages
 
     #call the (possibly) user defined postload proc:
@@ -7228,7 +7236,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 			ACTION end $timestamp
 	    } else {
 		if { [string match -nocase "/me *" $m(-body)] } {
-		    set m(body) [string range $m(-body) 4 end]
+		    set m(-body) [string range $m(-body) 4 end]
 		    set msgtype ACTION
 		} else {
 		    set msgtype NORMAL
@@ -7945,8 +7953,7 @@ proc ::tkjabber::setNick { newnick } {
 	set item [wrapper::getchildswithtag $x item]
 	set otherjid ""
 	if {[llength $item] > 0} {
-	    set otherjid [wrapper::getattribute \
-			    [lindex $item 0] jid]
+	    set otherjid [wrapper::getattribute [lindex $item 0] jid]
 	}
 	regexp {([^/]+)/(.+)} [$jabber myjid] -> myjid myres
 
@@ -8232,7 +8239,7 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
 
 # -------------------------------------------------------------------------
 
-proc tkjabber::getChatWidget { jid from } {
+proc ::tkjabber::getChatWidget { jid from } {
 
     variable ChatWindows
     global Options
@@ -8257,6 +8264,7 @@ proc tkjabber::getChatWidget { jid from } {
     if { [info exists ChatWindows(toplevel.$jid)] } {
 	if { ![string match "$ChatWindows(toplevel.$jid)*" [focus]] } {
 	    wm title $ChatWindows(toplevel.$jid) "* $ChatWindows(title.$jid)"
+	    ::tkchat::alertWhenIdle $ChatWindows(txt.$jid)
 	}
     }
 

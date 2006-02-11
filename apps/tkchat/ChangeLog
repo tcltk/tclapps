@@ -1,3 +1,19 @@
+2006-02-11  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::checkAlert): Alert for whispers and One to One
+	(::tkchat::alertWhenIdle):           chats.
+	(::tkchat::addMessage):
+	(::tkjabber::getChatWidget):
+
+	* tkchat.tcl (::tkchat::CreateGUI): Don't set unneeded color tags.
+	(::tkchat::SetChatWindowBindings):
+	(::tkchat::ChangeColors):
+	(::tkchat::applyColors):
+	(::tkchat::Init):
+
+	* tkchat.tcl (::tkjabber::MsgCB): Remove /me from messages for One to
+	(::tkchat::userPostOneToOne):     One chat.
+
 2006-02-03  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::IncrMessageCounter): Don't count traffic
