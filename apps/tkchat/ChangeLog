@@ -1,3 +1,17 @@
+2006-02-12  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::saveRC): Save original nick, not the ones with
+	_'s appended while trying to enter chat room.
+
+	* tkchat.tcl (::tkchat::Init): Ensure that color data is generated for
+	(::tkchat::setNickname):       new nicks, not just ones that have
+	(::tkjabber::cleanup):         posted messages. This fixes a crash
+	(::tkjabber::LoginCB):         when a One to One chat window is created
+	(::tkjabber::MucEnterCB):      for a new nick. Also fixes some Online
+	(::tkchat::updateJabberNames): nicks not showing up in the color change
+	(::tkjabber::setNick):         dialog. New procedure
+	(::tkjabber::transferNick):    ::tkchat::setNickname.
+
 2006-02-11  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::checkAlert): Alert for whispers and One to One

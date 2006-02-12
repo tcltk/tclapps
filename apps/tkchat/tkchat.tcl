@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.322 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.323 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.322 2006/02/11 09:06:55 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.323 2006/02/12 10:05:38 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4102,6 +4102,11 @@ proc ::tkchat::saveRC {} {
 	unset -nocomplain tmp(Password)
     }
 
+    # Save original Nickname
+    if { [info exists ::tkjabber::baseNick] } {
+	set tmp(Nickname) $::tkjabber::baseNick
+    }
+
     foreach option [lsort -dictionary [array names tmp]] {
 	lappend oplist [list $option $tmp($option)]
     }
@@ -4781,7 +4786,7 @@ proc ::tkchat::Init {args} {
 	    -loglevel  { set Options(LogLevel) [Pop args 1] }
 	    -useragent { set Options(UserAgent) [Pop args 1] }
 	    -debug     { set Options(JabberDebug) 1 }
-	    -nick - -nickname { set Options(Nickname) [Pop args 1] }
+	    -nick - -nickname { setNickname [Pop args 1] }
 	    -conference { set Options(JabberConference) [Pop args 1] }
 	    -connect   { set Options(JabberConnect) [Pop args 1] }
 	    -jabberserver {
@@ -4955,6 +4960,24 @@ proc ::tkchat::GetDefaultOptions {} {
 
     return [array get Defaults]
 }
+
+
+proc ::tkchat::setNickname { nick } {
+    global Options
+    variable ::tkjabber::baseNick
+
+    if { ![info exist Options(Color,NICK-$nick)] } {
+	if { [info exists Options(Color,NICK-$baseNick)] } {
+	    set Options(Color,NICK-$nick) $Options(Color,NICK-$baseNick)
+	} else {
+	    set Options(Color,NICK-$nick) $Options(Color,MainFG)
+	}
+    }
+    set Options(Nickname) $nick
+    return $Options(Nickname)
+}
+
+
 #############################################################
 #
 # askLEO
@@ -6861,7 +6884,7 @@ proc tkjabber::disconnect {} {
     tkchat::addSystem .txt "Disconnected from jabber server."
 }
 
-proc tkjabber::cleanup {} {
+proc ::tkjabber::cleanup {} {
     variable jabber
     variable muc
     variable conference
@@ -6892,7 +6915,7 @@ proc tkjabber::cleanup {} {
     if {[winfo exists .mbar.file]} {
 	.mbar.file entryconfigure 0 -label [msgcat::mc Login]
     }
-    set ::Options(Nickname) $baseNick
+    ::tkchat::setNickname $baseNick
     set ::tkchat::LoggedIn 0
 }
 
@@ -7448,7 +7471,7 @@ proc tkjabber::RegisterCB {jlibName type theQuery} {
     }
 }
 
-proc tkjabber::LoginCB {jlibname type theQuery} {
+proc ::tkjabber::LoginCB { jlibname type theQuery } {
     # After SendAuth, this is the next Callback.
     variable jabber
     variable roster
@@ -7495,7 +7518,7 @@ proc tkjabber::LoginCB {jlibname type theQuery} {
 	    $jabber send_presence -type available
 	    set muc [jlib::muc::new $jabber]
 	    if { $::Options(Nickname) eq "" } {
-		set ::Options(Nickname) $::Options(Username)
+		::tkchat::setNickname $::Options(Username)
 	    }
 	    set baseNick $::Options(Nickname)
 	    set nickTries 0
@@ -7535,7 +7558,7 @@ proc tkjabber::VCardGetProc {jlibName type theQuery} {
 proc tkjabber::GenericIQProc {jlibName type theQuery} {
     tkchat::addSystem .txt  "GenericIQProc: type=$type, theQuery='$theQuery'"
 }
-proc ::tkjabber::MucEnterCB {mucName type args} {
+proc ::tkjabber::MucEnterCB { mucName type args } {
     variable conference
     variable muc
     variable nickTries
@@ -7545,55 +7568,70 @@ proc ::tkjabber::MucEnterCB {mucName type args} {
     switch -- $type {
 	error {
 	    array set m $args
-	    if { [info exists m(-error)] } {
-		switch -- [lindex $m(-error) 0] {
-		    401 {
-			tkchat::addSystem .txt "This conference is password protected."
-		    }
-		    403 {
-			tkchat::addSystem .txt "You have been banned from this conference."
-		    }
-		    404 {
-			tkchat::addSystem .txt "This room does not exist."
-		    }
-		    405 {
-			tkchat::addSystem .txt "The maximum number of users has been reached for this room."
-		    }
-		    407 {
-			tkchat::addSystem .txt "You must be a member to enter this conference."
-		    }
-		    409 {
-			# Nick conflict. Try again?
-			if { $nickTries > 5 } {
-			    tkchat::addSystem .txt  "Unable to solve nick conflict, try setting one with /nick <nickname> and then trying again"
-			}
-			if { $nickTries < 2 } {
-			    append ::Options(Nickname) _
+	    if { ![info exists m(-error)] } {
+		::tkchat::addSystem .txt "MucEnter: type=$type, args='$args'"
+		return
+	    }
+	    switch -- [lindex $m(-error) 0] {
+		401 {
+		    ::tkchat::addSystem .txt \
+			    "This conference is password protected."
+		}
+		403 {
+		    ::tkchat::addSystem .txt \
+			    "You have been banned from this conference."
+		}
+		404 {
+		    ::tkchat::addSystem .txt "This room does not exist."
+		}
+		405 {
+		    ::tkchat::addSystem .txt [concat \
+			    "The maximum number of users has been reached" \
+			    "for this room."]
+		}
+		407 {
+		    ::tkchat::addSystem .txt \
+			    "You must be a member to enter this conference."
+		}
+		409 {
+		    # Nick conflict. Try again?
+		    incr nickTries
+		    ::tkchat::addSystem .txt \
+			    "The nick $::Options(Nickname) is in use."
+		    if { $nickTries > 5 } {
+			::tkchat::addSystem .txt [concat \
+				"Unable to solve nick conflict, try setting" \
+				"one with /nick <nickname> and then trying" \
+				"again"]
+		    } else {
+			if { $nickTries < 3 } {
+			    ::tkchat::setNickname "$::Options(Nickname)_"
 			} else {
-			    set ::Options(Nickname) $baseNick$nickTries
+			    ::tkchat::setNickname "${baseNick}_$nickTries"
 			}
+			::tkchat::addSystem .txt \
+			    "Trying to enter using $::Options(Nickname)."
 			$muc enter $conference [xmlSafe $::Options(Nickname)] \
 				-command ::tkjabber::MucEnterCB
 		    }
-		    default {
-			::tkchat::addSystem .txt \
-				"MucEnter: type=$type, args='$args'"
-		    }
+		}
+		default {
+		    ::tkchat::addSystem .txt \
+			    "MucEnter: type=$type, args='$args'"
 		}
 	    }
 	}
 	available {
-	    #tkchat::addSystem .txt  "MucEnter: type=$type, args='$args'"
 	    #only load history for tclers chat when it is not loaded already.
 	    if {$conference eq "tcl@tach.tclers.tk" \
-		    &&  !$tkjabber::HaveHistory } {
+		    &&  !$::tkjabber::HaveHistory } {
 		# Force history loading to the background
-		after idle [list after 0 tkchat::LoadHistory]
+		after idle [list after 0 ::tkchat::LoadHistory]
 	    }
 	    autoStatus
 	}
 	default {
-	    tkchat::addSystem .txt  "MucEnter: type=$type, args='$args'"
+	    ::tkchat::addSystem .txt "MucEnter: type=$type, args='$args'"
 	}
     }
 
@@ -7814,6 +7852,9 @@ proc ::tkchat::updateJabberNames {} {
 		&& $Options(Visibility,NICK-$name)} {
 	    set status disabled
 	}
+	if { ![info exists Options(Color,NICK-$name)] } {
+	    set Options(Color,NICK-$name) $Options(Color,MainFG)
+	}
 
 	lappend Options(OnLineUsers) $name
 	# NOTE : the URL's don't work because of the & in them
@@ -7976,7 +8017,7 @@ proc ::tkjabber::setNick { newnick } {
 
     # There is a race condition here. new nick could enter between the check
     # and the setnick call...
-    set ::Options(Nickname) $newnick
+    ::tkchat::setNickname $newnick
     set baseNick $newnick
     $muc setnick $conference [xmlSafe $newnick]
 }
@@ -8003,7 +8044,7 @@ proc ::tkjabber::transferNick { reqfrom } {
     if { [string match "tkchat*" $postfix] } {
 	set postfix [string range $postfix 6 end]
 	if { $postfix eq "" } {
-	    set postfix "Away"
+	    set postfix "_Away"
 	}
     }
     set newnick $::Options(Nickname)$postfix
@@ -8013,7 +8054,7 @@ proc ::tkjabber::transferNick { reqfrom } {
     }
 
     # Set my nick name to newnick.
-    set ::Options(Nickname) $newnick
+    ::tkchat::setNickname $newnick
     $muc setnick $conference [xmlSafe $newnick]
 
     # The other party does not need to be notified - it should be in nickgrab mode.
