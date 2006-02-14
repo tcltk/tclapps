@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.323 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.324 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.323 2006/02/12 10:05:38 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.324 2006/02/14 15:32:31 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3757,6 +3757,8 @@ proc ::tkchat::ChangeColors {} {
     frame $t.f -relief sunken -bd 2 -height 300
     canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
 	  -width 10 -height 300 -highlightthickness 0 -bd 0
+    bind $t <Button-4> [list $t.f.cvs yview scroll -1 units]
+    bind $t <Button-5> [list $t.f.cvs yview scroll  1 units]
     scrollbar $t.f.scr -command [list $t.f.cvs yview]
     pack $t.f.cvs -side left -expand 1 -fill both
     pack $t.f.scr -side left -fill y
@@ -3865,8 +3867,13 @@ proc ::tkchat::applyColors { txt jid } {
     if { $jid eq "All" } {
 	set nicks $Options(NickList)
     } else {
-	regexp {[^/]/(.+)} $jid -> nicks
 	lappend nicks $Options(Nickname)
+	# Is it a conference/nick JID or a user/ressource one?
+	if {[regexp {([^/]+)/(.+)} $jid -> conf nick]
+	    && $conf eq $Options(JabberConference)
+	} then {
+	    lappend nicks $res
+	}
     }
     foreach nk $nicks {
 	set nk [lindex $nk 0]

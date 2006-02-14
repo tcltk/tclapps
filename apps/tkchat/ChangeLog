@@ -1,3 +1,12 @@
+2006-02-14  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::applyColors): Distinguish between
+	conference JIDs and normal user JIDs when trying to figure out the
+	nickname and color.
+
+	* tkchat.tcl (::tkchat::ChangeColors): Added support for mouse
+	wheels to the font dialog.
+
 2006-02-12  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::saveRC): Save original nick, not the ones with
