@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.324 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.325 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.324 2006/02/14 15:32:31 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.325 2006/02/15 11:36:05 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3872,7 +3872,7 @@ proc ::tkchat::applyColors { txt jid } {
 	if {[regexp {([^/]+)/(.+)} $jid -> conf nick]
 	    && $conf eq $Options(JabberConference)
 	} then {
-	    lappend nicks $res
+	    lappend nicks $nick
 	}
     }
     foreach nk $nicks {
