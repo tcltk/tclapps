@@ -86,7 +86,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.325 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.326 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -100,7 +100,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.325 2006/02/15 11:36:05 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.326 2006/02/27 13:19:03 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3746,10 +3746,10 @@ proc ::tkchat::ChangeColors {} {
     button $t.myclr -text "Change..." -font FNT -command {
 	set tmp [tk_chooseColor \
 		       -title "Select Your User Color" \
-		       -initialcolor \#$DlgData(MyColor)]
+		       -initialcolor \#$::tkchat::DlgData(MyColor)]
 	if { $tmp ne "" } {
 	    .opts.l2 configure -foreground $tmp
-	    set DlgData(MyColor) [string range $tmp 1 end]
+	    set ::tkchat::DlgData(MyColor) [string range $tmp 1 end]
 	}
     }
 
@@ -4105,7 +4105,7 @@ proc ::tkchat::saveRC {} {
     }
 
     # Do we save password?
-    if { !$tmp(SavePW) } {
+    if { !$Options(SavePW) } {
 	unset -nocomplain tmp(Password)
     }
 
@@ -4933,7 +4933,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	LogStderr		1
 	MsgTo			"All Users"
 	MyColor			000000
-	NickList		{{} {}}
+	NickList		{}
 	Nickname		""
 	OneToOne		tabbed
 	Pane			{520 2}

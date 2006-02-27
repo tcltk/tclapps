@@ -1,3 +1,12 @@
+2006-02-27  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::saveRC): Fix not saving password.
+
+	* tkchat.tcl (::tkchat::GetDefaultOptions): Fix initializing when no rc
+	file is available.
+
+	* tkchat.tcl (::tkchat::ChangeColors): Fix changing posting color.
+
 2006-02-14  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::applyColors): Distinguish between
@@ -1242,7 +1251,10 @@
 
 2001-12-06  Bruce Hartweg  <brhartweg@bigfoot.com>
 
-	* tkchat.tcl: Move most stuff out of dialog onto menus - cleaned up dialog (now just colors), a few other minor cleanups (also missed from davidw checking in v25 for me was the ability to grab the history logs at startup)
+	* tkchat.tcl: Move most stuff out of dialog onto menus - cleaned up
+	dialog (now just colors), a few other minor cleanups (also missed from
+	davidw checking in v25 for me was the ability to grab the history logs
+	at startup)
 
 2001-12-05  Reinhard Max  <max@suse.de>
 
