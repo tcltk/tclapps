@@ -1,3 +1,33 @@
+2006-03-05  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::CreateGUI): Move creation of text popup menu to
+	(::tkchat::babelfishMenu):          its own procedure
+	(::tkchat::babelfishMenuPost):      '::tkchat::OnTextPopup'. Add popup
+	(::tkchat::OnTextPopup):            menu to One to One chat. Add
+	(::tkchat::SetChatWindowBindings):  ability to 'Hide user' to menu.
+	(::tkchat::BookmarkInit):
+	(::tkchat::BookmarkToggle):
+	(::tkchat::BookmarkClear):
+	(::tkchat::GoogleSelection):
+
+	* tkchat.tcl (::tkchat::OnNamePopup): Prevent a crash if trying to hide
+	(::tkchat::OnNameToggleVis):          a user who hasn't posted any
+	messages. Modified menu to dis-allow this action.
+
+	* tkchat.tcl (::tkchat::checkNick): Don't change NickList timestamps to
+	an older time when parsing a history log.
+
+	* tkchat.tcl (::tkchat::gotoURL): Fix not saving preffered browser.
+	(::tkchat::saveRC):
+	(::tkchat::GetDefaultOptions):
+	(::tkchat::EditOptions):
+
+	* tkchat.tcl (::tkchat::CreateGUI): Make PaneConfigure an idle callback
+	so that it updates correctly when resizing window.
+
+	* tkchat.tcl: Remove unused global. Trim some unused code. Modify
+	one exit message.
+
 2006-02-27  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::saveRC): Fix not saving password.

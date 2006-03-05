@@ -46,7 +46,6 @@ package require muc		; # jlib
 if { ![catch { tk inactive }] } {
     # Idle detection built into tk8.5a3
     namespace eval ::idle {
-	namespace export supported idletime
 	proc ::idle::supported {} { return 1 }
 	proc ::idle::idletime {} { return [expr { [tk inactive] / 1000 }] }
     }
@@ -86,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.326 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.327 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -94,13 +93,12 @@ namespace eval ::tkchat {
     # Everything will eventually be namespaced
     variable MessageHooks
     array set MessageHooks {}
-    variable UserClicked 0
 
     # this is http://mini.net - but that recently had a dns problem
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.326 2006/02/27 13:19:03 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.327 2006/03/05 05:18:04 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -120,7 +118,7 @@ namespace eval ::tkchat {
 	    "%user% has left the chat!" \
 	    "In a cloud of smoke, %user% disappears!" \
 	    "%user% exits, stage left!" \
-	    "%user% doesn't want to talk to you anymore!" \
+	    "%user% doesn't want to talk anymore!" \
 	    "%user% looks at the clock and dashes out the door" \
 	    "%user% macht wie eine Banane ..." \
 	    "Ladies and Gentlemen, %user% has left the building!" \
@@ -661,24 +659,8 @@ proc ::tkchat::babelfishMenu {} {
 	    set ndx [$menu index "Translate Selection"]
 	    $menu entryconfigure $ndx -menu $tr
 	}
-
-	# Add to the context menu
-	catch {
-	    set ndx [.mbar.mm index "Translate"]
-	    .mbar.mm entryconfigure $ndx -menu $tr
-	}
 	::tkchat::babelfishInit
     }
-}
-
-proc ::tkchat::babelfishMenuPost {x y} {
-    variable babelfishinit 0
-    ::log::log debug "babelfishmenu post"
-    if {![winfo exists .mbar.tr]} {
-	babelfishMenu
-	tkwait variable babelfishinit
-    }
-    .mbar.help.tr post $x $y
 }
 
 # -------------------------------------------------------------------------
@@ -831,7 +813,9 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
     set match 0
     foreach nk $Options(NickList) {
 	if { [lindex $nk 0] eq $nick } {
-	    lset Options(NickList) $match [lset nk 1 $timestamp]
+	    if { $timestamp > [lindex $nk 1] } {
+		lset Options(NickList) $match [lset nk 1 $timestamp]
+	    }
 	    break
 	} else {
 	    incr match
@@ -1170,8 +1154,9 @@ proc ::tkchat::gotoURL {url} {
 	    if {$tcl_platform(os) == "Darwin"} {
 		# assume all goes well:
 		set notOK 0
-		if {[info exists Options(BROWSER)]} {
-		    set noOK [catch {exec open -a $Options(BROWSER) $url} emsg]
+		if { $Options(Browser) ne "" } {
+		    set notOK \
+			    [catch {exec open -a $Options(Browser) $url} emsg]
 		}
 		if {$notOK} {
 		    # Safari should always be there:
@@ -1183,14 +1168,14 @@ proc ::tkchat::gotoURL {url} {
 		}
 	    } else {
 		expr {
-		    [info exists Options(BROWSER)]
-		    || [findExecutable mozilla		Options(BROWSER)]
-		    || [findExecutable mozilla-firefox	Options(BROWSER)]
-		    || [findExecutable mozilla-firebird	Options(BROWSER)]
-		    || [findExecutable konqueror	Options(BROWSER)]
-		    || [findExecutable netscape		Options(BROWSER)]
-		    || [findExecutable iexplorer	Options(BROWSER)]
-		    || [findExecutable lynx		Options(BROWSER)]
+		    $Options(Browser) ne ""
+		    || [findExecutable mozilla		Options(Browser)]
+		    || [findExecutable mozilla-firefox	Options(Browser)]
+		    || [findExecutable mozilla-firebird	Options(Browser)]
+		    || [findExecutable konqueror	Options(Browser)]
+		    || [findExecutable netscape		Options(Browser)]
+		    || [findExecutable iexplorer	Options(Browser)]
+		    || [findExecutable lynx		Options(Browser)]
 		}
 
 		# lynx can also output formatted text to a variable
@@ -1200,14 +1185,14 @@ proc ::tkchat::gotoURL {url} {
 		# -remote argument might need formatting as a command
 		# 		Try that first
 		if { [catch {
-		    exec $Options(BROWSER) -remote openURL($url) 2> /dev/null
+		    exec $Options(Browser) -remote openURL($url) 2> /dev/null
 		}] } then {
 		    # Try -remote with raw URL argument
 		    if { [catch {
-			exec $Options(BROWSER) -remote $url 2> /dev/null
+			exec $Options(Browser) -remote $url 2> /dev/null
 		    }]} then {
 			# perhaps browser doesn't understand -remote flag
-			if { [catch { exec $Options(BROWSER) $url & } emsg] } {
+			if { [catch { exec $Options(Browser) $url & } emsg] } {
 			    tk_messageBox -message \
 				    "Error displaying $url in browser\n$emsg"
 			}
@@ -1569,6 +1554,9 @@ proc ::tkchat::CreateGUI {} {
 	    -label "Auto Bookmark" \
 	    -underline 5 \
 	    -variable Options(AutoBookmark)
+    $m add checkbutton \
+	    -label "Auto-Init Babelfish" \
+	    -variable Options(UseBabelfish)
 
     $m add separator
 
@@ -1581,7 +1569,7 @@ proc ::tkchat::CreateGUI {} {
 	    -underline 0 \
 	    -command ::tkchat::EditMacros
     $m add command \
-	    -label "Font" \
+	    -label "Font ..." \
 	    -underline 0 \
 	    -command ::tkchat::ChooseFont
     $m add command \
@@ -1683,7 +1671,6 @@ proc ::tkchat::CreateGUI {} {
     menu $m.chat1to1 -tearoff 0
     $m add cascade \
 	    -label "One to One chats" \
-	    -underline 0 \
 	    -menu $m.chat1to1
     $m.chat1to1 add radiobutton \
 	    -label "Keep all chat in one window" \
@@ -1972,9 +1959,7 @@ proc ::tkchat::CreateGUI {} {
 
     CreateTxtAndSbar
 
-    bind .txt <Button-3> {
-	::tkchat::babelfishMenuPost [winfo pointerx %W] [winfo pointery %W]
-    }
+    bind .txt <Button-3> { ::tkchat::OnTextPopup %W %x %y }
     bind .txt <Shift-Button-3> { ::dict.leo.org::askLEOforSelection }
 
     # user display
@@ -2082,9 +2067,10 @@ proc ::tkchat::CreateGUI {} {
 	    set coord [.pane sash coord 0]
 	    .pane sash place 0 $w [lindex $coord 1]
 	}
-	set Options(PaneUsersWidth) \
-	    [expr { [winfo width .pane] - [lindex [.pane sash coord 0] 0] }]
-	bind .pane <Configure>	{ ::tkchat::PaneConfigure %W %w }
+	set Options(PaneUsersWidth) [expr { [winfo width .pane] \
+		- [lindex [.pane sash coord 0] 0] }]
+	bind .pane <Configure>	\
+		{ after idle [list ::tkchat::PaneConfigure %W %w] }
 	bind .pane <Leave>	{ ::tkchat::PaneLeave %W }
 
 	# update the pane immediately.
@@ -2095,6 +2081,54 @@ proc ::tkchat::CreateGUI {} {
     MsgTo "All Users"
     displayUsers
 }
+
+
+proc ::tkchat::OnTextPopup { w x y } {
+    $w mark set AddBookmark "@$x,$y linestart"
+
+    set m .txt_popup
+    catch { destroy $m }
+    set m [menu $m -tearoff 0]
+
+    if { $w eq ".txt" } {
+	set name [lsearch -inline [$w tag names @$x,$y] NICK-*]
+	if { $name ne "" } {
+	    $m add command \
+		    -label "Hide user" \
+		    -command [list ::tkchat::OnNameToggleVis $name]
+	    $m add separator
+	}
+	$m add command \
+		-label "Set/Unset Bookmark" \
+		-accelerator Ctrl-F2 \
+		-command ::tkchat::BookmarkToggle
+	$m add command \
+		-label "Prev Bookmark" \
+		-accelerator Shift-F2 \
+		-command ::tkchat::BookmarkNext
+	$m add command \
+		-label "Next Bookmark" \
+		-accelerator F2 \
+		-command ::tkchat::BookmarkPrev
+	$m add command \
+		-label "Clear Bookmarks" \
+		-command ::tkchat::BookmarkClear
+    }
+    $m add command \
+	    -label "Google Selection" \
+	    -accelerator Ctrl-G \
+	    -command [list ::tkchat::GoogleSelection $w]
+
+    if { ![winfo exists .mbar.help.tr] } {
+	$m add command -label "Translate Initialize" -command ::tkchat::babelfishMenu
+    } else {
+	.mbar.help.tr clone $m.tr
+	$m add cascade -label "Translate Selection" -menu $m.tr
+    }
+
+    $m post [winfo pointerx $w] [winfo pointery $w]
+}
+
 
 proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     global Options
@@ -2157,6 +2191,7 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
 
     set post [list ::tkchat::userPostOneToOne $parent $jid]
 
+    bind $parent.txt  <Button-3>  { ::tkchat::OnTextPopup %W %x %y }
     bind $parent.eMsg <Return>	  $post
     bind $parent.eMsg <KP_Enter>  $post
     $parent.post configure -command $post
@@ -2966,7 +3001,6 @@ proc ::tkchat::userPost {{jid ""}} {
 
 proc ::tkchat::checkCommand { msg } {
     global Options
-    variable UserClicked
 
     # check against commands that can be used while logged off
     set moreToGo 0
@@ -3062,7 +3096,6 @@ proc ::tkchat::checkCommand { msg } {
     # now check against logged in commands
     switch -re -- $msg {
 	{^/userinfo} {
-	    set UserClicked 1
 	    ::tkjabber::msgSend $msg
 	}
 	{^/log\s?} {
@@ -4056,14 +4089,14 @@ proc ::tkchat::saveRC {} {
     # Save these options to resource file
     set keep {
 	Alert,* AnimEmoticons AutoAway AutoBookmark AutoConnect AutoFade
-	AutoFadeLimit AutoScroll ChatLogFile ChatLogOff Color,* DisplayUsers
-	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
-	Font,* Fullname Geometry HistoryLines JabberConference JabberPort
-	JabberResource JabberServer LogFile LogLevel LogStderr MsgTo MyColor
-	Nickname OneToOne Pane Password ProxyHost ProxyPort ProxyUsername
-	SavePW ServerLogging Style Theme Transparency UseBabelfish
-	UseJabberPoll UseJabberSSL UsePane UseProxy Username Visibility,*
-	WhisperIndicatorColor
+	AutoFadeLimit AutoScroll Browser ChatLogFile ChatLogOff Color,*
+	DisplayUsers Emoticons EnableWhiteboard EntryMessageColor errLog
+	ExitMessageColor Font,* Fullname Geometry HistoryLines JabberConference
+	JabberPort JabberResource JabberServer LogFile LogLevel LogStderr MsgTo
+	MyColor Nickname OneToOne Pane Password ProxyHost ProxyPort
+	ProxyUsername SavePW ServerLogging Style Theme Transparency
+	UseBabelfish UseJabberPoll UseJabberSSL UsePane UseProxy Username
+	Visibility,* WhisperIndicatorColor
     }
 
     foreach key $keep {
@@ -4881,7 +4914,7 @@ proc ::tkchat::Init {args} {
     createRosterImages
 
     #call the (possibly) user defined postload proc:
-    ::tkchat::rcPostload
+    rcPostload
 
     # connect
     if {! $nologin} {
@@ -4911,6 +4944,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	AutoFade		0
 	AutoFadeLimit		80
 	AutoScroll		0
+	Browser			""
 	ChatLogFile		""
 	ChatLogOff		1
 	DisplayUsers		1
@@ -4960,7 +4994,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Visibility,TRAFFIC	0
 	WhisperIndicatorColor	#ffe0e0
     }
-    catch { set Defaults(BROWSER) $env(BROWSER) }
+    catch { set Defaults(Browser) $env(BROWSER) }
     foreach { name clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 } {
 	set Defaults(Color,$name) [list 1 $clr [invClr $clr] $clr]
     }
@@ -5772,7 +5806,7 @@ namespace eval ::dkfFontSel {
     }
 
 }
-namespace import -force ::dkfFontSel::dkf_chooseFont
+
 
 # -------------------------------------------------------------------------
 # Tracing variables
@@ -6108,40 +6142,6 @@ proc ::tkchat::BookmarkInit {} {
     if { $tempWidth > $bookmark(width) } {
 	set bookmark(width) $temp
     }
-
-    menu .mbar.mm -tearoff 0
-    .mbar.mm add command \
-	    -label "Set/Unset Bookmark" \
-	    -accelerator Ctrl-F2 \
-	    -command ::tkchat::BookmarkToggle
-    .mbar.mm add command \
-	    -label "Prev Bookmark" \
-	    -accelerator Shift-F2 \
-	    -command ::tkchat::BookmarkNext \
-	    -state disabled
-    .mbar.mm add command \
-	    -label "Next Bookmark" \
-	    -accelerator F2 \
-	    -command ::tkchat::BookmarkPrev \
-	    -state disabled
-    .mbar.mm add command \
-	    -label "Clear Bookmarks" \
-	    -command ::tkchat::BookmarkClear \
-	    -state disabled
-    .mbar.mm add command \
-	    -label "Google Selection" \
-	    -accelerator Ctrl-G \
-	    -command ::tkchat::GoogleSelection
-
-    .mbar.mm add cascade -label "Translate" -command ::tkchat::babelfishMenu
-
-    .mbar.mm add command -label "Cancel"
-
-    bind .txt <Button-1> {focus %W ; %W mark set insert @%x,%y}
-    bind .txt <Button-3> {
-	%W mark set AddBookmark "@%x,%y linestart"
-	.mbar.mm post %X %Y
-    }
     bind . <Control-F2>	{
 	set x [expr {[winfo pointerx .txt] - [winfo rootx .txt]}]
 	set y [expr {[winfo pointery .txt] - [winfo rooty .txt]}]
@@ -6168,9 +6168,6 @@ proc ::tkchat::BookmarkToggle { {auto ""} } {
 	.txt image create AddBookmark \
 		-name bookmark$auto$bookmark(id) \
 		-image ::tkchat::img::bookmark$auto
-	.mbar.mm entryconfigure "Prev Bookmark" -state normal
-	.mbar.mm entryconfigure "Next Bookmark" -state normal
-	.mbar.mm entryconfigure "Clear Bookmarks" -state normal
 	if { $bookmark(id) == 1 } {
 	    set tabs [.txt cget -tabs]
 	    if { $tabs eq {} } {
@@ -6293,18 +6290,15 @@ proc ::tkchat::BookmarkClear {} {
 	.txt configure -tabs $newtabs
 	.txt tag configure BOOKMARK	-lmargin1 0
 	.txt tag configure MSG	-lmargin2 $width
-	.mbar.mm entryconfigure "Prev Bookmark" -state disabled
-	.mbar.mm entryconfigure "Next Bookmark" -state disabled
-	.mbar.mm entryconfigure "Clear Bookmarks" -state disabled
 	if { $::Options(AutoScroll) } {
 	    .txt see end
 	}
     }
 }
 
-proc ::tkchat::GoogleSelection {} {
-    set sel [.txt tag ranges sel]
-    set t [.txt get [lindex $sel 0] [lindex $sel 1]]
+proc ::tkchat::GoogleSelection { w } {
+    set sel [$w tag ranges sel]
+    set t [$w get [lindex $sel 0] [lindex $sel 1]]
     gotoURL http://www.google.com/search?ie=UTF-8&oe=UTF-8&[::http::formatQuery q $t]
 }
 
@@ -6437,11 +6431,7 @@ proc ::tkchat::EditOptions {} {
     set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
     variable EditOptions
     array set EditOptions {Result -1}
-    if {[info exists Options(BROWSER)]} {
-	set EditOptions(BROWSER) $Options(BROWSER)
-    } else {
-	set EditOptions(BROWSER) {}
-    }
+    set EditOptions(Browser) $Options(Browser)
 
     set EditOptions(Style)         $Options(Style)
     set EditOptions(AutoFade)      $Options(AutoFade)
@@ -6461,10 +6451,10 @@ proc ::tkchat::EditOptions {} {
 	be opened will be appended to the command string and for\
 	mozilla-type browsers we will call the -remote option to\
 	try to use a previously existing browser."
-    ${NS}::entry $bf.e -textvariable ::tkchat::EditOptions(BROWSER)
+    ${NS}::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
     ${NS}::button $bf.b -text "..."  -command {
 	if {[set file [tk_getOpenFile]] != {}} {
-	    set ::tkchat::EditOptions(BROWSER) $file
+	    set ::tkchat::EditOptions(Browser) $file
 	}
     }
 
@@ -6554,7 +6544,7 @@ proc ::tkchat::EditOptions {} {
     tkwait variable ::tkchat::EditOptions(Result)
 
     if {$EditOptions(Result) == 1} {
-	set Options(BROWSER) $EditOptions(BROWSER)
+	set Options(Browser) $EditOptions(Browser)
 	foreach property {Style AutoFade AutoFadeLimit} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
@@ -7907,42 +7897,37 @@ proc ::tkchat::updateJabberNames {} {
     .names configure -state disabled
 }
 
-proc ::tkchat::OnNameClick {name} {
-    set ::tkchat::UserClicked 1
-    tkjabber::msgSend "/userinfo $name"
+
+proc ::tkchat::OnNameToggleVis { name } {
+    global Options
+
+    set Options(Visibility,$name) [expr {!$Options(Visibility,$name)}]
+    DoVis $name
 }
 
-proc ::tkchat::OnNameToggleVis {name} {
-    global Options
-    set tag NICK-$name
-    if {[info exists Options(Visibility,$tag)]} {
-	set Options(Visibility,$tag) [expr {!$Options(Visibility,$tag)}]
-    } else {
-	set Options(Visibility,$tag) 1
-    }
-    DoVis $tag
-}
 
 proc ::tkchat::OnNamePopup {name x y} {
     global Options
+
     set m .names_popup
-    if {![winfo exists $m]} {
-	set m [menu $m -tearoff 0]
-	$m add command -label "User info"
-	$m add command -label "Hide user"
+    catch { destroy $m }
+    set m [menu $m -tearoff 0]
+    $m add command \
+	    -label "User info" \
+	    -command [list ::tkjabber::msgSend "/userinfo $name"]
+
+    if { [info exists Options(Visibility,NICK-$name)] } {
+	if { $Options(Visibility,NICK-$name) } {
+	    $m add command -label "Show user"
+	} else {
+	    $m add command -label "Hide user"
+	}
+	$m entryconfigure 1 \
+		-command [list [namespace origin OnNameToggleVis] NICK-$name]
     }
-    $m entryconfigure 0 \
-	    -command [list [namespace origin OnNameClick] $name]
-    if {[info exists Options(Visibility,NICK-$name)] \
-	    && $Options(Visibility,NICK-$name)} {
-	set label "Show user"
-    } else {
-	set label "Hide user"
-    }
-    $m entryconfigure 1 -label $label \
-	    -command [list [namespace origin OnNameToggleVis] $name]
-    tk_popup $m $x $y
+    $m post $x $y
 }
+
 
 proc ::tkchat::createRosterImages {} {
     image create photo ::tkchat::roster::chat -data {
