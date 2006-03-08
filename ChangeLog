@@ -2,6 +2,10 @@
 
 	* apps/tclunit/*:  added to CVS.
 
+2005-03-25  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* apps/taip/taip.tcl: follow links to find [info script] (steffen)
+
 2005-02-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* apps/asteroids/*: added to CVS.  Original author Jeff Godfrey.
