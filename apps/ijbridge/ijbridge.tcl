@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.5 2005/10/26 15:20:55 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.6 2006/03/12 18:28:47 wildcard_25 Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -353,7 +353,18 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 }
             }
         }
-        normal -
+	normal {
+	    array set a {-subject {} -from {}}
+	    array set a $args
+	    log::log debug "normal --> $args"
+	    switch -- $a(-subject) {
+		IrcUserList {
+		    send -user $a(-from) -type normal -subject IrcUserList \
+			    -id $Options(Conference)/$Options(JabberUser) \
+			    $IrcUserList
+		}
+	    }
+	}
         error -
         default {
             log::log debug "msg: $token $type $args"
@@ -559,6 +570,7 @@ proc ::ijbridge::LoadConfig {} {
 
 proc client::create { server port nk chan } {
     variable ::ijbridge::Options
+    variable ::ijbridge::IrcUserList
     variable cn
     variable channel $chan
     variable nick $nk
@@ -579,13 +591,9 @@ proc client::create { server port nk chan } {
 	#List of online users sent on channel join
 	::log::log debug "UsersOnline [msg]"
 	set ::ijbridge::IrcUserList \
-            [split [string map {@ "" % "" + ""} [string trim [msg]]] " "]
-        foreach bridge {ircbridge azbridge ijbridge} {
-            set item [lsearch $::ijbridge::IrcUserList $bridge]
-            if { $item > -1 } {
-                set ::ijbridge::IrcUserList \
-                    [lreplace $::ijbridge::IrcUserList $item $item]
-            }
+		[split [string map {@ "" % "" + ""} [string trim [msg]]] " "]
+	foreach bridge {ircbridge azbridge ijbridge ijchain} {
+	    set IrcUserList [lsearch -all -inline -not $IrcUserList $bridge]
 	}
     }
 
@@ -614,37 +622,30 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent PART {
-	if { [target] == $client::channel && [who] != $client::nick } {
+	if { [target] eq $client::channel && [who] ne $client::nick } {
+	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
 	    ijbridge::send "*** [who] leaves"
-	    set item [lsearch $::ijbridge::IrcUserList [who]]
-	    if { $item > -1 } {
-		set ::ijbridge::IrcUserList \
-                    [lreplace $::ijbridge::IrcUserList $item $item]
-	    }
 	}
-	
+
     }
 
     $cn registerevent JOIN {
 	if { [who] != $client::nick } {
-	    ijbridge::send "*** [who] joins"
-
-	    if { [lsearch $::ijbridge::IrcUserList [who]] == -1 } {
-		lappend ::ijbridge::IrcUserList [who]
+	    if { [lsearch $IrcUserList [who]] == -1 } {
+		lappend IrcUserList [who]
 	    }
-
+	    ijbridge::send "*** [who] joins"
 	}
-
     }
 
     $cn registerevent QUIT {
-	if { [who] != $::client::nick } {
+	if { [who] ne $::client::nick } {
+	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
 	    ijbridge::send "*** [who] leaves"
-	    if { [who] == [string trimright $::client::nick 0123456789] } {
-	        cmd-send "NICK [who]"
+	    if { [who] eq [string trimright $::client::nick 0123456789] } {
+		cmd-send "NICK [who]"
 	    }
 	}
-	
     }
 
     $cn registerevent PRIVMSG {
@@ -659,15 +660,19 @@ proc client::create { server port nk chan } {
             ijbridge::IrcToJabber [who] $msg $emote
 	}
     }
-    
+
     $cn registerevent NICK {
-        if { [who] == $::client::nick } {
-            set ::client::nick [msg]
-        } else {
-            ijbridge::send "*** [who] is now known as [msg]"
-        }
+	if { [who] eq $::client::nick } {
+	    set ::client::nick [msg]
+	} else {
+	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
+	    if { [lsearch $IrcUserList [msg]] == -1 } {
+		lappend IrcUserList [msg]
+	    }
+	    ijbridge::send "*** [who] is now known as [msg]"
+	}
     }
-    
+
     $cn registerevent EOF "
         ::log::log notice \"Disconnected from IRC\"
         ::client::connect \$::client::cn $server $port

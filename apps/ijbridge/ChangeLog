@@ -1,3 +1,9 @@
+2006-03-13  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* ijbridge.tcl: Added callback facility to retrieve the list of online
+	IRC users from a jabber client. Modified tracking of IRC users to be
+	a little more accurate.
+
 2005-10-26  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
 
 	* ijbridge.tcl: Added facility to identify with FreeNode's
