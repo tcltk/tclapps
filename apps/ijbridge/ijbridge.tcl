@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.6 2006/03/12 18:28:47 wildcard_25 Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.7 2006/03/13 22:32:00 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -359,9 +359,8 @@ proc ::ijbridge::OnMessageBody {token type args} {
 	    log::log debug "normal --> $args"
 	    switch -- $a(-subject) {
 		IrcUserList {
-		    send -user $a(-from) -type normal -subject IrcUserList \
-			    -id $Options(Conference)/$Options(JabberUser) \
-			    $IrcUserList
+		    send -user $a(-from) -type normal \
+                        -subject IrcUserList $IrcUserList
 		}
 	    }
 	}
@@ -437,10 +436,12 @@ proc ::ijbridge::send {args} {
     array set opts { user {} -xlist {} -type chat -id {} -from {}}
     while {[string match -* [set option [lindex $args 0]]]} {
         switch -exact -- $option {
-            -user { set opts(user) [Pop args 1] }
-            -id   { set opts(-id) [Pop args 1] }
-            -from { set opts(-from) [Pop args 1] }
-            --    { Pop args ; break }
+            -user    { set opts(user) [Pop args 1] }
+            -id      { set opts(-id) [Pop args 1] }
+            -from    { set opts(-from) [Pop args 1] }
+            -type    { set opts(-type) [Pop args 1] }
+            -subject { set opts(-subject) [Pop args 1] }
+            --       { Pop args ; break }
         }
         Pop args
     }
@@ -577,18 +578,22 @@ proc client::create { server port nk chan } {
     set cn [::irc::connection]
 
     $cn registerevent 001 {
+        # RPL_WELCOME
         set ::client::nick [target]
         cmd-join $::client::channel
     }
 
     $cn registerevent 433 {
+        # ERR_NICKNAMEINUSE
         if { [lindex [additional] 0] == $::client::nick } {
             cmd-send "NICK [string trimright $::client::nick 0123456789][string range [expr rand()] end-2 end]"
         }
     }
 
     $cn registerevent 353 {
+        # RPL_NAMEREPLY
 	#List of online users sent on channel join
+        variable ::ijbridge::IrcUserList
 	::log::log debug "UsersOnline [msg]"
 	set ::ijbridge::IrcUserList \
 		[split [string map {@ "" % "" + ""} [string trim [msg]]] " "]
@@ -598,7 +603,7 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent 376 {
-        # 376 is End of /MOTD message
+        # RPL_ENDOFMOTD
         variable ::ijbridge::Options
         if {[catch {
             if {[string length $Options(IrcNickPasswd)] > 0} {
@@ -622,6 +627,7 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent PART {
+        variable ::ijbridge::IrcUserList
 	if { [target] eq $client::channel && [who] ne $client::nick } {
 	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
 	    ijbridge::send "*** [who] leaves"
@@ -630,6 +636,7 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent JOIN {
+        variable ::ijbridge::IrcUserList
 	if { [who] != $client::nick } {
 	    if { [lsearch $IrcUserList [who]] == -1 } {
 		lappend IrcUserList [who]
@@ -639,6 +646,7 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent QUIT {
+        variable ::ijbridge::IrcUserList
 	if { [who] ne $::client::nick } {
 	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
 	    ijbridge::send "*** [who] leaves"
@@ -662,6 +670,7 @@ proc client::create { server port nk chan } {
     }
 
     $cn registerevent NICK {
+        variable ::ijbridge::IrcUserList
 	if { [who] eq $::client::nick } {
 	    set ::client::nick [msg]
 	} else {

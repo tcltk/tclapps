@@ -1,16 +1,20 @@
+2006-03-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Testing and fixes for the previous change.
+
 2006-03-13  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* ijbridge.tcl: Added callback facility to retrieve the list of online
 	IRC users from a jabber client. Modified tracking of IRC users to be
 	a little more accurate.
 
-2005-10-26  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+2005-10-26  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Added facility to identify with FreeNode's
 	nickserv as unidentified users cannot send private
 	messages. Registered ijtest and ijchain users with nickserv.
 
-2004-12-05  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+2004-12-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Added a map to remove all ASCII < 32 except those
 	permitted by XML. Added the stdin reader from version 2. Removed
