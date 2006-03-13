@@ -1,5 +1,6 @@
 2006-03-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* ijbridge.tcl: Added version command.
 	* ijbridge.tcl: Testing and fixes for the previous change.
 
 2006-03-13  Daniel South  <wildcard_25@users.sourceforge.net>

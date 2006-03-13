@@ -1,4 +1,4 @@
-[manpage_begin ijbridge 1 1.0.0]
+[manpage_begin ijbridge 1 1.0.1]
 [copyright {2004, Pat Thoyts}]
 [titledesc {Jabber-IRC bridge}]
 [require Tcl 8.4]

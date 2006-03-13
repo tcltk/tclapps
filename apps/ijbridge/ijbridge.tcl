@@ -23,8 +23,8 @@ namespace eval client {}
 
 namespace eval ::ijbridge {
 
-    variable version 1.0.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.7 2006/03/13 22:32:00 patthoyts Exp $}
+    variable version 1.0.1
+    variable rcsid {$Id: ijbridge.tcl,v 1.8 2006/03/13 23:01:57 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -329,7 +329,10 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 HELP* - help* {
                     send -user $a(-from) \
                         -id $Options(Conference)/$Options(JabberUser) \
-                        "help  show this message\nwhois irc-nick"
+                        "\n help     show this message\n\
+                         names    returns a list of all IRC users\n\
+                         version  returns the bridge code version\n\
+                         rcsid    returns the RCS version of this file\n"
                 }
                 WHOIS* - whois* {
                     xmit "WHOIS [string range $a(-body) 6 end]"
@@ -339,6 +342,12 @@ proc ::ijbridge::OnMessageBody {token type args} {
                     send -user $a(-from) \
                         -id $Options(Conference)/$Options(JabberUser) \
                         $IrcUserList
+                }
+                VERSION - version {
+                    send -user $a(-from) $::ijbridge::version
+                }
+                RCSID - rcsid {
+                    send -user $a(-from) $::ijbridge::rcsid
                 }
                 /msg* {
                     if {[regexp {^/msg (\w+) (.*)$} $a(-body) -> who msg]} {
