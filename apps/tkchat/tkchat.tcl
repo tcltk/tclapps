@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.329 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.330 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.329 2006/03/20 04:42:46 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.330 2006/03/20 05:00:31 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1451,9 +1451,11 @@ proc ::tkchat::nickComplete {} {
     #not the users' online one. Which is too unreliable IMO.
     global Options
     variable lastCompletion
+    variable OnlineUsers
 
+    set nicks [list]
     foreach network $OnlineUsers(networks) {
-	set nicks [concat $UserList $OnlineUsers($network)]
+	set nicks [concat $nicks $OnlineUsers($network)]
     }
     set nicks [lsort -dictionary -unique $nicks]
 
@@ -3845,6 +3847,7 @@ proc ::tkchat::ChangeColors {} {
 	buildRow $f $idx $str
     }
     grid [label $f.online -text "Online Users" -font SYS] - - -
+    set UserList [list]
     foreach network $OnlineUsers(networks) {
 	set UserList [concat $UserList $OnlineUsers($network)]
     }
@@ -4848,8 +4851,8 @@ proc ::tkchat::Init {args} {
     # Set the 'Hardcoded' Options:
     set OnlineUsers(networks) [list Jabber WebChat IRC]
     foreach network $OnlineUsers(networks) {
-    	set OnlineUsers($network) {}
-    	set OnlineUsers($network,hide) 0
+	set OnlineUsers($network) {}
+	set OnlineUsers($network,hide) 0
     }
 
     # Process command line args
@@ -8128,9 +8131,6 @@ proc ::tkjabber::LoadHistoryLines {} {
 	incr count
 	if { $count > 35 } { break }
     }
-    if { $Options(AutoScroll) } {
-	.txt see end
-    }
     set HistoryLines [lrange $HistoryLines $count end]
 
     if {$HistoryLines == {}} {
@@ -8142,7 +8142,9 @@ proc ::tkjabber::LoadHistoryLines {} {
     } else {
 	after idle [list after 0 ::tkjabber::LoadHistoryLines]
     }
-
+    if { $Options(AutoScroll) } {
+	.txt see end
+    }
     .txt configure -state $state
 }
 
