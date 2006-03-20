@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.330 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.331 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.330 2006/03/20 05:00:31 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.331 2006/03/20 08:08:26 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -957,10 +957,12 @@ proc ::tkchat::addMessage \
     InsertTimestamp $w $nick $mark $timestamp $tags
 
     # Call message activity hooks
-    if { $mark ne "HISTORY" && $w eq ".txt" } {
+    if { $mark ne "HISTORY" } {
 	checkAlert $w $msgtype $nick $msg
-	foreach cmd [array names MessageHooks] {
-	    eval $cmd [list $nick $msg $msgtype $mark $timestamp]
+	if { $w eq ".txt" } {
+	    foreach cmd [array names MessageHooks] {
+		eval $cmd [list $nick $msg $msgtype $mark $timestamp]
+	    }
 	}
     }
 
