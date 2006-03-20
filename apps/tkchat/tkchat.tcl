@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.331 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.332 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.331 2006/03/20 08:08:26 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.332 2006/03/20 10:12:11 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2068,8 +2068,8 @@ proc ::tkchat::CreateGUI {} {
 	    -command { ::tkchat::MsgTo "All Users" }
 
     .names tag configure NICK -font NAME
-    .names tag configure TITLE -font NAME -justify center
-    .names tag configure SUBTITLE -font SYS -justify center
+    .names tag configure TITLE -font NAME -justify left
+    .names tag configure SUBTITLE -font SYS -justify left
     .names tag configure URL -underline 1
     .names tag bind URL <Enter> { .names configure -cursor hand2 }
     .names tag bind URL <Leave> { .names configure -cursor {} }
@@ -2170,7 +2170,7 @@ proc ::tkchat::OnTextPopup { w x y } {
 	$m add cascade -label "Translate Selection" -menu $m.tr
     }
 
-    $m post [winfo pointerx $w] [winfo pointery $w]
+    tk_popup $m [winfo pointerx $w] [winfo pointery $w]
 }
 
 proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
@@ -4621,11 +4621,12 @@ proc ::tkchat::Smile {} {
     }
     SmileId coffee LP
     image create photo ::tkchat::img::coffee -format GIF -data {
-	R0lGODlhEAAQAPECAAAAAH9/f////wAAACH5BAEAAAIALAAAAAAQABAAAAKR
-	TJgwoUSJEiVKlKgwYUKJEiVKlChRYcKIEiVKlKgwYUSJEiVKlChRYcKIEiVK
-	lChRosKEEiVKlChRokSJEiVKlCgRIECAACVKlCgRIECAAAFKlCgRIECAAAVK
-	lCgRIECAAAVKlCgRIECAAAFKlCgRIECAACVKlChRIECAECVKFAgQIECAAAFC
-	lCgQIECAACFKBQA7
+	R0lGODlhEAAQAIQVAAAAAFJSUlpaWmNjY2tra3Nzc3t7e4SEhIyMjJSUlJyc
+	nKWlpa2trbW1tcbGxs7OztbW1t7e3ufn5+/v7/f39///////////////////
+	/////////////////////////yH5BAEAAB8ALAAAAAAQABAAAAV64CeOZEkC
+	aAqYH8q8MIOejGIYB4IkieKsIgCFEQgICAXEwkEBtiITinT6cChmT0m1wVgo
+	CgbbNbvtKghhVEStdXAXCfQVsKa334nBYV6H3Ltxe2ooDn9wBXsGCSsADRBl
+	cDiLQAAJDQ5ugAcHBE4tAAZKhwNYJSopJiEAOw==
     }
     SmileId lunch |O| |o| |0|
     image create photo ::tkchat::img::lunch -format GIF -data {
@@ -7907,8 +7908,8 @@ proc ::tkchat::updateOnlineNames {} {
 		}
 	    }
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
-		.names insert end "$nick\n" \
-			[list NICK NICK-$nick URL URL-[incr ::URLID]]
+		.names insert end "$nick" \
+			[list NICK NICK-$nick URL URL-[incr ::URLID]] "\n"
 		.names tag bind URL-$::URLID <Button-1> [list \
 			::tkjabber::getChatWidget \
 			$::tkjabber::conference/$nick $nick]
@@ -7917,7 +7918,7 @@ proc ::tkchat::updateOnlineNames {} {
 			-command [list ::tkchat::MsgTo $nick]
 	    } else {
 		.names insert end "$nick\n" \
-			[list NICK NICK-$nick URL-[incr ::URLID]]
+		    [list NICK NICK-$nick URL-[incr ::URLID]]
 	    }
 	    .names tag bind URL-$::URLID <Button-3> \
 		    [list ::tkchat::OnNamePopup $nick %X %Y]
@@ -7965,7 +7966,7 @@ proc ::tkchat::OnNamePopup { nick x y } {
 	$m entryconfigure 1 \
 		-command [list ::tkchat::OnNameToggleVis NICK-$nick]
     }
-    $m post $x $y
+    tk_popup $m $x $y
 }
 
 proc ::tkchat::createRosterImages {} {

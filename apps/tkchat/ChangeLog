@@ -1,3 +1,20 @@
+2006-03-20  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::CreateGUI):   Left-justify titles and
+	                                      subtitles in the Users
+	                                      Online list.
+
+	* tkchat.tcl (::tkchat::OnTextPopup): Use tk_popup instead of the
+	(::tkchat::OnNamePopup):              menu's popup subcommand to fix
+	                                      unposting on X.
+
+	* tkchat.tcl: (::tkchat::Smile):      New coffe emoticon.
+
+	* tkchat.tcl: (::tkchat::updateOnlineNames): Don't continue the
+	                                      active area of clickable
+	                                      nick names to the end of the
+	                                      line.
+
 2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::addTraffic): Add IRC and WebChat nicks to the
