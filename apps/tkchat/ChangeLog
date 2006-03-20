@@ -1,3 +1,57 @@
+2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::checkNick): Only calculate width for new nicks.
+	(::tkchat::checkNickWidth):         New procedures
+	(::tkchat::OpenChatLog):            '::tkchat::checkNickWidth' and
+	(::tkchat::Debug):                  '::tkchat::InitOffset'.
+	(::tkchat::Init):
+	(::tkchat::InitOffset):
+	(::tkchat::GetDefaultOptions):
+
+	* tkchat.tcl (::tkchat::checkNick): Add Colorization for Online Users.
+	(::tkchat::CreateGUI):
+	(::tkchat::applyColors):
+	(::tkchat::updateJabberNames):
+
+	* tkchat.tcl (::tkchat::checkNick): Keep NickList sorted, when new
+	(::tkchat::nickComplete):           nicks are added, so it doesn't need
+	(::tkchat::NickVisMenu):            to sorted in a few other places.
+	(::tkchat::ChangeColors):
+	(::tkjabber::RosterCB):
+
+	* tkchat.tcl (::tkchat::addMessage): Only call ::tkchat::checkAlert for
+	(::tkjabber::LoadHistoryLines):      non-History messages.
+
+	* tkchat.tcl (::tkchat::CreateGUI): Remove check for panedwindow. It's
+	(::tkchat::CreateNewChatWindow):    no longer needed as we require
+	(::tkchat::saveRC):                 Tk v8.4.
+
+	* tkchat.tcl (::tkchat::OnTextPopup): Menu had wrong commands for next
+	and previous bookmarks. Remove unneeded set command.
+
+	* tkchat.tcl (::tkchat::StampVis): Fix error - Don't adjust nick
+	visibility in One2One chat windows.
+
+	* tkchat.tcl (::tkchat::Init): Remove not working and unused jabber
+	(::tkchat::GetDefaultOptions): HTTP polling code.
+	(::tkjabber::connect):
+
+	* tkchat.tcl (::tkchat::updateJabberNames): Use the OnlineUsers list
+	instead of a call to the conference roster to update names from.
+	Prevents a race condition between people entering/leaving the
+	conference and the OnlineUser list being updated.
+
+	* tkchat.tcl (::tkchat::getColor): Standardize some variables.
+	(::tkchat::OnTextPopup):
+	(::tkchat::NickVisMenu):
+	(::tkjabber::RosterCB):
+	(::tkjabber::MsgCB):
+	(::tkjabber::msgSend):
+	(::tkchat::OnNameToggleVis):
+	(::tkchat::OnNamePopup):
+
+	* tkchat.tcl: Minor whitespace/style fixes.
+
 2006-03-05  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::CreateGUI): Move creation of text popup menu to
