@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.332 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.333 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.332 2006/03/20 10:12:11 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.333 2006/03/20 11:03:58 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2068,12 +2068,13 @@ proc ::tkchat::CreateGUI {} {
 	    -command { ::tkchat::MsgTo "All Users" }
 
     .names tag configure NICK -font NAME
-    .names tag configure TITLE -font NAME -justify left
-    .names tag configure SUBTITLE -font SYS -justify left
+    .names tag configure TITLE -font NAME
+    .names tag configure SUBTITLE -font SYS
     .names tag configure URL -underline 1
     .names tag bind URL <Enter> { .names configure -cursor hand2 }
     .names tag bind URL <Leave> { .names configure -cursor {} }
 
+    bind .names <Double-Button-1> break
     bind . <FocusIn> \
 	[list after 5000 [list after idle ::tkchat::ResetMessageCounter]]
     if { [lsearch [wm attributes .] -alpha] != -1 } {
@@ -7909,7 +7910,7 @@ proc ::tkchat::updateOnlineNames {} {
 	    }
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
 		.names insert end "$nick" \
-			[list NICK NICK-$nick URL URL-[incr ::URLID]] "\n"
+			[list NICK NICK-$nick URL URL-[incr ::URLID]] "\n" NICK
 		.names tag bind URL-$::URLID <Button-1> [list \
 			::tkjabber::getChatWidget \
 			$::tkjabber::conference/$nick $nick]
@@ -7918,7 +7919,7 @@ proc ::tkchat::updateOnlineNames {} {
 			-command [list ::tkchat::MsgTo $nick]
 	    } else {
 		.names insert end "$nick\n" \
-		    [list NICK NICK-$nick URL-[incr ::URLID]]
+			[list NICK NICK-$nick URL-[incr ::URLID]]
 	    }
 	    .names tag bind URL-$::URLID <Button-3> \
 		    [list ::tkchat::OnNamePopup $nick %X %Y]
@@ -7953,6 +7954,10 @@ proc ::tkchat::OnNamePopup { nick x y } {
     catch { destroy $m }
     menu $m -tearoff 0
     if { [lsearch -exact $::tkchat::OnlineUsers(Jabber) $nick] != -1 } {
+	$m add command \
+		-label "Private Chat" \
+		-command [list ::tkjabber::getChatWidget \
+			$::tkjabber::conference/$nick $nick]
 	$m add command \
 		-label "User info" \
 		-command [list ::tkjabber::msgSend "/userinfo $nick"]

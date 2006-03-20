@@ -1,3 +1,9 @@
+2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::CreateGUI): Stop excess double-click selection.
+
+	* tkchat.tcl (::tkchat::OnNamePopup): Add One2One menu item.
+
 2006-03-20  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::CreateGUI):   Left-justify titles and
