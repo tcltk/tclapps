@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.328 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.329 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.328 2006/03/20 04:35:49 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.329 2006/03/20 04:42:46 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1276,34 +1276,80 @@ proc ::tkchat::addSystem { w msg {mark end} {tags SYSTEM} {timestamp 0} } {
 # Always add these to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
 proc ::tkchat::addTraffic { w nick action mark timestamp } {
-    # Action should be entered, left or nickchange
+    # Action should be entered, left, nickchange or availability
     variable MSGS
     variable MessageHooks
+    variable OnlineUsers
 
     set newnick ""
+    set network ""
+    if { [llength $action] != 1 } {
+	set network [lindex $action 1]
+	set action [lindex $action 0]
+    }
+    if { $action eq "nickchange" } {
+	set newnick [lindex $nick 1]
+	set nick [lindex $nick 0]
+    }
 
     # Call message activity hooks
     if { $mark ne "HISTORY" } {
 	foreach cmd [array names MessageHooks] {
 	    eval $cmd [list $nick $action TRAFFIC $mark $timestamp]
 	}
+	if { $action eq "entered" } {
+	    if { $network ne "Jabber" } {
+		set OnlineUsers($network-$nick,status) [list online]
+	    }
+	    lappend OnlineUsers($network) $nick
+	    set OnlineUsers($network) \
+		    [lsort -dictionary -unique $OnlineUsers($network)]
+	} elseif { $action ne "availability" } {
+	    unset -nocomplain OnlineUsers($network-$nick,status)
+	    set OnlineUsers($network) [lsearch -exact -sorted -dictionary \
+		    -all -inline -not $OnlineUsers($network) $nick]
+	    if { $action eq "nickchange" } {
+		if { $network ne "Jabber" } {
+		    set OnlineUsers($network-$newnick,status) [list online]
+		}
+		lappend OnlineUsers($network) $newnick
+		set OnlineUsers($network) \
+			[lsort -dictionary -unique $OnlineUsers($network)]
+	    }
+	}
+	updateOnlineNames
+    }
+    if { $network eq "IRC" } {
+	# Single <> to show IRC users.
+	set nick <$nick>
+	if { $newnick ne "" } {
+	    set newnick <$newnick>
+	}
+    } elseif { $network eq "WebChat" } {
+	# Double <> to show WebChat users.
+	set nick <<$nick>>
     }
 
     $w configure -state normal
-    if { [info exists MSGS($action)] } {
-	if { $action eq "nickchange" } {
-	    set newnick [lindex $nick 1]
-	    set nick [lindex $nick 0]
+    set tags [list TRAFFIC [string toupper $action]]
+    InsertTimestamp $w "" $mark $timestamp $tags
+    set tags [concat MSG $tags]
+    if { $action eq "availability" } {
+	set msg [lindex $nick 1 0]
+	$w insert $mark "\t[lindex $nick 0] is $msg" $tags
+	if { [lindex $nick 1 1] ne "" } {
+	    set msg [lindex $nick 1 1]
+	    $w insert $mark " (" $tags
+	    Insert $w $msg $tags {} $mark
+	    $w insert $mark ")" $tags
 	}
+	$w insert $mark "\n" $tags
+    } else {
 	set msg [string map -nocase [list %user% $nick %newuser% $newnick] \
 		[lindex $MSGS($action) \
 		[expr { int(rand() * [llength $MSGS($action)]) }]]]
-    } else {
-	set msg "$nick has $action the chat!!"
+	$w insert $mark "\t$msg\n" $tags
     }
-    InsertTimestamp $w "" $mark $timestamp TRAFFIC
-
-    $w insert $mark "\t$msg\n" [list MSG TRAFFIC [string toupper $action]]
     $w configure -state disabled
     if { $::Options(AutoScroll) } {
 	$w see end
@@ -1406,9 +1452,10 @@ proc ::tkchat::nickComplete {} {
     global Options
     variable lastCompletion
 
-    foreach nick $Options(NickList) {
-	lappend nicks [lindex $nick 0]
+    foreach network $OnlineUsers(networks) {
+	set nicks [concat $UserList $OnlineUsers($network)]
     }
+    set nicks [lsort -dictionary -unique $nicks]
 
     if {[winfo ismapped .eMsg]} {
 	#the entry is on screen
@@ -2017,7 +2064,8 @@ proc ::tkchat::CreateGUI {} {
 	    -command { ::tkchat::MsgTo "All Users" }
 
     .names tag configure NICK -font NAME
-    .names tag configure TITLE -font SYS -justify center
+    .names tag configure TITLE -font NAME -justify center
+    .names tag configure SUBTITLE -font SYS -justify center
     .names tag configure URL -underline 1
     .names tag bind URL <Enter> { .names configure -cursor hand2 }
     .names tag bind URL <Leave> { .names configure -cursor {} }
@@ -2288,7 +2336,7 @@ proc ::tkchat::DoVis { tag } {
 	.txt see end
     }
     if { $::tkchat::LoggedIn } {
-	after 10 {::tkchat::updateJabberNames}
+	after 10 {::tkchat::updateOnlineNames}
     }
 }
 
@@ -3735,6 +3783,7 @@ proc ::tkchat::ChangeColors {} {
     global Options
     variable DlgData
     variable DlgDone
+    variable OnlineUsers
 
     # clear old data
     unset -nocomplain DlgData
@@ -3796,7 +3845,11 @@ proc ::tkchat::ChangeColors {} {
 	buildRow $f $idx $str
     }
     grid [label $f.online -text "Online Users" -font SYS] - - -
-    foreach nick $Options(OnLineUsers) {
+    foreach network $OnlineUsers(networks) {
+	set UserList [concat $UserList $OnlineUsers($network)]
+    }
+    set UserList [lsort -dictionary -unique $UserList]
+    foreach nick $UserList {
 	if { [info exists DlgData(Color,NICK-$nick)] } {
 	    buildRow $f NICK-$nick $nick
 	}
@@ -3804,7 +3857,7 @@ proc ::tkchat::ChangeColors {} {
     grid [label $f.offline -text "Offline Users" -font SYS] - - -
     foreach nick $Options(NickList) {
 	set nick [lindex $nick 0]
-	if { [lsearch -exact $Options(OnLineUsers) $nick] < 0 } {
+	if { [lsearch -exact $UserList) $nick] == -1 } {
 	    buildRow $f NICK-$nick $nick
 	}
     }
@@ -4072,14 +4125,13 @@ proc ::tkchat::saveRC {} {
     # Save these options to resource file
     set keep {
 	Alert,* AnimEmoticons AutoAway AutoBookmark AutoConnect AutoFade
-	AutoFadeLimit AutoScroll Browser ChatLogFile ChatLogOff Color,*
-	DisplayUsers Emoticons EnableWhiteboard EntryMessageColor errLog
-	ExitMessageColor Font,* Fullname Geometry HistoryLines JabberConference
-	JabberPort JabberResource JabberServer LogFile LogLevel LogStderr MsgTo
-	MyColor Nickname OneToOne Pane Password ProxyHost ProxyPort
-	ProxyUsername SavePW ServerLogging Style Theme Transparency
-	UseBabelfish UseJabberSSL UseProxy Username Visibility,*
-	WhisperIndicatorColor
+	AutoFadeLimit Browser ChatLogFile ChatLogOff Color,* DisplayUsers
+	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
+	Font,* Fullname Geometry HistoryLines JabberConference JabberPort
+	JabberResource JabberServer LogFile LogLevel LogStderr MyColor Nickname
+	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
+	ServerLogging Style Theme Transparency UseBabelfish UseJabberSSL
+	UseProxy Username Visibility,*
     }
 
     foreach key $keep {
@@ -4701,6 +4753,7 @@ proc ::tkchat::ShowSmiles {} {
 
 proc ::tkchat::Init {args} {
     global Options env
+    variable OnlineUsers
 
     # set intial defaults
     set ::URLID 0
@@ -4793,10 +4846,10 @@ proc ::tkchat::Init {args} {
     }
 
     # Set the 'Hardcoded' Options:
-    array set Options {
-	JabberLogs	"http://tclers.tk/conferences/tcl"
-	ElideTags	{ SINGLEDOT AVAILABILITY TRAFFIC SYSTEM ERROR }
-	OnLineUsers	{}
+    set OnlineUsers(networks) [list Jabber WebChat IRC]
+    foreach network $OnlineUsers(networks) {
+    	set OnlineUsers($network) {}
+    	set OnlineUsers($network,hide) 0
     }
 
     # Process command line args
@@ -4938,6 +4991,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	ChatLogFile		""
 	ChatLogOff		1
 	DisplayUsers		1
+	ElideTags		{ SINGLEDOT AVAILABILITY TRAFFIC SYSTEM ERROR }
 	Emoticons		1
 	EnableWhiteboard	1
 	EntryMessageColor	#002500
@@ -4949,6 +5003,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Geometry		600x500
 	HistoryLines		-1
 	JabberConference	tcl@tach.tclers.tk
+	JabberLogs		"http://tclers.tk/conferences/tcl"
 	JabberPort		5222
 	JabberResource		tkchat
 	JabberServer		all.tclers.tk
@@ -6727,10 +6782,6 @@ namespace eval tkjabber {
     Variable AutoAway 0
     Variable AwayShow ""
 
-    # Provides a map of nicks to full jids (works because the chat is
-    # not anonymous. Used for the /memo function.
-    variable members; if {![info exists members]} {array set members {}}
-
     # To provide a map between parents widgets and chats
     variable ChatWindows; if {![info exists ChatWindows]} {array set ChatWindows {counter 0}}
 }
@@ -6843,8 +6894,8 @@ proc ::tkjabber::cleanup {} {
     variable conference
     variable socket
     variable roster
-    variable members
     variable baseNick
+    variable ::tkchat::OnlineUsers
 
     if {[info exists muc]} {
 	if {[catch {$muc exit $conference} err]} {
@@ -6857,9 +6908,11 @@ proc ::tkjabber::cleanup {} {
 	    ::log::log error "cleanup: $err"
 	}
     }
-    unset -nocomplain members
-    set ::Options(OnLineUsers) {}
-    ::tkchat::updateJabberNames
+    foreach network $OnlineUsers(networks) {
+	array unset OnlineUsers $network-*
+	set OnlineUsers($network) {}
+    }
+    ::tkchat::updateOnlineNames
 
     if { [catch {$jabber closestream}] } {
 	::log::log error "Closestream: $::errorInfo"
@@ -6968,9 +7021,10 @@ proc tkjabber::SendAuthOld {} {
 proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
     global Options
     variable conference
-    variable members
     variable grabNick
     variable ignoreNextNick
+    variable jabber
+    variable ::tkchat::OnlineUsers
 
     ::log::log debug "--roster-> what=$what, jid=$jid, args='$args'"
 
@@ -6993,22 +7047,25 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 		available {
 		    set action entered
 
+		    # Get IrcUserList from ijchain
+		    if { $nick eq "ijchain" } {
+			$jabber send_message $p(-from) -subject IrcUserList
+		    }
+
 		    # Add the user's nick into a nick/jid map
 		    foreach child $p(-x) {
 			set ns [::wrapper::getattribute $child xmlns]
 			if { "http://jabber.org/protocol/muc#user" eq $ns } {
 			    set item [::wrapper::getchildswithtag $child item]
 			    if { [llength $item] > 0 } {
-				if { [info exists members($nick,jid)] } {
-				    set action changedstatus
+				if { [info exists \
+					OnlineUsers(Jabber-$nick,jid)] } {
+				    set action availability
 				}
 				set usrjid [::wrapper::getattribute \
 					[lindex $item 0] jid]
-				set members($nick,jid) $usrjid
-				set members($nick,status) $status
-				lappend Options(OnLineUsers) $nick
-				set Options(OnLineUsers) [lsort -dictionary \
-					-unique $Options(OnLineUsers)]
+				set OnlineUsers(Jabber-$nick,jid) $usrjid
+				set OnlineUsers(Jabber-$nick,status) $status
 			    }
 			    break
 			}
@@ -7045,11 +7102,7 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 			    }
 			}
 		    }
-		    unset -nocomplain members($nick,jid)
-		    unset -nocomplain members($nick,status)
-		    set Options(OnLineUsers) \
-			    [lsearch -exact -sorted -dictionary -all -inline \
-			    -not $Options(OnLineUsers) $nick]
+		    unset -nocomplain OnlineUsers(Jabber-$nick,jid)
 
 		    # Do we want to be this nick?
 		    if { $grabNick ne "" && $nick eq $grabNick } {
@@ -7077,24 +7130,25 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 	    # Much more interesting info available in array ...
 
 	    if { $action eq "nickchange" } {
+		lappend action Jabber
 		::tkchat::addTraffic .txt [list $nick $newnick] $action end 0
 		set ignoreNextNick $newnick
-	    } elseif { $action eq "changedstatus" } {
+	    } elseif { $action eq "availability" } {
 		set msg [lindex $status 0]
-		set msg [string map {xa idle chat talking dnd busy} $msg]
-		if { [lindex $status 1] ne "" } {
-		    append msg " ([lindex $status 1])"
-		}
-		::tkchat::addSystem .txt "$nick is $msg" end AVAILABILITY
+		lset status 0 [string map {xa idle chat talking dnd busy} $msg]
+		lappend action Jabber
+		::tkchat::addTraffic .txt [list $nick $status] $action end 0
 	    } else {
 		if { !($action eq "entered" && $ignoreNextNick eq $nick) } {
 		    # if not the ignore nick:
+		    lappend action Jabber
 		    ::tkchat::addTraffic .txt $nick $action end 0
+		} else {
+		    ::tkchat::updateOnlineNames
 		}
 		# Always reset ignoreNextNick!
 		set ignoreNextNick ""
 	    }
-	    ::tkchat::updateJabberNames
 	}
 	default {
 	    ::tkchat::addSystem .txt \
@@ -7159,10 +7213,12 @@ proc tkjabber::IqCB {jlibName type args} {
 }
 
 proc ::tkjabber::MsgCB {jlibName type args} {
+    global Options
     variable conference
     variable muc
     variable topic
     variable LastMessage
+    variable ::tkchat::OnlineUsers
 
     set LastMessage [clock seconds]
 
@@ -7273,7 +7329,17 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	    if { $conf ne $conference } {
 		set from $m(-from)
 	    }
-	    set msg ""
+	    if { $from eq "ijchain" && $m(-subject) eq "IrcUserList" } {
+		foreach nick $m(-body) {
+		    set OnlineUsers(IRC-$nick,status) [list online]
+		    lappend OnlineUsers(IRC) $nick
+		}
+		set OnlineUsers(IRC) [lsort -dictionary -unique \
+			$OnlineUsers(IRC)]
+		::tkchat::updateOnlineNames
+		return
+	    }
+	    set msg {}
 	    if { [info exists m(-subject)] } {
 		lappend msg "Subject: $m(-subject)"
 	    }
@@ -7322,26 +7388,26 @@ proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
 	set nick [lindex $msg 0]
 	set msg [lrange $msg 1 end]
 	if { $nick eq "***" } {
-	    # Single <> to show IRC users.
-	    set nick <[lindex $msg 0]>
+	    set nick [lindex $msg 0]
 	    set action [lrange $msg 1 end]
 	    if { $action eq "leaves" || $action eq "joins" } {
 		set action [string map { joins entered leaves left } $action]
-		::tkchat::addTraffic .txt $nick $action $mark $timestamp
+		lappend action IRC
 	    } elseif { [lrange $action 0 end-1] eq "is now known as" } {
-		set newnick <[lindex $action end]>
-		::tkchat::addTraffic \
-			.txt [list $nick $newnick] nickchange $mark $timestamp
+		lappend nick [lindex $action end]
+		set action [list nickchange IRC]
 	    } else {
 		::log::log notice "Unknown IRC command '$msg'"
+		return
 	    }
+	    ::tkchat::addTraffic .txt $nick $action $mark $timestamp
 	    return
 	} elseif { $nick eq "*" } {
 	    set nick [lindex $msg 0]
 	    set action [lrange $msg 1 end]
 	    if { $action eq "entered" || $action eq "left" } {
-		# Double <> to show webchat users.
-		::tkchat::addTraffic .txt <<$nick>> $action $mark $timestamp
+		lappend action WebChat
+		::tkchat::addTraffic .txt $nick $action $mark $timestamp
 		return
 	    } else {
 		set msg [linsert $action 0 /me]
@@ -7750,16 +7816,16 @@ proc ::tkjabber::jid {part jid} {
 }
 
 # Send a Jabber message to the full jid of a user. Accept either a full
-# JID or lookup a chatroom nick in the members array. Such messages
+# JID or lookup a chatroom nick in the OnlineUsers array. Such messages
 # are held for the user if the user is not currently available.
 proc ::tkjabber::send_memo {to msg {subject Memo}} {
     variable myId
     variable jabber
-    variable members
+    variable ::tkchat::OnlineUsers
 
     if {[string first @ $to] == -1} {
-	if {[info exists members($to,jid)]} {
-	    set to $members($to,jid)
+	if {[info exists OnlineUsers(Jabber-$to,jid)]} {
+	    set to $OnlineUsers(Jabber-$to,jid)
 	} else {
 	    tkchat::addSystem .txt "Cannot find a JID for '$to'."
 	    return
@@ -7775,9 +7841,9 @@ proc ::tkjabber::send_memo {to msg {subject Memo}} {
     tkchat::addSystem .txt "Memo send to $to."
 }
 
-proc ::tkchat::updateJabberNames {} {
+proc ::tkchat::updateOnlineNames {} {
     global Options
-    variable ::tkjabber::members
+    variable OnlineUsers
 
     set scrollcmd [.names cget -yscrollcommand]
     .names configure -yscrollcommand {}
@@ -7787,66 +7853,85 @@ proc ::tkchat::updateJabberNames {} {
 	.names tag delete $tagname
     }
 
-    set i 0
     .names configure -state normal
     .names delete 1.0 end
     .mb.mnu delete 0 end
     .mb.mnu add command \
 	    -label "All Users" \
 	    -command [list ::tkchat::MsgTo "All Users"]
-    foreach name $Options(OnLineUsers) {
-	set status $members($name,status)
-	if {[info exists Options(Visibility,NICK-$name)] \
-		&& $Options(Visibility,NICK-$name)} {
-	    set status disabled
+    set total 0
+    foreach network $OnlineUsers(networks) {
+	set userCnt [llength $OnlineUsers($network)]
+	if { !$userCnt } {
+	    continue
 	}
-	if { ![info exists Options(Color,NICK-$name)] } {
-	    set Options(Color,NICK-$name) $Options(Color,MainFG)
+	incr total $userCnt
+	.names insert end "$userCnt $network Users\n" [list SUBTITLE $network]
+	.names tag bind $network <Button-1> \
+		[list ::tkchat::OnNetworkToggleShow $network]
+	if { $OnlineUsers($network,hide) } {
+	    continue
 	}
-
-	# NOTE : the URL's don't work because of the & in them
-	# doesn't work well when we exec the call to browsers
-	# and if we follow spec and escape them with %26 then
-	# the cgi script on the other end pukes so we will
-	# just do an inline /userinfo when they are clicked
-	switch -exact -- [lindex $status 0] {
-	    online {
-		.names image create end -image ::tkchat::roster::online
+	foreach nick $OnlineUsers($network) {
+	    set status [lindex $OnlineUsers($network-$nick,status) 0]
+	    if {[info exists Options(Visibility,NICK-$nick)] \
+		    && $Options(Visibility,NICK-$nick)} {
+		set status disabled
 	    }
-	    chat {
-		.names image create end -image ::tkchat::roster::chat
+	    if { ![info exists Options(Color,NICK-$nick)] } {
+		set Options(Color,NICK-$nick) $Options(Color,MainFG)
 	    }
-	    dnd {
-		.names image create end -image ::tkchat::roster::dnd
+	    switch -exact -- $status {
+		online {
+		    .names image create end -image ::tkchat::roster::online
+		}
+		chat {
+		    .names image create end -image ::tkchat::roster::chat
+		}
+		dnd {
+		    .names image create end -image ::tkchat::roster::dnd
+		}
+		away {
+		    .names image create end -image ::tkchat::roster::away
+		}
+		xa {
+		    .names image create end -image ::tkchat::roster::xa
+		}
+		disabled {
+		    .names image create end -image ::tkchat::roster::disabled
+		}
 	    }
-	    away {
-		.names image create end -image ::tkchat::roster::away
+	    if { [info exists OnlineUsers($network-$nick,jid)] } {
+		.names insert end "$nick\n" \
+			[list NICK NICK-$nick URL URL-[incr ::URLID]]
+		.names tag bind URL-$::URLID <Button-1> [list \
+			::tkjabber::getChatWidget \
+			$::tkjabber::conference/$nick $nick]
+		.mb.mnu add command \
+			-label $nick \
+			-command [list ::tkchat::MsgTo $nick]
+	    } else {
+		.names insert end "$nick\n" \
+			[list NICK NICK-$nick URL-[incr ::URLID]]
 	    }
-	    xa {
-		.names image create end -image ::tkchat::roster::xa
-	    }
-	    disabled {
-		.names image create end -image ::tkchat::roster::disabled
-	    }
+	    .names tag bind URL-$::URLID <Button-3> \
+		    [list ::tkchat::OnNamePopup $nick %X %Y]
+	    .names tag bind URL-$::URLID <Control-Button-1> \
+		    [list ::tkchat::OnNamePopup $nick %X %Y]
 	}
-	.names insert end "$name" [list NICK NICK-$name URL URL-[incr ::URLID]] "\n"
-	.names tag bind URL-$::URLID <Double-Button-1> [list \
-		::tkjabber::getChatWidget $::tkjabber::conference/$name $name]
-	.names tag bind URL-$::URLID <Button-3> \
-		[list [namespace origin OnNamePopup] $name %X %Y]
-	.names tag bind URL-$::URLID <Control-Button-1> \
-		[list [namespace origin OnNamePopup] $name %X %Y]
-
-	incr i
-	.mb.mnu add command -label $name \
-	    -command [list ::tkchat::MsgTo $name]
+	.names insert end "\n"
     }
-
-    .names insert 1.0 "$i Users Online\n\n" TITLE
+    .names insert 1.0 "$total Users Online\n\n" TITLE
     .names configure -yscrollcommand $scrollcmd
     .names configure -state disabled
 }
 
+proc ::tkchat::OnNetworkToggleShow { network } {
+    variable OnlineUsers
+
+    set OnlineUsers($network,hide) [expr {!$OnlineUsers($network,hide)}]
+    updateOnlineNames
+}
 
 proc ::tkchat::OnNameToggleVis { nick } {
     global Options
@@ -7860,13 +7945,14 @@ proc ::tkchat::OnNamePopup { nick x y } {
 
     set m .names_popup
     catch { destroy $m }
-    set m [menu $m -tearoff 0]
-    $m add command \
-	    -label "User info" \
-	    -command [list ::tkjabber::msgSend "/userinfo $name"]
-
-    if { [info exists Options(Visibility,NICK-$name)] } {
-	if { $Options(Visibility,NICK-$name) } {
+    menu $m -tearoff 0
+    if { [lsearch -exact $::tkchat::OnlineUsers(Jabber) $nick] != -1 } {
+	$m add command \
+		-label "User info" \
+		-command [list ::tkjabber::msgSend "/userinfo $nick"]
+    }
+    if { [info exists Options(Visibility,NICK-$nick)] } {
+	if { $Options(Visibility,NICK-$nick) } {
 	    $m add command -label "Show user"
 	} else {
 	    $m add command -label "Hide user"
@@ -7925,8 +8011,9 @@ proc ::tkjabber::setNick { newnick } {
     variable jabber
     variable grabNick
     variable baseNick
+    variable ::tkchat::OnlineUsers
 
-    if {[lsearch -exact $::Options(OnLineUsers) $newnick] > -1 } {
+    if { [lsearch -exact $OnlineUsers(Jabber) $newnick] > -1 } {
 	# Perhaps it is my own nick, in another window?
 	set x [$roster getx $conference/[xmlSafe $newnick] muc#user]
 	set item [wrapper::getchildswithtag $x item]
@@ -7965,6 +8052,7 @@ proc ::tkjabber::transferNick { reqfrom } {
     variable conference
     variable roster
     variable jabber
+    variable ::tkchat::OnlineUsers
 
     regexp {([^/]+)/(.+)} $reqfrom -> ojid ores
 
@@ -7986,7 +8074,7 @@ proc ::tkjabber::transferNick { reqfrom } {
 	}
     }
     set newnick $::Options(Nickname)$postfix
-    if {[lsearch -exact $::Options(OnLineUsers) $newnick] > -1 } {
+    if { [lsearch -exact $OnlineUsers(Jabber) $newnick] != -1 } {
 	tkchat::addSystem .txt "Got a nick transfer request, but $newnick is already in use."
 	return
     }

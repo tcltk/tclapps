@@ -1,5 +1,26 @@
 2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
 
+	* tkchat.tcl (::tkchat::addTraffic): Add IRC and WebChat nicks to the
+	(::tkchat::nickComplete):            OnlineUser list. Rename procedure
+	(::tkchat::CreateGUI):               '::tkchat::updateJabberNames' to
+	(::tkchat::DoVis):                   '::tkchat::updateOnlineNames' as
+	(::tkchat::ChangeColors):            it now does more than just Jabber
+	(::tkchat::Init):                    names. New procedure
+	(::tkjabber::cleanup):               '::tkchat::OnNetworkToggleShow'.
+	(::tkjabber::RosterCB):
+	(::tkjabber::MsgCB):
+	(::tkjabber::parseMsg):
+	(::tkjabber::send_memo):
+	(::tkchat::updateJabberNames):
+	(::tkchat::updateOnlineNames):
+	(::tkchat::OnNetworkToggleShow):
+	(::tkchat::OnNamePopup):
+	(::tkjabber::setNick):
+	(::tkJabber::transferNick):
+
+	* tkchat.tcl (::tkchat::addTraffic): Parse user entered messages
+	(ie. for /away) for emoticons.
+
 	* tkchat.tcl (::tkchat::checkNick): Only calculate width for new nicks.
 	(::tkchat::checkNickWidth):         New procedures
 	(::tkchat::OpenChatLog):            '::tkchat::checkNickWidth' and
