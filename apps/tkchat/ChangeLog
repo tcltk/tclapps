@@ -1,3 +1,9 @@
+2006-03-21  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::OnNamePopup): The hide/show user
+	functionality was wrongly placed on the "User Info" button in the
+	context menu.
+
 2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::CreateGUI): Stop excess double-click selection.
