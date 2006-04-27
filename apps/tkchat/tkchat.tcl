@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.334 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.335 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.334 2006/03/21 09:57:58 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.335 2006/04/27 10:24:25 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2486,7 +2486,7 @@ proc ::tkchat::About {} {
     lappend txt "Pat Thoyts"		"<patthoyts@users.sourceforge.net>"
     lappend txt "Jeff Hobbs"		"<jeffh@activestate.com>"
     lappend txt "Ryan Casey"		"<scfied@hotmail.com>"
-    lappend txt "Reinhard Max"		"<max@suse.de>"
+    lappend txt "Reinhard Max"		"<max@tclers.tk>"
     lappend txt "D. Richard Hipp"	"<drh@hwaci.com>"
     lappend txt "Kevin Kenny"		"<kennykb@users.sourceforge.net>"
     lappend txt "Pascal Scheffers"	"<pascal@scheffers.net>"
@@ -3705,7 +3705,8 @@ proc ::tkchat::EditMacros {} {
     listbox $t.lst -yscroll "$t.scr set" -font FNT -selectmode extended
     ${NS}::scrollbar $t.scr -command "$t.lst yview"
     ${NS}::label $t.lbl1 -text "Macro:" -font NAME
-    ${NS}::entry $t.mac -width 10 -font FNT -validate all -vcmd {regexp -- {^\S*$} %P}
+    ${NS}::entry $t.mac -width 10 -font FNT -validate all \
+	-validatecommand {regexp -- {^\S*$} %P}
     bind $t.mac <Return> "focus $t.txt"
     ${NS}::label $t.lbl2 -text "Text:" -font NAME
     ${NS}::entry $t.txt -width 40 -font FNT
