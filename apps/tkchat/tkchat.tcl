@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.335 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.336 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.335 2006/04/27 10:24:25 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.336 2006/05/04 22:33:57 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7112,6 +7112,15 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 		    }
 		    unset -nocomplain OnlineUsers(Jabber-$nick,jid)
 
+                    # Check for chat windows for a departing user.
+                    variable ChatWindows
+                    array set a {-from {}}
+                    array set a $args
+                    if {[info exists ChatWindows(txt.$a(-from))]} {
+                        tkchat::addSystem $ChatWindows(txt.$a(-from)) \
+                            "The other user has disconnected."
+                    }
+
 		    # Do we want to be this nick?
 		    if { $grabNick ne "" && $nick eq $grabNick } {
 			after idle [list ::tkjabber::setNick $grabNick]
@@ -7364,6 +7373,13 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	error {
 	    if { [info exists m(-error)] } {
 		switch -- [lindex $m(-error) 0] {
+                    404 {
+                        # This has been seen when sending a private message 
+                        # to a disconnected user.
+                        ::tkchat::addSystem .txt "Your message to $m(-from)\
+                            could not be delivered. The recipient has\
+                            disconnected"
+                    }
 		    405 {
 			if { [catch {
 			    $muc exit $conference

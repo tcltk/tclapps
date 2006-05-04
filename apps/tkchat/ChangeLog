@@ -1,3 +1,10 @@
+2006-05-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkjabber::MsgCB): More polite handling of error
+	response when sending private chat messages.
+	* tkchat.tcl (::tkjabber::RosterCB): Add a system message to a
+	chat window if the chat partner disconnects.
+
 2006-03-21  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::OnNamePopup): The hide/show user
