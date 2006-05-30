@@ -10,7 +10,9 @@ exec wish $0 ${1+"$@"}
 #
 # Copyright (c) 1998 Jeffrey hobbs
 #
-# RCS: @(#) $Id: timer.tcl,v 1.1 2001/11/07 22:30:33 hobbs Exp $
+# RCS: @(#) $Id: timer.tcl,v 1.2 2006/05/30 14:08:49 mic42 Exp $
+
+package require Tk
 
 wm title . "Timer 00:00"
 
@@ -20,6 +22,7 @@ array set G {
     final	0
     start	0
     longsecs	300
+    talktime    10
 }
 
 proc start {} {
