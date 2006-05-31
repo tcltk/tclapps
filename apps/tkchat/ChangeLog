@@ -1,3 +1,7 @@
+2006-05-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed bug in handling of nick changes.
+
 2006-05-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (::tkjabber::MsgCB): More polite handling of error

@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.336 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.337 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.336 2006/05/04 22:33:57 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.337 2006/05/31 15:11:49 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7897,7 +7897,10 @@ proc ::tkchat::updateOnlineNames {} {
 	    continue
 	}
 	foreach nick $OnlineUsers($network) {
-	    set status [lindex $OnlineUsers($network-$nick,status) 0]
+            set status online
+            if {[info exists OnlineUsers($network-$nick,status)]} {
+                set status [lindex $OnlineUsers($network-$nick,status) 0]
+            }
 	    if {[info exists Options(Visibility,NICK-$nick)] \
 		    && $Options(Visibility,NICK-$nick)} {
 		set status disabled
