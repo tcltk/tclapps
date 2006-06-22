@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.8 2006/03/13 23:01:57 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.9 2006/06/22 22:12:57 wildcard_25 Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -604,10 +604,11 @@ proc client::create { server port nk chan } {
 	#List of online users sent on channel join
         variable ::ijbridge::IrcUserList
 	::log::log debug "UsersOnline [msg]"
-	set ::ijbridge::IrcUserList \
+	set IrcUserList \
 		[split [string map {@ "" % "" + ""} [string trim [msg]]] " "]
 	foreach bridge {ircbridge azbridge ijbridge ijchain} {
-	    set IrcUserList [lsearch -all -inline -not $IrcUserList $bridge]
+	    set IrcUserList \
+		    [lsearch -all -inline -exact -not $IrcUserList $bridge]
 	}
     }
 
@@ -638,7 +639,8 @@ proc client::create { server port nk chan } {
     $cn registerevent PART {
         variable ::ijbridge::IrcUserList
 	if { [target] eq $client::channel && [who] ne $client::nick } {
-	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
+	    set IrcUserList \
+		    [lsearch -all -inline -exact -not $IrcUserList [who]]
 	    ijbridge::send "*** [who] leaves"
 	}
 
@@ -646,8 +648,9 @@ proc client::create { server port nk chan } {
 
     $cn registerevent JOIN {
         variable ::ijbridge::IrcUserList
-	if { [who] != $client::nick } {
-	    if { [lsearch $IrcUserList [who]] == -1 } {
+	if { [lsearch -exact {ircbridge azbridge ijbridge ijchain} [who]] == -1 \
+		&& [who] ne $client::nick } {
+	    if { [lsearch -exact $IrcUserList [who]] == -1 } {
 		lappend IrcUserList [who]
 	    }
 	    ijbridge::send "*** [who] joins"
@@ -657,7 +660,8 @@ proc client::create { server port nk chan } {
     $cn registerevent QUIT {
         variable ::ijbridge::IrcUserList
 	if { [who] ne $::client::nick } {
-	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
+	    set IrcUserList \
+		    [lsearch -all -inline -exact -not $IrcUserList [who]]
 	    ijbridge::send "*** [who] leaves"
 	    if { [who] eq [string trimright $::client::nick 0123456789] } {
 		cmd-send "NICK [who]"
@@ -683,8 +687,9 @@ proc client::create { server port nk chan } {
 	if { [who] eq $::client::nick } {
 	    set ::client::nick [msg]
 	} else {
-	    set IrcUserList [lsearch -all -inline -not $IrcUserList [who]]
-	    if { [lsearch $IrcUserList [msg]] == -1 } {
+	    set IrcUserList \
+		    [lsearch -all -inline -exact -not $IrcUserList [who]]
+	    if { [lsearch -exact $IrcUserList [msg]] == -1 } {
 		lappend IrcUserList [msg]
 	    }
 	    ijbridge::send "*** [who] is now known as [msg]"
