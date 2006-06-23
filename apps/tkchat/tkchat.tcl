@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.338 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.339 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.338 2006/06/23 03:04:59 wildcard_25 Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.339 2006/06/23 11:53:57 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -311,7 +311,9 @@ proc ::tkchat::ShowStatusPage2 {} {
 
 proc ::tkchat::GetHistLogIdx {url} {
     if { [catch {
-	::http::geturl $url -headers [buildProxyHeaders] \
+        set hdrs [buildProxyHeaders]
+        lappend hdrs "Accept-Charset" "ISO-8859-1,utf-8"
+	::http::geturl $url -headers $hdrs \
 		-command [list ::tkchat::fetchurldone ::tkchat::GotHistLogIdx]
     } msg] } then {
 	addSystem .txt "Unable to obtain history from $url: \"$msg\"" end ERROR
@@ -344,7 +346,9 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 
     # fetch log
     ::log::log info "History: Fetch log \"$url\""
-    set tok [::http::geturl $url -headers [buildProxyHeaders]]
+    set hdrs [buildProxyHeaders]
+    lappend hdrs "Accept-Charset" "utf-8"
+    set tok [::http::geturl $url -headers $hdrs]
 
     ::log::log info \
 	    "History: status was [::http::status $tok] [::http::code $tok]"
@@ -7197,6 +7201,12 @@ proc tkjabber::ClientCB {jlibName cmd args} {
     ::log::log debug "ClientCB: jlibName=$jlibName, cmd=$cmd, args='$args'"
     switch -- $cmd {
 	connect {
+            # We must update the conn(id) item here with the new stream id
+            variable conn
+            set conn(from) [$jlibName getstreamattr from]
+            set conn(id) [$jlibName getstreamattr id]
+            set conn(version) [$jlibName getstreamattr version]
+            set conn(xmlns) [$jlibName getstreamattr xmlns]
 	    tkchat::addSystem .txt "Connection to Jabber Server Established"
 	}
 	disconnect {
