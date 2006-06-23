@@ -1,3 +1,32 @@
+2006-06-23  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addTraffic): Fixed bug in handling of nick
+	(::tkjabber::RosterCB):              changes. Reverted previous
+	(::tkchat::updateOnlineNames):       commit's workaround.
+	(::tkjabber::setNick):
+	(::tkjabber::transferNick):
+
+	* tkchat.tcl (::tkchat::CreateGUI): Only execute autoStatus proc when
+	(::tkchat::checkCommand):           autostatus enabled. Switch user to
+	(::tkjabber::LoginCB):              extended away when user is away
+	(::tkjabber::MucEnterCB):           manually and idle for an extended
+	(::tkjabber::away):                 period of time. Remember away
+	(::tkjabber::back):                 status when being logged off/on
+	(::tkjabber::autoStatus):           manually or due to a network
+	interuption.
+
+	* tkchat.tcl (::tkchat::checkCommand): Make /dnd and /busy work
+	correctly (Broken since introduction in v1.269).
+
+	* tkchat.tcl (::tkchat::BookmarkClear): Clear autoBookmarks when
+	clearing all bookmarks.
+
+	* tkchat.tcl (::tkchat::updateOnlineNames): Stop Onlinenames window
+	from scrolling to top everytime someone enters or leaves the chat.
+
+	* tkchat.tcl (::tkjabber::connect): Go back to login screen if initial
+	(::tkchat::logonChat):              connection fails.
+
 2006-05-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fixed bug in handling of nick changes.
@@ -23,20 +52,17 @@
 
 2006-03-20  Reinhard Max  <max@suse.de>
 
-	* tkchat.tcl (::tkchat::CreateGUI):   Left-justify titles and
-	                                      subtitles in the Users
-	                                      Online list.
+	* tkchat.tcl (::tkchat::CreateGUI):   Left-justify titles and subtitles
+	in the Users Online list.
 
 	* tkchat.tcl (::tkchat::OnTextPopup): Use tk_popup instead of the
 	(::tkchat::OnNamePopup):              menu's popup subcommand to fix
-	                                      unposting on X.
+	unposting on X.
 
-	* tkchat.tcl: (::tkchat::Smile):      New coffe emoticon.
+	* tkchat.tcl: (::tkchat::Smile): New coffee emoticon.
 
-	* tkchat.tcl: (::tkchat::updateOnlineNames): Don't continue the
-	                                      active area of clickable
-	                                      nick names to the end of the
-	                                      line.
+	* tkchat.tcl: (::tkchat::updateOnlineNames): Don't continue the active
+	area of clickable nick names to the end of the line.
 
 2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
 

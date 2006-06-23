@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.337 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.338 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -98,7 +98,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.337 2006/05/31 15:11:49 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.338 2006/06/23 03:04:59 wildcard_25 Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -506,6 +506,9 @@ proc ::tkchat::logonChat {} {
 
     # Logon to the jabber server.
     tkjabber::connect
+    if { ! $::tkchat::LoggedIn } {
+	after 1000 {::tkchat::logonScreen}
+    }
 }
 
 # -------------------------------------------------------------------------
@@ -1311,9 +1314,7 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
 	    set OnlineUsers($network) [lsearch -exact -sorted -dictionary \
 		    -all -inline -not $OnlineUsers($network) $nick]
 	    if { $action eq "nickchange" } {
-		if { $network ne "Jabber" } {
-		    set OnlineUsers($network-$newnick,status) [list online]
-		}
+		set OnlineUsers($network-$newnick,status) [list online]
 		lappend OnlineUsers($network) $newnick
 		set OnlineUsers($network) \
 			[lsort -dictionary -unique $OnlineUsers($network)]
@@ -1759,7 +1760,8 @@ proc ::tkchat::CreateGUI {} {
 	$m.aa add radiobutton \
 		-label "After $minutes minutes" \
 		-variable Options(AutoAway) \
-		-value $minutes
+		-value $minutes \
+		-command ::tkjabber::autoStatus
     }
 
     ## Emoticon Menu
@@ -3156,7 +3158,7 @@ proc ::tkchat::checkCommand { msg } {
 	    }
 	}
 	{^/nick\s?} {
-	    tkjabber::setNick [string range $msg 6 end]
+	    ::tkjabber::setNick [string range $msg 6 end]
 	}
 	{^/topic\s?} {
 	    tkjabber::setTopic [string range $msg 7 end]
@@ -3217,19 +3219,21 @@ proc ::tkchat::checkCommand { msg } {
 	{^/away} {
 	    set status ""
 	    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
-	    set tkjabber::AutoAway -1
-	    tkjabber::away $status
+	    set ::tkjabber::Away 1
+	    set ::tkjabber::AutoAway 1
+	    ::tkjabber::away $status
 	}
 	{^/dnd}  -
 	{^/busy} {
 	    set status ""
-	    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
-	    set tkjabber::AutoAway -1
-	    tkjabber::away $status dnd
+	    regexp {^/(?:(?:dnd)|(?:busy))\s*(.*)$} $msg -> status
+	    set ::tkjabber::Away 1
+	    set ::tkjabber::AutoAway 1
+	    ::tkjabber::away $status dnd
 	}
 	{^/back} {
-	    set status [string range $msg 5 end]
-	    tkjabber::back $status
+	    set status [string range $msg 6 end]
+	    ::tkjabber::back $status
 	}
 	default {
 	    if {![checkAlias $msg]} then {
@@ -4857,7 +4861,7 @@ proc ::tkchat::Init {args} {
     set OnlineUsers(networks) [list Jabber WebChat IRC]
     foreach network $OnlineUsers(networks) {
 	set OnlineUsers($network) {}
-	set OnlineUsers($network,hide) 0
+	set OnlineUsers($network,hideMenu) 0
     }
 
     # Process command line args
@@ -6314,6 +6318,7 @@ proc ::tkchat::BookmarkClear {} {
 	.txt configure -state normal
 	while { $bookmark(id) } {
 	    catch { .txt delete bookmark$bookmark(id) }
+	    catch { .txt delete bookmarkauto$bookmark(id) }
 	    incr bookmark(id) -1
 	}
 	.txt configure -state $state
@@ -6788,7 +6793,7 @@ namespace eval tkjabber {
     Variable user_alias
     Variable Away 0
     Variable AutoAway 0
-    Variable AwayShow ""
+    Variable AwayStatus ""
 
     # To provide a map between parents widgets and chats
     variable ChatWindows; if {![info exists ChatWindows]} {array set ChatWindows {counter 0}}
@@ -6864,7 +6869,13 @@ proc ::tkjabber::connect {} {
 	::tkchat::addSystem .txt "Connecting failed: $res" end ERROR
 	if { $reconnect } {
 	    scheduleReconnect
+	} else {
+	tk_messageBox \
+		-icon error \
+		-title "Connection Failure" \
+		-message "Connecting failed: $res"
 	}
+	return
     } else {
 	#fconfigure $socket -encoding utf-8
 	$jabber setsockettransport $socket
@@ -7080,7 +7091,6 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 		    }
 		}
 		unavailable {
-		    set nickchange 0
 		    set action left
 		    set status offline
 
@@ -7101,7 +7111,6 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 				set item [::wrapper::getchildswithtag \
 					$child item]
 				if { [llength $item] > 0 } {
-				    set nickchange 1
 				    set action nickchange
 				    set newnick [::wrapper::getattribute \
 					    [lindex $item 0] nick]
@@ -7112,14 +7121,14 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 		    }
 		    unset -nocomplain OnlineUsers(Jabber-$nick,jid)
 
-                    # Check for chat windows for a departing user.
-                    variable ChatWindows
-                    array set a {-from {}}
-                    array set a $args
-                    if {[info exists ChatWindows(txt.$a(-from))]} {
-                        tkchat::addSystem $ChatWindows(txt.$a(-from)) \
-                            "The other user has disconnected."
-                    }
+		    # Check for chat windows for a departing user.
+		    variable ChatWindows
+		    array set a {-from {}}
+		    array set a $args
+		    if {[info exists ChatWindows(txt.$a(-from))]} {
+			tkchat::addSystem $ChatWindows(txt.$a(-from)) \
+				"The other user has disconnected."
+		    }
 
 		    # Do we want to be this nick?
 		    if { $grabNick ne "" && $nick eq $grabNick } {
@@ -7373,13 +7382,13 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	error {
 	    if { [info exists m(-error)] } {
 		switch -- [lindex $m(-error) 0] {
-                    404 {
-                        # This has been seen when sending a private message 
-                        # to a disconnected user.
-                        ::tkchat::addSystem .txt "Your message to $m(-from)\
-                            could not be delivered. The recipient has\
-                            disconnected"
-                    }
+		    404 {
+			# This has been seen when sending a private message
+			# to a disconnected user.
+			::tkchat::addSystem .txt [concat \
+				"Your message to $m(-from) could not be"
+				"delivered. The recipient has disconnected"]
+		    }
 		    405 {
 			if { [catch {
 			    $muc exit $conference
@@ -7525,6 +7534,7 @@ proc tkjabber::RegisterCB {jlibName type theQuery} {
 
 proc ::tkjabber::LoginCB { jlibname type theQuery } {
     # After SendAuth, this is the next Callback.
+    global Options
     variable jabber
     variable roster
     variable conference
@@ -7533,7 +7543,6 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
     variable nickTries
     variable myId
 
-    global Options
     ::log::log debug "LoginCB: type=$type, theQuery='$theQuery'"
 
     switch -- $type {
@@ -7563,11 +7572,10 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 	}
 	result {
 	    ::tkchat::addSystem .txt "Logged in."
-	    #after 20000 [list jlib::schedule_keepalive $jlibname]
 	    if {$myId == {}} { set myId [$jabber myjid] }
 	    set tkjabber::reconnect 1
 	    set tkjabber::connectionRetryTime [expr {int(5+rand()*5.0)}]
-	    $jabber send_presence -type available
+	    $jabber send_presence
 	    set muc [jlib::muc::new $jabber]
 	    if { $::Options(Nickname) eq "" } {
 		::tkchat::setNickname $::Options(Username)
@@ -7611,10 +7619,14 @@ proc tkjabber::GenericIQProc {jlibName type theQuery} {
     tkchat::addSystem .txt  "GenericIQProc: type=$type, theQuery='$theQuery'"
 }
 proc ::tkjabber::MucEnterCB { mucName type args } {
+    variable jabber
     variable conference
     variable muc
     variable nickTries
     variable baseNick
+    variable Away
+    variable AwayStatus
+    variable AutoAway
 
     ::log::log debug "MucEnter: type=$type, args='$args'"
     switch -- $type {
@@ -7679,6 +7691,12 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 		    &&  !$::tkjabber::HaveHistory } {
 		# Force history loading to the background
 		after idle [list after 0 ::tkchat::LoadHistory]
+	    }
+	    if { $Away > 0 } {
+		set AutoAway 1
+		set jid $conference/[$muc mynick $conference]
+		$jabber send_presence -type available -from $jid \
+			-to $conference -show away -status $AwayStatus
 	    }
 	    autoStatus
 	}
@@ -7869,8 +7887,7 @@ proc ::tkchat::updateOnlineNames {} {
     global Options
     variable OnlineUsers
 
-    set scrollcmd [.names cget -yscrollcommand]
-    .names configure -yscrollcommand {}
+    set scrollview [.names yview]
 
     # Delete all URL-* tags to prevent a huge memory leak
     foreach tagname [lsearch -all -inline [.names tag names] URL-*] {
@@ -7893,14 +7910,11 @@ proc ::tkchat::updateOnlineNames {} {
 	.names insert end "$userCnt $network Users\n" [list SUBTITLE $network]
 	.names tag bind $network <Button-1> \
 		[list ::tkchat::OnNetworkToggleShow $network]
-	if { $OnlineUsers($network,hide) } {
+	if { $OnlineUsers($network,hideMenu) } {
 	    continue
 	}
 	foreach nick $OnlineUsers($network) {
-            set status online
-            if {[info exists OnlineUsers($network-$nick,status)]} {
-                set status [lindex $OnlineUsers($network-$nick,status) 0]
-            }
+	    set status [lindex $OnlineUsers($network-$nick,status) 0]
 	    if {[info exists Options(Visibility,NICK-$nick)] \
 		    && $Options(Visibility,NICK-$nick)} {
 		set status disabled
@@ -7949,14 +7963,15 @@ proc ::tkchat::updateOnlineNames {} {
 	.names insert end "\n"
     }
     .names insert 1.0 "$total Users Online\n\n" TITLE
-    .names configure -yscrollcommand $scrollcmd
+    .names yview moveto [lindex $scrollview 0]
     .names configure -state disabled
 }
 
 proc ::tkchat::OnNetworkToggleShow { network } {
     variable OnlineUsers
 
-    set OnlineUsers($network,hide) [expr {!$OnlineUsers($network,hide)}]
+    set OnlineUsers($network,hideMenu) \
+	    [expr {!$OnlineUsers($network,hideMenu)}]
     updateOnlineNames
 }
 
@@ -8061,13 +8076,16 @@ proc ::tkjabber::setNick { newnick } {
 		set attrs [list xmlns urn:tkchat:changenick]
 		set xlist [list [wrapper::createtag x -attrlist $attrs]]
 
-		$tkjabber::jabber send_message $otherjid -type chat -xlist $xlist
-		tkchat::addSystem .txt "This nick is owned by another you, requested transfer..."
+		$tkjabber::jabber send_message $otherjid -type chat \
+			-xlist $xlist
+		::tkchat::addSystem .txt [concat \
+			"This nick is owned by another you, requested" \
+			"transfer..."]
 		set grabNick $newnick
 		return
 	    }
 	}
-	tkchat::addSystem .txt "The nickname '$newnick' is already in use."
+	::tkchat::addSystem .txt "The nickname '$newnick' is already in use."
 	return
     }
 
@@ -8106,7 +8124,8 @@ proc ::tkjabber::transferNick { reqfrom } {
     }
     set newnick $::Options(Nickname)$postfix
     if { [lsearch -exact $OnlineUsers(Jabber) $newnick] != -1 } {
-	tkchat::addSystem .txt "Got a nick transfer request, but $newnick is already in use."
+	::tkchat::addSystem .txt \
+		"Got a nick transfer request, but $newnick is already in use."
 	return
     }
 
@@ -8114,8 +8133,8 @@ proc ::tkjabber::transferNick { reqfrom } {
     ::tkchat::setNickname $newnick
     $muc setnick $conference [xmlSafe $newnick]
 
-    # The other party does not need to be notified - it should be in nickgrab mode.
-
+    # The other party does not need to be notified
+    # - it should be in nickgrab mode.
 }
 
 proc ::tkjabber::setTopic { newtopic } {
@@ -8124,7 +8143,6 @@ proc ::tkjabber::setTopic { newtopic } {
     variable jabber
 
     $jabber send_message $conference -subject $newtopic -type groupchat
-
 }
 
 proc ::tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
@@ -8240,23 +8258,27 @@ proc tkjabber::SubscriptionRequest {from status} {
     return
 }
 
-proc tkjabber::away {status {show away}} {
-    variable Away 1
+proc ::tkjabber::away { status {show away} } {
+    variable AwayStatus
     variable conference
 
+    set AwayStatus $status
     set jid $conference/[$tkjabber::muc mynick $conference]
     $tkjabber::jabber send_presence -type available \
-	-from $jid -to $conference -show $show -status $status
+	    -from $jid -to $conference -show $show -status $status
+    autoStatus
 }
 
-proc tkjabber::back {status} {
+proc ::tkjabber::back { status } {
     variable Away 0
     variable AutoAway 0
+    variable AwayStatus ""
     variable conference
 
     set jid $conference/[$::tkjabber::muc mynick $conference]
     $::tkjabber::jabber send_presence -type available \
-	-from $jid -to $conference -show online -status $status
+	    -from $jid -to $conference -show online -status $status
+    autoStatus
 }
 
 # -------------------------------------------------------------------------
@@ -8390,7 +8412,7 @@ proc ::tkjabber::autoStatus {} {
     variable autoStatusAfterId
     variable Away
     variable AutoAway
-    variable AwayShow
+    variable AwayStatus
     global Options
 
     if { [info exists autoStatusAfterId] } {
@@ -8399,36 +8421,32 @@ proc ::tkjabber::autoStatus {} {
     }
 
     if { ![idle::supported] } return
-    set autoStatusAfterId [after 1000 [namespace origin autoStatus]]
 
-    if { $Options(AutoAway) == -1 } {
+    if { $Away == 0 && $Options(AutoAway) == -1 } {
 	# Auto Away disabled in configure menu
 	return
     }
 
-    if { $AutoAway < 0 } {
-	# Auto Away disabled because use set status manually.
-	return
+    if { $Options(AutoAway) == -1 } {
+	set idle_time 0
+    } else {
+	set idle_time [expr {$Options(AutoAway) * 60}]
     }
+    set xa_time [expr {$idle_time + 60 * 30}]
 
-    set idle_time [expr {$Options(AutoAway)*60}]
-    set xa_time [expr {$idle_time + 60*30}]
-
-    # for easy debugging:
-    #set idle_time 5
-    #set xa_time 10
-
-    if { $AutoAway > 0 && [idle::idletime] < $idle_time } {
-	set AutoAway 0
+    if { $Away == 2 && $AutoAway > 0 && [idle::idletime] < $idle_time } {
 	back ""
     } elseif { $AutoAway == 0 && [idle::idletime] > $idle_time } {
+	set Away 2
 	set AutoAway 1
 	away "no activity" away
     } elseif { $AutoAway == 1 && [idle::idletime] > $xa_time } {
 	set AutoAway 2
-	away "no activity" xa
+	away $AwayStatus xa
+    } elseif { $AutoAway == 2 && $Away == 1 } {
+	return
     }
-
+    set autoStatusAfterId [after 1000 ::tkjabber::autoStatus]
 }
 
 # -------------------------------------------------------------------------
