@@ -85,10 +85,16 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.339 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.340 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
+	 
+    # prepare Tile usage and namespace prefix for the GUI:
+    variable useTile 1
+    if {[package provide tile] eq ""} {set useTile 0}
+    variable NS "::tk"
+    if {$useTile} {set NS "::ttk"}
 
     # Everything will eventually be namespaced
     variable MessageHooks
@@ -98,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.339 2006/06/23 11:53:57 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.340 2006/06/27 18:40:07 treincke Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -413,8 +419,7 @@ proc ::tkchat::InsertHistoryMark {} {
 # logindex is a list of "filename sizeK filename ...."
 proc ::tkchat::LoadHistoryFromIndex {logindex} {
     global Options
-    set have_tile [llength [package provide tile]]
-    set NS [expr {$have_tile == 0 ? "::tk" : "::ttk"}]
+    variable NS
 
     set loglist {}
     array set logsize {}
@@ -675,12 +680,12 @@ proc ::tkchat::babelfishMenu {} {
 proc ::tkchat::MsgTo {{user "All Users"}} {
     global Options
     variable MsgToColors
+    variable useTile
     set tile_version [package provide tile]
-    set have_tile [llength $tile_version]
     set do_bg 1
 
     # There is a bug in 0.6 that messes up all this stuff.
-    if {$have_tile && [package vsatisfies $tile_version 0.6] \
+    if {$useTile && [package vsatisfies $tile_version 0.6] \
 	    && ![package vsatisfies $tile_version 0.7]} {
 	set do_bg 0
     }
@@ -836,7 +841,7 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 	lset Options(Color,NICK-$nick) 2 [invClr $clr]
 	set clr [getColor $nick]
 	$w tag configure NICK-$nick -foreground "#$clr"
-	.names tag configure NICK-$nick -foreground "#$clr"
+	.pane.names tag configure NICK-$nick -foreground "#$clr"
 	$w tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
 	$w tag lower NICK-$nick STAMP
     }
@@ -1200,7 +1205,11 @@ proc ::tkchat::gotoURL {url} {
 		# -remote argument might need formatting as a command
 		# 		Try that first
 		if { [catch {
-		    exec $Options(Browser) -remote openURL($url) 2> /dev/null
+		    if {$Options(BrowserTab)} {
+			exec $Options(Browser) -remote "openURL($url,new-page)" 2> /dev/null
+		    } else {
+		    	exec $Options(Browser) -remote openURL($url) 2> /dev/null
+		    }
 		}] } then {
 		    # Try -remote with raw URL argument
 		    if { [catch {
@@ -1408,9 +1417,14 @@ proc ::tkchat::createFonts {} {
 
 proc ::tkchat::displayUsers {} {
     global Options
+    variable useTile
     if {[winfo exists .pane]} {
 	if {$Options(DisplayUsers)} {
-	    .pane add $Options(NamesWin) -sticky news
+	    if {$useTile} {
+		catch {.pane add $Options(NamesWin)}
+	    } else {
+		.pane add $Options(NamesWin) -sticky news
+	    }
 	} else {
 	    .pane forget $Options(NamesWin)
 	}
@@ -1533,7 +1547,8 @@ proc ::tkchat::nickComplete {} {
 proc ::tkchat::CreateGUI {} {
     global Options
     variable chatWindowTitle
-    set have_tile [llength [package provide tile]]
+    variable useTile
+    variable NS
 
     # Pick an enhanced Tk style.
     set done 0
@@ -1645,7 +1660,7 @@ proc ::tkchat::CreateGUI {} {
     $m add separator
 
     # Tile Themes Cascade Menu
-    if { $have_tile } {
+    if { $useTile } {
 	set themes [lsort [tile::availableThemes]]
 
 	menu $m.themes -tearoff 0
@@ -1980,7 +1995,22 @@ proc ::tkchat::CreateGUI {} {
 		}
 	    }
 	}
-    }
+    } elseif {[llength [info commands ::console]] == 0} {
+	     ::tkchat::ConsoleInit
+		  $m entryconfigure "Console" -state normal
+		  console eval {
+	    bind .console <Map> {
+		consoleinterp eval {
+		    set ::tkchat::_console 1
+		}
+	    }
+	    bind .console <Unmap> {
+		consoleinterp eval {
+		    set ::tkchat::_console 0
+		}
+	    }
+	}
+	 }
 
     ## Help Menu
     ##
@@ -2005,13 +2035,11 @@ proc ::tkchat::CreateGUI {} {
 	    -command ::tkchat::About
 
     # main display
-    if {$have_tile} {
-	set NS ::ttk
-    } else {
-	set NS ::tk
-    }
-
-    panedwindow .pane -sashpad 4 -sashrelief ridge
+    if {$useTile} {
+	     ttk::paned .pane -orient horizontal
+	 } else {
+	     panedwindow .pane -sashpad 4 -sashrelief ridge
+	 }
     ${NS}::frame .txtframe
 
     CreateTxtAndSbar
@@ -2020,7 +2048,7 @@ proc ::tkchat::CreateGUI {} {
     bind .txt <Shift-Button-3> { ::dict.leo.org::askLEOforSelection }
 
     # user display
-    text .names \
+    ScrolledWidget text .pane.names 0 1\
 	    -background "#[getColor MainBG]" \
 	    -foreground "#[getColor MainFG]" \
 	    -relief sunken \
@@ -2031,7 +2059,7 @@ proc ::tkchat::CreateGUI {} {
 	    -wrap word \
 	    -cursor left_ptr \
 	    -state disabled
-    .names tag configure STAMP
+    .pane.names tag configure STAMP
 
     applyColors .txt All
 
@@ -2055,7 +2083,7 @@ proc ::tkchat::CreateGUI {} {
 
     ${NS}::button .post -text "Post" -command ::tkchat::userPost
 
-    if {$have_tile} {
+    if {$useTile} {
 	ttk::menubutton .mb \
 		-menu .mb.mnu \
 		-textvariable Options(MsgTo) \
@@ -2073,14 +2101,14 @@ proc ::tkchat::CreateGUI {} {
 	    -label "All Users" \
 	    -command { ::tkchat::MsgTo "All Users" }
 
-    .names tag configure NICK -font NAME
-    .names tag configure TITLE -font NAME
-    .names tag configure SUBTITLE -font SYS
-    .names tag configure URL -underline 1
-    .names tag bind URL <Enter> { .names configure -cursor hand2 }
-    .names tag bind URL <Leave> { .names configure -cursor {} }
+    .pane.names tag configure NICK -font NAME
+    .pane.names tag configure TITLE -font NAME
+    .pane.names tag configure SUBTITLE -font SYS
+    .pane.names tag configure URL -underline 1
+    .pane.names tag bind URL <Enter> { .pane.names configure -cursor hand2 }
+    .pane.names tag bind URL <Leave> { .pane.names configure -cursor {} }
 
-    bind .names <Double-Button-1> break
+    bind .pane.names <Double-Button-1> break
     bind . <FocusIn> \
 	[list after 5000 [list after idle ::tkchat::ResetMessageCounter]]
     if { [lsearch [wm attributes .] -alpha] != -1 } {
@@ -2089,14 +2117,19 @@ proc ::tkchat::CreateGUI {} {
     }
 
     # using explicit rows for restart
-    set Options(NamesWin) [MakeScrolledWidget .names]
+    set Options(NamesWin) .pane.names
     .txt configure -width 10
-    .names configure -width 10
-    grid .txt .sbar -in .txtframe -sticky news -padx 1 -pady 2
+    .pane.names configure -width 10
+    grid .txt .sbar -in .txtframe -sticky news
     grid columnconfigure .txtframe 0 -weight 1
     grid rowconfigure .txtframe 0 -weight 1
-    .pane add .txtframe -sticky news
-    .pane add $Options(NamesWin) -sticky news
+    if {$useTile} {
+	.pane add .txtframe
+	.pane add $Options(NamesWin)
+    } else {
+	.pane add .txtframe -sticky news
+	.pane add $Options(NamesWin) -sticky news
+    }
     grid .pane -sticky news -padx 1 -pady 2
     grid .btm  -sticky news
     grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
@@ -2114,16 +2147,30 @@ proc ::tkchat::CreateGUI {} {
     wm deiconify .
 
     update
-    if { [info exists $Options(Pane)] && [llength $Options(Pane)] == 2 } {
-	eval [linsert $Options(Pane) 0 .pane sash place 0]
+    if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2 } {
+	if {$useTile} {
+		eval [linsert $Options(Pane) 0 .pane sashpos 0]
+	} else {
+		eval [linsert $Options(Pane) 0 .pane sash place 0]
+	}
     } else {
 	set w [expr { ([winfo width .pane] * 4) / 5 }]
-	set coord [.pane sash coord 0]
-	.pane sash place 0 $w [lindex $coord 1]
+	if {$useTile} {
+		set coord [.pane sashpos 0]
+		.pane sashpos 0 $w
+	} else {
+		set coord [.pane sash coord 0]
+		.pane sash place 0 $w [lindex $coord 1]
+	}
     }
-    set Options(PaneUsersWidth) [expr { [winfo width .pane] \
-	    - [lindex [.pane sash coord 0] 0] }]
-    bind .pane <Configure> { after idle [list ::tkchat::PaneConfigure %W %w] }
+    if {$useTile} {
+	 	set Options(PaneUsersWidth) [expr { [winfo width .pane] \
+	 	   - [.pane sashpos 0]}]
+	 } else {
+	 	set Options(PaneUsersWidth) [expr { [winfo width .pane] \
+	 	   - [lindex [.pane sash coord 0] 0] }]
+    }
+	 bind .pane <Configure> { after idle [list ::tkchat::PaneConfigure %W %w] }
     bind .pane <Leave>     { ::tkchat::PaneLeave %W }
 
     # update the pane immediately.
@@ -2182,7 +2229,7 @@ proc ::tkchat::OnTextPopup { w x y } {
 
 proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     global Options
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
+    variable NS
 
     set txt $parent.txt
     set sbar $parent.sbar
@@ -2255,9 +2302,14 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
 
 proc ::tkchat::CreateNewChatWindow { parent } {
     global Options
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
+    variable useTile
+    variable NS
 
-    panedwindow $parent.pane -sashpad 4 -sashrelief ridge
+    if {$useTile} {
+	ttk::paned $parent.pane
+    } else {
+	panedwindow $parent.pane -sashpad 4 -sashrelief ridge
+    }
     ${NS}::frame $parent.txtframe
 
     CreateTxtAndSbar $parent
@@ -2279,7 +2331,11 @@ proc ::tkchat::CreateNewChatWindow { parent } {
 	    -in $parent.txtframe -sticky news -padx 1 -pady 2
     grid columnconfigure $parent.txtframe 0 -weight 1
     grid rowconfigure $parent.txtframe 0 -weight 1
-    $parent.pane add $parent.txtframe -sticky news
+    if {$useTile} {
+	 	$parent.pane add $parent.txtframe
+	 } else {
+	 	$parent.pane add $parent.txtframe -sticky news
+	 }
     grid $parent.pane -sticky news -padx 1 -pady 2
     grid $parent.btm  -sticky news
     grid $parent.ml $parent.eMsg $parent.post \
@@ -2307,8 +2363,9 @@ proc ::tkchat::CreateNewChatTab { parent title } {
 
 proc ::tkchat::SetTheme {theme} {
     global Options
+    variable useTile
     catch {
-	if { [package provide tile] != {} } {
+	if {$useTile} {
 	    tile::setTheme $theme
 	}
 	set Options(Theme) $theme
@@ -2319,20 +2376,30 @@ proc ::tkchat::SetTheme {theme} {
 # proportions the same for each pane.
 proc ::tkchat::PaneConfigure {pane width} {
     global Options
-
+    variable useTile
     if {$::Options(DisplayUsers)} {
 	if {[info exists Options(PaneUsersWidth)]} {
 	    set pos [expr {$width - $Options(PaneUsersWidth)}]
-	    $pane sash place 0 $pos 2
+	    if {$useTile} {
+		$pane sashpos 0 $pos
+	    } else {
+		$pane sash place 0 $pos 2
+	    }
 	}
     }
 }
 
 proc ::tkchat::PaneLeave {pane} {
     global Options
+    variable useTile
     if {$::Options(DisplayUsers)} {
-	set Options(PaneUsersWidth) \
-	    [expr {[winfo width .pane] - [lindex [.pane sash coord 0] 0]}]
+	if {$useTile} {
+	    set Options(PaneUsersWidth) \
+		[expr {[winfo width .pane] - [.pane sashpos 0]}]
+	} else {
+	    set Options(PaneUsersWidth) \
+		[expr {[winfo width .pane] - [lindex [.pane sash coord 0] 0]}]
+	}
     }
 }
 
@@ -2431,38 +2498,72 @@ proc ::tkchat::NickVisMenu {} {
     }
 }
 
-proc ::tkchat::ScrolledWidgetSet {sbar f1 f2} {
-    $sbar set $f1 $f2
-    if {($f1 == 0) && ($f2 == 1)} {
-	grid remove $sbar
-    } else {
-	grid $sbar
-    }
+# create a standard widget with scrollbars around
+# (uses tile if present)
+#
+# wigdet  -> name of the widget to be created
+# parent  -> path to the frame, in which the widget and the scrollbars should
+#            be created
+# scrollx -> boolean; create horizontal scrollbar?
+# scrolly -> boolean; create vertical scrollbar?
+# args    -> additional arguments passed on the the widget
+#
+# returns: the path to the created widget (frame)
+#
+proc ::tkchat::ScrolledWidget {widget parent scrollx scrolly args} {
+	variable useTile
+	if {$useTile} {ttk::frame $parent} else {frame $parent}
+	# Create widget attached to scrollbars, pass thru $args
+	eval $widget $parent.list $args
+	# Create scrollbars attached to the listbox
+	if {$scrollx} {
+		if {$useTile} {
+			ttk::scrollbar $parent.sx -orient horizontal \
+			-command [list $parent.list xview]
+		} else {
+			scrollbar $parent.sx -orient horizontal \
+			-command [list $parent.list xview] -elementborderwidth 1
+		}
+		grid $parent.sx -column 0 -row 1 -sticky ew
+		$parent.list configure -xscrollcommand [list $parent.sx set]
+	}
+	if {$scrolly} {
+		if {$useTile} {
+			ttk::scrollbar $parent.sy -orient vertical \
+			-command [list $parent.list yview]
+		} else {
+			scrollbar $parent.sy -orient vertical \
+			-command [list $parent.list yview] -elementborderwidth 1
+		}
+		grid $parent.sy 	-column 1 -row 0 -sticky ns
+		$parent.list configure -yscrollcommand [list $parent.sy set]
+	}
+	# Arrange them in the parent frame
+	grid $parent.list  -column 0 -row 0 -sticky ewsn
+	grid columnconfigure $parent 0 -weight 1
+	grid rowconfigure $parent 0 -weight 1
+	# hide the original widget command from the interpreter:
+	interp hide {} $parent
+	# Install the alias:
+	interp alias {} $parent {} ::tkchat::ScrolledWidgetCmd $parent.list
+	# fix the bindings for the listbox:
+	bindtags $parent.list [lreplace [bindtags $parent.list] 0 0 $parent]
+	#set tags [lrange [bindtags $parent.list] 1 end]
+	#bindtags $parent.list "$parent $tags"
+	#
+	return $parent
 }
-
-proc ::tkchat::MakeScrolledWidget {w args} {
-    global Options
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
-
-    set parent [winfo parent $w]
-    for {set n 0} {[winfo exists $parent.f$n]} {incr n} {}
-    set f [${NS}::frame $parent.f$n]
-    set vs [${NS}::scrollbar $f.vs -orient vertical -command [list $w yview]]
-    $w configure -yscrollcommand [list $vs set]
-    raise $w $f
-
-    grid configure $w $vs -in $f -sticky news
-    grid rowconfigure $f 0 -weight 1
-    grid columnconfigure $f 0 -weight 1
-
-    return $f
+proc ::tkchat::ScrolledWidgetCmd {self cmd args} {
+	switch -- $cmd {
+		widgetPath {return "$self.list"}
+		default {return [uplevel 1 [list $self $cmd] $args]}
+	}
 }
 
 proc ::tkchat::About {} {
     global Options
     variable rcsid
-
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
+    variable NS
 
     regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
 
@@ -2511,9 +2612,9 @@ proc ::tkchat::About {} {
 
 proc ::tkchat::Help {} {
     variable rcsid
+    variable NS
     global Options
     regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
 
     catch {destroy .qhelp}
     set w [toplevel .qhelp -class Dialog]
@@ -3313,8 +3414,7 @@ proc ::tkchat::showExtra {{p ""}} {
 proc ::tkchat::logonScreen {} {
     global Options
     variable DlgDone
-
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
+    variable NS
 
     tkjabber::disconnect
     if {![winfo exists .logon]} {
@@ -3498,8 +3598,8 @@ proc ::tkchat::registerScreen {} {
     global Options
     variable DlgDone
     variable PasswordCheck ""
+    variable NS
 
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
     set r .register
 
     if {![winfo exists $r]} {
@@ -3702,7 +3802,8 @@ proc ::tkchat::buildRow { f idx disp } {
 }
 
 proc ::tkchat::EditMacros {} {
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
+    variable NS
+    
     set t .macros
     catch {destroy $t}
     toplevel $t -class Dialog
@@ -3943,7 +4044,7 @@ proc ::tkchat::applyColors { txt jid } {
     $txt configure \
 	    -background "#[getColor MainBG]" \
 	    -foreground "#[getColor MainFG]"
-    .names configure \
+    .pane.names configure \
 	    -background "#[getColor MainBG]" \
 	    -foreground "#[getColor MainFG]"
     $txt tag configure found -background "#[getColor SearchBG]"
@@ -3963,7 +4064,7 @@ proc ::tkchat::applyColors { txt jid } {
 	set clr [getColor $nk]
 	$txt tag configure NICK-$nk -foreground "#$clr"
 	$txt tag configure NOLOG-$nk -foreground "#[fadeColor $clr]"
-	.names tag configure NICK-$nk -foreground "#$clr"
+	.pane.names tag configure NICK-$nk -foreground "#$clr"
 	if { $Options(Visibility,STAMP) } {
 	    $txt tag raise NICK-$nk STAMP
 	    $txt tag raise NOLOG-$nk STAMP
@@ -4122,7 +4223,7 @@ proc ::tkchat::quit {} {
 
 proc ::tkchat::saveRC {} {
     global Options
-
+    variable useTile
     # Exit early if there is no home directory to save to
     if { ![info exists ::env(HOME)] } {
 	return
@@ -4134,13 +4235,19 @@ proc ::tkchat::saveRC {} {
     # Options that need to be computed at save time
     set Options(Geometry) [wm geometry .]
     if { [winfo exists .pane] && $Options(DisplayUsers) } {
-	set Options(Pane) [.pane sash coord 0]
+	if {$useTile} {
+	    # the second list element '1' is just for compatibility
+	    # to the non-Tile version:
+	    set Options(Pane) [list [.pane sashpos 0] 1]
+	} else {
+	    set Options(Pane) [.pane sash coord 0]
+	}
     }
 
     # Save these options to resource file
     set keep {
 	Alert,* AnimEmoticons AutoAway AutoBookmark AutoConnect AutoFade
-	AutoFadeLimit Browser ChatLogFile ChatLogOff Color,* DisplayUsers
+	AutoFadeLimit Browser BrowserTab ChatLogFile ChatLogOff Color,* DisplayUsers
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname Geometry HistoryLines JabberConference JabberPort
 	JabberResource JabberServer LogFile LogLevel LogStderr MyColor Nickname
@@ -4721,6 +4828,8 @@ proc ::tkchat::Smile {} {
 }
 
 proc ::tkchat::ShowSmiles {} {
+    variable NS
+    
     set t .smileys
     if {[winfo exists $t]} {
 	wm deiconify $t
@@ -4730,8 +4839,6 @@ proc ::tkchat::ShowSmiles {} {
 	foreach {i e} [array get IMG] {
 	    lappend tmp($e) $i
 	}
-	set have_tile [llength [package provide tile]]
-	set NS [expr {$have_tile == 0 ? "::tk" : "::ttk"}]
 	toplevel $t
 	wm title $t "Available Emoticons"
 	wm withdraw $t
@@ -5004,6 +5111,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	AutoFadeLimit		80
 	AutoScroll		0
 	Browser			""
+	BrowserTab		0
 	ChatLogFile		""
 	ChatLogOff		1
 	DisplayUsers		1
@@ -5992,6 +6100,8 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     variable UserInfo
     variable UserInfoBtn
     variable UserInfoWin
+    variable useTile
+    variable NS
 
     if {$jid == {}} {
 	set jid [::tkjabber::jid !resource $::tkjabber::myId]
@@ -6029,9 +6139,6 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 
     if {![info exists UserInfoWin]} {set UserInfoWin 0}
 
-    set have_tile [llength [package provide tile]]
-    set NS [expr {$have_tile == 0 ? "::tk" : "::ttk"}]
-
     set id userinfo[incr UserInfoWin]
     set UI(id) $id
 
@@ -6039,7 +6146,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     set dlg [toplevel .$id -class Dialog]
     wm title $dlg "User info for $jid"
     set f [${NS}::frame $dlg.f]
-    if {!$have_tile} { $dlg.f configure -bd 0 }
+    if {!$useTile} { $dlg.f configure -bd 0 }
 
     # country Country city City age Age
     # photo_url "Picture URL" icq_uin "ICQ uin"
@@ -6048,14 +6155,14 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 			    PHOTO_EXTVAL "Photo URL" BDAY "Birthday"} {
 	set l [${NS}::label $f.l$key -text $text -anchor nw]
 	set e [${NS}::entry $f.e$key -textvariable [set uivar]($key)]
-	if {!$have_tile} { $f.e$key configure -bd 1 -background white }
+	if {!$useTile} { $f.e$key configure -bd 1 -background white }
 	grid configure $l $e -sticky news -padx 1 -pady 1
     }
     set l [${NS}::label $f.lstuff -text "Anything else" -anchor nw]
     set e [${NS}::frame $f.estuff]
     set et [text $e.text -height 6 -bd 1 -background white]
     set es [${NS}::scrollbar $e.scroll -command [list $et yview]]
-    if {!$have_tile} {
+    if {!$useTile} {
 	$f.estuff configure -bd 0
 	$e.scroll configure -bd 1
     }
@@ -6070,7 +6177,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     grid rowconfigure $f 8 -weight 1
 
     set btns [${NS}::frame $dlg.buttons]
-    if {!$have_tile} { $dlg.buttons configure -bd 1 }
+    if {!$useTile} { $dlg.buttons configure -bd 1 }
     ${NS}::button $btns.ok -text Save -width 10 -state disabled \
 	-command [list set [namespace current]::$id 1]
     ${NS}::button $btns.cancel -text Close -width 10 \
@@ -6474,10 +6581,12 @@ proc ::tkchat::FocusOutHandler {w args} {
 
 proc ::tkchat::EditOptions {} {
     global Options
-    set NS [expr {[llength [package provide tile]] == 0 ? "::tk" : "::ttk"}]
+    variable NS
+    
     variable EditOptions
     array set EditOptions {Result -1}
     set EditOptions(Browser) $Options(Browser)
+    set EditOptions(BrowserTab) $Options(BrowserTab)
 
     set EditOptions(Style)         $Options(Style)
     set EditOptions(AutoFade)      $Options(AutoFade)
@@ -6503,9 +6612,12 @@ proc ::tkchat::EditOptions {} {
 	    set ::tkchat::EditOptions(Browser) $file
 	}
     }
+    ${NS}::checkbutton $bf.tab -text "Force new Tab, if possible (Unix only)" \
+	-variable ::tkchat::EditOptions(BrowserTab) -underline 0
 
     grid $bf.m - -sticky news
     grid $bf.e $bf.b -sticky news
+    grid $bf.tab -sticky ew -columnspan 2
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
@@ -6591,6 +6703,7 @@ proc ::tkchat::EditOptions {} {
 
     if {$EditOptions(Result) == 1} {
 	set Options(Browser) $EditOptions(Browser)
+	set Options(BrowserTab) $EditOptions(BrowserTab)
 	foreach property {Style AutoFade AutoFadeLimit} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
@@ -6718,14 +6831,14 @@ proc tkchat::whiteboard_clear {} {
 }
 
 proc tkchat::whiteboard_open {} {
-    set have_tile [llength [package provide tile]]
-    set NS [expr {$have_tile == 0 ? "::tk" : "::ttk"}]
+    variable useTile
+    variable NS
 
     if { ![winfo exists .wb] } {
 	set wb [toplevel .wb]
 
 	${NS}::entry $wb.e -textvar ::wbentry -width 80
-	if {$have_tile == 0} { $wb.e configure -background white }
+	if {$useTile == 0} { $wb.e configure -background white }
 	bind $wb.e <Return> {interp eval .wbinterp $::wbentry}
 	set white_board [canvas $wb.c -background white -width 350 -height 300]
 	${NS}::button $wb.bclear -text "clear" -command ::tkchat::whiteboard_clear
@@ -6748,6 +6861,189 @@ proc tkchat::whiteboard_open {} {
 	focus .wb
     }
 }
+
+proc ::tkchat::ConsoleInit {} {
+    #####
+	 #
+	 # "console for Unix"
+	 # http://wiki.tcl.tk/786
+	 #
+	 # Tcl code harvested on:   2 Mai 2006, 20:16 GMT
+	 #
+	 #       Provides a console window.
+	 #
+	 # Last modified on: $Date: 2006/06/27 18:40:07 $
+	 # Last modified by: $Author: treincke $
+	 #
+	 # This file is evaluated to provide a console window interface to the
+	 # root Tcl interpreter of an OOMMF application.  It calls on a script
+	 # included with the Tk script library to do most of the work, making use
+	 # of Tk interface details which are only semi-public.  For this reason,
+	 # there is some risk that future versions of Tk will no longer support
+	 # this script.  That is why this script has been isolated in a file of
+	 # its own.
+
+	 set _ [file join $::tk_library console.tcl]
+	 if {![file readable $_]} {
+   	  return -code error "File not readable: $_"
+	 }
+
+	 ########################################################################
+	 # Provide the support which the Tk library script console.tcl assumes
+	 ########################################################################
+	 # 1. Create an interpreter for the console window widget and load Tk
+	 set consoleInterp [interp create]
+	 $consoleInterp eval [list set ::tk_library $::tk_library]
+	 $consoleInterp alias exit ::console hide
+	 load "" Tk $consoleInterp
+
+	 # 2. A command 'console' in the application interpreter
+	 proc ::console {sub {optarg {}}} [subst -nocommands {
+   	  switch -exact -- \$sub {
+      	  title {
+         		$consoleInterp eval wm title . [list \$optarg]
+      	  }
+      	  hide {
+         		$consoleInterp eval wm withdraw .
+      	  }
+      	  show {
+         		$consoleInterp eval wm deiconify .
+      	  }
+      	  eval {
+         		$consoleInterp eval \$optarg
+      	  }
+      	  default {
+         		error "bad option \\\"\$sub\\\": should be hide, show, or title"
+      	  }
+   	 }
+	 }]
+
+	 # 3. Alias a command 'consoleinterp' in the console window interpreter
+	 #       to cause evaluation of the command 'consoleinterp' in the
+	 #       application interpreter.
+	 proc ::consoleinterp {sub cmd} {
+   	 switch -exact -- $sub {
+      	  eval {
+         		uplevel #0 $cmd
+      	  }
+      	  record {
+         		history add $cmd
+         		catch {uplevel #0 $cmd} retval
+         		return $retval
+      	  }
+      	  default {
+         		error "bad option \"$sub\": should be eval or record"
+      	  }
+   	 }
+	 }
+	 $consoleInterp alias consoleinterp consoleinterp
+
+	 # 4. Bind the <Destroy> event of the application interpreter's main
+	 #    window to kill the console (via tkConsoleExit)
+	 bind . <Destroy> [list +if {[string match . %W]} [list catch \
+      	  [list $consoleInterp eval tkConsoleExit]]]
+
+	 # 5. Redefine the Tcl command 'puts' in the application interpreter
+	 #    so that messages to stdout and stderr appear in the console.
+	 rename ::puts ::tcl_puts
+	 proc ::puts {args} [subst -nocommands {
+   	 switch -exact -- [llength \$args] {
+      	  1 {
+         		if {[string match -nonewline \$args]} {
+               	 if {[catch {uplevel 1 [linsert \$args 0 tcl_puts]} msg]} {
+                  	  regsub -all tcl_puts \$msg puts msg
+                  	  return -code error \$msg
+               	 }
+         		} else {
+               	 $consoleInterp eval [list tkConsoleOutput stdout \
+                     		"[lindex \$args 0]\n"]
+         		}
+      	  }
+      	  2 {
+         		if {[string match -nonewline [lindex \$args 0]]} {
+               	 $consoleInterp eval [list tkConsoleOutput stdout \
+                     		[lindex \$args 1]]
+         		} elseif {[string match stdout [lindex \$args 0]]} {
+               	 $consoleInterp eval [list tkConsoleOutput stdout \
+                     		"[lindex \$args 1]\n"]
+         		} elseif {[string match stderr [lindex \$args 0]]} {
+               	 $consoleInterp eval [list tkConsoleOutput stderr \
+                     		"[lindex \$args 1]\n"]
+         		} else {
+               	 if {[catch {uplevel 1 [linsert \$args 0 tcl_puts]} msg]} {
+                  	  regsub -all tcl_puts \$msg puts msg
+                  	  return -code error \$msg
+               	 }
+         		}
+      	  }
+      	  3 {
+         		if {![string match -nonewline [lindex \$args 0]]} {
+               	 if {[catch {uplevel 1 [linsert \$args 0 tcl_puts]} msg]} {
+                  	  regsub -all tcl_puts \$msg puts msg
+                  	  return -code error \$msg
+               	 }
+         		} elseif {[string match stdout [lindex \$args 1]]} {
+               	 $consoleInterp eval [list tkConsoleOutput stdout \
+                     		[lindex \$args 2]]
+         		} elseif {[string match stderr [lindex \$args 1]]} {
+               	 $consoleInterp eval [list tkConsoleOutput stderr \
+                     		[lindex \$args 2]]
+         		} else {
+               	 if {[catch {uplevel 1 [linsert \$args 0 tcl_puts]} msg]} {
+                  	  regsub -all tcl_puts \$msg puts msg
+                  	  return -code error \$msg
+               	 }
+         		}
+      	  }
+      	  default {
+         		if {[catch {uplevel 1 [linsert \$args 0 tcl_puts]} msg]} {
+               	 regsub -all tcl_puts \$msg puts msg
+               	 return -code error \$msg
+         		}
+      	  }
+   	 }
+	 }]
+	 $consoleInterp alias puts puts
+
+	 # 6. No matter what Tk_Main says, insist that this is an interactive  shell
+	 set ::tcl_interactive 1
+
+	 ########################################################################
+	 # Evaluate the Tk library script console.tcl in the console interpreter
+	 ########################################################################
+	 $consoleInterp eval source [list [file join $::tk_library console.tcl]]
+	 $consoleInterp eval {
+   	 if {![llength [info commands ::tkConsoleExit]]} {
+      	  tk::unsupported::ExposePrivateCommand tkConsoleExit
+   	 }
+	 }
+	 $consoleInterp eval {
+   	 if {![llength [info commands ::tkConsoleOutput]]} {
+      	  tk::unsupported::ExposePrivateCommand tkConsoleOutput
+   	 }
+	 }
+	 if {[string match 8.3.4 $::tk_patchLevel]} {
+   	 # Workaround bug in first draft of the tkcon enhancments
+   	 $consoleInterp eval {
+      	  bind Console <Control-Key-v> {}
+   	 }
+	 }
+	 # Restore normal [puts] if console widget goes away...
+	 proc ::Oc_RestorePuts {slave} {
+   	  rename ::puts {}
+   	  rename ::tcl_puts ::puts
+   	  interp delete $slave
+	 }
+	 $consoleInterp alias Oc_RestorePuts Oc_RestorePuts $consoleInterp
+	 $consoleInterp eval {
+   	  bind Console <Destroy> +Oc_RestorePuts
+	 }
+
+	 unset consoleInterp
+	 ::console title "[wm title .] Console"
+	 ::console hide
+}
+
 
 # -------------------------------------------------------------------------
 # Jabber handling
@@ -7897,15 +8193,15 @@ proc ::tkchat::updateOnlineNames {} {
     global Options
     variable OnlineUsers
 
-    set scrollview [.names yview]
+    set scrollview [.pane.names yview]
 
     # Delete all URL-* tags to prevent a huge memory leak
-    foreach tagname [lsearch -all -inline [.names tag names] URL-*] {
-	.names tag delete $tagname
+    foreach tagname [lsearch -all -inline [.pane.names tag names] URL-*] {
+	.pane.names tag delete $tagname
     }
 
-    .names configure -state normal
-    .names delete 1.0 end
+    .pane.names configure -state normal
+    .pane.names delete 1.0 end
     .mb.mnu delete 0 end
     .mb.mnu add command \
 	    -label "All Users" \
@@ -7917,8 +8213,8 @@ proc ::tkchat::updateOnlineNames {} {
 	    continue
 	}
 	incr total $userCnt
-	.names insert end "$userCnt $network Users\n" [list SUBTITLE $network]
-	.names tag bind $network <Button-1> \
+	.pane.names insert end "$userCnt $network Users\n" [list SUBTITLE $network]
+	.pane.names tag bind $network <Button-1> \
 		[list ::tkchat::OnNetworkToggleShow $network]
 	if { $OnlineUsers($network,hideMenu) } {
 	    continue
@@ -7934,47 +8230,47 @@ proc ::tkchat::updateOnlineNames {} {
 	    }
 	    switch -exact -- $status {
 		online {
-		    .names image create end -image ::tkchat::roster::online
+		    .pane.names image create end -image ::tkchat::roster::online
 		}
 		chat {
-		    .names image create end -image ::tkchat::roster::chat
+		    .pane.names image create end -image ::tkchat::roster::chat
 		}
 		dnd {
-		    .names image create end -image ::tkchat::roster::dnd
+		    .pane.names image create end -image ::tkchat::roster::dnd
 		}
 		away {
-		    .names image create end -image ::tkchat::roster::away
+		    .pane.names image create end -image ::tkchat::roster::away
 		}
 		xa {
-		    .names image create end -image ::tkchat::roster::xa
+		    .pane.names image create end -image ::tkchat::roster::xa
 		}
 		disabled {
-		    .names image create end -image ::tkchat::roster::disabled
+		    .pane.names image create end -image ::tkchat::roster::disabled
 		}
 	    }
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
-		.names insert end "$nick" \
+		.pane.names insert end "$nick" \
 			[list NICK NICK-$nick URL URL-[incr ::URLID]] "\n" NICK
-		.names tag bind URL-$::URLID <Button-1> [list \
+		.pane.names tag bind URL-$::URLID <Button-1> [list \
 			::tkjabber::getChatWidget \
 			$::tkjabber::conference/$nick $nick]
 		.mb.mnu add command \
 			-label $nick \
 			-command [list ::tkchat::MsgTo $nick]
 	    } else {
-		.names insert end "$nick\n" \
+		.pane.names insert end "$nick\n" \
 			[list NICK NICK-$nick URL-[incr ::URLID]]
 	    }
-	    .names tag bind URL-$::URLID <Button-3> \
+	    .pane.names tag bind URL-$::URLID <Button-3> \
 		    [list ::tkchat::OnNamePopup $nick %X %Y]
-	    .names tag bind URL-$::URLID <Control-Button-1> \
+	    .pane.names tag bind URL-$::URLID <Control-Button-1> \
 		    [list ::tkchat::OnNamePopup $nick %X %Y]
 	}
-	.names insert end "\n"
+	.pane.names insert end "\n"
     }
-    .names insert 1.0 "$total Users Online\n\n" TITLE
-    .names yview moveto [lindex $scrollview 0]
-    .names configure -state disabled
+    .pane.names insert 1.0 "$total Users Online\n\n" TITLE
+    .pane.names yview moveto [lindex $scrollview 0]
+    .pane.names configure -state disabled
 }
 
 proc ::tkchat::OnNetworkToggleShow { network } {
@@ -7995,7 +8291,7 @@ proc ::tkchat::OnNameToggleVis { nick } {
 proc ::tkchat::OnNamePopup { nick x y } {
     global Options
 
-    set m .names_popup
+    set m .pane.names_popup
     catch { destroy $m }
     menu $m -tearoff 0
     if { [lsearch -exact $::tkchat::OnlineUsers(Jabber) $nick] != -1 } {

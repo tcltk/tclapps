@@ -1,3 +1,13 @@
+2006-06-27 Torsten Berg  <berg@typoscriptics.de>
+
+	* tkchat.tcl: - Tile support for the pane in the main window
+	              - Internal code cleanup for consistent Tile handling
+			(variables useTile and NS)
+		      - Console support for platforms
+			other than Windows (Debug->Console)
+		      - Allow usage of new Tab in some browsers like Opera
+			(new checkbutton option in Preferences->Options)
+
 2006-06-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Allow the non-SASL jabber auth to work with STARTTLS
