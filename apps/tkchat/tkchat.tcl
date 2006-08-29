@@ -85,7 +85,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.340 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.341 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -104,7 +104,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.340 2006/06/27 18:40:07 treincke Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.341 2006/08/29 11:22:11 treincke Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -505,6 +505,47 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
     .txt configure -state disabled
     after idle [list after 0 ::tkjabber::LoadHistoryLines]
 }
+
+
+proc ::tkchat::HistoryPaneToggle {} {
+   #
+   # toggles the visibility of the
+   # separate (cloned) chat window
+   # containing the history
+   #
+   # Either loads the current contents of the
+   # chat window into the separate window
+   # and displays it ...
+   #
+   # ... Or make the window invisible clearing
+   # it from all content
+   #
+   variable useTile
+   # remember current position in window:
+   set fraction [lindex [.txt yview] 1]
+   if {[winfo ismapped .cframe]} {
+	# remove cloned window:
+	.pane2 forget .cframe
+	update idletasks
+	.clone configure -state normal
+	.clone delete 1.0 end
+	.mbar.vis entryconfigure "*current history*" -state normal
+   } else {
+	# fill clone and display it:
+	if {$useTile} {
+	    .pane2 insert 0 .cframe
+	} else {
+	    .pane2 add .cframe -before .txtframe
+	}
+	::tkchat::textClone .txt .clone
+	.clone configure -state disabled
+	.mbar.vis entryconfigure "*current history*" -state disabled
+   }
+   # restore current position in window:
+   update idletasks
+   .txt yview moveto $fraction
+}
+
 
 proc ::tkchat::logonChat {} {
     global Options
@@ -1863,6 +1904,11 @@ proc ::tkchat::CreateGUI {} {
 	    -label "Hide Users" \
 	    -menu $m.nicks
     NickVisMenu
+    $m add separator
+    $m add command \
+	    -label "Show current history in new pane" \
+	    -underline 5 \
+	    -command {::tkchat::HistoryPaneToggle}
 
     ## Alert Menu
     ##
@@ -2034,12 +2080,19 @@ proc ::tkchat::CreateGUI {} {
 	    -underline 0 \
 	    -command ::tkchat::About
 
-    # main display
+    # a pane for the main display (chat window and users window):
     if {$useTile} {
-	     ttk::paned .pane -orient horizontal
-	 } else {
-	     panedwindow .pane -sashpad 4 -sashrelief ridge
-	 }
+	ttk::paned .pane -orient horizontal
+    } else {
+	panedwindow .pane -sashpad 4 -sashrelief ridge
+    }
+    # another pane dividing the chat window:
+    if {$useTile} {
+    	ttk::paned .pane2 -orient vertical
+    } else {
+	panedwindow .pane2 -sashpad 4 -sashrelief ridge -orient vertical
+    }
+    
     ${NS}::frame .txtframe
 
     CreateTxtAndSbar
@@ -2123,11 +2176,29 @@ proc ::tkchat::CreateGUI {} {
     grid .txt .sbar -in .txtframe -sticky news
     grid columnconfigure .txtframe 0 -weight 1
     grid rowconfigure .txtframe 0 -weight 1
+    
+    .pane2 add .txtframe
+    
+    # text widget to view history:
+    ${NS}::frame .cframe -relief groove
+    ${NS}::button .cbtn -text "Close history pane" -command ::tkchat::HistoryPaneToggle
+    ScrolledWidget text .clone 0 1 \
+	-wrap word \
+	-background #dddddd \
+	-relief sunken \
+	-borderwidth 2 \
+	-font FNT \
+	-cursor left_ptr
+    bind .clone <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
+    .clone tag bind URL <Enter> [list .clone configure -cursor hand2]
+    .clone tag bind URL <Leave> [list .clone configure -cursor left_ptr]
+    pack .cbtn -in .cframe -side bottom  -pady 3
+    pack .clone -in .cframe
+    
+    .pane add .pane2
     if {$useTile} {
-	.pane add .txtframe
 	.pane add $Options(NamesWin)
     } else {
-	.pane add .txtframe -sticky news
 	.pane add $Options(NamesWin) -sticky news
     }
     grid .pane -sticky news -padx 1 -pady 2
@@ -2138,7 +2209,7 @@ proc ::tkchat::CreateGUI {} {
     grid rowconfigure	 . 0 -weight 1
     grid columnconfigure . 0 -weight 1
     grid columnconfigure .btm 1 -weight 1
-
+    
     if { $::tcl_platform(os) eq "Windows CE" } {
 	wm geometry . 240x300+0+0
     } else {
@@ -5184,6 +5255,131 @@ proc ::tkchat::setNickname { nick } {
     return $Options(Nickname)
 }
 
+
+########################################
+#
+# routines for cloning of chat window
+# adapted from http://wiki.tcl.tk/9167
+#
+########################################
+
+
+proc ::tkchat::textClone {text clone} {
+    #
+    # clone the contents of a text widget into another text widget
+    #
+    # text -> path to text widget containing clone source
+    # clone -> path to text widget for cloned content
+    #
+    ::tkchat::textRestore $clone [::tkchat::textSave $text]
+}
+
+
+proc ::tkchat::textSave {w} {
+    #
+    # serialize a text widgets contents
+    #
+    # w -> path to a text widget to serialize
+    #
+    # Returns: serialized text widget content
+    #
+
+    # the resulting string:
+    set save {}
+    # get the state of the widget:
+    set dump [$w dump -mark 1.0 end]
+    append dump " "
+    append dump [$w dump -all 1.0 {end -1 ch}]
+    # add more details:
+    foreach {key value index} $dump {
+	switch $key {
+	  image {
+	    # add attributes of an image:
+	    set exec "\$w image create $index"
+	    foreach k {-align -image -name -padx -pady} {
+              set v [$w image cget $index $k]
+              if {$v != ""} {append exec " $k \{$v\}"}
+	    }
+	    lappend save exec $exec {}
+	  }
+	  mark {
+	    # add attributes of a mark:
+	    lappend save $key $value $index
+	    set exec "$w mark gravity $value [$w mark gravity $value]"
+	    lappend save exec $exec {}
+	  }
+	  tagoff {
+	    # add attributes of a tag:
+	    set exec "\$w tag configure {$value}"
+	    set keys {}
+	    lappend keys -background -bgstipple -borderwidth -elide -fgstipple
+	    lappend keys -font -foreground -justify -lmargin1 -lmargin2 -offset
+	    lappend keys -overstrike -relief -rmargin -spacing1 -spacing2
+	    lappend keys -spacing3 -tabs -underline -wrap
+	    foreach k $keys {
+              set v [$w tag cget $value $k]
+              if {$v != ""} {append exec " $k \{$v\}"}
+	    }
+	    lappend save exec $exec {}
+	    lappend save $key $value $index
+	  }
+	  window {
+	    # add attributes of a window:
+	    lappend save $key $value $index
+	    set exec "$w window configure $index"
+	    foreach k {-align -create -padx -pady -stretch}  {
+              set v [$w window cget $index $k]
+              if {$v != ""} {append exec " $k \{$v\}"}
+	    }
+	    lappend save exec $exec {}
+	  }
+	  default {
+	    lappend save $key $value $index
+	  }
+	}
+    }
+    # return the serialized widget:
+    return $save
+}
+
+
+proc tkchat::textRestore {w save} {
+    #
+    # fill a text widget with content
+    # from a serialization
+    #
+    # w -> path to a text widget
+    # save -> content of a text widget as serialized string
+    #
+    
+    # empty the text widget:
+    $w delete 1.0 end
+    # create items, restoring their attributes:
+    foreach {key value index} $save {
+	switch $key {
+	    exec    {eval $value}
+	    image   {$w image create $index -name $value}
+	    text    {$w insert $index $value}
+	    mark    {
+	      if {$value == "current"} {set current $index}
+	      $w mark set $value $index
+	    }
+	    tagon   {set tag($value) $index}
+	    tagoff  {
+	      $w tag add $value $tag($value) $index
+	      # this line is special to tkchat:
+	      if {[string match URL-* $value]} {
+	          $w tag bind $value <Button-1> [list ::tkchat::gotoURL [$w get $value.first $value.last]]
+	      }
+	    }
+	    window  {$w window create $index -window $value}
+	}
+    }
+    # restore the "current" index:
+    $w mark set current $current
+}
+
+
 #############################################################
 #
 # askLEO
@@ -6872,7 +7068,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/06/27 18:40:07 $
+	 # Last modified on: $Date: 2006/08/29 11:22:11 $
 	 # Last modified by: $Author: treincke $
 	 #
 	 # This file is evaluated to provide a console window interface to the
