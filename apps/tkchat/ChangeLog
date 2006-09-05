@@ -1,3 +1,8 @@
+2006-09-05  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl - Added hooks to KHIM (Kevin's Hacky Input Method)
+	to allow easier typing of international characters.
+	
 2006-06-27 Torsten Berg  <berg@typoscriptics.de>
 
 	* tkchat.tcl: - Tile support for the pane in the main window

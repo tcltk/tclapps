@@ -43,6 +43,8 @@ package require jlib		; # jlib
 package require browse		; # jlib
 package require muc		; # jlib
 
+catch {package require khim}    ; # khim (optional)
+
 if { ![catch { tk inactive }] } {
     # Idle detection built into tk8.5a3
     namespace eval ::idle {
@@ -69,6 +71,31 @@ if {[llength [info commands ::tk::label]] < 1} {
     }
 }
 
+# If we're using KHIM, make all entries and texts use it.
+
+if {[package provide khim] ne {}} {
+    rename ::tk::entry ::tk::khimWrappedEntry
+    proc ::tk::entry {w args} {
+	eval [linsert $args 0 ::tk::khimWrappedEntry $w]
+	bindtags $w [linsert [bindtags $w] 1 KHIM]
+	return $w
+    }
+    rename ::tk::text ::tk::khimWrappedText
+    proc ::tk::text {w args} {
+	eval [linsert $args 0 ::tk::khimWrappedText $w]
+	bindtags $w [linsert [bindtags $w] 1 KHIM]
+	return $w
+    }
+    if {[llength [info commands ::ttk::entry]] >= 1} {
+	rename ::ttk::entry ::ttk::khimWrappedEntry
+	proc ::ttk::entry {w args} {
+	    eval [linsert $args 0 ::ttk::khimWrappedEntry $w]
+	    bindtags $w [linsert [bindtags $w] 1 KHIM]
+	    return $w
+	}
+    }
+}
+
 # Under windows, we can use DDE to open urls
 if {$tcl_platform(platform) eq "windows"
 	&& $tcl_platform(os) ne "Windows CE"} {
@@ -85,7 +112,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.341 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.342 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -104,7 +131,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.341 2006/08/29 11:22:11 treincke Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.342 2006/09/05 20:16:59 kennykb Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1693,6 +1720,12 @@ proc ::tkchat::CreateGUI {} {
 	    -label "User details ..." \
 	    -underline 0 \
 	    -command ::tkchat::UserInfoDialog
+    if {[package provide khim] ne {}} {
+	$m add command \
+	    -label "Input method..." \
+	    -underline 0 \
+	    -command {::khim::getOptions .khim}
+    }
     $m add command \
 	    -label "Options ..." \
 	    -underline 0 \
@@ -2056,7 +2089,7 @@ proc ::tkchat::CreateGUI {} {
 		}
 	    }
 	}
-	 }
+    }
 
     ## Help Menu
     ##
@@ -4305,6 +4338,9 @@ proc ::tkchat::saveRC {} {
 
     # Options that need to be computed at save time
     set Options(Geometry) [wm geometry .]
+    if {[package provide khim] ne {}} {
+	set Options(Khim) [::khim::getConfig]
+    }
     if { [winfo exists .pane] && $Options(DisplayUsers) } {
 	if {$useTile} {
 	    # the second list element '1' is just for compatibility
@@ -4318,10 +4354,12 @@ proc ::tkchat::saveRC {} {
     # Save these options to resource file
     set keep {
 	Alert,* AnimEmoticons AutoAway AutoBookmark AutoConnect AutoFade
-	AutoFadeLimit Browser BrowserTab ChatLogFile ChatLogOff Color,* DisplayUsers
+	AutoFadeLimit Browser BrowserTab ChatLogFile 
+	ChatLogOff Color,* DisplayUsers
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname Geometry HistoryLines JabberConference JabberPort
-	JabberResource JabberServer LogFile LogLevel LogStderr MyColor Nickname
+	JabberResource JabberServer Khim 
+	LogFile LogLevel LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Theme Transparency UseBabelfish UseJabberSSL
 	UseProxy Username Visibility,*
@@ -5142,6 +5180,13 @@ proc ::tkchat::Init {args} {
     ChangeFont -size $Options(Font,-size)
 
     createRosterImages
+
+    # handle input method
+
+    if {([package provide khim] ne {})
+	&& [info exists Options(Khim)]} {
+	eval $Options(Khim)
+    }
 
     #call the (possibly) user defined postload proc:
     rcPostload
@@ -7068,8 +7113,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/08/29 11:22:11 $
-	 # Last modified by: $Author: treincke $
+	 # Last modified on: $Date: 2006/09/05 20:16:59 $
+	 # Last modified by: $Author: kennykb $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script
