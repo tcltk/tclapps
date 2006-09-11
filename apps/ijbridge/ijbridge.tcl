@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.9 2006/06/22 22:12:57 wildcard_25 Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.10 2006/09/11 08:14:10 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -243,16 +243,117 @@ proc ::ijbridge::OnRoster {roster type {jid {}} args} {
 #	This is called to handle Jabber querys.
 #
 proc ::ijbridge::OnIq {token type args} {
-    if {[catch {eval [linsert $args 0 OnIqBody $token $type]} msg]} {
-        log::log error $msg
+    if {[catch {
+        switch -exact -- $type {
+            get {
+                eval [linsert $args 0 OnIqGet $token]
+            }
+            set {
+                eval [linsert $args 0 OnIqSet $token]
+            }
+        }
+    } err]} {
+        log::log error $err
     }
 }
-proc ::ijbridge::OnIqBody {token type args} {
-    log::log debug "iq: $token $type $args"
-    switch -exact -- $type {
-        get {
+proc ::ijbridge::OnIqGet {token args} {
+    variable Options
+    variable conn
+    log::log debug "iq: $token get $args"
+    array set a {-query {} -id {} -from {} -to {}}
+    array set a $args
+    set iqns [wrapper::getattribute $a(-query) xmlns]
+    set iqnode [wrapper::getattribute $a(-query) node]
+    set r {}
+    switch -exact -- $iqns {
+        "http://jabber.org/protocol/disco#info" {
+            if {$iqnode eq {}} {
+                lappend p [list identity [list name "IRC-Jabber Bridge" category bridge type irc] 1 {} {}]
+                lappend p [list feature {var jabber:iq:version} 1 {} {}]
+                lappend p [list feature {var iq} 1 {} {}] [list feature {var message} 1 {} {}]
+                lappend p [list feature {var "http://jabber.org/protocol/disco#info"} 1 {} {}]
+                lappend p [list feature {var "http://jabber.org/protocol/disco#items"} 1 {} {}]
+                lappend p [list feature {var http://jabber.org/protocol/commands} 1 {} {}]
+                lappend c [list query [list xmlns $iqns] 0 {} $p]
+                set r [list iq [list xmlns jabber:client type result \
+                                    id $a(-id) to $a(-from) from $a(-to)] 0 {} $c]
+            } elseif {$iqnode eq "http://jabber.org/protocol/commands"} {
+                lappend p [list identity [list name "IJBridge Bot commands"\
+                                              category automation type command-list] 1 {} {}]
+                lappend c [list query [list xmlns $iqns type $iqnode] 0 {} $p]
+                set r [list iq [list xmlns jabber:client type result \
+                                    id $a(-id) to $a(-from) from $a(-to)] 0 {} $c]
+            } elseif {$iqnode eq "help"} {
+                lappend p [list identity [list name "Help"  category automation type command-node] 1 {} {}]
+                lappend p [list feature {var http://jabber.org/protocol/commands} 1 {} {}]
+                lappend p [list feature {var jabber:x:data} 1 {} {}]
+                lappend c [list query [list xmlns $iqns node $iqnode] 0 {} $p]
+                set r [list iq [list xmlns jabber:client type result \
+                                    id $a(-id) to $a(-from) from $a(-to)] 0 {} $c]                
+            } else {
+                set r [IqError $iqns forbidden $a(-id) $a(-to) $a(-from) cancel 403]
+            }
+        }
+        "http://jabber.org/protocol/disco#items" {
+            switch -exact -- $iqnode {
+                http://jabber.org/protocol/commands {
+                    set JID $Options(JabberUser)@$Options(JabberServer)
+                    lappend p [list item [list jid $JID node help name "Help"] 1 {} {}]
+                    lappend c [list query [list xmlns $iqns node $iqnode] 0 {} $p]
+                    set r [list iq [list xmlns jabber:client type result \
+                                        id $a(-id) to $a(-from) from $a(-to)] 0 {} $c]
+                }
+                default {
+                    set r [IqError $iqns feature-not-implemented \
+                               $a(-id) $a(-to) $a(-from) cancel 501]
+                }                    
+            }
+        }
+        jabber:iq:version {
+            variable version
+            lappend p [list name {} 0 "IRC-Jabber Bridge" {}]
+            lappend p [list version {} 0 $version {}]
+            lappend p [list os {} 0 "Tcl/[info patchlevel]" {}]
+            lappend c [list query [list xmlns $query] 0 {} $p]
+            set r [list iq [list xmlns jabber:client type result id $id\
+                                to $a(-from) from $a(-to)] 0 {} $c]
+        }
+        default {
+            set r [IqError $iqns feature-not-implemented \
+                       $a(-id) $a(-to) $a(-from) cancel 501]
         }
     }
+    if {$r ne {}} {
+        jlib::send $conn(jabber) $r
+    }
+}
+
+proc ::ijbridge::OnIqSet {token args} {
+    variable Options
+    variable conn
+    log::log debug "iq: $token set $args"
+    array set a {-query {} -id {} -from {} -to {}}
+    array set a $args
+    set iqns [wrapper::getattribute $a(-query) xmlns]
+    set iqnode [wrapper::getattribute $a(-query) node]
+    set r {}
+    switch -exact -- $iqns {
+        default {
+            set r [IqError $iqns feature-not-implemented \
+                       $a(-id) $a(-to) $a(-from) cancel 501]
+        }
+    }
+    if {$r ne {}} {
+        jlib::send $conn(jabber) $r
+    }
+}
+
+proc ::ijbridge::IqError {query type id self requester {etype cancel} {ecode 501}} {
+    lappend p [list $type {xmlns urn:ietf:params:xml:ns:xmpp-stanzas} 1 {} {}]
+    lappend qr [list query [list xmlns $query] 1 {} {}]
+    lappend qr [list error [list type $etype code $ecode] 0 {} $p]
+    set ra [list xmlns jabber:client type error id $id to $requester from $self]
+    set rsp [list iq $ra 0 {} $qr]
 }
 
 # ijbridge::OnMessage --
@@ -766,10 +867,10 @@ proc ::ijbridge::ReadControl {chan} {
 
 
 log::lvSuppressLE emerg 0
-::ijbridge::LoadConfig
 
 proc Main {args} {
-    global tcl_platform tcl_interactive tcl_service
+    global tcl_platform tcl_interactive tcl_service tk_version
+    ::ijbridge::LoadConfig
     
     # Setup control stream.
     if {$tcl_platform(platform) eq "unix" \

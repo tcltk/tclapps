@@ -1,3 +1,7 @@
+2006-09-11  Pat Thoyts <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Additional <iq> support.
+
 2006-06-23  Daniel South  <wildcard_25@users.sourceforge.net>
 
 	* ijbridge.tcl: Correct some list matching for IrcUserList.
