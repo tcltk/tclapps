@@ -112,7 +112,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.343 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.344 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -131,7 +131,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.343 2006/09/14 13:17:18 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.344 2006/09/14 14:03:53 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -394,7 +394,14 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 		set histTmp $::tkjabber::HistoryLines
 		set ::tkjabber::HistoryLines {}
 	    }
-	    $I eval [::http::data $tok]
+            # At the moment, the logs are stored in utf-8 format on the 
+            # server but get issued as iso-8859-1 due to an error in the 
+            # tclhttpd configuration.
+            if {[string equal iso8859-1 [set [set tok](charset)]]} {
+                $I eval [encoding convertfrom utf-8 [http::data $tok]]
+            } else {
+                $I eval [http::data $tok]
+            }
 	    if { $reverse } {
 		set ::tkjabber::HistoryLines \
 			[concat $::tkjabber::HistoryLines $histTmp]
@@ -7123,7 +7130,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/14 13:17:18 $
+	 # Last modified on: $Date: 2006/09/14 14:03:53 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the

@@ -2,6 +2,8 @@
 
 	* tkchat.tcl:   FR 1482926 - add an /eval command to evaluate
 	                short tcl scripts.
+	* tkchat.tcl (::tkchat::ParseHistLog): Work around the logs being
+	                returned as iso8859-1 when the data is really utf-8.
 
 2006-09-05  Kevin B. Kenny  <kennykb@acm.org>
 
