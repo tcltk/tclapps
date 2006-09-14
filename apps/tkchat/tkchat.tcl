@@ -74,25 +74,28 @@ if {[llength [info commands ::tk::label]] < 1} {
 # If we're using KHIM, make all entries and texts use it.
 
 if {[package provide khim] ne {}} {
-    rename ::tk::entry ::tk::khimWrappedEntry
-    proc ::tk::entry {w args} {
-	eval [linsert $args 0 ::tk::khimWrappedEntry $w]
-	bindtags $w [linsert [bindtags $w] 1 KHIM]
-	return $w
-    }
-    rename ::tk::text ::tk::khimWrappedText
-    proc ::tk::text {w args} {
-	eval [linsert $args 0 ::tk::khimWrappedText $w]
-	bindtags $w [linsert [bindtags $w] 1 KHIM]
-	return $w
-    }
-    if {[llength [info commands ::ttk::entry]] >= 1} {
-	rename ::ttk::entry ::ttk::khimWrappedEntry
-	proc ::ttk::entry {w args} {
-	    eval [linsert $args 0 ::ttk::khimWrappedEntry $w]
-	    bindtags $w [linsert [bindtags $w] 1 KHIM]
-	    return $w
-	}
+    # Avoid trying to do this when re-sourcing the file
+    if {[llength [info command ::tk::khimWrappedEntry]] == 0} {
+        rename ::tk::entry ::tk::khimWrappedEntry
+        proc ::tk::entry {w args} {
+            eval [linsert $args 0 ::tk::khimWrappedEntry $w]
+            bindtags $w [linsert [bindtags $w] 1 KHIM]
+            return $w
+        }
+        rename ::tk::text ::tk::khimWrappedText
+        proc ::tk::text {w args} {
+            eval [linsert $args 0 ::tk::khimWrappedText $w]
+            bindtags $w [linsert [bindtags $w] 1 KHIM]
+            return $w
+        }
+        if {[llength [info commands ::ttk::entry]] >= 1} {
+            rename ::ttk::entry ::ttk::khimWrappedEntry
+            proc ::ttk::entry {w args} {
+                eval [linsert $args 0 ::ttk::khimWrappedEntry $w]
+                bindtags $w [linsert [bindtags $w] 1 KHIM]
+                return $w
+            }
+        }
     }
 }
 
@@ -112,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.344 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.345 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -131,7 +134,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.344 2006/09/14 14:03:53 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.345 2006/09/14 23:09:30 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1683,6 +1686,10 @@ proc ::tkchat::CreateGUI {} {
 	    -label "Open Whiteboard" \
 	    -underline 5 \
 	    -command ::tkchat::whiteboard_open
+    $m add command \
+            -label "Open Paste Dialog" \
+            -underline 5 \
+            -command ::tkchat::PasteDlg
     $m add separator
     $m add command \
 	    -label "Exit" \
@@ -2174,7 +2181,7 @@ proc ::tkchat::CreateGUI {} {
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
 
-    ${NS}::button .post -text "Post" -command ::tkchat::userPost
+    ${NS}::button .post  -text "Post"  -command ::tkchat::userPost
 
     if {$useTile} {
 	ttk::menubutton .mb \
@@ -2327,6 +2334,10 @@ proc ::tkchat::OnTextPopup { w x y } {
 	    -label "Google Selection" \
 	    -accelerator Ctrl-G \
 	    -command [list ::tkchat::GoogleSelection $w]
+    $m add command \
+            -label "Open Paste Dialog" \
+            -accelerator Ctrl-P \
+            -command [list ::tkchat::PasteDlg]
 
     if { ![winfo exists .mbar.help.tr] } {
 	$m add command -label "Translate Initialize" -command ::tkchat::babelfishMenu
@@ -6562,6 +6573,7 @@ proc ::tkchat::BookmarkInit {} {
     bind . <Shift-F2>	::tkchat::BookmarkPrev
     bind . <Control-G>	::tkchat::GoogleSelection
     bind . <Control-g>	::tkchat::GoogleSelection
+    bind . <Control-p>  ::tkchat::PasteDlg
 }
 
 proc ::tkchat::BookmarkToggle { {auto ""} } {
@@ -7130,7 +7142,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/14 14:03:53 $
+	 # Last modified on: $Date: 2006/09/14 23:09:30 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -9032,6 +9044,61 @@ if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} 
 }
 
 # -------------------------------------------------------------------------
+
+proc tkchat::PasteDlg {} {
+    variable paste_uid
+    variable NS
+    if {![info exists paste_uid]} { set paste_uid 0 }
+    set wid paste[incr paste_uid]
+    set dlg [toplevel .$wid -class Dialog]
+    wm title $dlg "Paste data to paste.tclers.tk"
+    set f [${NS}::frame $dlg.f1 -borderwidth 0]
+    set f2 [${NS}::frame $f.f2 -borderwidth 0]
+    ${NS}::label $f2.lbl -text Subject
+    set subject [${NS}::entry $f2.subject] 
+    text $f.txt -background white -font FNT -yscrollcommand [list $f.vs set]
+    ${NS}::scrollbar $f.vs -command [list $dlg.txt yview]
+    set f3 [${NS}::frame $f.f3 -borderwidth 0]
+    set send [${NS}::button $f3.send -text [msgcat::mc Send] -default active \
+                  -command [list set [namespace current]::$wid send]]
+    set cancel [${NS}::button $f3.cancel -text [msgcat::mc Cancel] \
+                    -default normal \
+                    -command [list set [namespace current]::$wid cancel]]
+    catch {
+        if {[string length [set data [clipboard get]]] > 0} {
+            $f.txt insert end $data {}
+        }
+    }
+    bind $dlg <Key-Escape> [list $cancel invoke]
+    pack $f2.lbl -side left
+    pack $subject -side right -fill x -expand 1
+    pack $cancel $send -side right
+    grid $f2    -     -sticky ew -pady 2
+    grid $f.txt $f.vs -sticky news
+    grid $f3    -     -sticky se
+    grid rowconfigure $f 1 -weight 1
+    grid columnconfigure $f 0 -weight 1
+    pack $f -side top -fill both -expand 1
+    catch {::tk::PlaceWindow $dlg widget .}
+    focus $subject
+    tkwait variable [namespace current]::$wid
+    if {[string equal [set [namespace current]::$wid] "send"]} {
+        set msg [string trim [$f.txt get 0.0 end]]
+        if {[string length $msg] > 0} {
+            set k {}
+            lappend k [list subject {} 0 [$subject get] {}]
+            lappend k [list body {} 0 $msg {}]
+            set a [list xmlns jabber:client type normal \
+                       from [tkjabber::jid !resource $::tkjabber::myId] \
+                       to tcl@paste.tclers.tk]
+            set m [list message $a 0 "" $k]
+            $::tkjabber::jabber send $m
+        }
+    }
+    destroy $dlg
+    unset [namespace current]::$wid
+    return
+}
 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]

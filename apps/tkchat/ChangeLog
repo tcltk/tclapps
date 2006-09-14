@@ -1,3 +1,8 @@
+2006-09-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:   FR 1274322 - added a dialog for sending text to
+	                the paste.tclers.tk paste site. 
+
 2006-09-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:   FR 1482926 - add an /eval command to evaluate
