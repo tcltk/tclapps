@@ -112,7 +112,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.342 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.343 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -131,7 +131,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.342 2006/09/05 20:16:59 kennykb Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.343 2006/09/14 13:17:18 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3325,6 +3325,16 @@ proc ::tkchat::checkCommand { msg } {
 	    }
 	    gotoURL $q
 	}
+        {^/eval\s} {
+            set script [string range $msg 6 end]
+            set r [catch $script err]
+            if {$r} {
+                tk_messageBox -icon error -title "Error in eval'd script" \
+                    -message $::errorInfo
+            } elseif {[string length $err] > 0} {
+                addSystem .txt $err
+            }
+        }
 	default {
 	    set moreToGo 1
 	}
@@ -7113,8 +7123,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/05 20:16:59 $
-	 # Last modified by: $Author: kennykb $
+	 # Last modified on: $Date: 2006/09/14 13:17:18 $
+	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script
