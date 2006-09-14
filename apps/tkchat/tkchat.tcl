@@ -115,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.345 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.346 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -134,7 +134,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.345 2006/09/14 23:09:30 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.346 2006/09/14 23:20:34 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -477,39 +477,42 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    wm protocol $t WM_DELETE_WINDOW {}
 	    wm title $t "Load History From Logs"
 
-	    ${NS}::label $t.lbl \
+            set f [${NS}::frame $t.f -borderwidth 0]
+
+	    ${NS}::label $f.lbl \
 		    -text "Please select how far back you want to load:"
-	    grid $t.lbl -sticky ew -padx 5 -pady 5 -columnspan 3
+	    grid $f.lbl -sticky ew -padx 5 -pady 5 -columnspan 3
 
 	    set i 0
 	    variable HistQueryNum [llength $loglist]
 	    foreach l $loglist {
-		${NS}::radiobutton $t.rb$i \
+		${NS}::radiobutton $f.rb$i \
 			-text "$l ($logsize($l))" \
 			-value $i \
 			-variable ::tkchat::HistQueryNum
-		grid $t.rb$i -sticky w -padx 15 -pady 0 -column 1
+		grid $f.rb$i -sticky w -padx 15 -pady 0 -column 1
 		incr i
 	    }
 
-	    ${NS}::radiobutton $t.rb$i \
+	    ${NS}::radiobutton $f.rb$i \
 		    -text "None" \
 		    -value $i \
 		    -variable ::tkchat::HistQueryNum
-	    ${NS}::button $t.ok \
+	    ${NS}::button $f.ok \
 		    -text Ok \
 		    -width 8 \
 		    -command [list destroy $t] \
 		    -default active
 
-	    grid $t.rb$i -sticky w -padx 15 -pady 0 -column 1
-	    grid $t.ok -padx 5 -pady 10 -column 1
+	    grid $f.rb$i -sticky w -padx 15 -pady 0 -column 1
+	    grid $f.ok -padx 5 -pady 10 -column 1
 
-	    bind $t <Return> [list $t.ok invoke]
+            pack $f -side top -fill both -expand 1
+	    bind $t <Return> [list $f.ok invoke]
 	    catch {::tk::PlaceWindow $t widget .}
 	    wm deiconify $t
 	    tkwait visibility $t
-	    focus $t.ok
+	    focus $f.ok
 	    grab $t
 	    tkwait window $t
 	    InsertHistoryMark
@@ -7142,7 +7145,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/14 23:09:30 $
+	 # Last modified on: $Date: 2006/09/14 23:20:34 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the

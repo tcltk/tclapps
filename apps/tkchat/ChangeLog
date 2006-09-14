@@ -2,6 +2,8 @@
 
 	* tkchat.tcl:   FR 1274322 - added a dialog for sending text to
 	                the paste.tclers.tk paste site. 
+	* tkchat.tcl (::tkchat::LoadHistoryFromIndex): Added a base frame
+	                to fix the look with tile widgets.
 
 2006-09-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
