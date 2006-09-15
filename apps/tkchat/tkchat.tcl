@@ -115,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.346 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.347 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -134,7 +134,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.346 2006/09/14 23:20:34 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.347 2006/09/15 23:19:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5293,6 +5293,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	ProxyUsername		""
 	SavePW			0
 	ServerLogging		all
+        StoreMessages           1
 	Style			any
 	Theme			""
 	Transparency		100
@@ -6812,7 +6813,7 @@ proc ::tkchat::SetAlpha {n} {
 	if {$n > 100} {set n 100}
 	set Options(Transparency) $n
 	wm attributes . -alpha [expr {$n / 100.0}]
-	# Work around a but when transitioning from opaque to
+	# Work around a bug when transitioning from opaque to
 	# any transparent value the toplevel becomes topmost.
 	#if {[winfo exists .options]} {raise .options}
     }
@@ -6871,9 +6872,18 @@ proc ::tkchat::EditOptions {} {
     wm withdraw $dlg
     wm title $dlg "Tkchat Options"
 
-    set bf [${NS}::labelframe $dlg.bf -text "Preferred browser" ];#-padx 1 -pady 1]
+    set f [${NS}::frame $dlg.base -borderwidth 0]
+    set af [${NS}::labelframe $f.af -text "General" -underline 1]
+    ${NS}::checkbutton $af.store -text "Store private messages" \
+        -variable ::Options(StoreMessages) -onvalue 1 -offvalue 0 \
+        -underline 0
+    pack $af.store -side top -fill x -expand 1
+    bind $dlg <Alt-e> [list focus $af]
+    bind $dlg <Alt-s> [list $af.store invoke]
 
-    message $bf.m -justify left -width 320 \
+    set bf [${NS}::labelframe $f.bf -text "Preferred browser" ]
+
+    message $bf.m -justify left -width 320 -font FNT \
 	-text "Provide the command used to launch your web browser. For\
 	instance /opt/bin/mozilla or xterm -e links. The URL to\
 	be opened will be appended to the command string and for\
@@ -6894,8 +6904,8 @@ proc ::tkchat::EditOptions {} {
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
-    set sf [${NS}::labelframe $dlg.sf -text "Tk style"] ;#-padx 1 -pady 1]
-    set gf [${NS}::labelframe $dlg.gf -text "Gimmiks"] ;#  -padx 1 -pady 1]
+    set sf [${NS}::labelframe $f.sf -text "Tk style"] ;#-padx 1 -pady 1]
+    set gf [${NS}::labelframe $f.gf -text "Gimmiks"] ;#  -padx 1 -pady 1]
 
     message $sf.m -justify left -width 320 \
 	-text "The Tk style selection available here will apply when you \
@@ -6948,24 +6958,27 @@ proc ::tkchat::EditOptions {} {
 	grid columnconfigure $gf 4 -weight 1
     }
 
-    ${NS}::button $dlg.ok -text OK -underline 0 -default active \
+    ${NS}::button $f.ok -text OK -underline 0 -default active \
 	-command [list set ::tkchat::EditOptions(Result) 1]
-    ${NS}::button $dlg.cancel -text Cancel -underline 0 \
+    ${NS}::button $f.cancel -text Cancel -underline 0 \
 	-command [list set ::tkchat::EditOptions(Result) 0]
 
+    grid $af - -sticky news -padx 2 -pady 2
     grid $bf - -sticky news -padx 2 -pady 2
     grid $sf - -sticky news -padx 2 -pady 2
     if {$gimmicks} {
 	grid $gf - -sticky news -padx 2 -pady 2
     }
-    grid $dlg.ok $dlg.cancel -sticky e
-    grid rowconfigure $dlg 0 -weight 1
-    grid columnconfigure $dlg 0 -weight 1
+    grid $f.ok $f.cancel -sticky e
+    grid rowconfigure $f 0 -weight 1
+    grid columnconfigure $f 0 -weight 1
 
-    bind $dlg <Return> [list $dlg.ok invoke]
-    bind $dlg <Escape> [list $dlg.cancel invoke]
-    bind $dlg <Alt-o>  [list focus $dlg.ok]
-    bind $dlg <Alt-c>  [list focus $dlg.cancel]
+    pack $f -side top -fill both -expand 1
+
+    bind $dlg <Return> [list $f.ok invoke]
+    bind $dlg <Escape> [list $f.cancel invoke]
+    bind $dlg <Alt-o>  [list focus $f.ok]
+    bind $dlg <Alt-c>  [list focus $f.cancel]
     focus $bf.e
 
     wm resizable $dlg 0 0
@@ -7000,17 +7013,35 @@ proc ::tkchat::EditOptions {} {
 # otherwise we have something that was modified from the Gtklook page
 # of the wiki: http://mini.net/tcl/gtklook
 #
-
 proc ::tkchat::GtkLookStyleInit {} {
     set defaultColor #dcdad5
     set activeFG     #ffffff
     set activeBG     #4a6984
     set troughColor  #bdb6ad
 
+    set families [font families]
+    set family ""
+    foreach test [list "Bitstream Vera Sans" "FreeSans"] {
+        set ndx [lsearch -exact $families $test]
+        if {$ndx == -1} {
+            set ndx [lsearch -exact $families [string tolower $test]]
+        }
+        if {$ndx != -1} {
+            set family [lindex $families $ndx]
+            break
+        }
+    }
+    if {$family eq ""} {set family Helvetica}
+    set size 12
+    catch {
+        if {[string equal [tk::pkgconfig get fontsystem] "xft"]} {
+            incr size -4
+        }
+    }
     font create GtkLookFont \
-	-family Helvetica -size 12 -weight normal
+	-family $family -size $size -weight normal
     font create GtkLookDialogFont \
-	-family Helvetica -size 16 -weight bold -slant italic
+	-family $family -size [incr size 4] -weight bold -slant italic
 
     option add *background $defaultColor widgetDefault
     option add *borderWidth 1 widgetDefault
@@ -7145,7 +7176,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/14 23:20:34 $
+	 # Last modified on: $Date: 2006/09/15 23:19:19 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7928,11 +7959,10 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	    }
 	}
 	normal {
-	    set conf ""
 	    set from $m(-from)
-	    regexp {([^/]+)/(.+)} $m(-from) -> conf from
-	    if { $conf ne $conference } {
-		set from $m(-from)
+            set conf [jid !resource $m(-from)]
+            if {$conf eq $conference } {
+		set from [jid resource $m(-from)]
 	    }
 	    if { $from eq "ijchain" && $m(-subject) eq "IrcUserList" } {
 		foreach nick $m(-body) {
@@ -7944,7 +7974,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		::tkchat::updateOnlineNames
 		return
 	    }
-	    set msg {}
+            set msg {}
 	    if { [info exists m(-subject)] } {
 		lappend msg "Subject: $m(-subject)"
 	    }
@@ -7954,6 +7984,9 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	    if { [llength $msg] > 0 } {
 		set msg " whispers: [join $msg \n]"
 		::tkchat::addMessage .txt "" $from $msg ACTION end 0
+                StoreMessage $from \
+                    [expr {[info exists m(-subject)] ? $m(-subject) : ""}] \
+                    [expr {[info exists m(-body)] ? $m(-body) : ""}]
 	    } else {
 		::log::log notice "Unknown message from $from: '$args'"
 	    }
@@ -9058,7 +9091,7 @@ proc tkchat::PasteDlg {} {
     set f [${NS}::frame $dlg.f1 -borderwidth 0]
     set f2 [${NS}::frame $f.f2 -borderwidth 0]
     ${NS}::label $f2.lbl -text Subject
-    set subject [${NS}::entry $f2.subject] 
+    set subject [${NS}::entry $f2.subject -font FNT] 
     text $f.txt -background white -font FNT -yscrollcommand [list $f.vs set]
     ${NS}::scrollbar $f.vs -command [list $dlg.txt yview]
     set f3 [${NS}::frame $f.f3 -borderwidth 0]
@@ -9100,6 +9133,29 @@ proc tkchat::PasteDlg {} {
     }
     destroy $dlg
     unset [namespace current]::$wid
+    return
+}
+
+# Store personal incoming messages in mbox format (as per the qmail mbox 
+# man page.
+proc ::tkjabber::StoreMessage {from subject message} {
+    global env Options
+    if {$Options(StoreMessages)} {
+        if { [info exists env(HOME)] } {
+            set filename [file join $env(HOME) .tkchat_msgs]
+            catch {
+                set f [open $filename a+]
+                fconfigure $f -encoding utf-8
+                set ts [clock format [clock seconds] \
+                            -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]
+                set msg [regsub -all -line {^(>*From )} $message {>\1}]
+                set date [clock format [clock seconds] \
+                              -format {%a %b %d %H:%M:%S} -gmt true]
+                puts $f "From $from $date\nDate: $ts\nSubject: $subject\n\n$msg"
+                close $f
+            }
+        }
+    }
     return
 }
 
