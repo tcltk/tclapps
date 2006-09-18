@@ -36,7 +36,7 @@ package require log		; # tcllib
 package require base64		; # tcllib
 
 catch {package require tls}	; # tls (optional)
-catch {package require tile}	; # tile (optional)
+catch {package require tile 0.7}; # tile (optional)
 
 package require sha1		; # tcllib
 package require jlib		; # jlib
@@ -115,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.347 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.348 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -134,7 +134,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.347 2006/09/15 23:19:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.348 2006/09/18 20:44:44 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -745,7 +745,7 @@ proc ::tkchat::babelfishMenu {} {
     set menu .mbar.help
     if {![winfo exists ${menu}.tr]} {
 	::log::log debug "Initializing babelfish translation"
-	set tr [menu ${menu}.tr]
+	set tr [menu ${menu}.tr -tearoff 0]
 
 	# Add to the Help->Translate menu
 	catch {
@@ -1896,7 +1896,7 @@ proc ::tkchat::CreateGUI {} {
 	    -command ::tkchat::DoAnim
 
     # Insert Cascade Menu
-    menu $m.mnu -title Insert
+    menu $m.mnu -tearoff 0 -title Insert
     $m add cascade \
 	    -label Insert \
 	    -underline 0 \
@@ -7176,7 +7176,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/15 23:19:19 $
+	 # Last modified on: $Date: 2006/09/18 20:44:44 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
