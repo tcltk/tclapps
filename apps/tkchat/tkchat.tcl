@@ -115,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.348 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.349 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -134,7 +134,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.348 2006/09/18 20:44:44 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.349 2006/09/21 11:08:23 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7176,7 +7176,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/18 20:44:44 $
+	 # Last modified on: $Date: 2006/09/21 11:08:23 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -9093,7 +9093,7 @@ proc tkchat::PasteDlg {} {
     ${NS}::label $f2.lbl -text Subject
     set subject [${NS}::entry $f2.subject -font FNT] 
     text $f.txt -background white -font FNT -yscrollcommand [list $f.vs set]
-    ${NS}::scrollbar $f.vs -command [list $dlg.txt yview]
+    ${NS}::scrollbar $f.vs -command [list $f.txt yview]
     set f3 [${NS}::frame $f.f3 -borderwidth 0]
     set send [${NS}::button $f3.send -text [msgcat::mc Send] -default active \
                   -command [list set [namespace current]::$wid send]]
