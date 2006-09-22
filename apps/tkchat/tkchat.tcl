@@ -115,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.349 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.350 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -134,7 +134,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.349 2006/09/21 11:08:23 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.350 2006/09/22 10:32:20 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7176,7 +7176,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/21 11:08:23 $
+	 # Last modified on: $Date: 2006/09/22 10:32:20 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7481,7 +7481,6 @@ proc ::tkjabber::connect {} {
 	}
 	return
     } else {
-	#fconfigure $socket -encoding utf-8
 	$jabber setsockettransport $socket
 	openStream
     }
@@ -7593,6 +7592,8 @@ proc tkjabber::SendAuth {} {
     variable myId
     variable socket
 
+    CheckCertificate
+
     fconfigure $socket -encoding utf-8; # this is quite important.
 
     set user $Options(Username)
@@ -7604,6 +7605,34 @@ proc tkjabber::SendAuth {} {
 	    [namespace origin OnSaslFinish]
     } else {
 	SendAuthOld
+    }
+}
+
+proc tkjabber::CheckCertificate {} {
+    # Check SSL certificate information (may be none if not SSL socket)
+    variable socket
+    variable have_tls
+    variable cert
+    if {$have_tls} {
+        if {[catch {
+            set info [tls::status $socket]
+            array set cert {notAfter 0 subject "" issuer ""}
+            foreach {key val} $info {
+                set cert($key) [encoding convertfrom utf-8 $val]
+            }
+            set self_signed [string equal $cert(subject) $cert(issuer)]
+            set life [expr {[clock scan $cert(notAfter)] - [clock seconds]}]
+            if {$self_signed} {
+                tkchat::addSystem .txt \
+                    "Self-signed certificate issued by $cert(issuer)"
+            }
+            if {$life < 1} {
+                tkchat::addSystem .txt \
+                    "SSL certificate expired on $cert(notAfter)" end ERROR
+            }
+        } err]} {
+            log::log notice "SSL Warning: $err"
+        }
     }
 }
 
