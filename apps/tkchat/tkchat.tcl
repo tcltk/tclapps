@@ -115,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.350 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.351 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -133,8 +133,8 @@ namespace eval ::tkchat {
     # this is http://mini.net - but that recently had a dns problem
     variable HOST http://mini.net
 
-    variable HEADUrl {http://cvs.sourceforge.net/viewcvs.py/tcllib/tclapps/apps/tkchat/tkchat.tcl?rev=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.350 2006/09/22 10:32:20 patthoyts Exp $}
+    variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
+    variable rcsid   {$Id: tkchat.tcl,v 1.351 2006/10/15 22:16:41 mistachkin Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7176,8 +7176,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/09/22 10:32:20 $
-	 # Last modified by: $Author: patthoyts $
+	 # Last modified on: $Date: 2006/10/15 22:16:41 $
+	 # Last modified by: $Author: mistachkin $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script

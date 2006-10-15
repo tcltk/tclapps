@@ -1,3 +1,7 @@
+2006-10-15  Joe Mistachkin  <joe@mistachkin.com>
+
+	* tkchat.tcl: Corrected HEADUrl.
+
 2006-09-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:  Added a benign SSL certificate check to warn about
