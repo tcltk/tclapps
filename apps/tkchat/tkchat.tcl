@@ -115,7 +115,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.351 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.352 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -134,7 +134,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.351 2006/10/15 22:16:41 mistachkin Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.352 2006/10/19 20:31:39 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -427,7 +427,7 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 }
 
 # this called on first logon and after a purge
-# so not bothering to backgound it
+# so not bothering to background it
 proc ::tkchat::LoadHistory {} {
     global Options
 
@@ -714,9 +714,10 @@ proc ::tkchat::translateDone {tok} {
 
 proc ::tkchat::babelfishInit {
 	{url http://babelfish.altavista.com/babelfish/} } {
-    set tok [http::geturl $url \
-	    -headers [buildProxyHeaders] \
-	    -command [list ::tkchat::fetchurldone ::tkchat::babelfishInitDone]]
+    set hdrs [buildProxyHeaders]
+    lappend hdrs "Accept-Charset" "ISO-8859-1,utf-8"
+    set tok [http::geturl $url -headers $hdrs \
+        -command [list ::tkchat::fetchurldone ::tkchat::babelfishInitDone]]
 }
 
 proc ::tkchat::babelfishInitDone {tok} {
@@ -3562,7 +3563,7 @@ proc ::tkchat::logonScreen {} {
 	set lf [${NS}::frame .logon.frame]
 	${NS}::checkbutton .logon.prx \
 		-text "Use Proxy" \
-		-variable Options(UseProxy) \
+		-variable ::Options(UseProxy) \
 		-underline 7
 	${NS}::label .logon.lph -text "Proxy host:port" -underline 0
 	${NS}::frame .logon.fpx
@@ -3704,7 +3705,11 @@ proc ::tkchat::logonScreen {} {
 	    ::http::config \
 		    -proxyhost $Options(ProxyHost) \
 		    -proxyport $Options(ProxyPort)
-	}
+	} else {
+            # These may have been set in Init to handle autologin.
+            ::http::config -proxyhost {} -proxyport {}
+        }
+
 	# connect
 	logonChat
     }
@@ -5524,7 +5529,7 @@ proc ::dict.leo.org::query {query} {
     ::http::config -urlencoding iso8859-15
     set query [::http::formatQuery search $query]
     ::http::config -urlencoding $enc
-    set tok [::http::geturl $leoURL -query $query]
+    set tok [::http::geturl $leoURL -headers [buildProxyHeaders] -query $query]
     foreach line [split [::http::data $tok] "\n"] {
 	if {[string match "*ENGLISCH*DEUTSCH*" $line]} break
     }
@@ -6856,7 +6861,8 @@ proc ::tkchat::FocusOutHandler {w args} {
 proc ::tkchat::EditOptions {} {
     global Options
     variable NS
-    
+    variable useTile
+
     variable EditOptions
     array set EditOptions {Result -1}
     set EditOptions(Browser) $Options(Browser)
@@ -6873,7 +6879,11 @@ proc ::tkchat::EditOptions {} {
     wm title $dlg "Tkchat Options"
 
     set f [${NS}::frame $dlg.base -borderwidth 0]
-    set af [${NS}::labelframe $f.af -text "General" -underline 1]
+    if {$useTile} {
+        set af [${NS}::labelframe $f.af -text "General" -underline 1]
+    } else { 
+        set af [${NS}::labelframe $f.af -text "General"]
+    }
     ${NS}::checkbutton $af.store -text "Store private messages" \
         -variable ::Options(StoreMessages) -onvalue 1 -offvalue 0 \
         -underline 0
@@ -7176,8 +7186,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/10/15 22:16:41 $
-	 # Last modified by: $Author: mistachkin $
+	 # Last modified on: $Date: 2006/10/19 20:31:39 $
+	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script

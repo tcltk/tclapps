@@ -1,3 +1,7 @@
+2006-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix retrieving history when proxy disabled.
+
 2006-10-15  Joe Mistachkin  <joe@mistachkin.com>
 
 	* tkchat.tcl: Corrected HEADUrl.
