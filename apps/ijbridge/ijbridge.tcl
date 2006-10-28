@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.10 2006/09/11 08:14:10 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.11 2006/10/28 21:06:47 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -430,12 +430,16 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 HELP* - help* {
                     send -user $a(-from) \
                         -id $Options(Conference)/$Options(JabberUser) \
-                        "\n help     show this message\n\
-                         names    returns a list of all IRC users\n\
-                         version  returns the bridge code version\n\
-                         rcsid    returns the RCS version of this file\n"
+                        "\n help       show this message\n\
+                         names      returns a list of all IRC users\n\
+                         version    returns the bridge code version\n\
+                         rcsid      returns the RCS version of this file\n\
+                         whois nick get irc WHOIS information\n\
+                         kick nick  kick irc user\n"
                 }
                 WHOIS* - whois* {
+                    set ::client::whois(caller) $a(-from)
+                    xmit "USERHOST [string range $a(-body) 6 end]"
                     xmit "WHOIS [string range $a(-body) 6 end]"
                 }
                 NAMES* - names* {
@@ -449,6 +453,12 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 }
                 RCSID - rcsid {
                     send -user $a(-from) $::ijbridge::rcsid
+                }
+                KICK* - kick* {
+                    log::log notice $a(-body)
+                    set user [lindex $a(-body) 1]
+                    xmit "KICK $::client::channel $user"
+                    send -user $a(-from) "Kicking $user."
                 }
                 /msg* {
                     if {[regexp {^/msg (\w+) (.*)$} $a(-body) -> who msg]} {
@@ -685,10 +695,12 @@ proc client::create { server port nk chan } {
     variable cn
     variable channel $chan
     variable nick $nk
+    variable whois ; array set whois {caller ""}
     set cn [::irc::connection]
 
     $cn registerevent 001 {
         # RPL_WELCOME
+        log::log notice "Joining $::client::channel"
         set ::client::nick [target]
         cmd-join $::client::channel
     }
@@ -711,6 +723,8 @@ proc client::create { server port nk chan } {
 	    set IrcUserList \
 		    [lsearch -all -inline -exact -not $IrcUserList $bridge]
 	}
+        # Ask Chanserv to op us.
+        cmd-send "PRIVMSG Chanserv :op $::client::channel $::client::nick"
     }
 
     $cn registerevent 376 {
@@ -722,18 +736,51 @@ proc client::create { server port nk chan } {
             }
         } err]} { puts stderr $err }
     }
-
+   
+    # WHOIS handling from Jabber user 
+    $cn registerevent 311 {set ::client::whois(realname) [msg]}
+    $cn registerevent 312 {set ::client::whois(url) [msg]}
+    $cn registerevent 319 {set ::client::whois(channels) [msg]}
+    $cn registerevent 320 {set ::client::whois(status) [msg]}
+    $cn registerevent 302 {set ::client::whois(host) [msg]}
+    $cn registerevent 318 {
+        variable ::client::whois
+        if {[string length $whois(caller)] > 0} {
+            set info "Realname: $whois(realname)\n"
+            append info "Host: $whois(host)\n"
+            append info "Channels: $whois(channels)\n"
+            append info "Status: $whois(status)"
+            ::ijbridge::send -user $whois(caller) $info
+        }
+        array set whois {caller "" realname "" url "" channels "" status ""}
+    }
+    $cn registerevent 401 {
+        variable ::client::whois
+        if {[string length $whois(caller)] > 0} {
+            ::ijbridge::send -user $whois(caller) [msg]
+            set whois(caller) ""
+        }
+    }
+    
     $cn registerevent defaultcmd {
-	::log::log debug "[action]:[msg]"
+	::log::log notice "[action]:[msg]"
     }
 
     $cn registerevent defaultnumeric {
-	::log::log debug "[action]:[target]:[msg]"
+	::log::log notice "[action]:[target]:[msg]"
     }
 
     $cn registerevent defaultevent {
-        if {[action] ne "PONG"} {
-            ::log::log debug "[action]:[who]:[target]:[msg]"
+        switch -exact -- [action] {
+            PONG {}
+            KICK {
+                #::ijbridge::send "[who] kicked someone \"[msg]\""
+                ::log::log notice "[action]:[who]:[target]:[msg]" 
+            }
+            MODE -
+            default {
+                ::log::log notice "[action]:[who]:[target]:[msg]" 
+            }
         }
     }
 
@@ -867,6 +914,7 @@ proc ::ijbridge::ReadControl {chan} {
 
 
 log::lvSuppressLE emerg 0
+log::lvSuppressLE debug 1
 
 proc Main {args} {
     global tcl_platform tcl_interactive tcl_service tk_version

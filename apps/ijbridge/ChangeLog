@@ -1,3 +1,7 @@
+2006-10-28  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Added auto-op and kick support. Also whois.
+
 2006-09-11  Pat Thoyts <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Additional <iq> support.
