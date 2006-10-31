@@ -36,7 +36,6 @@ package require log		; # tcllib
 package require base64		; # tcllib
 
 catch {package require tls}	; # tls (optional)
-catch {package require tile 0.7}; # tile (optional)
 
 package require sha1		; # tcllib
 package require jlib		; # jlib
@@ -68,6 +67,27 @@ if {[llength [info commands ::tk::label]] < 1} {
 	    radiobutton checkbutton scale scrollbar} {
 	rename ::$cmd ::tk::$cmd
 	interp alias {} ::$cmd {} ::tk::$cmd
+    }
+}
+
+# In Tk 8.5a6 the tile widgets have been merged into the Tk code in the
+# ttk namespace. This provides detects the presence of themed widgets
+# and provides compatability with tile 0.7
+#
+namespace eval ::tkchat {
+    variable useTile 1
+    variable NS "::ttk"
+    if {[llength [info commands ::ttk::*]] == 0} {
+        if {[catch {package require tile 0.7}]} {
+            set useTile 0
+            set NS "::tk"
+        } else {
+            # tile to ttk compatability
+            interp alias {} ::ttk::style {} ::style
+            interp alias {} ::ttk::setTheme {} ::tile::setTheme
+            interp alias {} ::ttk::themes {} ::tile::availableThemes
+            interp alias {} ::ttk::LoadImages {} ::tile::LoadImages
+        }
     }
 }
 
@@ -115,16 +135,10 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.352 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.353 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
-	 
-    # prepare Tile usage and namespace prefix for the GUI:
-    variable useTile 1
-    if {[package provide tile] eq ""} {set useTile 0}
-    variable NS "::tk"
-    if {$useTile} {set NS "::ttk"}
 
     # Everything will eventually be namespaced
     variable MessageHooks
@@ -134,7 +148,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.352 2006/10/19 20:31:39 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.353 2006/10/31 11:40:57 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -548,29 +562,26 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 
 
 proc ::tkchat::HistoryPaneToggle {} {
-   #
-   # toggles the visibility of the
-   # separate (cloned) chat window
-   # containing the history
-   #
-   # Either loads the current contents of the
-   # chat window into the separate window
-   # and displays it ...
-   #
-   # ... Or make the window invisible clearing
-   # it from all content
-   #
-   variable useTile
-   # remember current position in window:
-   set fraction [lindex [.txt yview] 1]
-   if {[winfo ismapped .cframe]} {
+    #
+    # toggles the visibility of the separate (cloned) chat window
+    # containing the history
+    #
+    # Either loads the current contents of the chat window into the
+    # separate window and displays it ...
+    #
+    # ... Or make the window invisible clearing it from all content
+    
+    variable useTile
+    # remember current position in window:
+    set fraction [lindex [.txt yview] 1]
+    if {[winfo ismapped .cframe]} {
 	# remove cloned window:
 	.pane2 forget .cframe
 	update idletasks
 	.clone configure -state normal
 	.clone delete 1.0 end
 	.mbar.vis entryconfigure "*current history*" -state normal
-   } else {
+    } else {
 	# fill clone and display it:
 	if {$useTile} {
 	    .pane2 insert 0 .cframe
@@ -580,12 +591,11 @@ proc ::tkchat::HistoryPaneToggle {} {
 	::tkchat::textClone .txt .clone
 	.clone configure -state disabled
 	.mbar.vis entryconfigure "*current history*" -state disabled
-   }
-   # restore current position in window:
-   update idletasks
-   .txt yview moveto $fraction
+    }
+    # restore current position in window:
+    update idletasks
+    .txt yview moveto $fraction
 }
-
 
 proc ::tkchat::logonChat {} {
     global Options
@@ -763,7 +773,7 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
     global Options
     variable MsgToColors
     variable useTile
-    set tile_version [package provide tile]
+    set tile_version 0.7.8 ;#[package provide tile]
     set do_bg 1
 
     # There is a bug in 0.6 that messes up all this stuff.
@@ -1753,7 +1763,7 @@ proc ::tkchat::CreateGUI {} {
 
     # Tile Themes Cascade Menu
     if { $useTile } {
-	set themes [lsort [tile::availableThemes]]
+        set themes [lsort [ttk::themes]]
 
 	menu $m.themes -tearoff 0
 	$m add cascade \
@@ -2231,20 +2241,18 @@ proc ::tkchat::CreateGUI {} {
     .pane2 add .txtframe
     
     # text widget to view history:
+    # FIX ME: be nice to have a little theme-specific tab close button here.
+    # FIX ME: this should use the text widget clone feature if available.
     ${NS}::frame .cframe -relief groove
     ${NS}::button .cbtn -text "Close history pane" -command ::tkchat::HistoryPaneToggle
     ScrolledWidget text .clone 0 1 \
-	-wrap word \
-	-background #dddddd \
-	-relief sunken \
-	-borderwidth 2 \
-	-font FNT \
-	-cursor left_ptr
+	-wrap word -background #f0f0f0 -relief sunken -borderwidth 2 \
+	-font FNT -cursor left_ptr -height 1
     bind .clone <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
     .clone tag bind URL <Enter> [list .clone configure -cursor hand2]
     .clone tag bind URL <Leave> [list .clone configure -cursor left_ptr]
-    pack .cbtn -in .cframe -side bottom  -pady 3
-    pack .clone -in .cframe
+    pack .clone -in .cframe -side bottom -expand 1 -fill both
+    pack .cbtn -in .cframe -side top -anchor ne
     
     .pane add .pane2
     if {$useTile} {
@@ -2492,7 +2500,7 @@ proc ::tkchat::SetTheme {theme} {
     variable useTile
     catch {
 	if {$useTile} {
-	    tile::setTheme $theme
+            ttk::setTheme $theme
 	}
 	set Options(Theme) $theme
     }
@@ -2701,15 +2709,20 @@ proc ::tkchat::About {} {
     wm withdraw $w
     wm transient $w .
     wm title $w "About TkChat $rcsVersion"
+    set ver "Using Tcl/Tk [info patchlevel]"
+    if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
+    if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
     ${NS}::button $w.b -text Dismiss -command [list wm withdraw $w]
-    text $w.text -height 19 -bd 1 -width 80
-    pack $w.b -fill x -side bottom
-    pack $w.text -fill both -side left -expand 1
+    ScrolledWidget text $w.text 0 1 -height 22 -bd 1 -width 80
+    grid $w.text -sticky news
+    grid $w.b -sticky se
+    grid rowconfigure $w 0 -weight 1
+    grid columnconfigure $w 0 -weight 1
     $w.text tag configure center -justify center
     $w.text tag configure title -justify center -font {Courier -18 bold}
-    $w.text tag configure h1 -justify left -font {Sans -12 bold}
+    $w.text tag configure h1 -font {Sans -12 bold}
     $w.text insert 1.0 \
-	"TkChat v$rcsVersion\n" title \
+	"TkChat v$rcsVersion\n" title "$ver\n\n" {h1 center} \
 	"Copyright (c) 2001-2005  Bruce B Hartweg <brhartweg@bigfoot.com>\n" \
 		center \
 	"$rcsid\n\n" center \
@@ -5338,13 +5351,10 @@ proc ::tkchat::setNickname { nick } {
 }
 
 
-########################################
+# -------------------------------------------------------------------------
 #
-# routines for cloning of chat window
-# adapted from http://wiki.tcl.tk/9167
+# routines for cloning of chat window adapted from http://wiki.tcl.tk/9167
 #
-########################################
-
 
 proc ::tkchat::textClone {text clone} {
     #
@@ -5529,7 +5539,7 @@ proc ::dict.leo.org::query {query} {
     ::http::config -urlencoding iso8859-15
     set query [::http::formatQuery search $query]
     ::http::config -urlencoding $enc
-    set tok [::http::geturl $leoURL -headers [buildProxyHeaders] -query $query]
+    set tok [::http::geturl $leoURL -headers [::tkchat::buildProxyHeaders] -query $query]
     foreach line [split [::http::data $tok] "\n"] {
 	if {[string match "*ENGLISCH*DEUTSCH*" $line]} break
     }
@@ -7186,7 +7196,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/10/19 20:31:39 $
+	 # Last modified on: $Date: 2006/10/31 11:40:57 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
