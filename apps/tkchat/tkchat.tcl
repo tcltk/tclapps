@@ -135,7 +135,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.353 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.354 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -148,7 +148,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.353 2006/10/31 11:40:57 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.354 2006/10/31 12:20:28 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -275,6 +275,28 @@ proc ::tkchat::buildProxyHeaders {} {
     return $auth
 }
 
+# Automatically inject any proxy headers into the http request.
+proc ::tkchat::proxyfilter {host} {
+    global Options
+    set r {}
+    if {$Options(UseProxy)} {
+        if {[string length $Options(ProxyHost)] != 0} {
+
+            # Add authorisation header to the request (by Anders Ramdahl)
+            catch {
+                upvar state State
+                
+                if {[llength [set auth [buildProxyHeaders]]] != 0} {
+                    set State(-headers) [concat $auth $State(-headers)]
+                }
+            }
+
+            set r [list $Options(ProxyHost) $Options(ProxyPort)]
+        }
+    }
+    return $r
+}
+
 # Retrieve the lastest version of tkchat from the SourceForge CVS.
 # This code is (almost) entirely ripped from TkCon. - PT.
 proc ::tkchat::Retrieve {} {
@@ -294,8 +316,7 @@ proc ::tkchat::Retrieve {} {
 	    -parent . \
 	    -filetypes {{"Tcl Files" {.tcl .tk}} {"All Files" {*.*}}}]
     if {[string compare $file ""]} {
-	set token [::http::geturl $HEADUrl \
-		-headers [buildProxyHeaders] -timeout 30000]
+	set token [::http::geturl $HEADUrl -timeout 30000]
 	::http::wait $token
 	if {[::http::status $token] eq "ok" && [::http::ncode $token] == 200} {
 	    set code [catch {
@@ -346,9 +367,8 @@ proc ::tkchat::Retrieve {} {
 proc ::tkchat::ShowStatusPage {} {
     set url http://mini.net/tcl/status_tclers.tk
     if { [catch {
-	::http::geturl $url -headers [buildProxyHeaders] \
-		-command [list ::tkchat::fetchurldone \
-			::tkchat::ShowStatusPage2]
+	::http::geturl $url -command [list ::tkchat::fetchurldone \
+                                          ::tkchat::ShowStatusPage2]
     } msg] } then {
 	addSystem .txt "Unable to obtain status page from $url" end ERROR
     }
@@ -361,8 +381,7 @@ proc ::tkchat::ShowStatusPage2 {} {
 
 proc ::tkchat::GetHistLogIdx {url} {
     if { [catch {
-        set hdrs [buildProxyHeaders]
-        lappend hdrs "Accept-Charset" "ISO-8859-1,utf-8"
+        set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
 	::http::geturl $url -headers $hdrs \
 		-command [list ::tkchat::fetchurldone ::tkchat::GotHistLogIdx]
     } msg] } then {
@@ -396,8 +415,7 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 
     # fetch log
     ::log::log info "History: Fetch log \"$url\""
-    set hdrs [buildProxyHeaders]
-    lappend hdrs "Accept-Charset" "utf-8"
+    set hdrs [list "Accept-Charset" "utf-8"]
     set tok [::http::geturl $url -headers $hdrs]
 
     ::log::log info \
@@ -705,8 +723,7 @@ proc ::tkchat::translate {from to txt} {
     set url {http://babelfish.altavista.com/babelfish/tr}
     append op $from _ $to
     set query [http::formatQuery tt urltext urltext $txt lp $op]
-    set hdrs [buildProxyHeaders]
-    lappend hdrs "Accept-Charset" "ISO-8859-1,utf-8"
+    set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
     set tok [http::geturl $url -query $query -headers $hdrs \
 	    -command [list ::tkchat::fetchurldone ::tkchat::translateDone]]
 }
@@ -724,8 +741,7 @@ proc ::tkchat::translateDone {tok} {
 
 proc ::tkchat::babelfishInit {
 	{url http://babelfish.altavista.com/babelfish/} } {
-    set hdrs [buildProxyHeaders]
-    lappend hdrs "Accept-Charset" "ISO-8859-1,utf-8"
+    set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
     set tok [http::geturl $url -headers $hdrs \
         -command [list ::tkchat::fetchurldone ::tkchat::babelfishInitDone]]
 }
@@ -1465,13 +1481,17 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
 }
 
 proc ::tkchat::showInfo {title str} {
+    variable NS
     set t .infobox
     set i 0
     while {[winfo exists $t]} {
 	set t .infobox[incr i]
     }
-    toplevel $t
+    set dlg [toplevel $t -class Dialog]
     wm title $t $title
+    set t [${NS}::frame $dlg.f -borderwidth 0]
+    pack $t -side top -fill both -expand 1
+
     set height [expr {[string length $str] / 75 + 1}]
     if {[set lines [regexp -all -- "\n" $str]] > $height} {
 	set height $lines
@@ -1493,7 +1513,7 @@ proc ::tkchat::showInfo {title str} {
     }
     $t.txt insert end "\n"
     $t.txt configure -state disabled
-    button $t.close -text Close -command [list destroy $t]
+    ${NS}::button $t.close -text Close -command [list destroy $dlg]
     focus $t.close
     pack $t.close -side right
 }
@@ -3713,15 +3733,7 @@ proc ::tkchat::logonScreen {} {
     grab release .logon
     wm withdraw .logon
     if { $DlgDone eq "ok" } {
-	if {$Options(UseProxy)} {
-	    unset -nocomplain Options(ProxyAuth)
-	    ::http::config \
-		    -proxyhost $Options(ProxyHost) \
-		    -proxyport $Options(ProxyPort)
-	} else {
-            # These may have been set in Init to handle autologin.
-            ::http::config -proxyhost {} -proxyport {}
-        }
+        unset -nocomplain Options(ProxyAuth)
 
 	# connect
 	logonChat
@@ -5174,6 +5186,7 @@ proc ::tkchat::Init {args} {
 	    $::tcl_platform(os)) http/[package provide http]\
 	    Tcl/[package provide Tcl]"
     }
+    http::config -proxyfilter ::tkchat::proxyfilter
 
     # Open the error log to file if specified. Default is stderr.
     if {[string length $Options(LogFile)] > 0} {
@@ -5212,15 +5225,12 @@ proc ::tkchat::Init {args} {
 
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
-	    ::http::config -proxyhost $Options(ProxyHost) \
-		-proxyport $Options(ProxyPort)
+            # nothing
 	} elseif {[info exists ::env(http_proxy)]} {
 	    if {[regexp {(?:http://)?([[:alnum:].-]+)(?::(\d+))?} \
 		     $::env(http_proxy) -> \
 		     Options(ProxyHost) \
 		     Options(ProxyPort)]} {
-		http::config -proxyhost $Options(ProxyHost) \
-		    -proxyport $Options(ProxyPort)
 	    }
 	}
     }
@@ -5539,7 +5549,7 @@ proc ::dict.leo.org::query {query} {
     ::http::config -urlencoding iso8859-15
     set query [::http::formatQuery search $query]
     ::http::config -urlencoding $enc
-    set tok [::http::geturl $leoURL -headers [::tkchat::buildProxyHeaders] -query $query]
+    set tok [::http::geturl $leoURL -query $query]
     foreach line [split [::http::data $tok] "\n"] {
 	if {[string match "*ENGLISCH*DEUTSCH*" $line]} break
     }
@@ -7196,7 +7206,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/10/31 11:40:57 $
+	 # Last modified on: $Date: 2006/10/31 12:20:28 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the

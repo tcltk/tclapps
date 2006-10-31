@@ -3,6 +3,8 @@
 	* tkchat.tcl: Support for merged ttk widgets in Tk 8.5a6. Should
 	handle 8.4, 8.4+tile 0.7 and 8.5a6 now. Some widget packing bugs
 	squashed too.
+	* tkchat.tcl (::tkchat::proxyfilter): Use a proxyfilter to avoid
+	having to add headers to every http::geturl usage.
 
 2006-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
