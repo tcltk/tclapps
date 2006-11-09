@@ -1,3 +1,9 @@
+2006-11-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* askleo/askleo.tcl: Broke out the askLEO code into a sub package.
+	* choosefont/*: Broke out DKFs font selection into a sub package.
+	* tkchat.tcl: Support for broken out packages.
+
 2006-10-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Support for merged ttk widgets in Tk 8.5a6. Should
