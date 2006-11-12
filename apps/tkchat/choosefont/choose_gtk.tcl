@@ -7,7 +7,7 @@
 # dialog for a KDE system.
 # We will drop down to DKFs font chooser if we have no other implementation.
 #
-# $Id: choose_gtk.tcl,v 1.1 2006/11/10 00:51:05 patthoyts Exp $
+# $Id: choose_gtk.tcl,v 1.2 2006/11/12 21:24:16 patthoyts Exp $
 
 namespace eval ::choosefont {
     critcl::tk
@@ -53,37 +53,119 @@ namespace eval ::choosefont {
             return;
         }
         
+        static int
+        BackgroundEvalObjv(Tcl_Interp *interp, 
+            int objc, Tcl_Obj *const *objv, int flags)
+        {
+            Tcl_DString errorInfo, errorCode;
+            Tcl_SavedResult state;
+            int r = TCL_OK;
+            
+            Tcl_DStringInit(&errorInfo);
+            Tcl_DStringInit(&errorCode);
+            
+            /*
+             * Record the state of the interpreter
+             */
+            
+            Tcl_SaveResult(interp, &state);
+            Tcl_DStringAppend(&errorInfo, 
+                Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY), -1);
+            Tcl_DStringAppend(&errorCode, 
+                Tcl_GetVar(interp, "errorCode", TCL_GLOBAL_ONLY), -1);
+            
+            /*
+             * Evaluate the command and handle any error.
+             */
+            
+            r = Tcl_EvalObjv(interp, objc, objv, flags);
+            if (r == TCL_ERROR) {
+                Tcl_AddErrorInfo(interp, "\n    (background event handler)");
+                Tcl_BackgroundError(interp);
+            }
+            
+            /*
+             * Restore the state of the interpreter
+             */
+            
+            Tcl_SetVar(interp, "errorInfo",
+                Tcl_DStringValue(&errorInfo), TCL_GLOBAL_ONLY);
+            Tcl_SetVar(interp, "errorCode",
+                Tcl_DStringValue(&errorCode), TCL_GLOBAL_ONLY);
+            Tcl_RestoreResult(interp, &state);
+            
+            /*
+             * Clean up references.
+             */
+            
+            Tcl_DStringFree(&errorInfo);
+            Tcl_DStringFree(&errorCode);
+            
+            return r;
+        }
+
+	static Tcl_Obj *
+	GetFontObjFromGtkWidget(GtkWidget *dlg)
+	{
+            PangoFontDescription *fd;
+            const gchar *fontname;
+            Tcl_Obj *resObj = Tcl_NewListObj(0, NULL);
+
+            fontname = gtk_font_selection_dialog_get_font_name
+                (GTK_FONT_SELECTION_DIALOG(dlg));
+            fd = pango_font_description_from_string(fontname);
+            
+            if (fd != NULL) {
+		int len = 0;
+                Tcl_Obj *attrObj = Tcl_NewListObj(0, NULL);
+                Tcl_ListObjAppendElement(NULL, resObj,
+		    Tcl_NewStringObj(pango_font_description_get_family(fd), -1));
+                Tcl_ListObjAppendElement(NULL, resObj,
+		    Tcl_NewIntObj(pango_font_description_get_size(fd)/PANGO_SCALE));
+		if (pango_font_description_get_weight(fd) >= PANGO_WEIGHT_BOLD) {
+		    Tcl_ListObjAppendElement(NULL, attrObj, Tcl_NewStringObj("bold", -1));
+		}
+		if (pango_font_description_get_style(fd) == PANGO_STYLE_ITALIC
+		    || pango_font_description_get_style(fd) == PANGO_STYLE_OBLIQUE) {
+		    Tcl_ListObjAppendElement(NULL, attrObj, Tcl_NewStringObj("italic", -1));
+		}
+		Tcl_ListObjLength(NULL, attrObj, &len);
+		if (len > 0) {
+		    Tcl_ListObjAppendElement(NULL, resObj, attrObj);
+		}
+	    }
+            return resObj;
+	}
+
         typedef struct Stuff {
             Tcl_Interp *interp;
             Tcl_Obj *applyObj;
-            int running;
-            GtkFontSelectionDialog *fsd;
+	    GtkWidget *dlg;
+	    gint response;
         } Stuff;
-
-        static void
-        on_fontdlg_apply(GtkWidget *widget, gpointer dataPtr)
-        {
-            Stuff *stuffPtr = dataPtr;
-            g_printf("%s\n", 
-                     gtk_font_selection_dialog_get_font_name(stuffPtr->fsd));
-
-        }
 
         static int
         on_fontdlg_response(GtkDialog *dlg, gint response, gpointer dataPtr)
         {
-            gint *responsePtr = dataPtr;
+            Stuff *stuffPtr = dataPtr;
+	    Tcl_Obj *objv[2];
 
             switch (response) {
                 case GTK_RESPONSE_APPLY:
+		    stuffPtr->response = 0;
+		    if (stuffPtr->applyObj) {
+			objv[0] = stuffPtr->applyObj;
+			objv[1] = GetFontObjFromGtkWidget(GTK_WIDGET(dlg));
+			BackgroundEvalObjv(stuffPtr->interp, 2, objv, 0);
+		    }
                     return 1;
                     
                 case GTK_RESPONSE_ACCEPT:
                 case GTK_RESPONSE_OK:
-		    *responsePtr = 1;
+		    stuffPtr->response = 1;
 		    return 1;
                 default:
-                    *responsePtr = 2;
+                    stuffPtr->response = 2;
 		    return 0;
 	    }
 	}
@@ -94,29 +176,61 @@ namespace eval ::choosefont {
         Tcl_CreateEventSource(SetupProc, CheckProc, NULL);
     } {}
 
-    critcl::cproc ChooseFont {Tcl_Interp* interp Tcl_Obj* parent
+    critcl::cproc ChooseFont {Tcl_Interp* interp Tcl_Obj* parentObj
         Tcl_Obj* titleObj Tcl_Obj* fontObj Tcl_Obj* applyObj} ok {
-        int r = TCL_OK, oldMode;
-        Tcl_Obj *resObj = NULL;
-        GtkWidget *dlg;
-        gint response = 0;
+        int r = TCL_OK, oldMode, fontc;
+        Tcl_Obj *resObj = NULL, *tmpObj = NULL, **fontv;
+	Tk_Window tkwin;
+	Stuff stuff;
 
-        /*
-         * Create the Gtk font dialog and show modally
-         */
-        dlg = gtk_font_selection_dialog_new(Tcl_GetString(titleObj));
-        g_signal_connect(G_OBJECT(GTK_FONT_SELECTION_DIALOG(dlg)),
+	tkwin = Tk_NameToWindow(interp, Tcl_GetString(parentObj), 
+	    Tk_MainWindow(interp));
+	if (tkwin == NULL) {
+	    return TCL_ERROR;
+	}
+
+        /* parse a font description: pango has the size last */
+        r = Tcl_ListObjGetElements(NULL, fontObj, &fontc, &fontv);
+        if (TCL_OK == r && fontc > 0) {
+	    if (fontc > 2) {
+		int n;
+		tmpObj = fontv[1];
+		for (n = 1; n < fontc-1; ++n) {
+		    fontv[n] = fontv[n+1];
+		}
+		fontv[fontc-1] = tmpObj;
+	    }
+	    tmpObj = Tcl_ConcatObj(fontc, fontv);
+        }
+
+	/* Create the Gtk font dialog and show modally */
+	stuff.interp = interp;
+	stuff.applyObj = applyObj;
+	stuff.response = 0;
+        stuff.dlg = gtk_font_selection_dialog_new(Tcl_GetString(titleObj));
+	if (tmpObj != NULL) {
+	    gtk_font_selection_dialog_set_font_name
+		(GTK_FONT_SELECTION_DIALOG(stuff.dlg), Tcl_GetString(tmpObj));
+	}
+        g_signal_connect(G_OBJECT(GTK_FONT_SELECTION_DIALOG(stuff.dlg)),
                          "response",
-                         G_CALLBACK(on_fontdlg_response), &response);
-        gtk_widget_show(GTK_FONT_SELECTION_DIALOG(dlg)->apply_button);
-        gtk_window_set_modal(GTK_WINDOW(dlg), TRUE);
-        gtk_widget_show_all(dlg);
+                         G_CALLBACK(on_fontdlg_response), &stuff);
+        gtk_widget_show(GTK_FONT_SELECTION_DIALOG(stuff.dlg)->apply_button);
+        gtk_window_set_modal(GTK_WINDOW(stuff.dlg), TRUE);
+	gtk_window_has_toplevel_focus(GTK_WINDOW(stuff.dlg));
+        gtk_widget_show_all(stuff.dlg);
+	if (tkwin) {
+	    /* this does't work :( */
+	    Window wid = Tk_WindowId(tkwin);
+	    GdkWindow *w = gdk_window_foreign_new(wid);
+	    gdk_window_set_transient_for(GDK_WINDOW(stuff.dlg), w);
+	}
 
         /*
          * Run our modal loop
          */
         oldMode = Tcl_SetServiceMode(TCL_SERVICE_ALL);
-        while (response == 0) {
+        while (stuff.response == 0) {
             Tcl_DoOneEvent(TCL_ALL_EVENTS);
         }
         Tcl_SetServiceMode(oldMode);
@@ -124,35 +238,11 @@ namespace eval ::choosefont {
         /*
          * Convert the Gtk+ font name into a Tcl font description
          */
-        gtk_dialog_response(GTK_DIALOG(dlg), &response);
-	g_printf("response %d\n", response);
-        if (1) //response == GTK_RESPONSE_OK)
+        if (stuff.response == 1)
         {
-            PangoFontDescription *fd;
-            const gchar *fontname;
-            Tcl_Obj *resObj = Tcl_NewListObj(0, NULL);
-
-            fontname = gtk_font_selection_dialog_get_font_name
-                (GTK_FONT_SELECTION_DIALOG(dlg));
-            fd = pango_font_description_from_string(fontname);
-
-            if (fd != NULL) {
-		Tcl_Obj *attrObj = Tcl_NewListObj(0, NULL);
-                Tcl_ListObjAppendElement(interp, resObj,
-                  Tcl_NewStringObj(pango_font_description_get_family(fd), -1));
-                Tcl_ListObjAppendElement(interp, resObj,
-		    Tcl_NewIntObj(pango_font_description_get_size(fd)/PANGO_SCALE));
-		if (pango_font_description_get_weight(fd) >= PANGO_WEIGHT_BOLD) {
-		    Tcl_ListObjAppendElement(interp, attrObj, Tcl_NewStringObj("bold", -1));
-		}
-		if (pango_font_description_get_style(fd) == PANGO_STYLE_ITALIC) {
-		    Tcl_ListObjAppendElement(interp, attrObj, Tcl_NewStringObj("italic", -1));
-		}
-		Tcl_ListObjAppendElement(interp, resObj, attrObj);
-	    }
-	    Tcl_SetObjResult(interp, resObj);
+	    Tcl_SetObjResult(interp, GetFontObjFromGtkWidget(stuff.dlg));
         }
-	gtk_widget_destroy(dlg);
+	gtk_widget_destroy(stuff.dlg);
         return TCL_OK;
     }
 }

@@ -4,9 +4,9 @@ Currently this isn't quite as automatic as I'd like.
 
 Build on Windows:
  tclkitsh critcl.kit -lib choosefont.tcl choose_w32.tcl
- copy choosefont.dll ix-win32\choosefont.dll
+ copy choosefont.dll ix86-win32\choosefont.dll
 
 Build on Linux (Gtk+):
  critcl -lib choosefont.tcl choose_gtk.tcl
- cp choosefont.so ix-linux/choosefont.so
+ cp choosefont.so ix86-linux/choosefont.so
 
