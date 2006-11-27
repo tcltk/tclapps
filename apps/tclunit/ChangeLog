@@ -1,3 +1,8 @@
+2006-11-26  Bob Techentin  <techentin@users.sourceforge.net>
+
+	*  tclunit.tcl:  Corrected bug 1513342 where failures counted
+	twice.
+	
 2005-10-30  Bob Techentin  <techentin@users.sourceforge.net>
 
 	* ChangeLog:

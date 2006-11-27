@@ -217,6 +217,7 @@ proc capture_test_output {chan} {
     #  If we're saving up test results...
     if { $::cto(capturing) } {
 	test_failed_continue $line
+	return
     }
 
     #  Check for start, pass and fail lines
