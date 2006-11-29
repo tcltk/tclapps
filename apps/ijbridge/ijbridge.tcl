@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.11 2006/10/28 21:06:47 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.12 2006/11/29 16:42:12 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -518,7 +518,7 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
         }
     }
 
-    if {[string equal $who "azbridge"]} {
+    if {[string equal $who "azbridge"] || [string equal $who "ircbridge"]} {
         regexp {^<(.*?)> (.*)$}  $msg -> who msg
         set emote [regexp {^\*{1,3} (\w+) (.*)$} $msg -> who msg]
     }
@@ -695,7 +695,8 @@ proc client::create { server port nk chan } {
     variable cn
     variable channel $chan
     variable nick $nk
-    variable whois ; array set whois {caller ""}
+    variable whois
+    array set whois {caller "" realname "" url "" channels "" status ""}
     set cn [::irc::connection]
 
     $cn registerevent 001 {
