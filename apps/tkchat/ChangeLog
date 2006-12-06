@@ -1,3 +1,8 @@
+2006-12-06  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Fixed the code that finds the real location of the
+	script and adds it to auto_path.
+
 2006-11-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* askleo/askleo.tcl: Broke out the askLEO code into a sub package.

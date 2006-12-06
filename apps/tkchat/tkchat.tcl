@@ -25,16 +25,12 @@ if {![info exists env(PATH)]} {
 # For development, it is very convenient to be able to drop the extra
 # packages into the CVS tree. Make sure we have the real location of 
 # the script and not a link.
-set base [file normalize [info script]]
-while {![catch {set link [file readlink $base]}]} {
-   if {[string equal $link $base]} { break }
-   set base $link
+set script [file normalize [info script]]
+while {[file type $script] eq "link"} {
+    set script [file join [file dirname $script] [file readlink $script]]
 }
-set base [file dirname [file normalize $base]]
-
-set auto_path [linsert $::auto_path 0 \
-                   $base \
-                   [file join $base lib]]
+set dir [file dirname [file normalize $script]]
+set auto_path [linsert $::auto_path 0 $dir [file join $dir lib]]
 
 package require Tcl 8.4		; # core Tcl
 package require Tk  8.4		; # core Tk
@@ -160,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.355 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.356 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -173,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.355 2006/11/09 13:58:00 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.356 2006/12/06 15:50:35 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6465,8 +6461,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/11/09 13:58:00 $
-	 # Last modified by: $Author: patthoyts $
+	 # Last modified on: $Date: 2006/12/06 15:50:35 $
+	 # Last modified by: $Author: rmax $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script
