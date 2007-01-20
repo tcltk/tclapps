@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.356 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.357 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.356 2006/12/06 15:50:35 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.357 2007/01/20 20:24:28 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2269,7 +2269,7 @@ proc ::tkchat::CreateGUI {} {
 
     bind .pane.names <Double-Button-1> break
     bind . <FocusIn> \
-	[list after 5000 [list after idle ::tkchat::ResetMessageCounter]]
+	[list after 500 [list after idle ::tkchat::ResetMessageCounter]]
     if { [lsearch [wm attributes .] -alpha] != -1 } {
 	bind Tkchat <FocusIn>  { ::tkchat::FocusInHandler %W }
 	bind Tkchat <FocusOut> { ::tkchat::FocusOutHandler %W }
@@ -2814,7 +2814,7 @@ proc ::tkchat::Help {} {
     wm transient $w .
     wm title $w "TkChat $rcsVersion Help"
     ${NS}::button $w.b -text "Dismiss" -command [list wm withdraw $w]
-    text $w.text -height 30 -bd 1 -width 100 -wrap word
+    text $w.text -height 32 -bd 1 -width 100 -wrap word
     pack $w.b -fill x -side bottom
     pack $w.text -fill both -side left -expand 1
     $w.text tag configure title -justify center -font {Courier -18 bold}
@@ -2856,8 +2856,14 @@ proc ::tkchat::Help {} {
     lappend txt [list "Open the specified TIP document in web browser"]
 
     lappend txt "/wiki <text>"
-    lappend txt [list "Do a wiki query with the remainder of the line"]
+    lappend txt [list "Do a Tclers wiki query with the remainder of the line"]
 
+    lappend txt "/wikipedia <text>"
+    lappend txt [list "Send a query to wikipedia (abbr. /wikip <text>)"]
+    
+    lappend txt "/wiktionary <text>"
+    lappend txt [list "Send a query to wikipedia dictionary (abbr. /wikid <text>)"]
+    
     lappend txt "/bug ?group? ?tracker? id"
     lappend txt [list "Open a sourceforge tracker item in browser"]
 
@@ -3371,7 +3377,7 @@ proc ::tkchat::checkCommand { msg } {
 	{^/bug[: ]} {
 	    doBug [split $msg ": "]
 	}
-	{^/wiki[: ]} {
+	{^/wiki[:\s]} {
 	    set q [http::formatQuery [string range $msg 6 end]]
 	    gotoURL http://wiki.tcl.tk/$q
 	}
@@ -3399,17 +3405,15 @@ proc ::tkchat::checkCommand { msg } {
 	    noisyUser $msg
 	}
 	{^/googlefight\s?} {
-	    set q {http://www.googlefight.com/cgi-bin/compare.pl}
-	    set n 1
-	    foreach word [lrange $msg 1 end] {
-		append q [expr {($n == 1) ? "?" : "&"}]
-		append q q$n=$word
-		incr n
-	    }
+	    set q {http://www.googlefight.com/index.php?lang=}
 	    if {[string match fr_* [msgcat::mclocale]]} {
-		append q &langue=fr
+		append q fr_FR
 	    } else {
-		append q &langue=us
+		append q en_GB
+	    }
+	    set n 0
+	    foreach word [lrange $msg 1 end] {
+		append q "&word[incr n]=$word"
 	    }
 	    gotoURL $q
 	}
@@ -3423,6 +3427,16 @@ proc ::tkchat::checkCommand { msg } {
                 addSystem .txt $err
             }
         }
+        {^/wik(?:id)|(?:tionary)[:\s]} {
+            regexp {^/wik(?:id)|(?:tionary)[:\s](.*)} $msg -> query
+	    set q [http::formatQuery search $query]
+	    gotoURL http://en.wiktionary.org/wiki/Special:Search?$q&go=Go
+	}
+	{^/wikip(?:edia)?[:\s]} {
+            regexp {^/wikip(?:edia)?[:\s](.*)} $msg -> query
+	    set q [http::formatQuery search $query]
+	    gotoURL http://en.wikipedia.org/wiki/Special:Search?$q&go=Go
+	}
 	default {
 	    set moreToGo 1
 	}
@@ -6461,8 +6475,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2006/12/06 15:50:35 $
-	 # Last modified by: $Author: rmax $
+	 # Last modified on: $Date: 2007/01/20 20:24:28 $
+	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script
