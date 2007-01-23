@@ -1,3 +1,7 @@
+2007-01-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Support whois information from IRC via the bridge.
+
 2007-01-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fixed the googlefight command and added wikipedia

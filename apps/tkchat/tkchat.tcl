@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.357 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.358 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.357 2007/01/20 20:24:28 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.358 2007/01/23 00:04:41 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6475,7 +6475,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/01/20 20:24:28 $
+	 # Last modified on: $Date: 2007/01/23 00:04:41 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7246,6 +7246,10 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		    set msgtype ACTION
 		} else {
 		    set msgtype NORMAL
+                    if {[string match "Realname*" $m(-body)]} {
+                        # We are handling IRC whois data - should do some 
+                        # caching if we can get the nick (mod the bridge)
+                    }
 		}
 		::tkchat::addMessage \
 			$w $color $from $m(-body) $msgtype end $timestamp
@@ -7896,9 +7900,9 @@ proc ::tkchat::updateOnlineNames {} {
 			[list NICK NICK-$nick URL-[incr ::URLID]]
 	    }
 	    .pane.names tag bind URL-$::URLID <Button-3> \
-		    [list ::tkchat::OnNamePopup $nick %X %Y]
+		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
 	    .pane.names tag bind URL-$::URLID <Control-Button-1> \
-		    [list ::tkchat::OnNamePopup $nick %X %Y]
+		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
 	}
 	.pane.names insert end "\n"
     }
@@ -7922,29 +7926,37 @@ proc ::tkchat::OnNameToggleVis { nick } {
     DoVis $nick
 }
 
-proc ::tkchat::OnNamePopup { nick x y } {
+proc ::tkchat::OnNamePopup { nick network x y } {
     global Options
 
     set m .pane.names_popup
     catch { destroy $m }
     menu $m -tearoff 0
-    if { [lsearch -exact $::tkchat::OnlineUsers(Jabber) $nick] != -1 } {
-	$m add command \
+    switch -exact -- $network {
+        "IRC" {
+            $m add command -label "User info" \
+                -command [list ::tkjabber::msgSend "whois $nick" \
+                              -type chat \
+                              -tojid ijchain@all.tclers.tk/ijbridge]
+        }
+        "Jabber" {
+            $m add command \
 		-label "Private Chat" \
 		-command [list ::tkjabber::getChatWidget \
-			$::tkjabber::conference/$nick $nick]
-	$m add command \
+                              $::tkjabber::conference/$nick $nick]
+            $m add command \
 		-label "User info" \
 		-command [list ::tkjabber::msgSend "/userinfo $nick"]
+        }
     }
     if { [info exists Options(Visibility,NICK-$nick)] } {
-	if { $Options(Visibility,NICK-$nick) } {
+        if { $Options(Visibility,NICK-$nick) } {
 	    $m add command -label "Show user"
 	} else {
 	    $m add command -label "Hide user"
 	}
 	$m entryconfigure last \
-		-command [list ::tkchat::OnNameToggleVis NICK-$nick]
+            -command [list ::tkchat::OnNameToggleVis NICK-$nick]
     }
     tk_popup $m $x $y
 }
