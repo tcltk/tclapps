@@ -34,3 +34,9 @@ IrcChannel     #IRCCHANNEL
 # client to FreenNode's nickserv.
 #
 IrcNickPasswd  IRCNICKSERVPASSWORD
+#
+# If you want to maintain a running statistics count between invocations
+# then specify a file path to maintain the counters. If this is an empty
+# string then no file will be used.
+#
+StatisticsFile ""

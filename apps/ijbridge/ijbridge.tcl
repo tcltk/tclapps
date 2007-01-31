@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.12 2006/11/29 16:42:12 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.13 2007/01/31 21:41:24 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -48,6 +48,7 @@ namespace eval ::ijbridge {
             IrcUser        {}
             IrcChannel     {}
             IrcNickPasswd  {}
+            StatisticsFile {}
         }
     }
 
@@ -61,6 +62,12 @@ namespace eval ::ijbridge {
     variable IrcUserList
     if {![info exists IrcUserList]} {
         set IrcUserList [list]
+    }
+
+    variable statid
+    variable stats
+    if {![info exists stats]} {
+        array set stats {}
     }
 }
 
@@ -128,6 +135,47 @@ proc ::ijbridge::reconnect {} {
     set delay [expr {5000 * $conn(retry)}]
     log::log warning "jabber client disconnected. retry in ${delay}ms"
     after $delay {if {[catch {::ijbridge::connect}]} {::ijbridge::reconnect}}
+}
+
+proc ::ijbridge::LoadStats {} {
+    variable Options
+    variable stats
+    catch {unset stats}
+    if {[file exists $Options(StatisticsFile)]} {
+        set f [open $Options(StatisticsFile) r]
+        while {[gets $f line] > 0} {
+            set stats([lindex $line 0]) [lindex $line 1]
+        }
+        close $f
+    }
+}
+
+proc ::ijbridge::UpdateStats {who length} {
+    variable stats
+    if {![info exists stats($who,c)]} {
+        set stats($who,c) [expr {wide($length)}]
+        set stats($who,l) 1
+    } else {
+        set stats($who,c) [expr {wide($stats($who,c)) + $length}]
+        set stats($who,l) [expr {wide($stats($who,l)) + 1}]
+    }
+    set stats($who,t) [clock seconds]
+}
+
+# Dump stats to file and schedule another dump in 1 hour
+proc ::ijbridge::DumpStats {{settimer 1}} {
+    variable Options
+    variable stats
+    variable statid
+    catch {after cancel $statid}
+    if {[string length $Options(StatisticsFile)] > 0} {
+        set f [open $Options(StatisticsFile) w]
+        foreach name [lsort [array names stats]] {
+            puts $f "$name $stats($name)"
+        }
+        close $f
+        set statid [after 3600000 ::ijbridge::DumpStats]
+    }
 }
 
 # ijbridge::OnConnect --
@@ -414,6 +462,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                     set a(-body) [string range $a(-body) 4 end]
                 }
                 foreach line [split $a(-body) \n] {
+                    UpdateStats $nick [string length $line]
                     if {$emote} {
                         xmit "PRIVMSG $::client::channel :\001ACTION $nick $line\001"
                     } else {
@@ -536,7 +585,8 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     }
 
     set msg [string map $xmlmap $msg]
-    
+    UpdateStats $who [string length $msg]
+
     if {$emote} {
         ijbridge::send -id "$Options(Conference)/$who" "* $who $msg"
     } else {
@@ -913,14 +963,20 @@ proc ::ijbridge::ReadControl {chan} {
 
 # -------------------------------------------------------------------------
 
-
 log::lvSuppressLE emerg 0
 log::lvSuppressLE debug 1
 
 proc Main {args} {
     global tcl_platform tcl_interactive tcl_service tk_version
     ::ijbridge::LoadConfig
-    
+    ::ijbridge::LoadStats
+
+    if {[string length $ijbridge::Options(JabberServer)] < 1} {
+        puts "Error: you MUST provide some configuration information in the\
+            ijbridge.conf file. See ijbridge.conf.sample"
+        exit 1
+    }
+
     # Setup control stream.
     if {$tcl_platform(platform) eq "unix" \
             && [llength [info commands tkcon]] == 0} {
@@ -939,6 +995,7 @@ proc Main {args} {
     
     # Connect to Jabber.
     eval [linsert $args 0 ::ijbridge::connect]
+    set ::ijbridge::statid [after 3600000 ::ijbridge::DumpStats]
     
     # Loop forever, dealing with Wish or Tclsh
     if {[llength [info commands tkcon]] == 0} {
@@ -953,6 +1010,9 @@ proc Main {args} {
             }
         }
     }
+    
+    # Record the statistics to file
+    ::ijbridge::DumpStats
 }
 
 if {!$tcl_interactive} {
