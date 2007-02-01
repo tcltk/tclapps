@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.14 2007/02/01 00:07:03 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.15 2007/02/01 12:58:36 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -313,7 +313,6 @@ proc ::ijbridge::OnClient {token cmd args} {
 proc ::ijbridge::OnRoster {roster type {jid {}} args} {
     variable conn
     log::log debug "OnRoster: $roster $type $jid $args"
-    puts "OnRoster: $roster $type $jid $args"
     switch -exact -- $type {
         presence {
         }
