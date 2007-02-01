@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.13 2007/01/31 21:41:24 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.14 2007/02/01 00:07:03 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -96,6 +96,10 @@ proc ::ijbridge::connect {{server {}} {port {}}} {
                               -iqcommand       [namespace origin OnIq] \
                               -messagecommand  [namespace origin OnMessage] \
                               -presencecommand [namespace origin OnPresence]]
+
+        # override the jabberlib version info query
+        $conn(jabber) iq_register get jabber:iq:version \
+            [namespace origin OnVersion] 40
 
         if {$server == {}} { set server $Options(JabberServer) }
         if {$port == {}} { set port $Options(JabberPort) }
@@ -208,7 +212,7 @@ proc ::ijbridge::OnLogin {token type query} {
     variable conn
     switch -exact -- $type {
         result {
-            $token send_presence -type invisible
+            $token send_presence -type available
             set conn(muc) [jlib::muc::new $token]
             $conn(muc) enter $Options(Conference) $Options(ConferenceNick) \
                 -command [namespace origin OnMucEnter]
@@ -230,6 +234,37 @@ proc ::ijbridge::OnLogin {token type query} {
 proc ::ijbridge::OnMucEnter {muc type args} {
     variable Options
     log::log debug "OnMucEnter $muc $type $args"
+}
+
+# ijbridge::OnVersion --
+#
+#	Override the jabberlib response to the jabber:iq:version
+#	query and return something a bit more specific.
+#
+proc ::ijbridge::OnVersion {token from subiq args} {
+    global tcl_platform
+    variable version
+
+    array set a {-id {}}
+    array set a $args
+    set opts {}
+    if {$a(-id) ne {}} { lappend opts -id $a(-id) }
+    set os $tcl_platform(os)
+    if {[info exists tcl_platform(osVersion)]} {
+        append os " $tcl_platform(osVersion)"
+    }
+    append os "/Tcl [info patchlevel]"
+    lappend opts -to $from
+    set subtags [list  \
+                     [wrapper::createtag name    -chdata "ijbridge"]  \
+                     [wrapper::createtag version -chdata $version]  \
+                     [wrapper::createtag os      -chdata $os] ]
+    set xmllist [wrapper::createtag query -subtags $subtags  \
+                     -attrlist {xmlns jabber:iq:version}]
+    eval {jlib::send_iq $token "result" [list $xmllist]} $opts
+
+    # Tell jlib's iq-handler that we handled the event.
+    return 1
 }
 
 # ijbridge::OnClient --
@@ -278,6 +313,7 @@ proc ::ijbridge::OnClient {token cmd args} {
 proc ::ijbridge::OnRoster {roster type {jid {}} args} {
     variable conn
     log::log debug "OnRoster: $roster $type $jid $args"
+    puts "OnRoster: $roster $type $jid $args"
     switch -exact -- $type {
         presence {
         }
@@ -573,15 +609,7 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     }
 
     if {[string match -nocase "${::client::nick}\[:,;. |\]*" $msg]} {
-        # The IRC user is addressing someone on the jabber side as
-        # 'ijchain' ... lets notify them that ijchain is a bot.
-        set notice "$::client::nick is a bot connecting this\
-                    $::client::channel to a Jabber chat-room \
-                    (xmpp:$Options(Conference)).\
-                    When you see \"<${::client::nick}> <nickname> ...\"\
-                    this really means that <nickname> said something,\
-                    not me!"
-        ijbridge::xmit "PRIVMSG $who :$notice"
+        return [BotCommand $who $msg]
     }
 
     set msg [string map $xmlmap $msg]
@@ -592,6 +620,84 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     } else {
         ijbridge::send -id "$Options(Conference)/$who" "<$who> $msg"
     }
+}
+
+# Here we can implement some bot commands. If we don't recognise a command
+# then post them a bot message.
+# eg:
+#  ijchain tip 100'  replies with url and subject of tip.
+#  ijchain bug 10123:  replies with url or bug
+#  ijchian what|what is maybe lookup text on wiki and feed url
+#  ijchain help
+#  ijchain faq
+proc ::ijbridge::BotCommand {who msg} {
+    puts "B '$who' '$msg'"
+    set cmd [lindex $msg 1]
+    if {[llength [info commands ::ijbridge::Bot_${cmd}]] != 0} {
+        set r [catch {::ijbridge::Bot_${cmd} $who $msg} err]
+        if {$r} { puts "ERROR: $err" }
+    } else {
+        Bot_unknown $who $msg
+    }
+}
+
+proc ::ijbridge::BotSay {line} {
+    variable Options
+    xmit "PRIVMSG $::client::channel :$line"
+    send "<$Options(ConferenceNick)> $line"
+}
+
+proc ::ijbridge::Bot_test {who msg} {
+    variable Options
+    BotSay "$who just tested the answer bot."
+}
+
+proc ::ijbridge::Bot_eggdrop {who msg} {
+    BotSay "This is not an eggdrop channel. Try \#eggtcl on efnet or see http://wiki.tcl.tk/eggdrop"
+}
+
+proc ::ijbridge::Bot_names {who msg} {
+    variable Options
+    variable conn
+    set names {}
+    foreach jid [$conn(muc) participants $Options(Conference)] {
+        lappend names [jid resource $jid]
+    }
+    ijbridge::xmit "PRIVMSG $who :[lsort $names]"
+}
+
+proc ::ijbridge::Bot_unknown {who msg} {
+    variable Options
+    set notice "$::client::nick is a bot connecting this\
+                $::client::channel to a Jabber chat-room \
+                (xmpp:$Options(Conference)).\
+                When you see \"<${::client::nick}> <nickname> ...\"\
+                this really means that <nickname> said something,\
+                not me!"
+    ijbridge::xmit "PRIVMSG $who :$notice"
+}
+
+# ijbridge::jid --
+#
+#	Utility function to manage access to parts of a JID
+#
+proc ::ijbridge::jid {part jid} {
+    set r {}
+    if {[regexp {^(?:([^@]*)@)?([^/]+)(?:/(.+))?} $jid \
+        -> node domain resource]} {
+        switch -exact -- $part {
+            node      { set r $node }
+            domain    { set r $domain }
+            resource  { set r $resource }
+            !resource { set r ${node}@${domain} }
+            jid       { set r $jid }
+            default {
+                return -code error "invalid part \"$part\":\
+                    must be one of node, domain, resource or jid."
+            }
+        }
+    }
+    return $r
 }
 
 # ijbridge::send --
