@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.15 2007/02/01 12:58:36 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.16 2007/02/01 21:58:11 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -518,8 +518,10 @@ proc ::ijbridge::OnMessageBody {token type args} {
                          names      returns a list of all IRC users\n\
                          version    returns the bridge code version\n\
                          rcsid      returns the RCS version of this file\n\
+                         stats      display chatroom statistics\n\
+                         last nick  how long since this user spoke\n\
                          whois nick get irc WHOIS information\n\
-                         kick nick  kick irc user\n"
+                         kick nick  kick irc user"
                 }
                 WHOIS* - whois* {
                     set ::client::whois(caller) $a(-from)
@@ -543,6 +545,29 @@ proc ::ijbridge::OnMessageBody {token type args} {
                     set user [lindex $a(-body) 1]
                     xmit "KICK $::client::channel $user"
                     send -user $a(-from) "Kicking $user."
+                }
+                STATS - stats - STATISTICS - statistics {
+                    variable stats
+                    set m [format {%- 30s %- 18s % 8s% 10s} \
+                               "User" "Last seen" "Lines" "Chars"]
+                    foreach u [lsort [array names stats *,t]] {
+                        set u [string range $u 0 end-2]
+                        append m "\n" [format {%- 30s %- 18s % 8d% 10d} \
+                                           [string range $u 0 30] \
+                                           [delta $stats($u,t)] \
+                                           $stats($u,l) $stats($u,c)]
+                    }
+                    send -user $a(-from) $m
+                }
+                LAST* - last* {
+                    variable stats
+                    set user [string trim [lindex $a(-body) 1]]
+                    if {[info exists stats($user,t)]} {
+                        set m "$user last seen [delta $stats($user,t)]"
+                    } else {
+                        set m "$user has never been seen"
+                    }
+                    send -user $a(-from) $m
                 }
                 /msg* {
                     if {[regexp {^/msg (\w+) (.*)$} $a(-body) -> who msg]} {
@@ -608,7 +633,8 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     }
 
     if {[string match -nocase "${::client::nick}\[:,;. |\]*" $msg]} {
-        return [BotCommand $who $msg]
+        set n [string length ${::client::nick}]
+        return [BotCommand $::client::channel $who [string range $msg [incr n] end]]
     }
 
     set msg [string map $xmlmap $msg]
@@ -629,43 +655,45 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
 #  ijchian what|what is maybe lookup text on wiki and feed url
 #  ijchain help
 #  ijchain faq
-proc ::ijbridge::BotCommand {who msg} {
-    puts "B '$who' '$msg'"
-    set cmd [lindex $msg 1]
+proc ::ijbridge::BotCommand {rt who msg} {
+    log::log debug "BotCmd: '$who' '$msg'"
+    set cmd [lindex $msg 0]
     if {[llength [info commands ::ijbridge::Bot_${cmd}]] != 0} {
-        set r [catch {::ijbridge::Bot_${cmd} $who $msg} err]
+        set r [catch {::ijbridge::Bot_${cmd} $rt $who $msg} err]
         if {$r} { puts "ERROR: $err" }
     } else {
-        Bot_unknown $who $msg
+        Bot_unknown $rt $who $msg
     }
 }
 
-proc ::ijbridge::BotSay {line} {
+proc ::ijbridge::BotSay {rt line} {
     variable Options
-    xmit "PRIVMSG $::client::channel :$line"
-    send "<$Options(ConferenceNick)> $line"
+    xmit "PRIVMSG $rt :$line"
+    if {$rt eq $::client::channel} {
+        send "<$Options(ConferenceNick)> $line"
+    }
 }
 
-proc ::ijbridge::Bot_test {who msg} {
+proc ::ijbridge::Bot_test {rt who msg} {
     variable Options
-    BotSay "$who just tested the answer bot."
+    BotSay $rt "$who just tested the answer bot."
 }
 
-proc ::ijbridge::Bot_eggdrop {who msg} {
-    BotSay "This is not an eggdrop channel. Try \#eggtcl on efnet or see http://wiki.tcl.tk/eggdrop"
+proc ::ijbridge::Bot_eggdrop {rt who msg} {
+    BotSay $rt "This is not an eggdrop channel. Try \#eggtcl on efnet or see http://wiki.tcl.tk/eggdrop"
 }
 
-proc ::ijbridge::Bot_names {who msg} {
+proc ::ijbridge::Bot_names {rt who msg} {
     variable Options
     variable conn
     set names {}
     foreach jid [$conn(muc) participants $Options(Conference)] {
         lappend names [jid resource $jid]
     }
-    ijbridge::xmit "PRIVMSG $who :[lsort $names]"
+    xmit "PRIVMSG $rt :[lsort $names]"
 }
 
-proc ::ijbridge::Bot_unknown {who msg} {
+proc ::ijbridge::Bot_unknown {rt who msg} {
     variable Options
     set notice "$::client::nick is a bot connecting this\
                 $::client::channel to a Jabber chat-room \
@@ -673,7 +701,29 @@ proc ::ijbridge::Bot_unknown {who msg} {
                 When you see \"<${::client::nick}> <nickname> ...\"\
                 this really means that <nickname> said something,\
                 not me!"
-    ijbridge::xmit "PRIVMSG $who :$notice"
+    xmit "PRIVMSG $rt :$notice"
+}
+
+# ::ijbridge::delta --
+#
+#       Returns the time difference between the given and current time
+#       as an english string.
+#
+proc ::ijbridge::delta {time} {
+    set r $time
+    catch {
+        set delta [expr {[clock seconds] - $time}]
+        if {$delta < 60} {
+            set r "$delta secs ago"
+        } elseif {$delta < 3600} {
+            set r "[expr {$delta / 60}] mins ago"
+        } elseif {$delta < 86400} {
+            set r "[expr {$delta / 3600}] hours ago"
+        } else {
+            set r "[expr {$delta / 86400}] days ago"
+        }
+    }
+    return $r
 }
 
 # ijbridge::jid --
@@ -845,14 +895,24 @@ proc ::ijbridge::LoadConfig {} {
 # create a server connection and set up associated events
 
 proc client::create { server port nk chan } {
-    variable ::ijbridge::Options
-    variable ::ijbridge::IrcUserList
-    variable cn
     variable channel $chan
     variable nick $nk
     variable whois
     array set whois {caller "" realname "" url "" channels "" status ""}
-    set cn [::irc::connection]
+    variable cn [::irc::connection]
+
+    registerhandlers
+
+    $cn registerevent EOF "
+        ::log::log notice \"Disconnected from IRC\"
+        ::client::connect \$::client::cn $server $port
+    "
+
+    connect $cn $server $port
+}
+
+proc client::registerhandlers {} {
+    variable cn
 
     $cn registerevent 001 {
         # RPL_WELCOME
@@ -940,6 +1000,25 @@ proc client::create { server port nk chan } {
         }
     }
 
+    $cn registerevent PRIVMSG {
+        if {[catch {
+            if { [string equal [target] $client::channel] } {
+                set emote 0
+                set msg [msg]
+                if { [string match "\001*\001" [msg]] } {
+                    if { [regexp {^\001ACTION (.+)\001$} [msg] -> msg] } {
+                        set emote 1
+                    }
+                }
+                ijbridge::IrcToJabber [who] $msg $emote
+            } elseif {[string equal [target] $client::nick]} {
+                ::ijbridge::BotCommand [who] [who] [msg]
+            } else {
+                log::log debug "[action]:[who]:[target]:[msg]"
+            }
+        } err]} { log::log notice $err }
+    }
+
     $cn registerevent PART {
         variable ::ijbridge::IrcUserList
 	if { [target] eq $client::channel && [who] ne $client::nick } {
@@ -961,31 +1040,6 @@ proc client::create { server port nk chan } {
 	}
     }
 
-    $cn registerevent QUIT {
-        variable ::ijbridge::IrcUserList
-	if { [who] ne $::client::nick } {
-	    set IrcUserList \
-		    [lsearch -all -inline -exact -not $IrcUserList [who]]
-	    ijbridge::send "*** [who] leaves"
-	    if { [who] eq [string trimright $::client::nick 0123456789] } {
-		cmd-send "NICK [who]"
-	    }
-	}
-    }
-
-    $cn registerevent PRIVMSG {
-	if { [target] == $client::channel } {
-            set emote 0
-            set msg [msg]
-	    if { [string match "\001*\001" [msg]] } {
-	        if { [regexp {^\001ACTION (.+)\001$} [msg] -> msg] } {
-	            set emote 1
-	        }
-	    }
-            ijbridge::IrcToJabber [who] $msg $emote
-	}
-    }
-
     $cn registerevent NICK {
         variable ::ijbridge::IrcUserList
 	if { [who] eq $::client::nick } {
@@ -1000,12 +1054,17 @@ proc client::create { server port nk chan } {
 	}
     }
 
-    $cn registerevent EOF "
-        ::log::log notice \"Disconnected from IRC\"
-        ::client::connect \$::client::cn $server $port
-    "
-
-    connect $cn $server $port
+    $cn registerevent QUIT {
+        variable ::ijbridge::IrcUserList
+	if { [who] ne $::client::nick } {
+	    set IrcUserList \
+		    [lsearch -all -inline -exact -not $IrcUserList [who]]
+	    ijbridge::send "*** [who] leaves"
+	    if { [who] eq [string trimright $::client::nick 0123456789] } {
+		cmd-send "NICK [who]"
+	    }
+	}
+    }
 }
 
 # connect to the server and register
