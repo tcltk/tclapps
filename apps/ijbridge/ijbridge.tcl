@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.16 2007/02/01 21:58:11 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.17 2007/02/01 22:39:29 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -547,27 +547,10 @@ proc ::ijbridge::OnMessageBody {token type args} {
                     send -user $a(-from) "Kicking $user."
                 }
                 STATS - stats - STATISTICS - statistics {
-                    variable stats
-                    set m [format {%- 30s %- 18s % 8s% 10s} \
-                               "User" "Last seen" "Lines" "Chars"]
-                    foreach u [lsort [array names stats *,t]] {
-                        set u [string range $u 0 end-2]
-                        append m "\n" [format {%- 30s %- 18s % 8d% 10d} \
-                                           [string range $u 0 30] \
-                                           [delta $stats($u,t)] \
-                                           $stats($u,l) $stats($u,c)]
-                    }
-                    send -user $a(-from) $m
+                    send -user $a(-from) [Bot_stats $a(-from) $a(-body)]
                 }
                 LAST* - last* {
-                    variable stats
-                    set user [string trim [lindex $a(-body) 1]]
-                    if {[info exists stats($user,t)]} {
-                        set m "$user last seen [delta $stats($user,t)]"
-                    } else {
-                        set m "$user has never been seen"
-                    }
-                    send -user $a(-from) $m
+                    send -user $a(-from) [Bot_last $a(-from) $a(-body)]
                 }
                 /msg* {
                     if {[regexp {^/msg (\w+) (.*)$} $a(-body) -> who msg]} {
@@ -659,41 +642,76 @@ proc ::ijbridge::BotCommand {rt who msg} {
     log::log debug "BotCmd: '$who' '$msg'"
     set cmd [lindex $msg 0]
     if {[llength [info commands ::ijbridge::Bot_${cmd}]] != 0} {
-        set r [catch {::ijbridge::Bot_${cmd} $rt $who $msg} err]
-        if {$r} { puts "ERROR: $err" }
+        set r [catch {::ijbridge::Bot_${cmd} $who $msg} err]
+        if {$r} { puts "ERROR: $err" } else {BotSay $rt $err}
     } else {
-        Bot_unknown $rt $who $msg
+        BotSay $rt [Bot_unknown $who $msg]
     }
 }
 
-proc ::ijbridge::BotSay {rt line} {
+proc ::ijbridge::BotSay {rt msg} {
     variable Options
-    xmit "PRIVMSG $rt :$line"
+    foreach line [split $msg \n] {
+        xmit "PRIVMSG $rt :$line"
+    }
     if {$rt eq $::client::channel} {
-        send "<$Options(ConferenceNick)> $line"
+        send "<$Options(ConferenceNick)> $msg"
     }
 }
 
-proc ::ijbridge::Bot_test {rt who msg} {
-    variable Options
-    BotSay $rt "$who just tested the answer bot."
+proc ::ijbridge::Bot_help {who msg} {
+    set notice "Bot commands: "
+    foreach cmd [info commands ::ijbridge::Bot_*] {
+        set cmd [string range $cmd 16 end]
+        append notice $cmd " "
+    }
+    return $notice
 }
 
-proc ::ijbridge::Bot_eggdrop {rt who msg} {
-    BotSay $rt "This is not an eggdrop channel. Try \#eggtcl on efnet or see http://wiki.tcl.tk/eggdrop"
+proc ::ijbridge::Bot_test {who msg} {
+    return "$who just tested the answer bot."
 }
 
-proc ::ijbridge::Bot_names {rt who msg} {
+proc ::ijbridge::Bot_eggdrop {who msg} {
+    return "This is not an eggdrop channel. Try \#eggtcl on efnet or see http://wiki.tcl.tk/eggdrop"
+}
+
+proc ::ijbridge::Bot_names {who msg} {
     variable Options
     variable conn
     set names {}
     foreach jid [$conn(muc) participants $Options(Conference)] {
         lappend names [jid resource $jid]
     }
-    xmit "PRIVMSG $rt :[lsort $names]"
+    return [lsort $names]
 }
 
-proc ::ijbridge::Bot_unknown {rt who msg} {
+proc ::ijbridge::Bot_stats {who msg} {
+    variable stats
+    set m [format {%- 30s %- 18s % 8s% 10s} \
+               "User" "Last seen" "Lines" "Chars"]
+    foreach u [lsort [array names stats *,t]] {
+        set u [string range $u 0 end-2]
+        append m "\n" [format {%- 30s %- 18s % 8d% 10d} \
+                           [string range $u 0 30] \
+                           [delta $stats($u,t)] \
+                           $stats($u,l) $stats($u,c)]
+    }
+    return $m
+}
+
+proc ::ijbridge::Bot_last {who msg} {
+    variable stats
+    set user [string trim [lindex $msg 1]]
+    if {[info exists stats($user,t)]} {
+        set m "$user last seen [delta $stats($user,t)]"
+    } else {
+        set m "$user has never been seen"
+    }
+    return $m
+}
+
+proc ::ijbridge::Bot_unknown {who msg} {
     variable Options
     set notice "$::client::nick is a bot connecting this\
                 $::client::channel to a Jabber chat-room \
@@ -701,7 +719,7 @@ proc ::ijbridge::Bot_unknown {rt who msg} {
                 When you see \"<${::client::nick}> <nickname> ...\"\
                 this really means that <nickname> said something,\
                 not me!"
-    xmit "PRIVMSG $rt :$notice"
+    return $notice
 }
 
 # ::ijbridge::delta --
