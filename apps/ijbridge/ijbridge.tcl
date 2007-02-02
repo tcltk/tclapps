@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.20 2007/02/02 00:40:31 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.21 2007/02/02 00:45:24 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -524,7 +524,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                          kick nick  kick irc user"
                 }
                 WHOIS* - whois* {
-                    array set whois {nick "" caller "" realname "" url "" channels "" status ""}
+                    array set whois {nick "" caller "" realname "" url "" channels "" status "" host ""}
                     set ::client::whois(caller) $a(-from)
                     set ::client::whois(nick) [string range $a(-body) 6 end]
                     xmit $::client::whois(nick)
@@ -916,7 +916,7 @@ proc client::create { server port nk chan } {
     variable channel $chan
     variable nick $nk
     variable whois
-    array set whois {nick "" caller "" realname "" url "" channels "" status ""}
+    array set whois {nick "" caller "" realname "" url "" channels "" status "" host ""}
     variable cn [::irc::connection]
 
     registerhandlers
@@ -986,7 +986,7 @@ proc client::registerhandlers {} {
             append info "Channels: $whois(channels)\n"
             append info "Status: $whois(status)"
             if {[info exists stats($whois(nick),t)]} {
-                append info "Last seen: [ijbridge::delta $stats($whois(nick),t)]"
+                append info "\nLast seen: [ijbridge::delta $stats($whois(nick),t)]"
             }
             ::ijbridge::send -user $whois(caller) $info
         }
