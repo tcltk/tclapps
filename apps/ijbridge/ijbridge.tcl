@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.19 2007/02/02 00:23:18 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.20 2007/02/02 00:40:31 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -524,6 +524,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                          kick nick  kick irc user"
                 }
                 WHOIS* - whois* {
+                    array set whois {nick "" caller "" realname "" url "" channels "" status ""}
                     set ::client::whois(caller) $a(-from)
                     set ::client::whois(nick) [string range $a(-body) 6 end]
                     xmit $::client::whois(nick)
