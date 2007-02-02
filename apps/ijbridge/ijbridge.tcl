@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.17 2007/02/01 22:39:29 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.18 2007/02/02 00:07:13 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -547,7 +547,19 @@ proc ::ijbridge::OnMessageBody {token type args} {
                     send -user $a(-from) "Kicking $user."
                 }
                 STATS - stats - STATISTICS - statistics {
-                    send -user $a(-from) [Bot_stats $a(-from) $a(-body)]
+                    # This is not done as a bot command as it floods irc
+                    # too much and gets the bot kicked by freenode.
+                    variable stats
+                    set m [format {%- 30s %- 18s % 8s% 10s} \
+                               "User" "Last seen" "Lines" "Chars"]
+                    foreach u [lsort [array names stats *,t]] {
+                        set u [string range $u 0 end-2]
+                        append m "\n" [format {%- 30s %- 18s % 8d% 10d} \
+                                           [string range $u 0 30] \
+                                           [delta $stats($u,t)] \
+                                           $stats($u,l) $stats($u,c)]
+                    }
+                    send -user $a(-from) $m
                 }
                 LAST* - last* {
                     send -user $a(-from) [Bot_last $a(-from) $a(-body)]
@@ -684,20 +696,6 @@ proc ::ijbridge::Bot_names {who msg} {
         lappend names [jid resource $jid]
     }
     return [lsort $names]
-}
-
-proc ::ijbridge::Bot_stats {who msg} {
-    variable stats
-    set m [format {%- 30s %- 18s % 8s% 10s} \
-               "User" "Last seen" "Lines" "Chars"]
-    foreach u [lsort [array names stats *,t]] {
-        set u [string range $u 0 end-2]
-        append m "\n" [format {%- 30s %- 18s % 8d% 10d} \
-                           [string range $u 0 30] \
-                           [delta $stats($u,t)] \
-                           $stats($u,l) $stats($u,c)]
-    }
-    return $m
 }
 
 proc ::ijbridge::Bot_last {who msg} {
