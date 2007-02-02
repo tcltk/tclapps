@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.18 2007/02/02 00:07:13 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.19 2007/02/02 00:23:18 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -525,8 +525,9 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 }
                 WHOIS* - whois* {
                     set ::client::whois(caller) $a(-from)
-                    xmit "USERHOST [string range $a(-body) 6 end]"
-                    xmit "WHOIS [string range $a(-body) 6 end]"
+                    set ::client::whois(nick) [string range $a(-body) 6 end]
+                    xmit $::client::whois(nick)
+                    xmit "WHOIS $::client::whois(nick)"
                 }
                 NAMES* - names* {
                     xmit "NAMES $::client::channel"
@@ -914,7 +915,7 @@ proc client::create { server port nk chan } {
     variable channel $chan
     variable nick $nk
     variable whois
-    array set whois {caller "" realname "" url "" channels "" status ""}
+    array set whois {nick "" caller "" realname "" url "" channels "" status ""}
     variable cn [::irc::connection]
 
     registerhandlers
@@ -977,11 +978,15 @@ proc client::registerhandlers {} {
     $cn registerevent 302 {set ::client::whois(host) [msg]}
     $cn registerevent 318 {
         variable ::client::whois
+        variable ::ijbridge::stats
         if {[string length $whois(caller)] > 0} {
             set info "Realname: $whois(realname)\n"
             append info "Host: $whois(host)\n"
             append info "Channels: $whois(channels)\n"
             append info "Status: $whois(status)"
+            if {[info exists stats($whois(nick),t)]} {
+                append info "Last seen: [ijbridge::delta $stats($whois(nick),t)]"
+            }
             ::ijbridge::send -user $whois(caller) $info
         }
         array set whois {caller "" realname "" url "" channels "" status ""}
