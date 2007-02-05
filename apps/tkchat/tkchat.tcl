@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.358 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.359 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.358 2007/01/23 00:04:41 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.359 2007/02/05 14:34:48 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2205,6 +2205,7 @@ proc ::tkchat::CreateGUI {} {
     if {[llength [package provide askleo]] > 0} {
         bind .txt <Shift-Button-3> { ::dict.leo.org::askLEOforSelection }
     }
+    bind .txt <Button-2> ::tkchat::PasteDlg
 
     # user display
     ScrolledWidget text .pane.names 0 1\
@@ -6475,8 +6476,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/01/23 00:04:41 $
-	 # Last modified by: $Author: patthoyts $
+	 # Last modified on: $Date: 2007/02/05 14:34:48 $
+	 # Last modified by: $Author: rmax $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script
@@ -8440,9 +8441,12 @@ proc tkchat::PasteDlg {} {
     set cancel [${NS}::button $f3.cancel -text [msgcat::mc Cancel] \
                     -default normal \
                     -command [list set [namespace current]::$wid cancel]]
-    catch {
-        if {[string length [set data [clipboard get]]] > 0} {
-            $f.txt insert end $data {}
+
+    foreach s {PRIMARY CLIPBOARD} {
+	set failed [catch {selection get -selection $s} string]
+	if {!$failed && [string length $string] > 0} {
+            $f.txt insert end $string {}
+	    break
         }
     }
     bind $dlg <Key-Escape> [list $cancel invoke]
