@@ -2,6 +2,7 @@
 
 	* tkchat.tcl: Make use of tooltip package to show url links. Load
 	TIP index and provide tooltip titles for tip links.
+	(::tkchat::ChangeColors): Removed typo.
 
 2007-02-05  Reinhard Max  <max@suse.de>
 

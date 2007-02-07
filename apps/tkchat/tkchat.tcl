@@ -157,7 +157,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.360 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.361 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -170,7 +170,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.360 2007/02/07 02:28:26 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.361 2007/02/07 23:21:54 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -932,7 +932,6 @@ proc ::tkchat::parseStr {str} {
 	    set str $post
 	}
         while {[regexp -- {^(.*?)[Tt][Ii][Pp]\s?\#?(\d+)(.*?)$} $str -> pre id post]} {
-            puts stderr [list $pre $id $post]
             if {[string length $pre]} { lappend out $pre {} {} }
             if {[info exists TipIndex($id)]} {set tt $TipIndex($id)} else {set tt ""}
             lappend out "tip $id" "http://tip.tcl.tk/$id" $tt
@@ -4201,7 +4200,7 @@ proc ::tkchat::ChangeColors {} {
     grid [label $f.offline -text "Offline Users" -font SYS] - - -
     foreach nick $Options(NickList) {
 	set nick [lindex $nick 0]
-	if { [lsearch -exact $UserList) $nick] == -1 } {
+	if { [lsearch -exact $UserList $nick] == -1 } {
 	    buildRow $f NICK-$nick $nick
 	}
     }
@@ -6491,7 +6490,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/02/07 02:28:26 $
+	 # Last modified on: $Date: 2007/02/07 23:21:54 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -8428,7 +8427,7 @@ proc ::tkchat::GetTipIndexDone {tok} {
     variable TipIndex
     set data [string map [list "\n" ""] [http::data $tok]]
     set start 0
-    while {[regexp -start $start -indices {<tr>.*?</tr>} $data indices]} {
+    while {[regexp -start $start -indices {<tr.*?</tr>} $data indices]} {
         set chunk [string range $data [lindex $indices 0] [lindex $indices 1]]
         if {[regexp {TIP #(\d+)</font></a></td>} $chunk -> num]} {
             set chunk [regsub -all {.*?<font .*?>(.*?)</font></a></td>} $chunk "\\1\ufffe"]
