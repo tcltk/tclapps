@@ -44,13 +44,14 @@ package require base64		; # tcllib
 catch {package require tls}	; # tls (optional)
 catch {package require choosefont};# font selection (optional) 
 catch {package require askleo};# german translations (options)
- 
+
 package require sha1		; # tcllib
 package require jlib		; # jlib
 package require browse		; # jlib
 package require muc		; # jlib
 
 catch {package require khim}    ; # khim (optional)
+catch {package require tooltip 1.2};# tooltips (optional)  
 
 if { ![catch { tk inactive }] } {
     # Idle detection built into tk8.5a3
@@ -156,7 +157,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.359 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.360 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +170,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.359 2007/02/05 14:34:48 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.360 2007/02/07 02:28:26 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -493,6 +494,8 @@ proc ::tkchat::LoadHistory {} {
 	set url "$Options(JabberLogs)/?pattern=*.tcl"
 	GetHistLogIdx $url
     }
+    
+    GetTipIndex
 }
 
 proc ::tkchat::InsertHistoryMark {} {
@@ -912,23 +915,31 @@ proc ::tkchat::parseStr {str} {
 	lappend sList $str ""
     }
     set out {}
+    variable TipIndex
     # Assume any 6 or 7-digit sequence is a SF bug id and make URLs for them
     foreach {str url} $sList {
 	if {[string length $url]} {
-	    lappend out $str $url
+	    lappend out $str $url {}
 	    continue
 	}
 	while {[regexp -- {^(.*?)(\m[0-9]{6,7}\M)(.*?)$} \
 		    $str -> pre id post]} {
 	    if {[string length $pre]} {
-		lappend out $pre ""
+		lappend out $pre {} {}
 	    }
 	    set url "http://sourceforge.net/support/tracker.php?aid=$id"
-	    lappend out $id $url
+	    lappend out $id $url $url
 	    set str $post
 	}
+        while {[regexp -- {^(.*?)[Tt][Ii][Pp]\s?\#?(\d+)(.*?)$} $str -> pre id post]} {
+            puts stderr [list $pre $id $post]
+            if {[string length $pre]} { lappend out $pre {} {} }
+            if {[info exists TipIndex($id)]} {set tt $TipIndex($id)} else {set tt ""}
+            lappend out "tip $id" "http://tip.tcl.tk/$id" $tt
+            set str $post
+        }
 	if {[string length $str]} {
-	    lappend out $str ""
+	    lappend out $str {} {}
 	}
     }
     return $out
@@ -1077,7 +1088,7 @@ proc ::tkchat::addMessage \
     variable MessageHooks
 
     array set opts $extraOpts
-
+            
     #for colors, it is better to extract the displayed nick from the one used
     #for tags.
     set displayNick $nick
@@ -1117,10 +1128,14 @@ proc ::tkchat::addMessage \
     if { [info exists opts(nolog)] } {
 	lappend tags [list NOLOG-$nick NOLOG]
     }
-    foreach { str url } [parseStr $msg] {
+    set usett [llength [package provide tooltip]]
+    foreach { str url tt } [parseStr $msg] {
 	if { $url ne "" } {
 	    set urltag [concat $tags URL URL-[incr ::URLID]]
 	    $w tag bind URL-$::URLID <Button-1> [list ::tkchat::gotoURL $url]
+            if {$usett && [string length $tt] > 0} {
+                tooltip::tooltip $w -tag URL-$::URLID $tt
+            }
 	} else {
 	    set urltag $tags
 	}
@@ -1523,7 +1538,7 @@ proc ::tkchat::showInfo {title str} {
     $t.txt tag configure URL -underline 1
     $t.txt tag bind URL <Enter> [list $t.txt configure -cursor hand2]
     $t.txt tag bind URL <Leave> [list $t.txt configure -cursor left_ptr]
-    foreach {str url} [parseStr $str] {
+    foreach {str url tt} [parseStr $str] {
 	if { $url eq "" } {
 	    $t.txt insert end "$str " INFO
 	} else {
@@ -6476,8 +6491,8 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/02/05 14:34:48 $
-	 # Last modified by: $Author: rmax $
+	 # Last modified on: $Date: 2007/02/07 02:28:26 $
+	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
 	 # root Tcl interpreter of an OOMMF application.  It calls on a script
@@ -8400,6 +8415,28 @@ proc ::tkjabber::autoStatus {} {
 	return
     }
     set autoStatusAfterId [after 1000 ::tkjabber::autoStatus]
+}
+
+# -------------------------------------------------------------------------
+
+proc ::tkchat::GetTipIndex {} {
+    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/medium.html \
+        -command [list [namespace origin fetchurldone] [namespace origin GetTipIndexDone]]
+}
+
+proc ::tkchat::GetTipIndexDone {tok} {
+    variable TipIndex
+    set data [string map [list "\n" ""] [http::data $tok]]
+    set start 0
+    while {[regexp -start $start -indices {<tr>.*?</tr>} $data indices]} {
+        set chunk [string range $data [lindex $indices 0] [lindex $indices 1]]
+        if {[regexp {TIP #(\d+)</font></a></td>} $chunk -> num]} {
+            set chunk [regsub -all {.*?<font .*?>(.*?)</font></a></td>} $chunk "\\1\ufffe"]
+            set parts [split $chunk \ufffe]
+            set TipIndex($num) [lindex $parts 3]
+        }
+        set start [lindex $indices 1]
+    }
 }
 
 # -------------------------------------------------------------------------
