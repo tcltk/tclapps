@@ -157,7 +157,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.361 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.362 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -170,7 +170,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.361 2007/02/07 23:21:54 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.362 2007/02/10 22:09:30 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3472,6 +3472,10 @@ proc ::tkchat::checkCommand { msg } {
 	{^/userinfo} {
 	    ::tkjabber::msgSend $msg
 	}
+        {^/last\s+\w+} {
+            ::tkjabber::msgSend [string range $msg 1 end] \
+                -type chat -user ijchain -echo 0
+        }
 	{^/log\s?} {
 	    if { $msg eq "/log" } {
 		# Set the global logging state
@@ -6490,7 +6494,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/02/07 23:21:54 $
+	 # Last modified on: $Date: 2007/02/10 22:09:30 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -6757,6 +6761,10 @@ proc ::tkjabber::connect {} {
 	# override the jabberlib version info query
 	::jlib::iq_register $jabber get jabber:iq:version \
 	    [namespace origin on_iq_version] 40
+	::jlib::iq_register $jabber get jabber:iq:last \
+	    [namespace origin on_iq_last] 40
+	::jlib::iq_register $jabber result jabber:iq:version \
+	    [namespace origin on_iq_version_result] 40
     }
 
     set have_tls [expr {[package provide tls] != {}}]
@@ -7709,6 +7717,7 @@ proc tkjabber::msgSend { msg args } {
 	-xlist {}
 	-attrs {}
 	-tojid {}
+        -echo  1
     }
 
     if { [string match "/userinfo *" $msg] } {
@@ -7742,8 +7751,10 @@ proc tkjabber::msgSend { msg args } {
 	    if { $nick eq $user } {
 		set user $person
 		set found 1
-		::tkchat::addMessage .txt "" $::Options(Username) \
+                if {$opts(-echo)} {
+                    ::tkchat::addMessage .txt "" $::Options(Username) \
 			" whispered to $nick: $msg" ACTION end 0
+                }
 		break
 	    }
 	}
@@ -7790,6 +7801,32 @@ proc tkjabber::msgSend { msg args } {
     }
     #-xlist [wrapper::createtag x -attrlist {xmlns http://tcl.tk/tkchat foo bar}]
 
+}
+
+proc ::tkjabber::get_participant_jid {user} {
+    variable conference
+    if {[string first @ $user] == -1} {
+        return ${conference}/$user
+    }
+    return $user
+}
+
+proc ::tkjabber::query_user {user what} {
+    array set q {
+        version  "jabber:iq:version"
+        last     "jabber:iq:last"
+        time     "jabber:iq:time"
+        discover "http://jabber.org/protocol/disco#info"
+    }
+    if {![info exists q($what)]} {
+        return -code error "invalid query \"$what\": must be one of\
+            [join [array names q] {, }]"
+    }
+        
+    set jid [get_participant_jid $user]
+    set xmllist [wrapper::createtag query -attrlist [list xmlns $q($what)]]
+    $tkjabber::jabber send_iq get [list $xmllist] -to $jid
+    return
 }
 
 # tkjabber::jid --
@@ -7962,6 +7999,10 @@ proc ::tkchat::OnNamePopup { nick network x y } {
             $m add command \
 		-label "User info" \
 		-command [list ::tkjabber::msgSend "/userinfo $nick"]
+
+            $m add command \
+                -label "Version info" \
+                -command [list ::tkjabber::query_user $nick version]
         }
     }
     if { [info exists Options(Visibility,NICK-$nick)] } {
@@ -8250,28 +8291,59 @@ proc ::tkjabber::back { status } {
 
 # -------------------------------------------------------------------------
 
+proc tkjabber::on_iq_last {token from subiq args} {
+    if {[idle::supported]} {
+        set opts [list -to $from]
+        array set a [concat -id {{}} $args]
+        if {$a(-id) ne {}} { lappend opts -id $a(-id) }
+        set xml [wrapper::createtag query \
+                     -attrlist [list xmlns jabber:iq:last
+                                seconds [idle::idletime]]]
+        eval [linsert $opts 0 $token send_iq result [list $xml]]
+        return 1 ;# handled
+    }
+    return 0 ;# report not handled
+}
+
 proc tkjabber::on_iq_version {token from subiq args} {
     global tcl_platform
-
-    array set a {-id {}}
-    array set a $args
-    set opts {}
+    array set a [concat -id {{}} $args]
+    set opts [list -to $from]
     if {$a(-id) ne {}} { lappend opts -id $a(-id) }
     set os $tcl_platform(os)
     if {[info exists tcl_platform(osVersion)]} {
 	append os " $tcl_platform(osVersion)"
     }
-    lappend opts -to $from
+    append os "/Tcl [info patchlevel]"
     set subtags [list  \
       [wrapper::createtag name    -chdata "Tkchat"]  \
       [wrapper::createtag version -chdata [package provide app-tkchat]]  \
       [wrapper::createtag os      -chdata $os] ]
     set xmllist [wrapper::createtag query -subtags $subtags  \
-      -attrlist {xmlns jabber:iq:version}]
-    eval {jlib::send_iq $token "result" [list $xmllist]} $opts
+                     -attrlist {xmlns jabber:iq:version}]
+    eval [linsert $opts 0 $token send_iq result [list $xmllist]]
+    return 1 ;# handled
+}
 
-    # Tell jlib's iq-handler that we handled the event.
-    return 1
+proc tkjabber::on_iq_version_result {token from xmllist args} {
+    variable conference
+    array set a [concat -id {{}} $args]
+    if {[jid !resource $from] eq $conference} {
+        if {[llength [package provide tooltip]] > 0} {
+            set nick [jid resource $from]
+            array set data {}
+            foreach sub [wrapper::getchildren $xmllist] {
+                set data([wrapper::gettag $sub]) [wrapper::getcdata $sub]
+            }
+            set ver ""
+            if {[info exists data(name)]} { append ver $data(name) }
+            if {[info exists data(version)]} { append ver " " $data(version) }
+            if {[info exists data(os)]} { append ver " : $data(os)" }
+            set tkchat::OnlineUsers(Jabber-$nick,version) $ver
+            tooltip::tooltip .pane.names -tag NICK-$nick $ver
+        }
+    }
+    return 1 ;# handled
 }
 
 # -------------------------------------------------------------------------
