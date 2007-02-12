@@ -157,7 +157,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.362 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.363 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -170,7 +170,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.362 2007/02/10 22:09:30 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.363 2007/02/12 22:30:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4543,7 +4543,7 @@ proc ::tkchat::saveRC {} {
     foreach option [lsort -dictionary [array names tmp]] {
 	lappend oplist [list $option $tmp($option)]
     }
-    if { ![catch { open $rcfile w 0600 } fd] } {
+    if { ![catch { open $rcfile [list WRONLY CREAT] 0600 } fd] } {
 	fconfigure $fd -encoding utf-8
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	puts $fd "array set Options \{"
@@ -4551,6 +4551,9 @@ proc ::tkchat::saveRC {} {
 	puts $fd "\}"
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	close $fd
+    } else {
+        tk_messageBox -icon error -title "Failed save" \
+            -message "Failed to save options to '$rcfile'\n$fd"
     }
 }
 
@@ -5403,7 +5406,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Visibility,TRAFFIC	0
 	WhisperIndicatorColor	#ffe0e0
     }
-    catch { set Defaults(Browser) $env(BROWSER) }
+    if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
     foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 } {
 	set Defaults(Color,$nick) [list 1 $clr [invClr $clr] $clr]
     }
@@ -6494,7 +6497,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/02/10 22:09:30 $
+	 # Last modified on: $Date: 2007/02/12 22:30:19 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -8596,14 +8599,14 @@ proc ::tkjabber::StoreMessage {from subject message} {
         if { [info exists env(HOME)] } {
             set filename [file join $env(HOME) .tkchat_msgs]
             catch {
-                set f [open $filename a+]
+                set f [open $filename a+ 0600]
                 fconfigure $f -encoding utf-8
                 set ts [clock format [clock seconds] \
                             -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]
                 set msg [regsub -all -line {^(>*From )} $message {>\1}]
                 set date [clock format [clock seconds] \
                               -format {%a %b %d %H:%M:%S} -gmt true]
-                puts $f "From $from $date\nDate: $ts\nSubject: $subject\n\n$msg"
+                puts $f "From $from $date\nDate: $ts\nSubject: $subject\n\n$msg\n"
                 close $f
             }
         }
