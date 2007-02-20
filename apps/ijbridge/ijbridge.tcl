@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.21 2007/02/02 00:45:24 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.22 2007/02/20 20:31:16 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -175,7 +175,7 @@ proc ::ijbridge::DumpStats {{settimer 1}} {
     if {[string length $Options(StatisticsFile)] > 0} {
         set f [open $Options(StatisticsFile) w]
         foreach name [lsort [array names stats]] {
-            puts $f "$name $stats($name)"
+            puts $f [list $name $stats($name)]
         }
         close $f
         set statid [after 3600000 ::ijbridge::DumpStats]
@@ -857,7 +857,7 @@ proc ::ijbridge::XmitFromQueue {} {
     ::log::log debug "sending from queue"
     $client::cn send $str
     # send next line
-    after 1000 [namespace origin XmitFromQueue]
+    after 1200 [namespace origin XmitFromQueue]
 }
 
 # ijbridge::Pop --
