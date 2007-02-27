@@ -157,7 +157,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.363 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.364 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -170,7 +170,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.363 2007/02/12 22:30:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.364 2007/02/27 10:14:56 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -933,7 +933,13 @@ proc ::tkchat::parseStr {str} {
 	}
         while {[regexp -- {^(.*?)[Tt][Ii][Pp]\s?\#?(\d+)(.*?)$} $str -> pre id post]} {
             if {[string length $pre]} { lappend out $pre {} {} }
-            if {[info exists TipIndex($id)]} {set tt $TipIndex($id)} else {set tt ""}
+            set tt ""
+            if {[info exists TipIndex] && $id < [llength $TipIndex] && $id >= 0} {
+                catch {
+                    array set tip [lindex $TipIndex $id]
+                    set tt $tip(Title)
+                }
+            }
             lappend out "tip $id" "http://tip.tcl.tk/$id" $tt
             set str $post
         }
@@ -2219,7 +2225,6 @@ proc ::tkchat::CreateGUI {} {
     if {[llength [package provide askleo]] > 0} {
         bind .txt <Shift-Button-3> { ::dict.leo.org::askLEOforSelection }
     }
-    bind .txt <Button-2> ::tkchat::PasteDlg
 
     # user display
     ScrolledWidget text .pane.names 0 1\
@@ -6497,7 +6502,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/02/12 22:30:19 $
+	 # Last modified on: $Date: 2007/02/27 10:14:56 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -8494,23 +8499,13 @@ proc ::tkjabber::autoStatus {} {
 # -------------------------------------------------------------------------
 
 proc ::tkchat::GetTipIndex {} {
-    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/medium.html \
+    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt \
         -command [list [namespace origin fetchurldone] [namespace origin GetTipIndexDone]]
 }
 
 proc ::tkchat::GetTipIndexDone {tok} {
     variable TipIndex
-    set data [string map [list "\n" ""] [http::data $tok]]
-    set start 0
-    while {[regexp -start $start -indices {<tr.*?</tr>} $data indices]} {
-        set chunk [string range $data [lindex $indices 0] [lindex $indices 1]]
-        if {[regexp {TIP #(\d+)</font></a></td>} $chunk -> num]} {
-            set chunk [regsub -all {.*?<font .*?>(.*?)</font></a></td>} $chunk "\\1\ufffe"]
-            set parts [split $chunk \ufffe]
-            set TipIndex($num) [lindex $parts 3]
-        }
-        set start [lindex $indices 1]
-    }
+    set TipIndex [http::data $tok]
 }
 
 # -------------------------------------------------------------------------
