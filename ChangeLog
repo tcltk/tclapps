@@ -1,3 +1,9 @@
+2007-03-07  Andreas Kupries  <andreask@activestate.com>
+
+	* apps/hexplode/hexplode.tcl: Added 'package require Tk' to always
+	  declare the dependency, for execution in starkits, starpacks, or
+	  explicitly from a tclsh.
+
 2005-10-31  Bob Techentin <techentin@users.sourceforge.net>
 
 	* apps/tclunit/*:  added to CVS.

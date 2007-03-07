@@ -8,13 +8,15 @@
 #
 # Copyright 1997, 1998 by Neil Winton. All rights reserved.
 #
-# RCS: @(#) $Id: hexplode.tcl,v 1.2 2003/10/24 22:42:09 andreas_kupries Exp $
+# RCS: @(#) $Id: hexplode.tcl,v 1.3 2007/03/07 20:15:10 andreas_kupries Exp $
 #
 # You may copy, modify and distribute this program freely -- but please
 # retain the above copyright statement and don't pretend that you wrote it!
 #
 # Restart with wish. Do not remove this --> \
 exec wish $0 ${1-"$@"}
+
+package require Tk ; # When called in a starkit or starpack, or explicit from a tclsh.
 
 ###
 ### Global Data
