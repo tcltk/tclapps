@@ -88,15 +88,17 @@ namespace eval ::tkchat {
     variable useClosebutton 0
     variable NS "::ttk"
     if {[llength [info commands ::ttk::*]] == 0} {
-        if {[catch {package require tile 0.7}]} {
-            set useTile 0
-            set NS "::tk"
-        } else {
+        if {![catch {package require tile 0.8}]} {
+            # we're all good
+        } elseif {![catch {package require tile 0.7}]} {
             # tile to ttk compatability
             interp alias {} ::ttk::style {} ::style
             interp alias {} ::ttk::setTheme {} ::tile::setTheme
             interp alias {} ::ttk::themes {} ::tile::availableThemes
             interp alias {} ::ttk::LoadImages {} ::tile::LoadImages
+        } else {
+            set useTile 0
+            set NS "::tk"
         }
     } else {
         # [PT]: experimental ttk styled pane closebutton.
@@ -148,16 +150,13 @@ if {$tcl_platform(platform) eq "windows"
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
     # This package also provides more efficient IP sockets on windows.
-    if {0 && ![catch {package require Iocpsock}]} {
-	rename ::socket ::socket1
-	interp alias {} ::socket {} ::socket2
-    }
+    catch {package require Iocpsock}
 }
 
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.364 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.365 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -170,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.364 2007/02/27 10:14:56 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.365 2007/03/17 00:01:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -403,7 +402,8 @@ proc ::tkchat::ShowStatusPage2 {} {
 
 proc ::tkchat::GetHistLogIdx {url} {
     if { [catch {
-        set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
+        set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8" \
+                      "Cache-Control" "no-cache" "Pragma" "no-cache"]
 	::http::geturl $url -headers $hdrs \
 		-command [list ::tkchat::fetchurldone ::tkchat::GotHistLogIdx]
     } msg] } then {
@@ -413,6 +413,8 @@ proc ::tkchat::GetHistLogIdx {url} {
 
 proc ::tkchat::GotHistLogIdx {tok} {
     set loglist {}
+    #array set meta [set [set tok](meta)]
+    log::log debug "history meta: [set [set tok](meta)]"
 
     set RE {<A HREF="([0-9\-%d]+\.tcl)">.*\s([0-9]+) bytes}
     foreach line [split [::http::data $tok] \n] {
@@ -437,7 +439,7 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 
     # fetch log
     ::log::log info "History: Fetch log \"$url\""
-    set hdrs [list "Accept-Charset" "utf-8"]
+    set hdrs [list "Accept-Charset" "utf-8" "Cache-Control" "no-cache" "Pragma" "no-cache"]
     set tok [::http::geturl $url -headers $hdrs]
 
     ::log::log info \
@@ -1152,7 +1154,7 @@ proc ::tkchat::addMessage \
 	    if { $i } {
 		# The first line has the timestamp, only
 		# subsequent lines need an extra tab char
-		::log::log debug "More than one line, add tabs"
+		#::log::log debug "More than one line, add tabs"
 		$w insert $mark \n $tags \t [list STAMP NICK-$nick] \t $tags
 	    }
 	    Insert $w $line $urltag $url $mark
@@ -6502,7 +6504,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/02/27 10:14:56 $
+	 # Last modified on: $Date: 2007/03/17 00:01:46 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -6776,6 +6778,11 @@ proc ::tkjabber::connect {} {
     }
 
     set have_tls [expr {[package provide tls] != {}}]
+    set socketCmd [info command ::socket]
+    if {[llength [package provide Iocpsock]] > 0} {
+        set socketCmd ::socket2 
+        if {$have_tls} {set tls::socketCmd [info command ::socket2]}
+    }
     if { [catch {
 	if { $Options(UseProxy) && [string length $Options(ProxyHost)] > 0 } {
 	    set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
@@ -6793,9 +6800,9 @@ proc ::tkjabber::connect {} {
 		if { $prt eq "" } {
 		    set prt $Options(JabberPort)
 		}
-		set socket [socket $srv $prt]
+		set socket [$socketCmd $srv $prt]
 	    } else {
-		set socket [socket $Options(JabberServer) $Options(JabberPort)]
+		set socket [$socketCmd $Options(JabberServer) $Options(JabberPort)]
 	    }
 	}
     } res] } {
@@ -8170,7 +8177,7 @@ proc ::tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
     if { [llength $args] > 0 } {
 	::log::log warning "Log incorrect log format."
     }
-    ::log::log debug "[clock format $timestamp] $nick :: $msg"
+    #::log::log debug "[clock format $timestamp] $nick :: $msg"
 }
 
 proc ::tkjabber::LoadHistoryLines {} {
@@ -8179,8 +8186,6 @@ proc ::tkjabber::LoadHistoryLines {} {
 
     set state [.txt cget -state]
     .txt configure -state normal
-
-    ::log::log debug tkjabber-LoadHistoryLines
 
     set count 0
     foreach entry $HistoryLines {
@@ -8499,7 +8504,7 @@ proc ::tkjabber::autoStatus {} {
 # -------------------------------------------------------------------------
 
 proc ::tkchat::GetTipIndex {} {
-    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt \
+    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt -timeout 15000 \
         -command [list [namespace origin fetchurldone] [namespace origin GetTipIndexDone]]
 }
 
