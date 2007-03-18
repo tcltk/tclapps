@@ -1,3 +1,9 @@
+2007-03-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: A number of themeing cleanups. Added a statusbar and
+	hooked in some connection status and SSL certificate dialog. Show
+	geturl progress during history loading.
+
 2007-03-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Make use of iocpsock for the XMPP link. Added
