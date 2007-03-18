@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.366 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.367 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.366 2007/03/18 00:44:21 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.367 2007/03/18 02:02:16 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6669,7 +6669,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/18 00:44:21 $
+	 # Last modified on: $Date: 2007/03/18 02:02:16 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7133,16 +7133,18 @@ proc tkjabber::CheckCertificate {} {
                 tkchat::addSystem .txt \
                     "SSL certificate expired on $cert(notAfter)" end ERROR
             }
-            array set O [split $cert(subject) "=,"]
-            array set I [split $cert(issuer) "=,"]
-            tkchat::addStatus SSL $O(CN)
+            array set O [split [string trim $cert(subject) /] "/,="]
+            array set I [split [string trim $cert(issuer) /] "/,="]
+            if {[info exists O(CN)]} {
+                tkchat::addStatus SSL $O(CN)
+            }
             .status.ssl configure -image ::tkchat::img::link_secure
             if {[info exists I(O)] 
                 && [llength [package provide tooltip]] > 0} {
                 set tip "Authenticated by $I(O)"
                 tooltip::tooltip .status.ssl $tip
                 bind .status.ssl <Double-Button-1> \
-                    [list tkchat::ShowCertificate $info]
+                    [list tkchat::ShowCertificate [array get cert]]
             }
         } err]} {
             log::log notice "SSL Warning: $err"
@@ -8723,8 +8725,16 @@ proc ::tkchat::ShowCertificate {info} {
     }
     variable NS
     array set C $info
-    array set O [split $C(subject) "=,"]
-    array set I [split $C(issuer) "=,"]
+    if {[string match /* $C(subject)]} {
+        # older tls used / as a record separator
+        array set O [split [string trim $C(subject) /] "/,="]
+        array set I [string map {\ufffe http://}\
+                         [split [string map {http:// \ufffe}\
+                                     [string trim $C(issuer) /]] "/,="]]
+    } else {
+        array set O [split $C(subject) ",="]
+        array set I [split $C(issuer) ",="]
+    }
     set top [toplevel .certificate -class Dialog]
     set dlg [${NS}::frame $top.f]
     wm withdraw $top
