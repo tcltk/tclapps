@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.367 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.368 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.367 2007/03/18 02:02:16 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.368 2007/03/18 13:55:53 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2474,7 +2474,11 @@ proc ::tkchat::CreateGUI {} {
         ttk::label $st.ssl -anchor w -compound right \
             -image ::tkchat::img::link_insecure \
             -textvariable [namespace current]::Status(SSL)
-        ttk::sizegrip $st.sg
+        if {[llength [info commands ::ttk::xsizegrip]] > 0} {
+            ttk::sizegrip $st.sg
+        } else {
+            ttk::frame $st.sg -width 16
+        }
         grid $st.pane0 $st.sep0 $st.pane1 $st.sep1 $st.ssl \
             $st.sg -sticky news
         grid columnconfigure $st 0 -weight 1
@@ -6669,7 +6673,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/18 02:02:16 $
+	 # Last modified on: $Date: 2007/03/18 13:55:53 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the

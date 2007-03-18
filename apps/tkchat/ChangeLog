@@ -5,6 +5,8 @@
 	geturl progress during history loading.
 	(::tkchat::ShowCertificate): It seems some versions of tls/openssl
 	use a different delimiter for the certificate records.
+	(::tkchat::CreateGUI): Add check for the ttk::sizegrip widget and
+	replace with a frame if not available. (reported by Miguel Sofer).
 
 2007-03-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
