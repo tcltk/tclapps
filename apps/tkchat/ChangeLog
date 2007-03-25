@@ -1,3 +1,10 @@
+2007-03-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed a missing backslash in iq handler. Some
+	additional status messages and namespace qualifying. Prefer
+	panedwindow to paned widget in tile. Add aqua spacer for
+	non-tile. Show url's in status bar.
+
 2007-03-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: A number of themeing cleanups. Added a statusbar and

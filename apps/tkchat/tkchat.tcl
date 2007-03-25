@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.369 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.370 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.369 2007/03/18 22:38:39 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.370 2007/03/25 09:44:21 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -330,7 +330,7 @@ proc ::tkchat::buildProxyHeaders {} {
 	if {![info exists Options(ProxyAuth)]} {
 	    set Options(ProxyAuth) [list "Proxy-Authorization" \
 		    [concat "Basic" \
-		    [base64::encode \
+		    [::base64::encode \
 		    $Options(ProxyUsername):$Options(ProxyPassword)]]]
 	}
 	set auth $Options(ProxyAuth)
@@ -2320,20 +2320,20 @@ proc ::tkchat::CreateGUI {} {
 
     # a pane for the main display (chat window and users window):
     if {$useTile} {
-        if {[llength [info commands ttk::panedwindow]] != 0} {
-            ttk::panedwindow .pane -orient horizontal
+        if {[llength [info commands ::ttk::panedwindow]] != 0} {
+            ::ttk::panedwindow .pane -orient horizontal
         } else {
-            ttk::paned .pane -orient horizontal
+            ::ttk::paned .pane -orient horizontal
         }
     } else {
 	panedwindow .pane -sashpad 4 -sashrelief ridge
     }
     # another pane dividing the chat window:
     if {$useTile} {
-        if {[llength [info commands ttk::panedwindow]] != 0} {
-            ttk::panedwindow .pane2 -orient vertical
+        if {[llength [info commands ::ttk::panedwindow]] != 0} {
+            ::ttk::panedwindow .pane2 -orient vertical
         } else {
-            ttk::paned .pane2 -orient vertical
+            ::ttk::paned .pane2 -orient vertical
         }
     } else {
 	panedwindow .pane2 -sashpad 4 -sashrelief ridge -orient vertical
@@ -2455,9 +2455,13 @@ proc ::tkchat::CreateGUI {} {
     } else {
 	.pane add $Options(NamesWin) -sticky news
     }
+    set lower_row [list .ml .eMsg .post .mb]
+    if {!$useTile && [tk windowingsystem] eq "aqua"} {
+        lappend lower_row [frame .spacer -width 16]
+    }
     grid .pane - -sticky news -padx 1 -pady 2
     grid .btm  - -sticky news
-    grid .ml .eMsg .post .mb -in .btm -sticky ews -padx 2 -pady 2
+    eval grid $lower_row [list -in .btm -sticky ews -padx 2 -pady 2]
     grid configure .eMsg -sticky ew
 
     if {$useTile} {
@@ -2631,8 +2635,8 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure STAMP -font STAMP -foreground "#[getColor MainFG]"
     $txt tag configure SINGLEDOT
     $txt tag configure BOOKMARK
-    $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
-    $txt tag bind URL <Leave> [list $txt configure -cursor {}]
+    $txt tag bind URL <Enter> [list [namespace origin onEnterURL] %W %x %y]
+    $txt tag bind URL <Leave> [list [namespace origin onLeaveURL] %W %x %y]
 
     # Adjust tag ordering for hidden text
     foreach tag $Options(ElideTags) {
@@ -2648,6 +2652,28 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     bind $txt <Down>	 [list $txt yview scroll  1 units]
     bind $txt <Button-4> [list $txt yview scroll -1 units]
     bind $txt <Button-5> [list $txt yview scroll  1 units]
+}
+
+proc ::tkchat::onEnterURL {w x y} {
+    if {[winfo exists .status]} {
+        set tags [$w tag names @$x,$y]
+        if {[set ndx [lsearch -glob $tags URL-*]] != -1} {
+            set url ""
+            foreach {b e} [$w tag ranges [lindex $tags $ndx]] {
+                append url [$w get $b $e]
+            }
+            if {[string length $url] > 0} {
+                addStatus 0 $url
+            }
+        }
+    }
+    $w configure -cursor hand2
+}
+proc ::tkchat::onLeaveURL {w x y} {
+    if {[winfo exists .status]} {
+        addStatus 0 ""
+    }
+    $w configure -cursor {}
 }
 
 proc ::tkchat::SetChatWindowBindings { parent jid } {
@@ -2672,7 +2698,11 @@ proc ::tkchat::CreateNewChatWindow { parent } {
     variable NS
 
     if {$useTile} {
-	ttk::paned $parent.pane
+        if {[llength [info commands ::ttk::panedwindow]] != 0} {
+            ::ttk::panedwindow $parent.pane -orient vertical
+        } else {
+            ::ttk::paned $parent.pane -orient vertical
+        }
     } else {
 	panedwindow $parent.pane -sashpad 4 -sashrelief ridge
     }
@@ -6673,7 +6703,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/18 22:38:39 $
+	 # Last modified on: $Date: 2007/03/25 09:44:21 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -8508,8 +8538,8 @@ proc tkjabber::on_iq_last {token from subiq args} {
         array set a [concat -id {{}} $args]
         if {$a(-id) ne {}} { lappend opts -id $a(-id) }
         set xml [wrapper::createtag query \
-                     -attrlist [list xmlns jabber:iq:last
-                                seconds [idle::idletime]]]
+                     -attrlist [list xmlns jabber:iq:last \
+                                    seconds [idle::idletime]]]
         eval [linsert $opts 0 $token send_iq result [list $xml]]
         return 1 ;# handled
     }
@@ -8565,6 +8595,7 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
     global Options
     variable have_tls
 
+    ::tkchat::addStatus 0 "Connecting to proxy $proxyserver:$proxyport"
     set sock [socket $proxyserver $proxyport]
     fconfigure $sock -blocking 0 -buffering line -translation crlf
 
@@ -8591,8 +8622,11 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
 
     if {$code >= 200 && $code < 300} {
 	if {$have_tls && $Options(UseJabberSSL) eq "ssl"} {
-	    tls::import $sock
-	}
+            ::tkchat::addStatus 0 "Securing network link"
+	    ::tls::import $sock
+	} else {
+            ::tkchat::addStatus 0 "Connected"
+        }
     } else {
 	error "proxy connect failed: $block"
     }
@@ -8705,7 +8739,9 @@ proc ::tkjabber::autoStatus {} {
 
 proc ::tkchat::GetTipIndex {} {
     http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt -timeout 15000 \
-        -command [list [namespace origin fetchurldone] [namespace origin GetTipIndexDone]]
+        -progress ::tkchat::Progress \
+        -command [list [namespace origin fetchurldone] \
+                      [namespace origin GetTipIndexDone]]
 }
 
 proc ::tkchat::GetTipIndexDone {tok} {
