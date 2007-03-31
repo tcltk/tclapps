@@ -2,6 +2,8 @@
 
 	* tkchat.tcl: Add administrative control from tkchat.
 	/op /deop /mute /unmute and /kick.
+	Added userlist menu items for admin control and display moderators
+	separately so they can be identified.
 
 2007-03-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.371 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.372 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.371 2007/03/31 09:16:47 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.372 2007/03/31 14:58:31 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -757,6 +757,10 @@ proc ::tkchat::HttpServerError {token {prefix ""}} {
 proc ::tkchat::fetchurldone {cmd tok} {
     ::log::log info \
 	    "fetchurl: status was [::http::status $tok] [::http::code $tok]"
+    if {[winfo exists .status.progress]} {
+        grid forget .status.progress
+    }
+
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
 	    if {[::http::ncode $tok] >= 500} {
@@ -3028,10 +3032,18 @@ proc ::tkchat::Help {} {
     wm withdraw $w
     wm transient $w .
     wm title $w "TkChat $rcsVersion Help"
+    ${NS}::frame $w.f
+    text $w.text -height 32 -bd 1 -width 100 -wrap word \
+        -yscrollcommand [list $w.vs set]
+    ${NS}::scrollbar $w.vs -command [list $w.text yview]
     ${NS}::button $w.b -text "Dismiss" -command [list wm withdraw $w]
-    text $w.text -height 32 -bd 1 -width 100 -wrap word
-    pack $w.b -fill x -side bottom
-    pack $w.text -fill both -side left -expand 1
+    grid $w.text $w.vs -in $w.f -sticky news
+    grid $w.b -        -in $w.f -sticky e
+    grid rowconfigure $w.f 0 -weight 1
+    grid columnconfigure $w.f 0 -weight 1
+    grid $w.f -sticky news
+    grid rowconfigure $w 0 -weight 1
+    grid columnconfigure $w 0 -weight 1
     $w.text tag configure title -justify center -font {Courier -18 bold}
     $w.text tag configure h1 -justify left -font {Sans -12 bold}
     $w.text insert 1.0 "TkChat v$rcsVersion Help\n" title
@@ -3105,8 +3117,18 @@ proc ::tkchat::Help {} {
 	    "e.g: /unalias f*"]
 
     insertHelpText $w.text $txt
-    set txt ""
 
+    $w.text insert end "Administrative commands\n" h1
+    set txt ""
+    lappend txt "/kick nick ?reason?" [list "Remove an undesirable user"]
+    lappend txt "/mute nick ?reason?" [list "Globally silence a user"]
+    lappend txt "/unmute nick ?reason?" [list "Unmute a muted user"]
+    lappend txt "/op nick ?reason?" [list "Make user an administrator"]
+    lappend txt "/deop nick ?reason?" [list "Remove admin privileges from user"]
+    insertHelpText $w.text $txt
+    
+
+    set txt ""
     $w.text insert end "Searching\n" h1
 
     lappend txt "/?<text>"
@@ -3775,6 +3797,9 @@ proc ::tkchat::checkCommand { msg } {
 	    set status [string range $msg 6 end]
 	    ::tkjabber::back $status
 	}
+        {^/quit} {
+            ::tkchat::quit
+        }
         {^/(kick)|(mute)|(unmute)|(op)|(deop)} {
             if {[regexp {^/((?:kick)|(?:mute)|(?:unmute)|(?:op)|(?:deop))\s+(\S+)(?:\s+(.*))?} $msg -> op nick reason]} {
                 switch -exact -- $op {
@@ -3814,49 +3839,6 @@ proc ::tkchat::checkCommand { msg } {
 	}
     }
     return
-}
-
-# A users role in a MUC can be one of:
-#  moderator: the user is a moderator.
-#  participant: the user is an active member of the channel
-#  visitor: the user has no voice.
-#  none: the user is kicked.
-proc ::tkjabber::setrole {nick role reason} {
-    variable muc
-    variable conference
-    if {[catch {
-        $::tkjabber::muc setrole $conference $nick $role \
-            -reason $reason -command [namespace origin onAdminComplete]
-    } err]} {
-        tk_messageBox -icon error -title "Error" \
-            -message "An error occurred setting the role for\
-            \"$nick\".\n\n$err"
-    }
-}
-
-proc ::tkjabber::onAdminComplete {muc what xml args} {
-    log::log debug "SetRole: $muc : $what : $xml : $args"
-    switch -exact -- $what {
-        result {
-            tkchat::addStatus 0 "Succeeded"
-        }
-        error {
-            tkchat::addStatus 0 "Unable to complete operation"
-        }
-    }
-}
-
-proc ::tkjabber::setaffiliation {nick affiliation reason} {
-    variable muc
-    variable conference
-    if {[catch {
-        $::tkjabber::muc setaffiliation $conference $nick $affiliation \
-            -reason $reason -command [namespace origin onAdminComplete]
-    } err]} {
-        tk_messageBox -icon error -title "Error" \
-            -message "An error occurred setting the affiliation for\
-            \"$nick\".\n\n$err"
-    }
 }
 
 proc ::tkchat::entryUp {} {
@@ -6770,7 +6752,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/31 09:16:47 $
+	 # Last modified on: $Date: 2007/03/31 14:58:31 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7335,6 +7317,8 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 					[lindex $item 0] jid]
 				set OnlineUsers(Jabber-$nick,jid) $usrjid
 				set OnlineUsers(Jabber-$nick,status) $status
+                                set OnlineUsers(Jabber-$nick,role) \
+                                    [::wrapper::getattribute [lindex $item 0] role]
 			    }
 			    break
 			}
@@ -8213,6 +8197,12 @@ proc ::tkchat::updateOnlineNames {} {
 	}
 	incr total $userCnt
 	.pane.names insert end "$userCnt $network Users\n" [list SUBTITLE $network]
+        if {$network eq "Jabber"} {
+            .pane.names insert end "  Moderators\n" SUBTITLE
+            .pane.names insert end "  Participants\n" SUBTITLE
+            .pane.names mark set admins [.pane.names index "end - 2 lines"]
+        }
+        
 	.pane.names tag bind $network <Button-1> \
 		[list ::tkchat::OnNetworkToggleShow $network]
 	if { $OnlineUsers($network,hideMenu) } {
@@ -8220,36 +8210,40 @@ proc ::tkchat::updateOnlineNames {} {
 	}
 	foreach nick $OnlineUsers($network) {
 	    set status [lindex $OnlineUsers($network-$nick,status) 0]
+            set role participant
+            if {$network eq "Jabber"} {set role [get_role $nick]}
 	    if {[info exists Options(Visibility,NICK-$nick)] \
 		    && $Options(Visibility,NICK-$nick)} {
 		set status disabled
 	    }
+            if {$role eq "visitor"} { set status disabled }
+            set mark [expr {$role eq "moderator" ? "admins" : "end"}]
 	    if { ![info exists Options(Color,NICK-$nick)] } {
 		set Options(Color,NICK-$nick) $Options(Color,MainFG)
 	    }
 	    switch -exact -- $status {
 		online {
-		    .pane.names image create end -image ::tkchat::roster::online
+		    .pane.names image create $mark -image ::tkchat::roster::online
 		}
 		chat {
-		    .pane.names image create end -image ::tkchat::roster::chat
+		    .pane.names image create $mark -image ::tkchat::roster::chat
 		}
 		dnd {
-		    .pane.names image create end -image ::tkchat::roster::dnd
+		    .pane.names image create $mark -image ::tkchat::roster::dnd
 		}
 		away {
-		    .pane.names image create end -image ::tkchat::roster::away
+		    .pane.names image create $mark -image ::tkchat::roster::away
 		}
 		xa {
-		    .pane.names image create end -image ::tkchat::roster::xa
+		    .pane.names image create $mark -image ::tkchat::roster::xa
 		}
 		disabled {
-		    .pane.names image create end -image ::tkchat::roster::disabled
+		    .pane.names image create $mark -image ::tkchat::roster::disabled
 		}
 	    }
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
-		.pane.names insert end "$nick" \
-			[list NICK NICK-$nick URL URL-[incr ::URLID]] "\n" NICK
+                set tags [list NICK NICK-$nick URL URL-[incr ::URLID]]
+		.pane.names insert $mark "$nick" $tags "\n" NICK
 		.pane.names tag bind URL-$::URLID <Button-1> [list \
 			::tkjabber::getChatWidget \
 			$::tkjabber::conference/$nick $nick]
@@ -8257,7 +8251,7 @@ proc ::tkchat::updateOnlineNames {} {
 			-label $nick \
 			-command [list ::tkchat::MsgTo $nick]
 	    } else {
-		.pane.names insert end "$nick\n" \
+		.pane.names insert $mark "$nick\n" \
 			[list NICK NICK-$nick URL-[incr ::URLID]]
 	    }
 	    .pane.names tag bind URL-$::URLID <Button-3> \
@@ -8287,6 +8281,14 @@ proc ::tkchat::OnNameToggleVis { nick } {
     DoVis $nick
 }
 
+proc ::tkchat::get_role {nick} {
+    upvar #0 ::tkchat::OnlineUsers(Jabber-$nick,role) role
+    if {[info exists role]} {
+        return $role
+    }
+    return participant
+}
+
 proc ::tkchat::OnNamePopup { nick network x y } {
     global Options
 
@@ -8312,6 +8314,25 @@ proc ::tkchat::OnNamePopup { nick network x y } {
             $m add command \
                 -label "Version info" \
                 -command [list ::tkjabber::query_user $nick version]
+
+            # FIX ME: if the user is an admin/moderator then we want to show
+            # an admin list
+            if {[get_role $Options(Nickname)] eq "moderator"} {
+                $m add cascade -label "Admin" -underline 0 \
+                    -menu [set ma [menu $m.admin -tearoff 0]]
+                $ma add checkbutton -label "Mute" -underline 0 \
+                    -onvalue visitor -offvalue participant \
+                    -variable ::tkchat::OnlineUsers(Jabber-$nick,role) \
+                    -command [list [namespace origin ToggleRole] voice $nick]
+                $ma add checkbutton -label "Moderator" -underline 2 \
+                    -onvalue moderator -offvalue participant \
+                    -variable ::tkchat::OnlineUsers(Jabber-$nick,role) \
+                    -command [list [namespace origin ToggleRole] admin $nick]
+                $ma add command -label "Kick" -underline 0 \
+                    -command [list [namespace origin Kick] $nick]
+                $ma add command -label "Ban" -underline 0 \
+                    -command [list [namespace origin Kick] $nick ban]
+            }
         }
     }
     if { [info exists Options(Visibility,NICK-$nick)] } {
@@ -8324,6 +8345,49 @@ proc ::tkchat::OnNamePopup { nick network x y } {
             -command [list ::tkchat::OnNameToggleVis NICK-$nick]
     }
     tk_popup $m $x $y
+}
+
+proc ::tkchat::Kick {nick {what kick}} {
+    set action [tk_messageBox -type yesno -title "Are you sure?" -icon question \
+                    -message "You are about to $what $nick. Are you certain\
+                       you want to do this -- remember you could just mute this user"]
+    if {$action eq "yes"} {
+        if {$what eq "ban"} {
+            ::tkjabber::setaffiliation $nick outcast \
+                "You have been banned by $Options(Nickname)"
+        } else {
+            ::tkjabber::setrole $nick none \
+                "You have been kicked by $Options(Nickname)"
+        }
+    }
+}
+
+proc ::tkchat::ToggleRole {type nick} {
+    global Options
+    upvar #0 ::tkchat::OnlineUsers(Jabber-$nick,role) role
+    switch -exact -- $type {
+        voice {
+            if {$role eq "visitor"} {
+                ::tkjabber::setrole $nick visitor \
+                    "You have been unmuted by $Options(Nickname)"
+            } else {
+                ::tkjabber::setrole $nick participant \
+                    "You have been unmuted by $Options(Nickname)"
+            }
+        }
+        admin {
+            if {$role eq "moderator"} {
+                ::tkjabber::setrole $nick moderator \
+                    "You have been made an admin by $Options(Nickname)"
+            } else {
+                ::tkjabber::setrole $nick participant \
+                    "You have had your admin status removed by $Options(Nickname)"
+            }
+        }
+        default {
+            tk_messageBox -icon error -title error -message "we shouldn't be here"
+        }
+    }
 }
 
 proc ::tkchat::createRosterImages {} {
@@ -8985,6 +9049,49 @@ proc ::tkjabber::StoreMessage {from subject message} {
         }
     }
     return
+}
+
+# A users role in a MUC can be one of:
+#  moderator: the user is a moderator.
+#  participant: the user is an active member of the channel
+#  visitor: the user has no voice.
+#  none: the user is kicked.
+proc ::tkjabber::setrole {nick role reason} {
+    variable muc
+    variable conference
+    if {[catch {
+        $::tkjabber::muc setrole $conference $nick $role \
+            -reason $reason -command [namespace origin onAdminComplete]
+    } err]} {
+        tk_messageBox -icon error -title "Error" \
+            -message "An error occurred setting the role for\
+            \"$nick\".\n\n$err"
+    }
+}
+
+proc ::tkjabber::setaffiliation {nick affiliation reason} {
+    variable muc
+    variable conference
+    if {[catch {
+        $::tkjabber::muc setaffiliation $conference $nick $affiliation \
+            -reason $reason -command [namespace origin onAdminComplete]
+    } err]} {
+        tk_messageBox -icon error -title "Error" \
+            -message "An error occurred setting the affiliation for\
+            \"$nick\".\n\n$err"
+    }
+}
+
+proc ::tkjabber::onAdminComplete {muc what xml args} {
+    log::log debug "SetRole: $muc : $what : $xml : $args"
+    switch -exact -- $what {
+        result {
+            tkchat::addStatus 0 "Succeeded"
+        }
+        error {
+            tkchat::addStatus 0 "Unable to complete operation"
+        }
+    }
 }
 
 if {![info exists ::URLID]} {
