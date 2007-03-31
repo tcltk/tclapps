@@ -4,6 +4,7 @@
 	/op /deop /mute /unmute and /kick.
 	Added userlist menu items for admin control and display moderators
 	separately so they can be identified.
+	Fixed very broken registration dialog.
 
 2007-03-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

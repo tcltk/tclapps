@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.372 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.373 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.372 2007/03/31 14:58:31 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.373 2007/03/31 19:50:16 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4080,58 +4080,58 @@ proc ::tkchat::registerScreen {} {
     variable PasswordCheck ""
     variable NS
 
-    set r .register
-
-    if {![winfo exists $r]} {
-	toplevel $r -class Dialog
-	wm withdraw $r
-	wm transient $r .
-	wm title $r "Register for the Tcler's Chat"
-
-	${NS}::label $r.
+    set dlg .register
+    
+    if {[winfo exists $dlg]} {
+        set r .register.f
+    } else {
+	toplevel $dlg -class Dialog
+	wm withdraw $dlg
+	wm transient $dlg .
+	wm title $dlg "Register for the Tcler's Chat"
+        
+        set r [${NS}::frame $dlg.f]
 	${NS}::label $r.lfn -text "Full name" -underline 9
 	${NS}::label $r.lem -text "Email address" -underline 9
 	${NS}::label $r.lnm -text "Chat Username" -underline 9
 	${NS}::label $r.lpw -text "Chat Password" -underline 6
 	${NS}::label $r.lpwc -text "Confirm Password" -underline 6
-	${NS}::entry $r.efn -textvar Options(Fullname)
-	${NS}::entry $r.eem -textvar Options(Email)
-	${NS}::entry $r.enm -textvar Options(Username)
-	${NS}::entry $r.epw -textvar Options(Password) -show *
-	${NS}::entry $r.epwc -textvar ::tkchat::PasswordCheck -show *
+	${NS}::entry $r.efn -textvariable Options(Fullname)
+	${NS}::entry $r.eem -textvariable Options(Email)
+	${NS}::entry $r.enm -textvariable Options(Username)
+	${NS}::entry $r.epw -textvariable Options(Password) -show *
+	${NS}::entry $r.epwc -textvariable ::tkchat::PasswordCheck -show *
 
-	${NS}::button $r.ok \
-		-text "Ok" \
-		-command { set ::tkchat::DlgDone ok } \
-		-width 8 \
-		-underline 0
-	${NS}::button $r.cn \
-		-text "Cancel" \
-		-command { set ::tkchat::DlgDone cancel } \
-		-width 8 \
-		-underline 0
+	${NS}::button $r.ok -text "Ok" -width 8 -underline 0 \
+		-command { set ::tkchat::DlgDone ok }
+	${NS}::button $r.cn -text "Cancel" -width 8 -underline 0 \
+		-command { set ::tkchat::DlgDone cancel }
 
-	bind $r <Alt-k> {.logon.ok invoke}
-	bind $r <Alt-q> {.logon.cn invoke}
-	bind $r <Alt-n> {focus .logon.enm}
-	bind $r <Alt-a> {focus .logon.epw}
+	bind $r <Alt-k> [list $r.ok invoke]
+	bind $r <Alt-q> [list $r.cn invoke]
+	bind $r <Alt-n> [list focus $r.enm]
+	bind $r <Alt-a> [list focus $r.epw]
 
-	grid $r.lfn $r.efn - -sticky w -pady 3
-	grid $r.lem $r.eem - -sticky w -pady 3
-	grid $r.lnm $r.enm - -sticky w -pady 3
-	grid $r.lpw $r.epw - -sticky w -pady 3
+	grid $r.lfn  $r.efn  - -sticky w -pady 3
+	grid $r.lem  $r.eem  - -sticky w -pady 3
+	grid $r.lnm  $r.enm  - -sticky w -pady 3
+	grid $r.lpw  $r.epw  - -sticky w -pady 3
 	grid $r.lpwc $r.epwc - -sticky w -pady 3
 	grid $r.ok - $r.cn -pady 10
-	wm resizable $r 0 0
-	raise $r
-	bind $r <Return> [list .logon.ok invoke]
-	bind $r <Escape> [list .logon.cn invoke]
+	wm resizable $dlg 0 0
+	raise $dlg
+	bind $dlg <Return> [list $r.ok invoke]
+	bind $dlg <Escape> [list $r.cn invoke]
+
+        grid $r -sticky news
+        grid rowconfigure $dlg 0 -weight 1
+        grid columnconfigure $dlg 0 -weight 1
     }
-    catch {::tk::PlaceWindow $r widget .}
-    wm deiconify $r
-    tkwait visibility $r
+    catch {::tk::PlaceWindow $dlg widget .}
+    wm deiconify $dlg
+    tkwait visibility $dlg
     focus -force $r.efn
-    grab $r
+    grab $dlg
     while { 1 } {
 	vwait ::tkchat::DlgDone
 	if { $DlgDone eq "cancel" } {
@@ -4139,13 +4139,13 @@ proc ::tkchat::registerScreen {} {
 	}
 	if { $Options(Password) ne $PasswordCheck } {
 	    tk_messageBox -message "The passwords do not match." \
-		    -title "Password mismatch" -type ok
+		    -icon error -title "Password mismatch" -type ok
 	    continue
 	}
 	break
     }
-    grab release $r
-    wm withdraw $r
+    grab release $dlg
+    wm withdraw $dlg
     return [expr { $DlgDone eq "ok" }]
 }
 
@@ -6752,7 +6752,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/31 14:58:31 $
+	 # Last modified on: $Date: 2007/03/31 19:50:16 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7317,7 +7317,7 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 					[lindex $item 0] jid]
 				set OnlineUsers(Jabber-$nick,jid) $usrjid
 				set OnlineUsers(Jabber-$nick,status) $status
-                                set OnlineUsers(Jabber-$nick,role) \
+                                set OnlineUsers(Jabber-$nick,role)\
                                     [::wrapper::getattribute [lindex $item 0] role]
 			    }
 			    break
@@ -7632,6 +7632,14 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	error {
 	    if { [info exists m(-error)] } {
 		switch -- [lindex $m(-error) 0] {
+                    403 {
+                        # User has been denied voice
+                        set msg [lindex $m(-error) 1]
+                        append msg " If you have been administratively banned\
+                            you can message one of the moderators to discuss\
+                            your continued use of this service.\n"
+                        ::tkchat::addSystem .txt $msg
+                    }
 		    404 {
 			# This has been seen when sending a private message
 			# to a disconnected user.
