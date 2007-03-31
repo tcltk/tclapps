@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.373 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.374 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.373 2007/03/31 19:50:16 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.374 2007/03/31 22:05:13 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -543,6 +543,7 @@ proc ::tkchat::LoadHistory {} {
     }
     
     GetTipIndex
+    CheckVersion
 }
 
 proc ::tkchat::InsertHistoryMark {} {
@@ -2214,6 +2215,10 @@ proc ::tkchat::CreateGUI {} {
 	    -underline 0 \
 	    -command { ::tkchat::Debug server }
     $m add command \
+            -label "Get user versions" \
+            -underline 0 \
+            -command { after idle {::tkjabber::ParticipantVersions} }
+    $m add command \
 	    -label "Reload history" \
 	    -underline 7 \
 	    -command { ::tkchat::Debug purge }
@@ -2317,6 +2322,10 @@ proc ::tkchat::CreateGUI {} {
 	    -underline 0 \
 	    -command ::tkchat::babelfishMenu
     $m add separator
+    $m add command \
+            -label "Check version" \
+            -underline 6 \
+            -command { after idle {::tkchat::CheckVersion}}
     $m add command \
 	    -label "About..." \
 	    -underline 0 \
@@ -2630,6 +2639,7 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure NOLOG -font NOLOG
     $txt tag configure AVAILABILITY -font SYS
     $txt tag configure SYSTEM -font SYS
+    $txt tag configure NOTICE -font SYS -foreground red ;#$Options(NoticeForeground)
     $txt tag configure TRAFFIC -font SYS
     $txt tag configure ERROR -background red
     $txt tag configure ENTERED -foreground $Options(EntryMessageColor)
@@ -6752,7 +6762,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/31 19:50:16 $
+	 # Last modified on: $Date: 2007/03/31 22:05:13 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7958,7 +7968,7 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 	    }
             tkchat::addStatus 0 "Joined chat at $conference"
 	    autoStatus
-            after 500 [namespace origin ParticipantVersions]
+            #after 500 [namespace origin ParticipantVersions]
 	}
 	default {
 	    ::tkchat::addSystem .txt "MucEnter: type=$type, args='$args'"
@@ -8886,6 +8896,25 @@ proc ::tkchat::GetTipIndex {} {
 proc ::tkchat::GetTipIndexDone {tok} {
     variable TipIndex
     set TipIndex [http::data $tok]
+}
+
+proc ::tkchat::CheckVersion {} {
+    http::geturl http://tclers.tk/~jabber/current.html -timeout 15000 \
+        -command [list [namespace origin fetchurldone] \
+                      [namespace origin CheckVersionDone]]
+}
+
+proc ::tkchat::CheckVersionDone {tok} {
+    variable rcsid
+    set url [string trim [http::data $tok]]
+    if {[regexp {tkchat.tcl,v 1\.(\d+)} $rcsid -> current]
+        && [regexp {tkchat-1\.(\d+)} $url -> latest]} {
+        addStatus 0 "Latest tkchat version is $latest"
+        if {$current < $latest} {
+            addSystem .txt \
+                "There is a newer version of tkchat available at $url" end NOTICE
+        }
+    }
 }
 
 # -------------------------------------------------------------------------
