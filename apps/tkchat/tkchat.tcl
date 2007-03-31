@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.370 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.371 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.370 2007/03/25 09:44:21 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.371 2007/03/31 09:16:47 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3775,6 +3775,30 @@ proc ::tkchat::checkCommand { msg } {
 	    set status [string range $msg 6 end]
 	    ::tkjabber::back $status
 	}
+        {^/(kick)|(mute)|(unmute)|(op)|(deop)} {
+            if {[regexp {^/((?:kick)|(?:mute)|(?:unmute)|(?:op)|(?:deop))\s+(\S+)(?:\s+(.*))?} $msg -> op nick reason]} {
+                switch -exact -- $op {
+                    kick { set role none }
+                    mute { set role visitor }
+                    unmute { set role participant }
+                    op { set role moderator }
+                    deop { set role participant }
+                    default { set role $op }
+                }
+                ::tkjabber::setrole $nick $role $reason
+            } else {
+                ::tkchat::addStatus 0 \
+                    "error: must be /$op nick ?reason ...?"
+            }
+        }
+        {^/ban} {
+            if {[regexp {^/ban\s+(\S+)(?:\s+(.*))?} $msg -> nick reason]} {
+                ::tkjabber::setaffiliation $nick outcast $reason
+            } else {
+                ::tkchat::addStatus 0 \
+                    "error: must be /ban nick ?reason ...?"
+            }
+        }
 	default {
 	    if {![checkAlias $msg]} then {
 		# might be server command - pass it on
@@ -3790,6 +3814,49 @@ proc ::tkchat::checkCommand { msg } {
 	}
     }
     return
+}
+
+# A users role in a MUC can be one of:
+#  moderator: the user is a moderator.
+#  participant: the user is an active member of the channel
+#  visitor: the user has no voice.
+#  none: the user is kicked.
+proc ::tkjabber::setrole {nick role reason} {
+    variable muc
+    variable conference
+    if {[catch {
+        $::tkjabber::muc setrole $conference $nick $role \
+            -reason $reason -command [namespace origin onAdminComplete]
+    } err]} {
+        tk_messageBox -icon error -title "Error" \
+            -message "An error occurred setting the role for\
+            \"$nick\".\n\n$err"
+    }
+}
+
+proc ::tkjabber::onAdminComplete {muc what xml args} {
+    log::log debug "SetRole: $muc : $what : $xml : $args"
+    switch -exact -- $what {
+        result {
+            tkchat::addStatus 0 "Succeeded"
+        }
+        error {
+            tkchat::addStatus 0 "Unable to complete operation"
+        }
+    }
+}
+
+proc ::tkjabber::setaffiliation {nick affiliation reason} {
+    variable muc
+    variable conference
+    if {[catch {
+        $::tkjabber::muc setaffiliation $conference $nick $affiliation \
+            -reason $reason -command [namespace origin onAdminComplete]
+    } err]} {
+        tk_messageBox -icon error -title "Error" \
+            -message "An error occurred setting the affiliation for\
+            \"$nick\".\n\n$err"
+    }
 }
 
 proc ::tkchat::entryUp {} {
@@ -6703,7 +6770,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/25 09:44:21 $
+	 # Last modified on: $Date: 2007/03/31 09:16:47 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the

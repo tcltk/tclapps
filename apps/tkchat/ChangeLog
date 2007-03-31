@@ -1,3 +1,8 @@
+2007-03-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add administrative control from tkchat.
+	/op /deop /mute /unmute and /kick.
+
 2007-03-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fixed a missing backslash in iq handler. Some
