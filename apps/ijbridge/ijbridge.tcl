@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.22 2007/02/20 20:31:16 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.23 2007/04/01 23:23:57 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -624,14 +624,17 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
         }
     }
 
+    # Eliminate known bridge prefixes (ircbridge is a webchat to irc bridge)
     if {[string equal $who "azbridge"] || [string equal $who "ircbridge"]} {
         regexp {^<(.*?)> (.*)$}  $msg -> who msg
         set emote [regexp {^\*{1,3} (\w+) (.*)$} $msg -> who msg]
     }
 
+    # Are they speaking to the bot? If so look for bot commands.
     if {[string match -nocase "${::client::nick}\[:,;. |\]*" $msg]} {
         set n [string length ${::client::nick}]
-        return [BotCommand $::client::channel $who [string range $msg [incr n] end]]
+        set msg [BotCommand $::client::channel $who [string range $msg [incr n] end]]
+        if {[string length $msg] == 0} { return }
     }
 
     set msg [string map $xmlmap $msg]
@@ -652,6 +655,10 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
 #  ijchian what|what is maybe lookup text on wiki and feed url
 #  ijchain help
 #  ijchain faq
+#
+# If the command is handled then we return "" otherwise the original message
+# is returned so it can be forwarded as chat to the channel.
+#
 proc ::ijbridge::BotCommand {rt who msg} {
     log::log debug "BotCmd: '$who' '$msg'"
     set cmd [lindex $msg 0]
@@ -659,8 +666,11 @@ proc ::ijbridge::BotCommand {rt who msg} {
         set r [catch {::ijbridge::Bot_${cmd} $who $msg} err]
         if {$r} { puts "ERROR: $err" } else {BotSay $rt $err}
     } else {
-        BotSay $rt [Bot_unknown $who $msg]
+        # Send the unknown only to the speaker.
+        BotSay $who [Bot_unknown $who $msg]
+        return $msg
     }
+    return ""
 }
 
 proc ::ijbridge::BotSay {rt msg} {
@@ -1102,6 +1112,7 @@ proc client::connect {cn server port} {
         after 10000 [list [namespace current]::connect $cn $server $port]
         return
     }
+    fconfigure [$cn socket] -encoding utf-8 ;# We shall always be utf-8
     $cn user $nick localhost domain "Tcl Jabber-IRC bridge"
     $cn nick $nick
     ping
