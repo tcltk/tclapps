@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.374 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.375 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.374 2007/03/31 22:05:13 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.375 2007/04/02 20:24:12 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1496,8 +1496,8 @@ proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
         variable StatusAfter
         if {$pane == 0} {
             catch {after cancel $StatusAfter}
-            after 6000 [list set [namespace which -variable \
-                                      Status]($pane) $::tkjabber::conference]
+            set StatusAfter [after 10000 [list set [namespace which -variable \
+                Status]($pane) $::tkjabber::conference]]
         }
         variable StatusHistory
         lappend StatusHistory [clock seconds] $msg
@@ -1523,6 +1523,41 @@ proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
     } else {
 	addSystem .txt $msg $mark $tags $timestamp
     }
+}
+
+proc ::tkchat::ShowStatusHistory {} {
+    variable NS
+    if {[winfo exists .statushistory]} {
+        raise .statuswindow
+        return
+    }
+    set dlg [toplevel .statushistory -class Dialog]
+    wm withdraw $dlg
+    set f [${NS}::frame $dlg.f]
+    text $f.txt -yscrollcommand [list $f.vs set]
+    ${NS}::scrollbar $f.vs -command [list $f.txt yview]
+    ${NS}::button $f.ok -text OK -command [list destroy $dlg] -default active
+
+    grid $f.txt $f.vs -sticky news
+    grid $f.ok  -     -sticky e
+    grid rowconfigure $f 0 -weight 1
+    grid columnconfigure $f 0 -weight 1
+    grid $f -sticky news
+    grid rowconfigure $dlg 0 -weight 1
+    grid columnconfigure $dlg 0 -weight 1
+
+    variable StatusHistory
+    foreach {time msg} $StatusHistory {
+        set time [clock format $time -format {%H:%M:%S}]
+        $f.txt insert end $time TIMESTAMP "\t" {} $msg MESSAGE "\n" {}
+    }
+    $f.txt see end
+    bind $dlg <Return> [list $f.ok invoke]
+    bind $dlg <Escape> [list $f.ok invoke]
+    wm title $dlg "Status history"
+    wm transient $dlg .
+    catch {::tk::PlaceWindow $dlg widget .}
+    wm deiconify $dlg
 }
 
 proc ::tkchat::Progress {tok total current} {
@@ -2148,6 +2183,8 @@ proc ::tkchat::CreateGUI {} {
 	    -menu $m.nicks
     NickVisMenu
     $m add separator
+    $m add command -label "Show statusbar history" -underline 4 \
+        -command [namespace origin ShowStatusHistory]
     $m add command \
 	    -label "Show current history in new pane" \
 	    -underline 5 \
@@ -2352,7 +2389,19 @@ proc ::tkchat::CreateGUI {} {
 	panedwindow .pane2 -sashpad 4 -sashrelief ridge -orient vertical
     }
     
-    ${NS}::frame .txtframe
+    if {$useTile} {
+        # We don't have a ttk style for text widgets but we can co-opt
+        # the entry border and place our text widget on top of a frame
+        # with the entry border plus some padding to make it look right.
+        ttk::style layout FakeText {
+            Entry.field -sticky news -border 1 -children {
+                FakeText.padding -sticky news
+            }
+        }
+        ${NS}::frame .txtframe -style FakeText
+    } else {
+        ${NS}::frame .txtframe
+    }
 
     CreateTxtAndSbar
 
@@ -2434,7 +2483,12 @@ proc ::tkchat::CreateGUI {} {
     set Options(NamesWin) .pane.names
     .txt configure -width 10
     .pane.names configure -width 10
-    grid .txt .sbar -in .txtframe -sticky news
+    if {![catch {.txtframe cget -style} style] && $style eq "FakeText"} {
+        .txt configure -relief flat -borderwidth 0
+        grid .txt .sbar -in .txtframe -sticky news -padx 1 -pady 1
+    } else {
+        grid .txt .sbar -in .txtframe -sticky news
+    }
     grid columnconfigure .txtframe 0 -weight 1
     grid rowconfigure .txtframe 0 -weight 1
     
@@ -3922,6 +3976,7 @@ proc ::tkchat::logonScreen {} {
 	${NS}::checkbutton .logon.prx \
 		-text "Use Proxy" \
 		-variable ::Options(UseProxy) \
+		-command ::tkjabber::TwiddlePort \
 		-underline 7
 	${NS}::label .logon.lph -text "Proxy host:port" -underline 0
 	${NS}::frame .logon.fpx
@@ -6081,6 +6136,8 @@ proc ::tkchat::WinicoInit {} {
 		    -text [wm title .] \
 		    -callback [list [namespace origin WinicoCallback] %m %i]
 	    bind . <Destroy> [namespace origin WinicoCleanup]
+            winico setwindow . $TaskbarIcon small 0
+            winico setwindow . $TaskbarIcon big 0
 	}
     } else {
 	proc ::tkchat::WinicoUpdate {} {return}
@@ -6526,8 +6583,24 @@ proc ::tkchat::EditOptions {} {
 	set gimmicks 1
 	${NS}::checkbutton $gf.fade -text "When not active, fade to " -underline 2 \
 	    -variable ::tkchat::EditOptions(AutoFade)
-	spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
-	    -textvariable ::tkchat::EditOptions(AutoFadeLimit)
+        if {[info commands ::ttk::spinbox] ne {}} {
+            # FIX ME: real experimental this part...
+            proc [namespace current]::ValidateSpin {w from to} {
+                set t [$w get]
+                if {$t eq ""} { return 1 }
+                if {![string is integer $t]} { return 0 }
+                if {$t < $from} { set ::[$w cget -textvariable] $from}
+                if {$t > $to} { set ::[$w cget -textvariable] $to}
+                return 1
+            }
+            ttk::spinbox $gf.fadelimit -width 4 -validate all \
+                -validatecommand [list [namespace current]::ValidateSpin \
+                                      $gf.fadelimit 1 100] \
+                -textvariable ::tkchat::EditOptions(AutoFadeLimit)
+        } else {
+            spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
+                -textvariable ::tkchat::EditOptions(AutoFadeLimit)
+        }
 	${NS}::label $gf.pct -text "%"
 	${NS}::label $gf.alabel -text Transparency
 	${NS}::scale $gf.alpha -from 1 -to 100 -orient horizontal
@@ -6762,7 +6835,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/03/31 22:05:13 $
+	 # Last modified on: $Date: 2007/04/02 20:24:12 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -8366,9 +8439,13 @@ proc ::tkchat::OnNamePopup { nick network x y } {
 }
 
 proc ::tkchat::Kick {nick {what kick}} {
-    set action [tk_messageBox -type yesno -title "Are you sure?" -icon question \
-                    -message "You are about to $what $nick. Are you certain\
-                       you want to do this -- remember you could just mute this user"]
+    global Options
+    set action [tk_messageBox -type yesno -title "Are you sure?" \
+                    -icon question \
+                    -message "You are about to $what $nick. Are you\
+                        certain you want to do this? Remember you could\
+                        just mute this user.\nBans are permanent and cannot\
+                        be removed from tkchat."]
     if {$action eq "yes"} {
         if {$what eq "ban"} {
             ::tkjabber::setaffiliation $nick outcast \
@@ -8593,10 +8670,15 @@ proc ::tkjabber::LoadHistoryLines {} {
 
 proc ::tkjabber::TwiddlePort {} {
     global Options
-    if {$Options(UseJabberSSL) eq "ssl" && $Options(JabberPort) == 5222} {
-	incr Options(JabberPort)
-    } elseif {$Options(UseJabberSSL) ne "ssl" && $Options(JabberPort) == 5223} {
-	incr Options(JabberPort) -1
+    if {$Options(UseJabberSSL) eq "ssl" \
+            && ($Options(JabberPort) == 5222 \
+                    || $Options(JabberPort) == 5223 \
+                    || $Options(JabberPort) == 443)} {
+        set Options(JabberPort) [expr {$Options(UseProxy) ? 443 : 5223}]
+    } elseif {$Options(UseJabberSSL) ne "ssl" 
+              && ($Options(JabberPort) == 5223 
+                  || $Options(JabberPort) == 443)} {
+        set Options(JabberPort) 5222
     }
 }
 
@@ -8610,7 +8692,8 @@ proc ::tkjabber::scheduleReconnect {} {
     }
 
     tkchat::addStatus 0 "Will try to reconnect in $connectionRetryTime seconds."
-    set reconnectTimer [after [expr {$connectionRetryTime*1000}] tkjabber::connect]
+    set reconnectTimer [after [expr {$connectionRetryTime * 1000}] \
+                            [namespace origin connect]]
 
     set connectionRetryTime [expr { int ($connectionRetryTime * 1.5) } ]
     # Max out at 3 minutes
@@ -8973,7 +9056,7 @@ proc ::tkchat::ShowCertificate {info} {
     $t insert end "SHA1 Fingerprint\t[SafeGet C sha1_hash]\n"
     $t insert end "MD5 Fingerprint\t[SafeGet C md5_hash]\n"
     $t configure -state disabled
-    ${NS}::button $dlg.ok -text OK -command [list destroy $top]
+    ${NS}::button $dlg.ok -text OK -command [list destroy $top] -default active
     bind $top <Return> [list $dlg.ok invoke]
     bind $top <Escape> [list $dlg.ok invoke]
     grid $t -sticky news
@@ -9106,6 +9189,7 @@ proc ::tkjabber::setrole {nick role reason} {
     }
 }
 
+# Affiliations in MUC can be owner, admin, none and outcast.
 proc ::tkjabber::setaffiliation {nick affiliation reason} {
     variable muc
     variable conference
