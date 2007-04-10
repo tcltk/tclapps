@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.375 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.376 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.375 2007/04/02 20:24:12 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.376 2007/04/10 10:31:33 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3043,7 +3043,7 @@ proc ::tkchat::About {} {
     set ver "Using Tcl/Tk [info patchlevel]"
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
-    ${NS}::button $w.b -text Dismiss -command [list wm withdraw $dlg]
+    ${NS}::button $w.b -text Dismiss -command [list wm withdraw $dlg] -default active
     ScrolledWidget text $w.text 0 1 -height 22 -width 80 \
         -borderwidth 0 -padx 2 -pady 2 -font FNT
     grid $w.text -sticky news
@@ -3100,7 +3100,7 @@ proc ::tkchat::Help {} {
     text $w.text -height 32 -bd 1 -width 100 -wrap word \
         -yscrollcommand [list $w.vs set]
     ${NS}::scrollbar $w.vs -command [list $w.text yview]
-    ${NS}::button $w.b -text "Dismiss" -command [list wm withdraw $w]
+    ${NS}::button $w.b -text "Dismiss" -command [list wm withdraw $w] -default active
     grid $w.text $w.vs -in $w.f -sticky news
     grid $w.b -        -in $w.f -sticky e
     grid rowconfigure $w.f 0 -weight 1
@@ -6089,7 +6089,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     if {!$useTile} { $dlg.buttons configure -bd 1 }
     ${NS}::button $btns.ok -text Save -width 10 -state disabled \
 	-command [list set [namespace current]::$id 1]
-    ${NS}::button $btns.cancel -text Close -width 10 \
+    ${NS}::button $btns.cancel -text Close -width 10 -state active \
 	-command [list set [namespace current]::$id 0]
     pack $btns.cancel $btns.ok -side right
 
@@ -6098,7 +6098,8 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 
     if { [::tkjabber::jid !resource $jid] \
 	     eq [::tkjabber::jid !resource $::tkjabber::myId] } {
-	$btns.ok configure -state normal
+	$btns.ok configure -state active
+	$btns.cancel configure -state normal
     }
 
     bind .$id <Key-Escape> [list set [namespace current]::$id 0]
@@ -6835,7 +6836,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/04/02 20:24:12 $
+	 # Last modified on: $Date: 2007/04/10 10:31:33 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7580,6 +7581,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
     set color ""
     set timestamp 0
 
+    array set m {-body {} -from {} -subject {}}
     array set m $args
     if { [info exists m(-x)] } {
 	foreach x $m(-x) {
@@ -7607,6 +7609,15 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		    transferNick $m(-from)
 		    return
 		}
+                "jabber:x:event" {
+                    # we are not supposed to get these. can be one of
+                    # offline, delivered, displayed, composing.
+                    log::log notice "jabber:x:event $m(-from) $x"
+                    foreach e [wrapper::getchildren $x] {
+                        set evt [wrapper::gettag $e]
+                        ::tkchat::addStatus 0 "$m(-from) is $evt"
+                    }
+                }
 	    }
 	}
     }
@@ -7647,7 +7658,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	groupchat {
 	    set from $m(-from)
 	    regexp {([^/]+)/(.+)} $m(-from) -> conf from
-	    if { [info exists m(-subject)] } {
+	    if { [info exists m(-subject)] && $m(-subject) ne ""} {
 		# changing topic.
 		variable ::tkchat::chatWindowTitle
 		variable ::tkchat::MessageCounter
@@ -7696,7 +7707,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		return
 	    }
             set msg {}
-	    if { [info exists m(-subject)] } {
+	    if { [info exists m(-subject)] && $m(-subject) ne ""} {
 		lappend msg "Subject: $m(-subject)"
 	    }
 	    if { [info exists m(-body)] } {

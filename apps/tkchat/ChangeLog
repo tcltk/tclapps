@@ -1,3 +1,8 @@
+2007-04-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Handle state notification messages from clients the
+	improperly send them even though we don't ask for them.
+
 2007-03-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Add administrative control from tkchat.
