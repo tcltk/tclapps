@@ -1,3 +1,9 @@
+2007-04-19  Pat Thoyts <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Changed handling of NAMES reponses to
+	cope with multiple lines and request op mode in the end
+	of names event.
+
 2007-02-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Command to get stats from bridge.

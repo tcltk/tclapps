@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.23 2007/04/01 23:23:57 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.24 2007/04/19 15:27:46 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -959,14 +959,24 @@ proc client::registerhandlers {} {
     $cn registerevent 353 {
         # RPL_NAMEREPLY
 	#List of online users sent on channel join
-        variable ::ijbridge::IrcUserList
-	::log::log debug "UsersOnline [msg]"
-	set IrcUserList \
-		[split [string map {@ "" % "" + ""} [string trim [msg]]] " "]
+        variable users_tmp
+        if {![info exists users_tmp]} { set users_tmp {} }
+	::log::log notice "UsersOnline [msg]"
+	set users [split [string map {@ "" % "" + ""} [string trim [msg]]] " "]
 	foreach bridge {ircbridge azbridge ijbridge ijchain} {
-	    set IrcUserList \
-		    [lsearch -all -inline -exact -not $IrcUserList $bridge]
+	    set users [lsearch -all -inline -exact -not $users $bridge]
 	}
+        foreach u $users {lappend users_tmp $u}
+    }
+    
+    $cn registerevent 366 {
+        # End of NAMES list
+        # Copy the new user list to the main list.
+        variable users_tmp
+        if {[info exists users_tmp]} {
+            set ::ijbridge::IrcUserList $users_tmp
+            unset users_tmp
+        }
         # Ask Chanserv to op us.
         cmd-send "PRIVMSG Chanserv :op $::client::channel $::client::nick"
     }
