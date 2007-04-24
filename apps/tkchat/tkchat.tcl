@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.376 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.377 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.376 2007/04/10 10:31:33 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.377 2007/04/24 13:44:13 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6836,7 +6836,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/04/10 10:31:33 $
+	 # Last modified on: $Date: 2007/04/24 13:44:13 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7187,7 +7187,10 @@ proc ::tkjabber::cleanup {} {
     variable socket
     variable roster
     variable baseNick
+    variable PollIrcAID
     variable ::tkchat::OnlineUsers
+
+    catch {after cancel PollIrcAID}
 
     if {[info exists muc]} {
 	if {[catch {$muc exit $conference} err]} {
@@ -7350,6 +7353,15 @@ proc tkjabber::SendAuthOld {} {
     # The next callback is the LoginCB
 }
 
+proc ::tkjabber::PollIrcUserList {jid} {
+    variable jabber
+    variable PollIrcAID
+    catch {after cancel $PollIrcAID}
+    $jabber send_message $jid -subject IrcUserList
+    set PollIrcAID [after 600000 \
+                        [list [namespace origin PollIrcUserList] $jid]]
+}
+
 # Jabber callback procs - this is where we get messages from.
 
 # The roster stuff...
@@ -7384,7 +7396,8 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
 
 		    # Get IrcUserList from ijchain
 		    if { $nick eq "ijchain" } {
-			$jabber send_message $p(-from) -subject IrcUserList
+                        # Begin polling the bot for irc names (slowly)
+                        PollIrcUserList $p(-from)
 		    }
 
 		    # Add the user's nick into a nick/jid map

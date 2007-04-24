@@ -25,8 +25,9 @@ namespace eval ::critcl {
             }
         }
         #MODIFIED: we can use a tcl package if no compiled version.
+        #          or if the compiled version fails to load up. 
         if {[file exists $lib]} {
-            lappend provide [list load $lib $package]
+            lappend provide [list catch [list load $lib $package]]
         }
         foreach t [glob -nocomplain [file join $dir Tcl *.tcl]] {
             lappend provide [list source $t]

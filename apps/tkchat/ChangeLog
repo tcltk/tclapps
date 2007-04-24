@@ -1,3 +1,11 @@
+2007-04-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* choosefont/critcl.tcl (loadlib): Fail gracefully if the binary
+	cannot be loaded and drop down to the pure-tcl version.
+	* tkchat.tcl: Poll (slowly, every 10 minutes) the IRC user list in
+	case it has gone adrift. Fixes in the bridge may mean this is no
+	longer happening.
+
 2007-04-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Handle state notification messages from clients the
