@@ -7,13 +7,15 @@
 # dialog for a KDE system.
 # We will drop down to DKFs font chooser if we have no other implementation.
 #
-# $Id: choosefont.tcl,v 1.1 2006/11/10 00:51:05 patthoyts Exp $
+# $Id: choosefont.tcl,v 1.2 2007/04/27 00:03:48 patthoyts Exp $
 
 package require critcl
 
 namespace eval ::choosefont {
 }
 
+# Use the Extended Window Manager Hints properties to find out the
+# name of the current window manager.
 proc get_wm_name {} {
     set result {}
     set atom _NET_SUPPORTING_WM_CHECK

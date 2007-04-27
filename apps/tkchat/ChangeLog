@@ -1,3 +1,8 @@
+2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch #1633074 to add support for highlighting
+	when user specified search terms are seen in the chat. (Jos Decoster)
+
 2007-04-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* choosefont/critcl.tcl (loadlib): Fail gracefully if the binary

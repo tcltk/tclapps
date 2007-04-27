@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.377 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.378 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.377 2007/04/24 13:44:13 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.378 2007/04/27 00:03:48 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1098,6 +1098,7 @@ proc ::tkchat::checkAlert { w msgtype nick msg } {
 
     set now [clock seconds]
     set alert 0
+    set subjectFound 0
 
     if { $Options(Alert,$msgtype) && $nick ne $Options(Nickname) } {
 	if { $Options(Alert,ALL) } {
@@ -1121,10 +1122,29 @@ proc ::tkchat::checkAlert { w msgtype nick msg } {
 	    }
 	}
     }
+    if { $nick ne $Options(Nickname) } {
+	set subjectFound [checkSubject $w $msgtype $nick $msg]
+	if { !$alert && $Options(Alert,SUBJECT) && $subjectFound } {
+	    set alert 1
+	}
+    }
     if { $alert } {
 	alertWhenIdle $w
     }
     set LastPost($nick) $now
+    return $subjectFound
+}
+
+proc ::tkchat::checkSubject { w msgtype nick msg } {
+    global Options
+    if { [info exists Options(Subjects)] } {
+	foreach subj $Options(Subjects) {
+	    if { [string match $subj $msg] } {
+		return 1
+	    }
+	}
+    }
+    return 0
 }
 
 proc ::tkchat::setAlert { tag } {
@@ -1166,14 +1186,17 @@ proc ::tkchat::addMessage \
     InsertTimestamp $w $nick $mark $timestamp $tags
 
     # Call message activity hooks
+    set subjectFound 0
     if { $mark ne "HISTORY" } {
-	checkAlert $w $msgtype $nick $msg
+	set subjectFound [checkAlert $w $msgtype $nick $msg]
 	if { $w eq ".txt" } {
 	    foreach cmd [array names MessageHooks] {
 		eval $cmd [list $nick $msg $msgtype $mark $timestamp]
 	    }
 	}
-    }
+    } else {
+	set subjectFound [checkSubject $w $msgtype $nick $msg]
+    }	    
 
     if { $msgtype eq "ACTION" } {
 	$w insert $mark "   * $displayNick " [concat BOOKMARK NICK $tags]
@@ -1184,6 +1207,9 @@ proc ::tkchat::addMessage \
     lappend tags MSG [list NICK-$nick]
     if { [info exists opts(nolog)] } {
 	lappend tags [list NOLOG-$nick NOLOG]
+    }
+    if { $subjectFound } {
+	lappend tags SUBJ
     }
     set usett [llength [package provide tooltip]]
     foreach { str url tt } [parseStr $msg] {
@@ -1947,6 +1973,10 @@ proc ::tkchat::CreateGUI {} {
 	    -label "Macros ..." \
 	    -underline 0 \
 	    -command ::tkchat::EditMacros
+    $m add command \
+	    -label "Subjects ..." \
+	    -underline 0 \
+	    -command ::tkchat::SpecifySubjects
     if {[llength [package provide choosefont]] != 0} {
         $m add command \
 	    -label "Font ..." \
@@ -2197,6 +2227,7 @@ proc ::tkchat::CreateGUI {} {
 	ALL	"Alert when any message received"
 	ME	"Alert when username mentioned"
 	TOPIC	"Alert when someone speaks who was quiet"
+	SUBJECT "Alert when specified subject mentioned"
     } {
 	$m add checkbutton \
 		-label "$text" \
@@ -2695,6 +2726,7 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure SYSTEM -font SYS
     $txt tag configure NOTICE -font SYS -foreground red ;#$Options(NoticeForeground)
     $txt tag configure TRAFFIC -font SYS
+    $txt tag configure SUBJ -background yellow
     $txt tag configure ERROR -background red
     $txt tag configure ENTERED -foreground $Options(EntryMessageColor)
     $txt tag configure LEFT -foreground $Options(ExitMessageColor)
@@ -4346,6 +4378,85 @@ proc ::tkchat::buildRow { f idx disp } {
 	    -padx 2 -pady 2 -sticky ew
 }
 
+proc ::tkchat::SpecifySubjects {} {
+    variable NS
+    
+    set t .macros
+    catch {destroy $t}
+    toplevel $t -class Dialog
+    wm transient $t .
+    wm withdraw $t
+    wm title $t "Specify alert subjects"
+
+    listbox $t.lst -yscroll "$t.scr set" -font FNT -selectmode extended
+    ${NS}::scrollbar $t.scr -command "$t.lst yview"
+    ${NS}::label $t.lbl1 -text "Subject:" -font NAME
+    ${NS}::entry $t.sub -font FNT
+    bind $t.sub <Return> "$t.sav invoke"
+    bind $t.lst <Double-Button-1> "::tkchat::SubjectSel %W @%x,%y"
+    button $t.sav -text Save -command "::tkchat::SubjectSave $t"
+    button $t.del -text Delete -command "::tkchat::SubjectKill $t.lst"
+    set    help "Specify subject as pattern suitable for use with:\n\n"
+    append help "    string match -nocase <pattern> <message>\n"
+    append help "\n"
+    ${NS}::label $t.hlp -text $help -font FNT -justify left
+
+    grid $t.lst - $t.scr -sticky news
+    grid $t.del - - -sticky {} -pady 3
+    grid $t.lbl1 $t.sub - -sticky news
+    grid $t.sav - - -sticky {} -pady 3
+    grid $t.hlp - - -sticky news -padx 10
+
+    grid rowconfigure $t 0 -weight 10
+    grid columnconfigure $t 1 -weight 10
+
+    tkchat::SubjectList $t.lst
+    catch {::tk::PlaceWindow $t widget .}
+    wm deiconify $t
+}
+proc ::tkchat::SubjectSave {t} {
+    global Options
+    if { ![info exists Options(Subjects)] } {
+	set Options(Subjects) {}
+    }
+    set m [string trim [$t.sub get]]
+    if {[string length $m] > 0} {
+	lappend Options(Subjects) $m
+	::tkchat::SubjectList $t.lst
+    }
+}
+proc ::tkchat::SubjectKill { w } {
+    global Options
+    if { [info exists Options(Subjects)] } {
+	foreach idx [$w curselection] {
+	    set m [$w get $idx]
+	    set i [lsearch $Options(Subjects) $m]
+	    if { $i >= 0 } {
+		set Options(Subjects) [lreplace $Options(Subjects) $i $i]
+	    }
+	}
+    }
+    tkchat::SubjectList $w
+}
+proc ::tkchat::SubjectSel { w idx} {
+    global Options
+    set m [$w get $idx]
+    if {[info exists Options(Subjects)] && 
+	[lsearch $Options(Subjects) $m] >= 0} {
+	[winfo parent $w].sub delete 0 end
+	[winfo parent $w].sub insert end $m
+    }
+}
+proc ::tkchat::SubjectList {w} {
+    global Options
+    $w delete 0 end
+    if { [info exists Options(Subjects)] } {
+	foreach idx $Options(Subjects) {
+	    $w insert end $idx
+	}
+    }
+}
+
 proc ::tkchat::EditMacros {} {
     variable NS
     
@@ -4501,7 +4612,7 @@ proc ::tkchat::ChangeColors {} {
 		}]
     }
     grid x $f.all1 $f.all2 $f.all3 x -padx 1 -pady 1
-    foreach {idx str} {MainBG Background MainFG Foreground SearchBG Searchbackgr} {
+    foreach {idx str} {MainBG Background MainFG Foreground SearchBG Searchbackgr SubjectBG Subjectbackgr} {
 	buildRow $f $idx $str
     }
     grid [label $f.online -text "Online Users" -font SYS] - - -
@@ -4593,6 +4704,7 @@ proc ::tkchat::applyColors { txt jid } {
 	    -background "#[getColor MainBG]" \
 	    -foreground "#[getColor MainFG]"
     $txt tag configure found -background "#[getColor SearchBG]"
+    $txt tag configure SUBJ -background "#[getColor SubjectBG]"
     if { $jid eq "All" } {
 	set nicks $Options(NickList)
     } else {
@@ -4802,8 +4914,8 @@ proc ::tkchat::saveRC {} {
 	JabberResource JabberServer Khim 
 	LogFile LogLevel LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
-	ServerLogging Style Theme Transparency UseBabelfish UseJabberSSL
-	UseProxy Username Visibility,*
+	ServerLogging Style Subjects Theme Transparency UseBabelfish 
+        UseJabberSSL UseProxy Username Visibility,*
     }
 
     foreach key $keep {
@@ -5468,6 +5580,7 @@ proc ::tkchat::Init {args} {
 	    switch -- $nk {
 		MainBG -
 		MainFG -
+		SubjectBG -
 		SearchBG {
 		    set Options(Color,$nk) [string map {Web 1 Inv 2 Mine 3} \
 			    $Options(Color,$nk,Which)]
@@ -5711,6 +5824,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	ServerLogging		all
         StoreMessages           1
 	Style			any
+	Subjects                {}
 	Theme			""
 	Transparency		100
 	UseBabelfish		0
@@ -5727,7 +5841,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	WhisperIndicatorColor	#ffe0e0
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
-    foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 } {
+    foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 SubjectBG ffff00 } {
 	set Defaults(Color,$nick) [list 1 $clr [invClr $clr] $clr]
     }
 
@@ -6836,7 +6950,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/04/24 13:44:13 $
+	 # Last modified on: $Date: 2007/04/27 00:03:48 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
