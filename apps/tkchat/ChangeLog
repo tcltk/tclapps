@@ -1,5 +1,9 @@
-2007-04-27  Pat Thoyts  <pat@snake>
+2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl:     Added option to prevent the use of ttk widgets. 
+	Either start the program with -tkonly or set the checkbox on the
+	Options dialog.
+	
 	* tkchat48.gif:   Created application icon and desktop integration
 	* tkchat48.png:   file for Unix (GNOME/KDE) systems.
 	* tkchat.desktop:

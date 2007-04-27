@@ -84,34 +84,37 @@ if {[llength [info commands ::tk::label]] < 1} {
 # and provides compatability with tile 0.7
 #
 namespace eval ::tkchat {
-    variable useTile 1
-    variable useClosebutton 0
-    variable NS "::ttk"
-    if {[llength [info commands ::ttk::*]] == 0} {
-        if {![catch {package require tile 0.8}]} {
-            # we're all good
-        } elseif {![catch {package require tile 0.7}]} {
-            # tile to ttk compatability
-            interp alias {} ::ttk::style {} ::style
-            interp alias {} ::ttk::setTheme {} ::tile::setTheme
-            interp alias {} ::ttk::themes {} ::tile::availableThemes
-            interp alias {} ::ttk::LoadImages {} ::tile::LoadImages
-        } else {
-            set useTile 0
-            set NS "::tk"
-        }
-    } else {
-        # [PT]: experimental ttk styled pane closebutton.
-        if {[lsearch [ttk::style element names] "smallclosebutton"] != -1} {
-            ttk::style layout TClosebutton {
-                Closebutton.button -sticky nswe -children {
-                    Closebutton.padding -sticky nswe -children {
-                        Closebutton.closebutton -sticky {}
-                    }
-                }
-            }
-            set useClosebutton 1
-        }
+    variable useTile
+    if {![info exists useTile]} {
+	variable useTile 1
+	variable useClosebutton 0
+	variable NS "::ttk"
+	if {[llength [info commands ::ttk::*]] == 0} {
+	    if {![catch {package require tile 0.8}]} {
+		# we're all good
+	    } elseif {![catch {package require tile 0.7}]} {
+		# tile to ttk compatability
+		interp alias {} ::ttk::style {} ::style
+		interp alias {} ::ttk::setTheme {} ::tile::setTheme
+		interp alias {} ::ttk::themes {} ::tile::availableThemes
+		interp alias {} ::ttk::LoadImages {} ::tile::LoadImages
+	    } else {
+		set useTile 0
+		set NS "::tk"
+	    }
+	} else {
+	    # [PT]: experimental ttk styled pane closebutton.
+	    if {[lsearch [ttk::style element names] "smallclosebutton"] != -1} {
+		ttk::style layout TClosebutton {
+		    Closebutton.button -sticky nswe -children {
+			Closebutton.padding -sticky nswe -children {
+			    Closebutton.closebutton -sticky {}
+			}
+		    }
+		}
+		set useClosebutton 1
+	    }
+	}
     }
 }
 
@@ -156,7 +159,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.379 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.380 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +172,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.379 2007/04/27 20:32:30 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.380 2007/04/27 21:02:37 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1573,6 +1576,7 @@ proc ::tkchat::ShowStatusHistory {} {
     grid columnconfigure $dlg 0 -weight 1
 
     variable StatusHistory
+    if {![info exists StatusHistory]} {set StatusHistory {}}
     foreach {time msg} $StatusHistory {
         set time [clock format $time -format {%H:%M:%S}]
         $f.txt insert end $time TIMESTAMP "\t" {} $msg MESSAGE "\n" {}
@@ -5658,9 +5662,11 @@ proc ::tkchat::Init {args} {
 
     # Process command line args
     set nologin 0
+    set tkonly $Options(UseTkOnly)
     while {[string match -* [set option [lindex $args 0]]]} {
 	switch -exact -- $option {
 	    -nologin   { set nologin 1 }
+	    -tkonly    { set tkonly 1 }
 	    -style     { set Options(Style) [Pop args 1] }
 	    -theme     { set Options(Theme) [Pop args 1] }
 	    -loglevel  { set Options(LogLevel) [Pop args 1] }
@@ -5686,6 +5692,11 @@ proc ::tkchat::Init {args} {
 	    }
 	}
 	Pop args
+    }
+
+    if {$tkonly} {
+	set ::tkchat::NS "::tk"
+	set ::tkchat::useTile 0
     }
 
     # Set the useragent string to something a bit more standard.
@@ -5840,6 +5851,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	UseBabelfish		0
 	UseJabberSSL		no
 	UseProxy		0
+	UseTkOnly		0
 	Username		""
 	Visibility,AVAILABILITY	0
 	Visibility,ERROR	0
@@ -6630,6 +6642,7 @@ proc ::tkchat::EditOptions {} {
     set EditOptions(AutoFade)      $Options(AutoFade)
     set EditOptions(AutoFadeLimit) $Options(AutoFadeLimit)
     set EditOptions(Transparency)  $Options(Transparency)
+    set EditOptions(UseTkOnly)     $Options(UseTkOnly)
 
     if {[winfo exists .options]} {destroy .options}
     set dlg [toplevel .options -class Dialog]
@@ -6686,6 +6699,9 @@ proc ::tkchat::EditOptions {} {
 	-variable ::tkchat::EditOptions(Style) -value any
     ${NS}::radiobutton $sf.def -text "Tk default" -underline 0 \
 	-variable ::tkchat::EditOptions(Style) -value tk
+    ${NS}::checkbutton $sf.tkonly -text "Use only Tk widgets" \
+	-variable ::tkchat::EditOptions(UseTkOnly) -onvalue 1 -offvalue 0 \
+	-underline 12
 
     if {[catch {package require style::as}]
 	&& [catch {package require as::style}]} {
@@ -6696,9 +6712,11 @@ proc ::tkchat::EditOptions {} {
     bind $dlg <Alt-g> [list $sf.gtk invoke]
     bind $dlg <Alt-n> [list $sf.any invoke]
     bind $dlg <Alt-t> [list $sf.def invoke]
+    bind $dlg <Alt-w> [list $af.tkonly invoke]
 
-    grid $sf.m - - - -sticky news -padx 2
+    grid $sf.m  -       -       -       -sticky news -padx 2
     grid $sf.as $sf.gtk $sf.any $sf.def -sticky ew -padx 2
+    grid $sf.tkonly -   -       -       -sticky ew -padx 2
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
@@ -6774,7 +6792,7 @@ proc ::tkchat::EditOptions {} {
     if {$EditOptions(Result) == 1} {
 	set Options(Browser) $EditOptions(Browser)
 	set Options(BrowserTab) $EditOptions(BrowserTab)
-	foreach property {Style AutoFade AutoFadeLimit} {
+	foreach property {Style AutoFade AutoFadeLimit UseTkOnly} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
 	    }
@@ -6960,7 +6978,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/04/27 20:32:30 $
+	 # Last modified on: $Date: 2007/04/27 21:02:37 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
