@@ -159,7 +159,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.380 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.381 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -172,7 +172,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.380 2007/04/27 21:02:37 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.381 2007/04/27 22:29:40 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1523,7 +1523,7 @@ proc ::tkchat::addSystem { w msg {mark end} {tags SYSTEM} {timestamp 0} } {
 proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
     if {[winfo exists .status] && [winfo ismapped .status]} {
         variable StatusAfter
-        if {$pane == 0} {
+        if {$pane == 0 && [info exists ::tkjabber::conference]} {
             catch {after cancel $StatusAfter}
             set StatusAfter [after 10000 [list set [namespace which -variable \
                 Status]($pane) $::tkjabber::conference]]
@@ -1873,6 +1873,62 @@ proc ::tkchat::nickComplete {} {
     }
 }
 
+# Install Tkchat into GNOME or KDE desktops.
+proc ::tkchat::InstallXDG {} {
+    # The 'proper' way is to use the xdg-utils programs...
+    if {[llength [set cmd [auto_execok xdg-desktop-menu]]] != 0} {
+	set tmpfile [file join /tmp tkchat.desktop]
+	file copy [file join $::tkchat_dir tkchat.desktop] $tmpfile
+	if {[catch {eval exec $cmd install --novendor $tmpfile} err]} {
+	    tk_messageBox -icon warning -title "Installation failed" \
+		-message $err -parent .
+	    file delete $tmpfile
+	    return
+	}
+	file delete $tmpfile
+	addStatus 0 "Installed tkchat desktop menu item"
+    } else {
+	# This is the Freedesktop specified location.
+	set xdg [file join ~ .local share]
+	if {[info exists env(XDG_DATA_HOME)]} {
+	    set xdg $env(XDG_DATA_HOME) 
+	}
+	set apps [file join $xdg applications]
+	file mkdir $apps
+	file copy -force [file join $::tkchat_dir tkchat.desktop] \
+	    [file join $apps tkchat.desktop]
+	addStatus 0 "Installed tkchat desktop menu item to $apps"
+    }
+    if {[llength [set cmd [auto_execok xdg-icon-resource]]] != 0} {
+	set tmpfile [file join /tmp tkchat48.png]
+	file copy [file join $::tkchat_dir tkchat48.png] $tmpfile
+	if {[catch {eval exec $cmd install --novendor --size 48 $tmpfile} err]} {
+	    tk_messageBox -icon warning -title "Icon installation failed" \
+		-message $err -parent .
+	    file delete $tmpfile
+	    return
+	}
+	file delete $tmpfile
+	addStatus 0 "Installed tkchat application icon"
+    } else {
+	# This is the Freedesktop specified location.
+	set xdg [file join ~ .local share]
+	if {[info exists env(XDG_DATA_HOME)]} {
+	    set xdg $env(XDG_DATA_HOME) 
+	}
+	set apps [file join $xdg icons hicolor 48x48 apps]
+	file mkdir $apps
+	file copy -force [file join $::tkchat_dir tkchat48.png] \
+	    [file join $apps tkchat48.png]
+	addStatus 0 "Installed tkchat application icon to $apps"
+    }
+    tk_messageBox -icon info -parent . -title "Installation complete" \
+	-message "Installation completed successfully" \
+	-detail "This application has installed a Freedesktop compatible\
+           description file and should now appear in your Internet or Networking\
+           desktop menu group."
+}
+
 proc ::tkchat::CreateGUI {} {
     global Options
     variable chatWindowTitle
@@ -1946,6 +2002,13 @@ proc ::tkchat::CreateGUI {} {
             -underline 5 \
             -command ::tkchat::PasteDlg
     $m add separator
+    if {[tk windowingsystem] eq "x11"} {
+	$m add command \
+	    -label "Install Application" \
+	    -underline 0 \
+	    -command ::tkchat::InstallXDG
+	$m add separator
+    }
     $m add command \
 	    -label "Exit" \
 	    -underline 1 \
@@ -4929,7 +4992,7 @@ proc ::tkchat::saveRC {} {
 	LogFile LogLevel LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Subjects Theme Transparency UseBabelfish 
-        UseJabberSSL UseProxy Username Visibility,*
+        UseJabberSSL UseProxy Username UseTkOnly Visibility,*
     }
 
     foreach key $keep {
@@ -6978,7 +7041,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/04/27 21:02:37 $
+	 # Last modified on: $Date: 2007/04/27 22:29:40 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the

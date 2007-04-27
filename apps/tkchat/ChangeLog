@@ -1,5 +1,11 @@
 2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Added installation menu item to self-install into
+	Freedesktop desktops (GNOME or KDE).
+	Fixed omission in saving the UseTkOnly option.
+
+2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
 	* tkchat.tcl:     Added option to prevent the use of ttk widgets. 
 	Either start the program with -tkonly or set the checkbox on the
 	Options dialog.
