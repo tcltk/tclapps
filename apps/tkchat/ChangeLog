@@ -1,3 +1,11 @@
+2007-04-27  Pat Thoyts  <pat@snake>
+
+	* tkchat48.gif:   Created application icon and desktop integration
+	* tkchat48.png:   file for Unix (GNOME/KDE) systems.
+	* tkchat.desktop:
+	* tkchat.tcl:     Fixed a bug when cancelling the font dialog.
+	* choosefont/choose_gtk.tcl:
+
 2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Applied patch #1633074 to add support for highlighting

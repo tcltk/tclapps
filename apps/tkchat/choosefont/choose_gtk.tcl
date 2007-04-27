@@ -7,7 +7,7 @@
 # dialog for a KDE system.
 # We will drop down to DKFs font chooser if we have no other implementation.
 #
-# $Id: choose_gtk.tcl,v 1.2 2006/11/12 21:24:16 patthoyts Exp $
+# $Id: choose_gtk.tcl,v 1.3 2007/04/27 20:32:30 patthoyts Exp $
 
 namespace eval ::choosefont {
     critcl::tk
@@ -17,6 +17,7 @@ namespace eval ::choosefont {
 #include <gtk/gtk.h>
 #include <gtk/gtkvbox.h>
 #include <gtk/gtkarrow.h>
+#include <gdk/gdkx.h>
 
         /* Create a Glib event source to link the Tk and Glib event loops */
         static void SetupProc(ClientData clientData, int flags) {
@@ -139,10 +140,25 @@ namespace eval ::choosefont {
 
         typedef struct Stuff {
             Tcl_Interp *interp;
+	    Tk_Window  tkwin;
             Tcl_Obj *applyObj;
 	    GtkWidget *dlg;
 	    gint response;
         } Stuff;
+
+	static int
+	on_fontdlg_realized(GtkWidget *widget, gpointer dataPtr)
+	{
+	    Stuff *stuffPtr = dataPtr;
+	    GdkWindow *gwin = gtk_widget_get_parent_window(GTK_WIDGET(stuffPtr->dlg));
+	    if (gwin) {
+		Window w = GDK_WINDOW_XID(GDK_WINDOW(gwin));
+		g_printf("Setting transient\n");
+		XSetTransientForHint(Tk_Display(stuffPtr->tkwin), w,
+				     Tk_WindowId(stuffPtr->tkwin));
+	    }
+	    return 0;
+	}
 
         static int
         on_fontdlg_response(GtkDialog *dlg, gint response, gpointer dataPtr)
@@ -179,7 +195,7 @@ namespace eval ::choosefont {
     critcl::cproc ChooseFont {Tcl_Interp* interp Tcl_Obj* parentObj
         Tcl_Obj* titleObj Tcl_Obj* fontObj Tcl_Obj* applyObj} ok {
         int r = TCL_OK, oldMode, fontc;
-        Tcl_Obj *resObj = NULL, *tmpObj = NULL, **fontv;
+        Tcl_Obj *tmpObj = NULL, **fontv;
 	Tk_Window tkwin;
 	Stuff stuff;
 
@@ -205,6 +221,7 @@ namespace eval ::choosefont {
 
 	/* Create the Gtk font dialog and show modally */
 	stuff.interp = interp;
+	stuff.tkwin = tkwin;
 	stuff.applyObj = applyObj;
 	stuff.response = 0;
         stuff.dlg = gtk_font_selection_dialog_new(Tcl_GetString(titleObj));
@@ -215,16 +232,13 @@ namespace eval ::choosefont {
         g_signal_connect(G_OBJECT(GTK_FONT_SELECTION_DIALOG(stuff.dlg)),
                          "response",
                          G_CALLBACK(on_fontdlg_response), &stuff);
+	g_signal_connect_after(G_OBJECT(GTK_FONT_SELECTION_DIALOG(stuff.dlg)),
+			 "realize",
+			 G_CALLBACK(on_fontdlg_realized), &stuff);
         gtk_widget_show(GTK_FONT_SELECTION_DIALOG(stuff.dlg)->apply_button);
         gtk_window_set_modal(GTK_WINDOW(stuff.dlg), TRUE);
 	gtk_window_has_toplevel_focus(GTK_WINDOW(stuff.dlg));
-        gtk_widget_show_all(stuff.dlg);
-	if (tkwin) {
-	    /* this does't work :( */
-	    Window wid = Tk_WindowId(tkwin);
-	    GdkWindow *w = gdk_window_foreign_new(wid);
-	    gdk_window_set_transient_for(GDK_WINDOW(stuff.dlg), w);
-	}
+        gtk_widget_show_all(GTK_WIDGET(stuff.dlg));
 
         /*
          * Run our modal loop
@@ -238,10 +252,11 @@ namespace eval ::choosefont {
         /*
          * Convert the Gtk+ font name into a Tcl font description
          */
-        if (stuff.response == 1)
-        {
+        if (stuff.response == 1) {
 	    Tcl_SetObjResult(interp, GetFontObjFromGtkWidget(stuff.dlg));
-        }
+        } else {
+	    Tcl_ResetResult(interp);
+	}
 	gtk_widget_destroy(stuff.dlg);
         return TCL_OK;
     }

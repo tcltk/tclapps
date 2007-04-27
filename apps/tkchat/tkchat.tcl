@@ -29,8 +29,8 @@ set script [file normalize [info script]]
 while {[file type $script] eq "link"} {
     set script [file join [file dirname $script] [file readlink $script]]
 }
-set dir [file dirname [file normalize $script]]
-set auto_path [linsert $::auto_path 0 $dir [file join $dir lib]]
+set tkchat_dir [file dirname [file normalize $script]]
+set auto_path [linsert $::auto_path 0 $tkchat_dir [file join $tkchat_dir lib]]
 
 package require Tcl 8.4		; # core Tcl
 package require Tk  8.4		; # core Tk
@@ -156,7 +156,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.378 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.379 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -169,7 +169,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.378 2007/04/27 00:03:48 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.379 2007/04/27 20:32:30 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1896,7 +1896,11 @@ proc ::tkchat::CreateGUI {} {
     wm title . $chatWindowTitle
     wm withdraw .
     wm protocol . WM_DELETE_WINDOW [namespace origin quit]
-
+    if {[file exists [set iconfile [file join $::tkchat_dir tkchat48.gif]]]} {
+	if {![catch {image create photo ::tkchat::img::Tkchat -file $iconfile}]} {
+	    wm iconphoto . ::tkchat::img::Tkchat
+	}
+    }
     catch { createFonts }
 
     menu .mbar
@@ -3072,6 +3076,9 @@ proc ::tkchat::About {} {
     wm withdraw $dlg
     wm transient $dlg .
     wm title $dlg "About TkChat $rcsVersion"
+    if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
+	wm iconphoto $dlg ::tkchat::img::Tkchat
+    }
     set ver "Using Tcl/Tk [info patchlevel]"
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
@@ -3085,7 +3092,10 @@ proc ::tkchat::About {} {
     $w.text tag configure center -justify center
     $w.text tag configure title -justify center -font {Courier -18 bold}
     $w.text tag configure h1 -font {Sans -12 bold}
-    $w.text insert 1.0 \
+    if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
+	#$w.text image create end -image ::tkchat::img::Tkchat -name Icon -padx 20
+    }
+    $w.text insert end \
 	"TkChat v$rcsVersion\n" title "$ver\n\n" {h1 center} \
 	"Copyright (c) 2001-2005  Bruce B Hartweg <brhartweg@bigfoot.com>\n" \
 		center \
@@ -5086,7 +5096,7 @@ proc ::tkchat::ChooseFont {} {
                                     $::Options(Font,-size) \
                                     {}] \
                   -apply ::tkchat::SetFont]
-    if { [string compare {} $font] } {
+    if {[llength $font] != 0} {
 	SetFont $font
     }
     return
@@ -6950,7 +6960,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/04/27 00:03:48 $
+	 # Last modified on: $Date: 2007/04/27 20:32:30 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
