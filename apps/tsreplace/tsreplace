@@ -1,0 +1,576 @@
+#!/bin/sh
+
+# the next line restarts the application with wish \
+exec wish $0
+
+
+	package require Tcl 8.4
+        package require Tk 8.4
+        # ATTENTION PLEASE!
+        catch {package require dict}
+        # Poor man's dict -- a pure tcl [dict] emulation
+        # Very slow, but complete.
+        #
+        # Not all error checks are implemented!
+        # e.g. [dict create odd arguments here] will work
+        #
+        # Implementation is based on lists, [array set/get]
+        # and recursion
+
+        if {![llength [info commands dict]]} {
+            proc dict {cmd args} {
+                uplevel 1 [linsert $args 0 _dict_$cmd]
+            }
+            proc _dict_get {dv args} {
+                if {![llength $args]} {return $dv} else {
+                    array set dvx $dv
+                    set key [lindex $args 0]
+                    set dv $dvx($key)
+                    set args [lrange $args 1 end]
+                    return [eval [linsert $args 0 _dict_get $dv]]
+                }
+            }
+            proc _dict_exists {dv key args} {
+                array set dvx $dv
+                set r [info exists dvx($key)]
+                if {!$r} {return 0}
+                if {[llength $args]} {
+                    return [eval [linsert $args 0 _dict_exists $dvx($key) ]]
+                } else {return 1}
+            }
+            proc _dict_set {dvar key value args } {
+                upvar 1 $dvar dv
+                if {![info exists dv]} {set dv [list]}
+                array set dvx $dv
+                if {![llength $args]} {
+                    set dvx($key) $value
+                } else {
+                    eval [linsert $args 0 _dict_set dvx($key) $value]
+                }
+                set dv [array get dvx]
+            }
+            proc _dict_unset {dvar key args} {
+                upvar 1 $dvar mydvar
+                if {![info exists mydvar]} {return}
+                array set dv $mydvar
+                if {![llength $args]} {
+                    if {[info exists dv($key)]} {
+                        unset dv($key)
+                    }
+                } else {
+                    eval [linsert $args 0 _dict_unset dv($key) ]
+                }
+                set mydvar [array get dv]
+                return {}
+            }
+            proc _dict_keys {dv {pat *}} {
+                array set dvx $dv
+                return [array names dvx $pat]
+            }
+            proc _dict_append {dvar key {args}} {
+                upvar 1 $dvar dv
+                if {![info exists dv]} {set dv [list]}
+                array set dvx $dv
+                eval [linsert $args 0 append dvx($key) ]
+                set dv [array get dvx]
+            }
+            proc _dict_create {args} {
+                return $args
+            }
+            proc _dict_filter {dv ftype args} {
+                set r [list]
+                foreach {globpattern} $args {break}
+                foreach {varlist script} $args {break}
+
+                switch $ftype {
+                    key {
+                        foreach {key value} $dv {
+                            if {[string match $globpattern $key]} {
+                                lappend r $key $value
+                            }
+                        }
+                    }
+                    value {
+                        foreach {key value} $dv {
+                            if {[string match $globpattern $value]} {
+                                lappend r $key $value
+                            }
+                        }
+                    }
+                    script {
+                        foreach {Pkey Pval} $varlist {break}
+                        upvar 1 $Pkey key $Pval value
+                        foreach {key value} $dv {
+                            if {[uplevel 1 $script]} {
+                                lappend r $key $value
+                            }
+                        }
+                    }
+                    default {
+                        error "Wrong filter type"
+                    }
+                }
+                return $r
+            }
+            proc _dict_for {kv dict body} {
+                uplevel 1 [list foreach $kv $dict $body]
+            }
+            proc _dict_incr {dvar key {incr 1}} {
+                upvar 1 $dvar dv
+                if {![info exists dv]} {set dv [list]}
+                array set dvx $dv
+                if {![info exists dvx($key)]} {set dvx($key) 0}
+                incr dvx($key) $incr
+                set dv [array get dvx]
+            }
+            proc _dict_info {dv} {
+                return "Dictionary is represented as plain list"
+            }
+            proc _dict_lappend {dvar key args} {
+                upvar 1 $dvar dv
+                if {![info exists dv]} {set dv [list]}
+                array set dvx $dv
+                eval [linsert $args 0 lappend dvx($key)]
+                set dv [array get dvx]
+            }
+            proc _dict_merge {args} {
+            foreach dv $args {
+                array set dvx $dv
+            }
+            array get dvx
+            }
+            proc _dict_replace {dv args} {
+                foreach {k v} $args {
+                    _dict_set dv $k $v
+                }
+                return $dv
+            }
+            proc _dict_remove {dv args} {
+                foreach k $args {
+                    _dict_unset dv $k
+                }
+                return $dv
+            }
+            proc _dict_size {dv} {
+                return [expr {[llength $dv]/2}]
+            }
+            proc _dict_values {dv {gp *}} {
+                set r [list]
+                foreach {k v} $dv {
+                    if {[string match $gp $v]} {
+                        lappend r $v
+                    }
+                }
+                return $r
+            }
+        }
+
+        proc Error {str} {
+                tk_messageBox -message $str
+                return -code return $str
+        }
+
+        proc SelectDir {varname} {
+                upvar $varname d
+                set d [tk_chooseDirectory -initialdir $d -title "Choose a directory"\
+                        -parent .opt]
+        }
+
+        proc main {} {
+                toplevel .opt
+                wm title .opt "Parameters"
+                set row 1
+                set fr  .opt
+                foreach key {dir filter search replace backup} desc {
+                        "Start directory" "File filter" "Search for"
+                        "Replace with" "Create backup files"
+                } {
+                    if {![info exists ::t($key)]} {
+                        set ::t($key) ""
+                    }
+                    switch -- $key {
+                        dir {
+                            label $fr.lb$row -text $desc
+                            grid $fr.lb$row -row $row -column 0
+                            set fri [frame $fr.f$row]
+                            grid $fri -row $row -column 1
+                            button $fri.ds -text Choose -command [list SelectDir ::t($key)]
+                            entry $fri.en -textvariable ::t($key)
+                            pack $fri.en $fri.ds -padx 5 -pady 5 -side left
+                        }
+                        backup {
+                            checkbutton $fr.ck$row -text $desc -variable ::t($key)
+                            set ::t($key) 1
+                            grid $fr.ck$row -row $row -column 0
+                        }
+                        default {
+                            label $fr.lb$row -text $desc
+                            entry $fr.en$row -textvariable ::t($key)
+                            grid $fr.lb$row -row $row -column 0
+                            grid $fr.en$row -row $row -column 1
+                        }
+                    }
+                    eval grid configure [winfo children $fr] -padx 5 -pady 5
+                    incr row
+                }
+                set fr [frame .opt.cmd]
+                button $fr.val -text Proceed -command execute
+                button $fr.exit -text Abort -command abort
+                pack $fr.val $fr.exit -side left -padx 10 -pady 10
+                grid $fr -row $row -column 0 -columnspan 2
+                focus .opt
+                lower .
+                raise .opt
+        }
+
+        proc abort {} {
+            if {[tk_messageBox -type yesno -message "Do you really want to exit?"]} {
+                global FILE
+                file delete -force $FILE
+                exit 0
+            }
+        }
+
+        proc execute {} {
+                destroy .opt
+                raise .
+                focus -force .
+                # re-active all buttons
+                butstate normal
+                set opts [eval dict create [array get ::t]]
+                if {![file isdirectory [dict get $opts dir]]} {
+                        Error "[dict get $opts dir] is not a valid directory"
+                }
+                dict for {k v} $opts {if {$k ne "replace" && $v eq ""} {Error "Empty $k parameter"}}
+
+                if {![dict get $opts backup] &&
+                    ![tk_messageBox -type yesno -message \
+                    "Files will not be saved as backup files.\nCheck you already did the backup.\nDo you want to continue?"]} {
+                    main
+                    return
+                }
+
+                # Create the substitution proc (regexps are compiled, thus faster)
+                set search [dict get $opts search]
+                set replace [dict get $opts replace]
+                proc Replace {line} [string map [list SRCH $search REPL $replace] {
+                        if {![regexp -indices -line -- {SRCH} $line location]} {return [list $line]}
+                        foreach {b e} $location {break}
+                        # three parts of the string : before, at, and after the match
+                        set result [list [string range $line 0 [expr {$b-1}]]\
+                                [string range $line $b $e] [string range $line [expr {$e+1}] end]]
+                        # append the subst'd string
+                        lappend result [regsub -line -- {SRCH} [lindex $result 1] {REPL}]
+                }]
+                if {[catch {Replace ""} msg]} {
+                    Error "Invalid search/replace pattern pair:\n$msg"
+                }
+                directory $opts
+                butstate disabled
+                if {[tk_messageBox -type yesno \
+                -message "Operation completed\nDo you want to exit ?"]} {
+                        exit
+                }
+                main
+        }
+        proc fcontext {opts} {
+                set dir [dict get $opts dir]
+                set context [dict create dirs "" files ""]
+                if {[catch {set flist [lsort [glob $dir/*]]}]} {
+                        # no more files
+                        return $context
+                }
+                set filter [dict get $opts filter]
+                foreach f $flist {
+                    if {[file isdirectory $f]} {
+                        dict lappend context dirs $f
+                    }
+                }
+                foreach f [glob -nocomplain $dir/$filter] {
+                    if {![file isdirectory $f]} {
+                        dict lappend context files $f
+                    }
+                }
+                return $context
+        }
+
+        proc ScrollOpen {path} {
+                global ROWNUM
+                set res [dict create path $path fd [set fd [open $path]]\
+                cache "" now -1 clen 0]
+                while {![eof $fd] ||
+                [dict get $res clen] == $ROWNUM} {
+                        dict lappend res cache [gets $fd]
+                        dict incr res clen
+                }
+                return $res
+        }
+
+        proc ScrollEof {in} {
+                set fd [dict get $in fd]
+                if {[dict get $in now] >= [dict get $in clen] - 1} {return yes}
+                return no
+        }
+
+        proc ScrollClose {in} {
+                close [dict get $in fd]
+        }
+
+        proc ScrollGets {in} {
+                global ROWNUM
+                set fd [dict get $in fd]
+                if {[dict get $in now] <= $ROWNUM/2} {
+                        # head of the file or window larger than the file
+                        dict incr in now
+                } elseif {![eof $fd]} {
+                        # middle of the file
+                        set cache [lrange [dict get $in cache] 1 end]
+                        lappend cache [gets $fd]
+                        dict set $in cache $cache
+                } else {
+                        # end of the file
+                        dict incr in now
+                }
+                return [list [lindex [dict get $in cache] [dict get $in now]] $in]
+        }
+
+        proc File {path opts} {
+                ShowFile $path $opts
+                global STATUS FILE
+                set STATUS proceed
+                set STATUS proceed
+                if {[dict get $opts backup]} {
+                    if {[catch {file copy -force $path $path.bak}]} {
+                        Error "cannot write $path.bak"
+                    }
+                }
+                # open the chosen file
+                # ScrollOpen/Close/Gets keeps into a dict
+                # a view of 25 lines of code, with a cache
+                # that anticipates reading file
+                set in [ScrollOpen $path]
+                # open a temporary file to write modified content to it
+                set out [open [dict get $FILE TMP] w]
+                set STATUS ""
+                set previous [list]
+                # store whether the file has been modified or not
+                set changed no
+                while {![ScrollEof $in]} {
+                    foreach {line in} [ScrollGets $in] {break}
+                    set search [dict get $opts search]
+                    if {[regexp -line -- $search $line]} {
+                        set newline [ShowReplace $in $line]
+                        if {![string equal $newline $line]} {
+                            # the file has been modified
+                            set changed yes
+                        }
+                        switch -- $STATUS {
+                            eof -
+                            parentdir -
+                            eod {
+                                return
+                            }
+                            cancel {
+                                puts $out $line
+                            }
+                            proceed - default {
+                                puts $out $newline
+                            }
+                        }
+                    } else {
+                        puts $out $line
+                    }
+                }
+                close $out
+                ScrollClose $in
+                if {$changed} {
+                    if {[catch {file copy -force [dict get $FILE TMP] $path} err]} {
+                        Error "Cannot write result into $path:\n$err"
+                    }
+                }
+        }
+
+        proc ShowReplace {in line} {
+                global STATUS
+                set chunks [Replace $line]
+                set outline [lindex $chunks 0]
+                while {[llength $chunks] == 4} {
+                        ShowMatchingPiece $chunks $in
+                        if {$STATUS ne "auto"} {
+                                tkwait variable STATUS
+                        }
+                        switch -- $STATUS {
+                                eof -
+                                parentdir -
+                                eod {
+                                        return ""
+                                }
+                                auto -
+                                proceed {
+                                        append outline [lindex $chunks 3]
+                                }
+                                cancel {
+                                        append outline [lindex $chunks 1]
+                                }
+                        }
+                        set chunks [Replace [lindex $chunks 2]]
+                        append outline [lindex $chunks 0]
+                        lset chunks 0 $outline
+                }
+                return $outline
+        }
+
+        proc ShowMatchingPiece {chunks in} {
+                .snap delete 0.0 end
+                .snap delete end
+                global ROWNUM COLNUM
+                set now [dict get $in now]
+                set cache [dict get $in cache]
+                set before [Align [lrange $cache 0 [expr {$now-1}]] $COLNUM]
+                set after [Align [lrange $cache [expr {$now+1}] end] $COLNUM]
+                set now [expr {[string length [concat $chunks]]/$COLNUM}]
+                if {$now > $ROWNUM} {
+                        .snap insert 0 "Line too long"
+                        return
+                }
+                foreach {head match end replace} $chunks {break}
+                set linesbefore [expr {($ROWNUM - $now)/2}]
+                set linesafter  [expr {$ROWNUM - $now - $linesbefore}]
+                set before [lrange $before end-[expr {2*$linesbefore-1}] end]
+                set after [lrange $after 0 [expr {2*$linesafter-1}]]
+                foreach {type line} $before {
+                        puts $type,$line,before
+                        .snap insert end $line\n $type
+                }
+                .snap insert end $head line
+                .snap insert end $match match
+                .snap insert end $replace replace
+                .snap insert end $end\n line
+                foreach {type line} $after {
+                        puts $type,$line,after
+                        .snap insert end $line\n $type
+                }
+                interp alias {} snaptag {} .snap tag configure
+                snaptag match -overstrike yes -background #f88
+                snaptag replace -background #8f8
+                snaptag line -background #ee8
+                snaptag newline -background #ccf
+                snaptag next -background #eef
+                update
+        }
+
+        proc Align {lines colnum} {
+                set r ""
+                foreach l $lines {
+                        lappend r newline
+                        if {$l eq ""} {lappend r ""}
+                        while {$l ne ""} {
+                                lappend r [string range $l 0 [incr colnum -1]]
+                                set l [string range $l [incr colnum] end]
+                                if {$l ne ""} {lappend r next}
+                        }
+                }
+                return $r
+        }
+
+        proc directory {opts} {
+                global STATUS
+                set d [dict get $opts dir]
+                if {![dict exists $opts level]} {
+                        dict set opts level 0
+                } else {
+                        dict incr opts level
+                }
+                ShowDir $opts
+                set fcontext [fcontext $opts]
+                foreach d [dict get $fcontext dirs] {
+                        dict set opts dir $d
+                        directory $opts
+                }
+                dict incr opts level
+                foreach f [dict get $fcontext files] {
+                        File $f $opts
+                        if {$STATUS eq "eod"} {return}
+                        if {$STATUS eq "parentdir"} {return -code return}
+                }
+                return
+        }
+
+        proc ftext {level dir} {
+                set t ""
+                if {$level>0} {
+                        set t +
+                        incr level -1
+                }
+                set t [string repeat | $level]$t$dir
+                global COLNUM
+                set l [string length $t]
+                if {$l > $COLNUM} {
+                        set t [string range $t 0 [expr {$COLNUM - 4}]]...
+                }
+                return $t
+        }
+
+        proc ShowDir {data} {
+                global COLNUM
+                set dirname [lindex [file split [dict get $data dir]] end]
+                set t [ftext [dict get $data level] "$dirname/ (directory)"]
+                .p.progress insert end \n$t
+                .p.progress see end
+                update
+        }
+
+        proc ShowFile {path data} {
+                global COLNUM
+                set t [ftext [dict get $data level] [file tail $path]]
+                .p.progress insert end \n$t
+                .p.progress see end
+                update
+        }
+
+        foreach {p status} {
+            ExecuteOneChange proceed
+            CancelOneChange cancel
+            ExecuteAllChanges auto
+            SkipFile eof
+            SkipDir eod
+            SkipParentDir parentdir
+        } {
+            interp alias {} $p {} set ::STATUS $status
+        }
+
+        proc buildGUI {} {
+                global COLNUM ROWNUM
+                set font [font create -family Courier -size 8]
+                text .snap -width $COLNUM -height $ROWNUM -font $font;# -state disabled
+                frame .p
+                text .p.progress -width $COLNUM -height 8 -yscrollcommand {.p.scroll set}\
+                        -font $font
+        #               -state disabled
+                scrollbar .p.scroll -command {.p.progress yview}
+                pack .snap .p
+                grid .p.progress .p.scroll -sticky nsew
+                frame .f -pady 10
+                button .f.ex -text "Change" -command ExecuteOneChange
+                button .f.can -text "Don't Change Here" -command CancelOneChange
+                button .f.exa -text "Change all" -command ExecuteAllChanges
+                button .f.sk -text "Skip File" -command SkipFile
+                button .f.skd -text "Skip Current Directory" -command SkipDir
+                button .f.skpd -text "Skip Parent Directory" -command SkipParentDir
+                button .f.quit -text Abort -command abort
+                button .f.new -text "New session" -command main
+                pack .f
+                pack .f.ex .f.can .f.exa .f.sk .f.skd .f.skpd .f.quit -side left -padx 10
+        }
+        set COLNUM 90
+        set ROWNUM 25
+        package require fileutil
+        set FILE [dict create TMP [::fileutil::tempfile tsreplace]]
+        set STATUS begin
+        wm title . "Tcl Star Replace v0.1.3"
+        buildGUI
+        proc butstate {newstate} {
+                foreach b {.f.ex .f.can .f.exa .f.sk .f.skd .f.skpd} {$b configure -state $newstate}
+        }
+        butstate disabled
+        main
