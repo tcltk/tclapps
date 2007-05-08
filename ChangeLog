@@ -1,3 +1,7 @@
+2007-05-08  Stephane Arnold <sarnold75@users.sourceforge.net>
+
+    * apps/tsreplace/*: added to CVS.
+
 2007-03-07  Andreas Kupries  <andreask@activestate.com>
 
 	* apps/hexplode/hexplode.tcl: Added 'package require Tk' to always
