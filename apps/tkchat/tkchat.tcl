@@ -56,8 +56,8 @@ catch {package require tooltip 1.2};# tooltips (optional)
 if { ![catch { tk inactive }] } {
     # Idle detection built into tk8.5a3
     namespace eval ::idle {
-	proc ::idle::supported {} { return 1 }
-	proc ::idle::idletime {} { return [expr { [tk inactive] / 1000 }] }
+        proc ::idle::supported {} { return 1 }
+        proc ::idle::idletime {} { return [expr { [tk inactive] / 1000 }] }
     }
 } elseif { [catch {
     # Optional idle detection
@@ -74,8 +74,8 @@ if { ![catch { tk inactive }] } {
 if {[llength [info commands ::tk::label]] < 1} {
     foreach cmd { label entry text canvas menubutton button frame labelframe \
 	    radiobutton checkbutton scale scrollbar} {
-	rename ::$cmd ::tk::$cmd
-	interp alias {} ::$cmd {} ::tk::$cmd
+        rename ::$cmd ::tk::$cmd
+        interp alias {} ::$cmd {} ::tk::$cmd
     }
 }
 
@@ -90,7 +90,7 @@ namespace eval ::tkchat {
 	variable useClosebutton 0
 	variable NS "::ttk"
 	if {[llength [info commands ::ttk::*]] == 0} {
-	    if {![catch {package require tile 0.8}]} {
+            if {![catch {package require tile 0.8}]} {
 		# we're all good
 	    } elseif {![catch {package require tile 0.7}]} {
 		# tile to ttk compatability
@@ -104,12 +104,10 @@ namespace eval ::tkchat {
 	    }
 	} else {
 	    # [PT]: experimental ttk styled pane closebutton.
-	    if {[lsearch [ttk::style element names] "smallclosebutton"] != -1} {
-		ttk::style layout TClosebutton {
-		    Closebutton.button -sticky nswe -children {
-			Closebutton.padding -sticky nswe -children {
-			    Closebutton.closebutton -sticky {}
-			}
+	    if {[lsearch [ttk::style element names] "MDIButton.close"] != -1} {
+                ttk::style layout TMDIButton.close {
+                    MDIButton.padding -sticky nswe -children {
+                        MDIButton.close -sticky nswe
 		    }
 		}
 		set useClosebutton 1
@@ -153,13 +151,13 @@ if {$tcl_platform(platform) eq "windows"
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
     # This package also provides more efficient IP sockets on windows.
-    catch {package require Iocpsock}
+    #catch {package require Iocpsock}
 }
 
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.381 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.382 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -172,7 +170,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.381 2007/04/27 22:29:40 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.382 2007/08/22 22:57:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -289,6 +287,22 @@ if {[info exists ::env(HOME)] \
 	::log::log error $err
 	exit
     }
+}
+
+proc ::tkchat::Dialog {w args} {
+    lappend args -class Dialog
+    set dlg [eval [linsert $args 0 toplevel $w]]
+    wm transient $dlg [winfo parent $dlg]
+    if {[llength [info commands ::winico]] > 0} {
+        bind $dlg <Map> {
+            if {[string equal [winfo toplevel %W] "%W"]} {
+                winico setwindow %W $::tkchat::TaskbarIcon small 0
+                winico setwindow %W $::tkchat::TaskbarIcon big 0
+                bind %W <Map> {}
+            }
+        }
+    }
+    return $dlg
 }
 
 # trace handler to set the log level whenever Options(LogLevel) is changed
@@ -578,9 +592,8 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    # ask user
 	    set t .histQ
 	    catch {destroy $t}
-	    toplevel $t -class Dialog
+	    set t [Dialog $t]
 	    wm withdraw $t
-	    wm transient $t
 	    wm protocol $t WM_DELETE_WINDOW {}
 	    wm title $t "Load History From Logs"
 
@@ -1560,7 +1573,7 @@ proc ::tkchat::ShowStatusHistory {} {
         raise .statuswindow
         return
     }
-    set dlg [toplevel .statushistory -class Dialog]
+    set dlg [Dialog .statushistory]
     wm withdraw $dlg
     set f [${NS}::frame $dlg.f]
     text $f.txt -yscrollcommand [list $f.vs set]
@@ -1704,7 +1717,7 @@ proc ::tkchat::showInfo {title str} {
     while {[winfo exists $t]} {
 	set t .infobox[incr i]
     }
-    set dlg [toplevel $t -class Dialog]
+    set dlg [Dialog $t]
     wm title $t $title
     set t [${NS}::frame $dlg.f -borderwidth 0]
     pack $t -side top -fill both -expand 1
@@ -1958,7 +1971,9 @@ proc ::tkchat::CreateGUI {} {
     wm protocol . WM_DELETE_WINDOW [namespace origin quit]
     if {[file exists [set iconfile [file join $::tkchat_dir tkchat48.gif]]]} {
 	if {![catch {image create photo ::tkchat::img::Tkchat -file $iconfile}]} {
-	    wm iconphoto . ::tkchat::img::Tkchat
+            if {[tk windowingsystem] ne "win32" || [catch {package require Winico}]} {
+                wm iconphoto . ::tkchat::img::Tkchat
+            }
 	}
     }
     catch { createFonts }
@@ -2602,7 +2617,7 @@ proc ::tkchat::CreateGUI {} {
     variable useClosebutton
     ${NS}::frame .cframe -relief groove
     if {$useClosebutton} {
-        ::ttk::button .cbtn -style TClosebutton
+        ::ttk::button .cbtn -padding {1 1 0 0} -style TMDIButton.close
     } else {
         ${NS}::button .cbtn -text "Close history pane"
     }
@@ -3138,10 +3153,9 @@ proc ::tkchat::About {} {
     # we want to make sure it displays latest greatest info!
     catch {destroy .about}
 
-    set dlg [toplevel .about -class Dialog]
+    set dlg [Dialog .about]
     set w [${NS}::frame $dlg.f]
     wm withdraw $dlg
-    wm transient $dlg .
     wm title $dlg "About TkChat $rcsVersion"
     if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
 	wm iconphoto $dlg ::tkchat::img::Tkchat
@@ -3201,9 +3215,8 @@ proc ::tkchat::Help {} {
     regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
 
     catch {destroy .qhelp}
-    set w [toplevel .qhelp -class Dialog]
+    set w [Dialog .qhelp]
     wm withdraw $w
-    wm transient $w .
     wm title $w "TkChat $rcsVersion Help"
     ${NS}::frame $w.f
     text $w.text -height 32 -bd 1 -width 100 -wrap word \
@@ -4075,10 +4088,9 @@ proc ::tkchat::logonScreen {} {
 
     tkjabber::disconnect
     if {![winfo exists .logon]} {
-	toplevel .logon -class Dialog
+	Dialog .logon
 	wm withdraw .logon
 	wm protocol .logon WM_DELETE_WINDOW { set ::tkchat::DlgDone cancel }
-	wm transient .logon .
 	wm title .logon "Logon to the Tcl'ers Chat"
 
 	set lf [${NS}::frame .logon.frame]
@@ -4259,9 +4271,8 @@ proc ::tkchat::registerScreen {} {
     if {[winfo exists $dlg]} {
         set r .register.f
     } else {
-	toplevel $dlg -class Dialog
+	Dialog $dlg
 	wm withdraw $dlg
-	wm transient $dlg .
 	wm title $dlg "Register for the Tcler's Chat"
         
         set r [${NS}::frame $dlg.f]
@@ -4460,8 +4471,7 @@ proc ::tkchat::SpecifySubjects {} {
     
     set t .macros
     catch {destroy $t}
-    toplevel $t -class Dialog
-    wm transient $t .
+    Dialog $t
     wm withdraw $t
     wm title $t "Specify alert subjects"
 
@@ -4539,8 +4549,7 @@ proc ::tkchat::EditMacros {} {
     
     set t .macros
     catch {destroy $t}
-    toplevel $t -class Dialog
-    wm transient $t .
+    Dialog $t
     wm withdraw $t
     wm title $t "Edit Macros"
 
@@ -4646,8 +4655,7 @@ proc ::tkchat::ChangeColors {} {
     #Build screen
     set t .opts
     catch {destroy $t}
-    toplevel $t -class Dialog
-    wm transient $t .
+    Dialog $t
     wm protocol $t WM_DELETE_WINDOW {set ::tkchat::DlgDone cancel}
     wm withdraw $t
     wm title $t "Color Settings"
@@ -5584,12 +5592,11 @@ proc ::tkchat::ShowSmiles {} {
             lappend images $e
 	}
         set images [lsort -unique $images]
-	toplevel $t -class Dialog
+	Dialog $t
         set f [${NS}::frame $t.f]
 	wm title $t "Available Emoticons"
 	wm withdraw $t
 	wm protocol $t WM_DELETE_WINDOW [list wm withdraw $t]
-        wm transient $t .
 	set txt [text $f.txt -font NAME -tabs {1.5i l 2.0i l} \
 		       -height [expr {[llength $images] + 6}]]
 	set sb [${NS}::scrollbar $f.sb -command [list $txt yview]]
@@ -6251,7 +6258,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     set UI(id) $id
 
     set [namespace current]::$id -1
-    set dlg [toplevel .$id -class Dialog]
+    set dlg [Dialog .$id]
     wm title $dlg "User info for $jid"
     set f [${NS}::frame $dlg.f]
     if {!$useTile} { $dlg.f configure -bd 0 }
@@ -6708,7 +6715,7 @@ proc ::tkchat::EditOptions {} {
     set EditOptions(UseTkOnly)     $Options(UseTkOnly)
 
     if {[winfo exists .options]} {destroy .options}
-    set dlg [toplevel .options -class Dialog]
+    set dlg [Dialog .options]
     wm withdraw $dlg
     wm title $dlg "Tkchat Options"
 
@@ -7004,7 +7011,7 @@ proc tkchat::whiteboard_open {} {
     variable NS
 
     if { ![winfo exists .wb] } {
-	set wb [toplevel .wb]
+	set wb [Dialog .wb]
 
 	${NS}::entry $wb.e -textvar ::wbentry -width 80
 	if {$useTile == 0} { $wb.e configure -background white }
@@ -7041,7 +7048,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/04/27 22:29:40 $
+	 # Last modified on: $Date: 2007/08/22 22:57:19 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -8940,7 +8947,7 @@ proc tkjabber::SubscriptionRequest {from status} {
     set msg [msgcat::mc "Do you want to let %s add you to their roster?" $jid]
     set status [string trim $status]
     set wid dlg[incr subs_uid]
-    set dlg [toplevel .$wid -class Dialog]
+    set dlg [::tkchat::Dialog .$wid]
     wm title $dlg $ttl
     set f [frame $dlg.f -borderwidth 0]
     set lt [label $f.lt -text "$ttl" -anchor w]
@@ -9132,7 +9139,8 @@ proc ::tkjabber::getChatWidget { jid from } {
     switch $Options(OneToOne) {
 	tabbed -
 	popup {
-	    set ChatWindows(toplevel.$jid) [toplevel .chat[incr ChatWindows(counter)]]
+	    set ChatWindows(toplevel.$jid) \
+                [::tkchat::Dialog .chat[incr ChatWindows(counter)]]
 	    set ChatWindows(title.$jid) "$from <$jid>"
 	    set ChatWindows(txt.$jid) \
 		[tkchat::CreateNewChatWindow $ChatWindows(toplevel.$jid)]
@@ -9255,11 +9263,10 @@ proc ::tkchat::ShowCertificate {info} {
         array set O [split $C(subject) ",="]
         array set I [split $C(issuer) ",="]
     }
-    set top [toplevel .certificate -class Dialog]
+    set top [Dialog .certificate]
     set dlg [${NS}::frame $top.f]
     wm withdraw $top
     wm title $top "Certificate Information"
-    wm transient $top .
     set t [text $dlg.txt -wrap word -width 70 -height 28 \
                -borderwidth 0 -padx 2 -pady 2 -font FNT -tabs {140 280}]
     $t tag configure HEAD -font SYS
@@ -9324,7 +9331,7 @@ proc tkchat::PasteDlg {} {
     variable NS
     if {![info exists paste_uid]} { set paste_uid 0 }
     set wid paste[incr paste_uid]
-    set dlg [toplevel .$wid -class Dialog]
+    set dlg [Dialog .$wid]
     wm title $dlg "Paste data to paste.tclers.tk"
     set f [${NS}::frame $dlg.f1 -borderwidth 0]
     set f2 [${NS}::frame $f.f2 -borderwidth 0]
@@ -9447,3 +9454,8 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
 }
+
+# Local variables:
+#   mode: tcl
+#   indent-tabs-mode: nil
+# End:

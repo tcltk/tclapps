@@ -1,3 +1,9 @@
+2007-08-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Use a procedure to create all our dialogs and get
+	sensible icons and transient etc on windows. Use an MDI close
+	button if available for the history pane.
+
 2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added installation menu item to self-install into
