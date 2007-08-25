@@ -157,7 +157,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.382 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.383 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -170,7 +170,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.382 2007/08/22 22:57:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.383 2007/08/25 20:42:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7048,7 +7048,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/08/22 22:57:19 $
+	 # Last modified on: $Date: 2007/08/25 20:42:46 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7935,8 +7935,8 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 	    if { [info exists m(-subject)] && $m(-subject) ne ""} {
 		lappend msg "Subject: $m(-subject)"
 	    }
-	    if { [info exists m(-body)] } {
-		lappend msg "$m(-body)"
+	    if { [info exists m(-body)] && $m(-body) ne "" } {
+		lappend msg $m(-body)
 	    }
 	    if { [llength $msg] > 0 } {
 		set msg " whispers: [join $msg \n]"
@@ -7944,8 +7944,6 @@ proc ::tkjabber::MsgCB {jlibName type args} {
                 StoreMessage $from \
                     [expr {[info exists m(-subject)] ? $m(-subject) : ""}] \
                     [expr {[info exists m(-body)] ? $m(-body) : ""}]
-	    } else {
-		::log::log notice "Unknown message from $from: '$args'"
 	    }
 	}
 	error {
@@ -8454,7 +8452,7 @@ proc ::tkjabber::query_user {user what} {
 #       A helper function for splitting out parts of Jabber IDs.
 #
 proc ::tkjabber::jid {part jid} {
-    ::log::log debug "jid $part '$jid'"
+    #::log::log debug "jid $part '$jid'"
     set r {}
     if {[regexp {^(?:([^@]*)@)?([^/]+)(?:/(.+))?} $jid \
 	     -> node domain resource]} {
