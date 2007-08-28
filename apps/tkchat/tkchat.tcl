@@ -68,6 +68,43 @@ if { ![catch { tk inactive }] } {
     proc ::idle::supported {} {return 0}
 }
 
+# enable OSX-specific (un-hide window) alerting if available
+if {[tk windowingsystem] eq "aqua"} {
+    if {[catch {package present Ffidl 0.6}]} {
+	# look for ffidl.kit
+	if {[set ffidl [auto_execok ffidl.kit]] ne ""} {
+		source $ffidl
+	} elseif {[info exists starkit::topdir]} {
+		# look next to tkchat.kit/tkchat.vfs
+		set ffidl [file join [file dirname $starkit::topdir] ffidl.kit]
+		if {[file exists $ffidl]} {
+			source $ffidl
+		}
+	} else {
+		# look next to tkchat.tcl
+		set ffidl [file join $tkchat_dir ffidl.kit]
+		if {[file exists $ffidl]} {
+			source $ffidl
+		}
+	}
+    }
+    if {![catch {package require Ffidl 0.6}]} {
+        # Ffidl code + carbon hooks courtesy of Daniel Steffen - see
+        # http://wiki.tcl.tk/ffidl
+        catch {
+            # hooks to Carbon API to set application name
+            ::ffidl::callout CPSSetProcessName {pointer-byte pointer-utf8} \
+                            sint32 \
+                [::ffidl::symbol /System/Library/Frameworks/ApplicationServices.framework/Frameworks/CoreGraphics.framework/CoreGraphics CPSSetProcessName]
+              CPSSetProcessName [binary format I2 {0 2}] "TkChat"
+
+            # hooks to Carbon API to Show + Hide process
+            ::ffidl::callout ShowHideProcess {pointer-byte int} sint32 \
+                    [::ffidl::symbol Carbon.framework/Carbon ShowHideProcess]
+        }
+    }
+}
+
 # Ensure that Tk widgets are available in the tk namespace. This is useful
 # if we are using Ttk widgets as sometimes we need the originals.
 #
@@ -157,7 +194,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.383 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.384 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -170,7 +207,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.383 2007/08/25 20:42:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.384 2007/08/28 08:21:52 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -289,18 +326,28 @@ if {[info exists ::env(HOME)] \
     }
 }
 
+proc ::tkchat::Toplevel {w args} {
+    variable useTile
+    eval [linsert $args 0 ::toplevel $w]
+    if {$useTile} {
+        place [::ttk::frame $w.tilebg] -x 0 -y 0 -relwidth 1 -relheight 1
+    }
+    return $w
+}
+
 proc ::tkchat::Dialog {w args} {
     lappend args -class Dialog
-    set dlg [eval [linsert $args 0 toplevel $w]]
+    set dlg [eval [linsert $args 0 Toplevel $w]]
     wm transient $dlg [winfo parent $dlg]
+    wm group $dlg .
     if {[llength [info commands ::winico]] > 0} {
-        bind $dlg <Map> {
+        bind $dlg <Map> {after idle {
             if {[string equal [winfo toplevel %W] "%W"]} {
                 winico setwindow %W $::tkchat::TaskbarIcon small 0
                 winico setwindow %W $::tkchat::TaskbarIcon big 0
                 bind %W <Map> {}
             }
-        }
+        }}
     }
     return $dlg
 }
@@ -1096,6 +1143,9 @@ proc ::tkchat::alertCallback {} {
     unset -nocomplain alert_pending
     if {$Options(Alert,RAISE) && [llength [focus -displayof .]]==0} {
 	# Only call this if the window doesn't already have focus
+        if {[tk windowingsystem] eq "aqua" && [package present Ffidl]} {
+            ShowHideProcess [binary format I2 {0 2}] 1
+        }
 	wm deiconify .
 	raise .
     }
@@ -1972,7 +2022,7 @@ proc ::tkchat::CreateGUI {} {
     if {[file exists [set iconfile [file join $::tkchat_dir tkchat48.gif]]]} {
 	if {![catch {image create photo ::tkchat::img::Tkchat -file $iconfile}]} {
             if {[tk windowingsystem] ne "win32" || [catch {package require Winico}]} {
-                wm iconphoto . ::tkchat::img::Tkchat
+                catch {wm iconphoto . ::tkchat::img::Tkchat}
             }
 	}
     }
@@ -2892,7 +2942,11 @@ proc ::tkchat::CreateNewChatWindow { parent } {
     } else {
 	panedwindow $parent.pane -sashpad 4 -sashrelief ridge
     }
-    ${NS}::frame $parent.txtframe
+    if {$useTile} {
+        ${NS}::frame $parent.txtframe -style FakeText
+    } else {
+        ${NS}::frame $parent.txtframe
+    }
 
     CreateTxtAndSbar $parent
 
@@ -2909,15 +2963,18 @@ proc ::tkchat::CreateNewChatWindow { parent } {
     ${NS}::button $parent.post -text "Post"
 
     $parent.txt configure -width 10
+    if {![catch {$parent.txtframe cget -style} style] && $style eq "FakeText"} {
+        $parent.txt configure -relief flat -borderwidth 0
+    }
     grid $parent.txt $parent.sbar \
-	    -in $parent.txtframe -sticky news -padx 1 -pady 2
+        -in $parent.txtframe -sticky news -padx 1 -pady 2
     grid columnconfigure $parent.txtframe 0 -weight 1
     grid rowconfigure $parent.txtframe 0 -weight 1
     if {$useTile} {
-	 	$parent.pane add $parent.txtframe
-	 } else {
-	 	$parent.pane add $parent.txtframe -sticky news
-	 }
+        $parent.pane add $parent.txtframe
+    } else {
+        $parent.pane add $parent.txtframe -sticky news
+    }
     grid $parent.pane -sticky news -padx 1 -pady 2
     grid $parent.btm  -sticky news
     grid $parent.ml $parent.eMsg $parent.post \
@@ -3158,7 +3215,7 @@ proc ::tkchat::About {} {
     wm withdraw $dlg
     wm title $dlg "About TkChat $rcsVersion"
     if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
-	wm iconphoto $dlg ::tkchat::img::Tkchat
+	catch {wm iconphoto $dlg ::tkchat::img::Tkchat}
     }
     set ver "Using Tcl/Tk [info patchlevel]"
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
@@ -3194,6 +3251,7 @@ proc ::tkchat::About {} {
     lappend txt "Joe English"		"<jenglish@users.sourceforge.net>"
     lappend txt "Joe Mistachkin"	"<joe@mistachkin.com>"
     lappend txt "Daniel South"		"<wildcard_25@users.sourceforge.net>"
+    lappend txt "Steve Landers"		"<steve@digitalsmarties.com>"
 
     insertHelpText $w.text $txt
 
@@ -4956,7 +5014,9 @@ proc ::tkchat::OpenErrorLog {opt} {
 
 proc ::tkchat::quit {} {
     set q "Are you sure you want to quit?"
-    set a [tk_messageBox -type yesno -message $q]
+    set a [tk_messageBox -type yesno -default yes \
+               -title "Tkchat confirm quit" \
+               -message $q]
     if { $a eq "yes" } {
 	::tkchat::saveRC
 	exit
@@ -7048,7 +7108,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/08/25 20:42:46 $
+	 # Last modified on: $Date: 2007/08/28 08:21:52 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -9144,6 +9204,8 @@ proc ::tkjabber::getChatWidget { jid from } {
 		[tkchat::CreateNewChatWindow $ChatWindows(toplevel.$jid)]
 	    ::tkchat::SetChatWindowBindings $ChatWindows(toplevel.$jid) $jid
 	    ::tkchat::StampVis
+            wm transient $ChatWindows(toplevel.$jid) {}
+            wm group $ChatWindows(toplevel.$jid) {}
 	    focus $ChatWindows(toplevel.$jid).eMsg
 	    return $ChatWindows(txt.$jid)
 	}
