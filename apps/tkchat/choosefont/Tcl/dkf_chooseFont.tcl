@@ -230,6 +230,7 @@ namespace eval ::dkfFontSel {
 	}
 	$w.sample.text insert 0 [option get $w.sample.text text Text]
 	grid $w.sample.text
+        catch {grid anchor $w.sample center}
 
 
 	# OK, Cancel and (partially) Apply.  See also 'configure_apply

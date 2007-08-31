@@ -1,3 +1,8 @@
+2007-08-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* choosefont/Tcl/dkf_chooseFont.tcl: Applied patch from Emiliano
+	to handle grid anchor differences between 8.4 and 8.5.
+
 2007-08-26  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Patch from Steve Landers to enhance MacOSX support.
