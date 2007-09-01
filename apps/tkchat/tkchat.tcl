@@ -194,7 +194,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.384 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.385 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -207,7 +207,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.384 2007/08/28 08:21:52 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.385 2007/09/01 23:13:53 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2871,6 +2871,9 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     $txt tag configure STAMP -font STAMP -foreground "#[getColor MainFG]"
     $txt tag configure SINGLEDOT
     $txt tag configure BOOKMARK
+    $txt tag configure TLSINFO -foreground SeaGreen4
+    $txt tag configure TLSVERIFY -foreground NavyBlue
+    $txt tag configure TLSERROR -foreground red
     $txt tag bind URL <Enter> [list [namespace origin onEnterURL] %W %x %y]
     $txt tag bind URL <Leave> [list [namespace origin onLeaveURL] %W %x %y]
 
@@ -4204,6 +4207,10 @@ proc ::tkchat::logonScreen {} {
 		-text "Auto-connect" \
 		-variable Options(AutoConnect) \
 		-underline 5
+        ${NS}::checkbutton .logon.vsc \
+        	-text "Validate SSL certificates" \
+        	-variable Options(ValidateSSLChain) \
+            	-underline 0
 	${NS}::frame  .logon.f  -border 0
 	${NS}::button .logon.ok \
 		-text "Logon" \
@@ -4239,6 +4246,7 @@ proc ::tkchat::logonScreen {} {
 	bind .logon <Alt-b> {focus .logon.ejres}
 	bind .logon <Alt-o> {focus .logon.nossl}
 	bind .logon <Alt-f> {focus .logon.econf}
+        bind .logon <Alt-v> {focus .logon.vsc}
 
 	trace variable Options(UseProxy)  w [namespace origin optSet]
 	trace variable Options(SavePW)    w [namespace origin optSet]
@@ -4264,7 +4272,7 @@ proc ::tkchat::logonScreen {} {
 	grid x		.logon.ljres  .logon.ejres -in $lf -sticky w  -pady 3
 	grid x		.logon.lconf  .logon.econf -in $lf -sticky w  -pady 3
 	grid x		.logon.sslopt -		   -in $lf -sticky w  -pady 3
-	grid x		.logon.atc    -		   -in $lf -sticky w  -pady 3
+	grid x		.logon.atc    .logon.vsc   -in $lf -sticky w  -pady 3
 	grid x		x	      .logon.f	   -in $lf -sticky e  -pady 4
 
 	pack $lf -side top -fill both -expand 1
@@ -4277,7 +4285,7 @@ proc ::tkchat::logonScreen {} {
     set have_tls [expr {[package provide tls] != {}}]
     if {! $have_tls} {
 	.logon.nossl invoke
-	foreach w {.logon.nossl .logon.rjabberssl .logon.rstarttls} {
+	foreach w {.logon.nossl .logon.rjabberssl .logon.rstarttls .logon.vsc} {
 	    $w configure -state disabled
 	}
     }
@@ -5060,7 +5068,8 @@ proc ::tkchat::saveRC {} {
 	LogFile LogLevel LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Subjects Theme Transparency UseBabelfish 
-        UseJabberSSL UseProxy Username UseTkOnly Visibility,*
+        UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain 
+        Visibility,*
     }
 
     foreach key $keep {
@@ -5114,7 +5123,7 @@ proc ::tkchat::saveRC {} {
     foreach option [lsort -dictionary [array names tmp]] {
 	lappend oplist [list $option $tmp($option)]
     }
-    if { ![catch { open $rcfile [list WRONLY CREAT] 0600 } fd] } {
+    if { ![catch { open $rcfile [list WRONLY CREAT TRUNC] 0600 } fd] } {
 	fconfigure $fd -encoding utf-8
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	puts $fd "array set Options \{"
@@ -5983,6 +5992,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	UseProxy		0
 	UseTkOnly		0
 	Username		""
+	ValidateSSLChain	1
 	Visibility,AVAILABILITY	0
 	Visibility,ERROR	0
 	Visibility,SINGLEDOT	0
@@ -6389,7 +6399,6 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 # At some point I want to support multiple icons for nochat/chat/alert.
 #
 proc ::tkchat::WinicoInit {} {
-    ::log::log debug "tk windowingsystem [tk windowingsystem]"
     if {[tk windowingsystem] eq "win32" &&
 	![catch {package require Winico}]} {
 	variable TaskbarIcon
@@ -7108,7 +7117,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/08/28 08:21:52 $
+	 # Last modified on: $Date: 2007/09/01 23:13:53 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7303,6 +7312,7 @@ namespace eval tkjabber {
     Variable nickTries 0 ;# The number of times I tried to solve a nick conflict
     Variable baseNick "" ;# used when trying to solve a nick conflict.
     Variable grabNick "" ;# grab this nick when it becomes available.
+    Variable CertChain {} ;# TLS certificate chain
 
     Variable ignoreNextNick ""
     # If the next entry is by this nick, don't display it (for nick changes.)
@@ -7393,7 +7403,10 @@ proc ::tkjabber::connect {} {
 		    $Options(JabberServer) $Options(JabberPort)]
 	} elseif { $have_tls && $Options(UseJabberSSL) eq "ssl" } {
 	    set socket \
-		    [tls::socket $Options(JabberServer) $Options(JabberPort)]
+		    [tls::socket -ssl2 false -ssl3 true -tls1 true \
+                         -cafile [get_cafile] \
+                         -command [namespace origin tls_callback] \
+                         $Options(JabberServer) $Options(JabberPort)]
 	} else {
 	    if { $Options(JabberPort) == 5223 } {
 		incr Options(JabberPort) -1
@@ -7518,7 +7531,10 @@ proc tkjabber::ConnectProc {jlibName args} {
 
     # Now send authentication details:
     if {$have_tls && $Options(UseJabberSSL) eq "starttls"} {
-	jlib::starttls $jabber [namespace origin OnStartTlsFinish]
+        variable CertChain {}
+	jlib::starttls $jabber [namespace origin OnStartTlsFinish] \
+            -cafile [get_cafile] \
+            -command [namespace origin tls_callback]
     } else {
 	SendAuth
     }
@@ -7551,6 +7567,66 @@ proc tkjabber::SendAuth {} {
     } else {
 	SendAuthOld
     }
+}
+
+proc tkjabber::get_cafile {} {
+    global env
+    set path [file join $::tkchat_dir certs.pem]
+    if {![file exists $path]} { return {} }
+    if {[lindex [file system $path] 0] ne "native"} {
+        set new {}
+        foreach var {TEMP TMP TMPDIR} {
+            if {[info exists env($var)] \
+                    && [file isdirectory $env($var)] \
+                    && [file writable $env($var)]} then {
+                set new [file join $env($var) tkchat.pem]
+                break
+            }
+        }
+        if {$new eq {}} {
+            if {[file isdirectory /tmp] && [file writable /tmp]} {
+                set new [file join /tmp tkchat.pem]
+            } else {
+                log::log error "cannot find a tempfile location"
+                return {}
+            }
+        }
+        log::log info "copying certificate collection to $new"
+        file copy -force $path $new
+        return $new
+    }
+    return $path
+}
+
+# This callback is used to check the certificate chain. We provide a compound X509 file
+# that contains some root certificates for CAcert, Equifax and the Jabber Foundation.
+# OpenSSL can check the chain using these certificates and we can choose to fail
+# or ignore if we cannot verify the entire chain.
+proc tkjabber::tls_callback {type args} {
+    global Options
+    variable CertChain
+    switch -exact -- $type {
+        info {
+            #foreach {channel major minor message} $args break
+            #tkchat::addSystem .txt "$major/$minor $message" end TLSINFO
+        }
+        verify {
+            foreach {channel depth cert status error} $args break
+            #tkchat::addSystem .txt "status $status depth $depth\n$cert\n$error" end TLSVERIFY
+            lappend CertChain [list depth $depth status $status error $error cert $cert]
+            if {$Options(ValidateSSLChain)} {
+                return $status
+            }
+            return 1
+        }
+        error {
+            tkchat::addSystem .txt "tls error: $args" end TLSERROR
+        }
+        default {
+            return -code error "unexpected type in tls_callback"
+        }
+    }
+    return 1
 }
 
 proc tkjabber::CheckCertificate {} {
@@ -7586,7 +7662,7 @@ proc tkjabber::CheckCertificate {} {
                 set tip "Authenticated by $I(O)"
                 tooltip::tooltip .status.ssl $tip
                 bind .status.ssl <Double-Button-1> \
-                    [list tkchat::ShowCertificate [array get cert]]
+                    [list tkchat::ShowCertificate . 0 [array get cert]]
             }
         } err]} {
             log::log notice "SSL Warning: $err"
@@ -9149,7 +9225,9 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
     if {$code >= 200 && $code < 300} {
 	if {$have_tls && $Options(UseJabberSSL) eq "ssl"} {
             ::tkchat::addStatus 0 "Securing network link"
-	    ::tls::import $sock
+	    ::tls::import $sock -ssl2 false -ssl3 true -tls1 true \
+                -cafile [get_cafile] \
+                -command [namespace origin tls_callback]
 	} else {
             ::tkchat::addStatus 0 "Connected"
         }
@@ -9306,13 +9384,12 @@ proc ::tkchat::SafeGet {arrayName key} {
     }
     return ""
 }
-proc ::tkchat::ShowCertificate {info} {
-    if {[winfo exists .certificate]} {
-        wm deiconify .certificate
-        return
-    }
+proc ::tkchat::ShowCertificate {owner depth info} {
     variable NS
+    variable .certificate
+    variable ::tkjabber::CertChain
     array set C $info
+    set self_signed [string equal $C(subject) $C(issuer)]
     if {[string match /* $C(subject)]} {
         # older tls used / as a record separator
         array set O [split [string trim $C(subject) /] "/,="]
@@ -9323,19 +9400,31 @@ proc ::tkchat::ShowCertificate {info} {
         array set O [split $C(subject) ",="]
         array set I [split $C(issuer) ",="]
     }
-    set top [Dialog .certificate]
+    # this will lets us assign a given dialog to a given cert
+    set uid [SafeGet C sha1_hash][SafeGet C md5_hash]
+    if {$uid eq ""} { set uid [incr .certificate] }
+    if {[winfo exists .certificate$uid]} {
+        wm deiconify .certificate$uid
+        return
+    }
+    set top [Dialog .certificate$uid]
     set dlg [${NS}::frame $top.f]
     wm withdraw $top
-    wm title $top "Certificate Information"
+    wm title $top "Certificate Information: $O(CN) (level $depth)"
     set t [text $dlg.txt -wrap word -width 70 -height 28 \
                -borderwidth 0 -padx 2 -pady 2 -font FNT -tabs {140 280}]
     $t tag configure HEAD -font SYS
     $t insert end "Server Identify Verified" HEAD "\n" {} \
         "The server $O(CN) supports secure sockets. The identity of this\
          server has been verified by $I(O)\n" {}
-    if {$C(sbits) < 40} {set strength Weak} else {set strength High-grade}
-    $t insert end "\n" {} "Connection Encrypted:\
-        $strength Encryption ($C(cipher)) $C(sbits) bit" HEAD "\n" {}
+    if {$self_signed} {
+        $t insert end "\nThis is a self-signed certificate\n" {}
+    }
+    if {[info exists C(sbits)]} {
+        if {$C(sbits) < 40} {set strength Weak} else {set strength High-grade}
+        $t insert end "\n" {} "Connection Encrypted:\
+            $strength Encryption ($C(cipher)) $C(sbits) bit" HEAD "\n" {}
+    }
     $t insert end "\n" {} "Issued To" HEAD "\n" {}
     $t insert end "Common Name (CN)\t[SafeGet O CN]\n"
     $t insert end "Organsation (O)\t[SafeGet O O]\n"
@@ -9353,16 +9442,24 @@ proc ::tkchat::ShowCertificate {info} {
     $t insert end "MD5 Fingerprint\t[SafeGet C md5_hash]\n"
     $t configure -state disabled
     ${NS}::button $dlg.ok -text OK -command [list destroy $top] -default active
+    ${NS}::button $dlg.is -text Issuer -state disabled
+    if {!$self_signed && $depth < ([llength $CertChain] - 1)} {
+        set next [incr depth]
+        set issuer [lindex $CertChain [expr {[llength $CertChain] - $next - 1}]]
+        $dlg.is configure -state normal \
+            -command [list [namespace origin ShowCertificate] $top \
+                          [lindex $issuer 1] [lindex $issuer 7]]
+    }
     bind $top <Return> [list $dlg.ok invoke]
     bind $top <Escape> [list $dlg.ok invoke]
-    grid $t -sticky news
-    grid $dlg.ok -stick e
+    grid $t - -sticky news
+    grid $dlg.is $dlg.ok -stick e
     grid rowconfigure $dlg 0 -weight 1
     grid columnconfigure $dlg 0 -weight 1
     grid $dlg -sticky news
     grid rowconfigure $top 0 -weight 1
     grid columnconfigure $top 0 -weight 1
-    ::tk::PlaceWindow $top widget .
+    ::tk::PlaceWindow $top widget $owner
     wm deiconify $top
 }
 
