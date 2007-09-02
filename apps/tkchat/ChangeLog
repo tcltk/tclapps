@@ -1,3 +1,11 @@
+2007-09-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Added fallback to IRC in the event of being unable
+	to reach the Jabber server using picoirc. Added a -irc commandline
+	option to force it for testing.
+	* picoirc/picoirc.tcl:  Embeddable IRC client package based upon
+	* picoirc/pkgIndex.tcl: the Wiki's picoirc code.
+
 2007-09-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Support for checking the validity of the SSL

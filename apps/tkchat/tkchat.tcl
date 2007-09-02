@@ -43,7 +43,8 @@ package require base64		; # tcllib
 
 catch {package require tls}	; # tls (optional)
 catch {package require choosefont};# font selection (optional) 
-catch {package require askleo};# german translations (options)
+catch {package require askleo}  ;# german translations (optional)
+catch {package require picoirc} ;# irc client (optional)
 
 package require sha1		; # tcllib
 package require jlib		; # jlib
@@ -194,7 +195,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.385 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.386 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -207,7 +208,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.385 2007/09/01 23:13:53 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.386 2007/09/02 22:11:55 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -758,9 +759,10 @@ proc ::tkchat::logonChat {} {
     }
 
     # Logon to the jabber server.
-    tkjabber::connect
-    if { ! $::tkchat::LoggedIn } {
-	after 1000 {::tkchat::logonScreen}
+    if {[tkjabber::connect]} {
+        if { ! $::tkchat::LoggedIn } {
+            after 1000 {::tkchat::logonScreen}
+        }
     }
 }
 
@@ -5823,11 +5825,20 @@ proc ::tkchat::Init {args} {
 		    }
 		}
 	    }
+            -irc {
+                set nologin 1;
+                if {[catch {package require picoirc} err]} {
+                    return -code error $err
+                } else {
+                    after idle ::tkchat::PicoIRC [Pop args 1]
+                }
+            }
 	    -- { Pop args ; break }
 	    default {
 		return -code error "bad option \"$option\":\
-		    must be one of -nologin, -style, -theme,\
-		    -loglevel, -useragent or --."
+		    must be one of -nologin, -tkonly, -style, -theme,\
+		    -loglevel, -useragent, -debug, -nick, -conference,\
+                    -connect, -jabberserver, -irc or --."
 	    }
 	}
 	Pop args
@@ -7117,7 +7128,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/09/01 23:13:53 $
+	 # Last modified on: $Date: 2007/09/02 22:11:55 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7289,6 +7300,65 @@ proc ::tkchat::ConsoleInit {} {
 	 ::console hide
 }
 
+# Reconfigure tkchat to use IRC
+proc ::tkchat::PicoIRC {{url "#tcl@irc.freenode.net"}} {
+    proc ::tkchat::PicoIrcCallback {context state args} {
+        switch -exact -- $state {
+            init {}
+            connect {
+                tkchat::addStatus 0 "Connection to IRC server established."
+                tkchat::addStatus 1 "connected"
+                after 0 ::tkchat::LoadHistory
+            }
+            close {
+                tkchat::addStatus 0 "Disconnected from IRC server."
+                tkchat::addStatus 1 "not connected"
+                rename ::tkchat::userPost {}
+                rename ::tkchat::userPost_orig ::tkchat::userPost
+                rename [namespace origin [lindex [info level 0] 0]] {}
+            }
+            userlist {
+                variable OnlineUsers
+                foreach nick [lindex $args 0] {
+		    set OnlineUsers(IRC-$nick,status) [list online]
+		    lappend OnlineUsers(IRC) $nick
+		}
+		set OnlineUsers(IRC) \
+                    [lsort -dictionary -unique $OnlineUsers(IRC)]
+		::tkchat::updateOnlineNames
+            }
+            chat {
+                foreach {nick msg type} $args break
+                if {$type eq ""} {set type NORMAL}
+                addMessage .txt {} $nick $msg $type end 0
+            }
+            system {
+                addSystem .txt [lindex $args 0]
+            }
+            topic {
+                variable chatWindowTitle
+                set chatWindowTitle [lindex $args 0]
+            }
+            traffic {
+                foreach {action nick new} $args break
+                if {$action eq "nickchange"} {set nick [list $nick $new]}
+		::tkchat::addTraffic .txt $nick $action end 0
+            }
+            default {
+                addSystem .txt "unknown irc callback \"$state\": $args"
+            }
+        }
+    }
+    set irc [picoirc::connect \
+                 [namespace origin PicoIrcCallback] \
+                 $::Options(Username) $url]
+    rename ::tkchat::userPost ::tkchat::userPost_orig
+    proc ::tkchat::userPost {args} [string map [list %irc $irc] {
+        set msg [.eMsg get]
+        .eMsg delete 0 end
+        ::picoirc::Post %irc $msg
+    }]
+}
 
 # -------------------------------------------------------------------------
 # Jabber handling
@@ -7327,6 +7397,7 @@ namespace eval tkjabber {
     # retrytime in seconds, distributed so not everyone tries at the same time.
     Variable connectionRetryTime [expr {int(5+rand()*5.0)}]
     Variable reconnectTimer {}
+    Variable reconnectAttempts 0
 
     Variable HistoryLines {}
     Variable HaveHistory 0
@@ -7355,6 +7426,7 @@ proc ::tkjabber::connect {} {
     variable reconnect
     variable conference
     variable reconnectTimer
+    variable reconnectAttempts
     variable have_tls
 
     if { $reconnectTimer ne "" } {
@@ -7425,16 +7497,34 @@ proc ::tkjabber::connect {} {
     } res] } {
 	# Connection failed.
 	::tkchat::addStatus 0 "Connecting failed: $res" end ERROR
-	if { $reconnect } {
+        set cont 0
+	if { $reconnect && $reconnectAttempts < 10} {
 	    scheduleReconnect
 	} else {
-	tk_messageBox \
-		-icon error \
-		-title "Connection Failure" \
-		-message "Connecting failed: $res"
+            set msg "We are unable to connect to the remote site."
+            if {[package provide picoirc] ne ""} {
+                append msg " It is possible that something nasty has\
+                    happened to the Tcl jabber server - perhaps you would\
+                    like to try connecting via IRC?"
+            }
+            set r [tk_messageBox -type yesnocancel -icon error -default no \
+                       -title "Connection Failure" \
+                       -message "$res\n\n$msg"]
+            switch -exact -- $r {
+                yes { if {[package provide picoirc] ne {}} {::tkchat::PicoIRC} }
+                no {
+                    set cont 1
+                    if {$reconnect} {
+                        set reconnectAttempts 0
+                        scheduleReconnect
+                    }
+                }
+            }
 	}
-	return
+	return $cont
     } else {
+        variable reconnectAttempts 0
+
 	$jabber setsockettransport $socket
 	openStream
     }
@@ -7443,14 +7533,15 @@ proc ::tkjabber::connect {} {
     # jabberlib.
     .mbar.file entryconfigure 0 -label [::msgcat::mc Logout]
     set ::tkchat::LoggedIn 1
+    return 1
 }
 
 proc tkjabber::disconnect {} {
     variable socket
-    variable reconnect
+    variable reconnect 0
     variable reconnectTimer
+    variable reconnectAttempts 0
 
-    set reconnect 0
     if { $reconnectTimer ne "" } {
 	after cancel $reconnectTimer
 	set reconnectTimer ""
@@ -7882,7 +7973,7 @@ proc tkjabber::ClientCB {jlibName cmd args} {
             set conn(id) [$jlibName getstreamattr id]
             set conn(version) [$jlibName getstreamattr version]
             set conn(xmlns) [$jlibName getstreamattr xmlns]
-	    tkchat::addStatus 0 "Connection to Jabber Server Established"
+	    tkchat::addStatus 0 "Connection to Jabber server established"
             tkchat::addStatus 1 "connected"
 	}
 	disconnect {
@@ -9055,12 +9146,14 @@ proc ::tkjabber::TwiddlePort {} {
 proc ::tkjabber::scheduleReconnect {} {
     variable reconnectTimer
     variable connectionRetryTime
+    variable reconnectAttempts
 
     if { $reconnectTimer ne "" } {
 	::log::log debug "Already trying to reconnect..."
 	return
     }
 
+    incr reconnectAttempts
     tkchat::addStatus 0 "Will try to reconnect in $connectionRetryTime seconds."
     set reconnectTimer [after [expr {$connectionRetryTime * 1000}] \
                             [namespace origin connect]]
