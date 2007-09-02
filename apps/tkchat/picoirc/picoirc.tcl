@@ -52,7 +52,9 @@ proc ::picoirc::connect {callback nick url} {
     set context [namespace current]::irc[incr uid]
     upvar #0 $context irc
     array set irc $defaults
-    regexp {^([^@]+)@([^:]+)(?::(\d+))?} $url -> channel server port
+    if {![regexp {^irc://([^:/]+)(?::([^/]+))?/([^,]+)} $url -> server port channel]} {
+        regexp {^([^@]+)@([^:]+)(?::(\d+))?} $url -> channel server port
+    }
     if {[info exists channel] && $channel ne ""} {set irc(channel) $channel}
     if {[info exists server] && $server ne ""} {set irc(server) $server}
     if {[info exists port] && $port ne ""} {set irc(port) $port}
