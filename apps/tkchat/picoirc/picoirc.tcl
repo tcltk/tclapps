@@ -48,6 +48,7 @@ namespace eval ::picoirc {
 proc ::picoirc::connect {callback nick url} {
     global Options
     variable defaults
+    variable uid
     set context [namespace current]::irc[incr uid]
     upvar #0 $context irc
     array set irc $defaults
