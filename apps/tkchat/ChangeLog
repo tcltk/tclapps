@@ -1244,14 +1244,14 @@
 	users. Put a separator between the two groups into the message
 	menu.
 
-2004-02-27  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+2004-02-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Tweaks to the unix look. Added mnemonic bindings to
 	the login dialog.
 	Changed the purge menu item to 'Reload history'.
 	Changed the text selection background color.
 
-2004-02-20  Pat Thoyts  <pat@zsplat.freeserve.co.uk>
+2004-02-20  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:  Incorporated the options from the wiki gtklook page
 	with a couple of changes. This produces a somewhat more modern

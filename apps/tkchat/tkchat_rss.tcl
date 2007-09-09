@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.1 2007/09/09 19:58:37 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.2 2007/09/09 23:06:22 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 proc ::tkchat::RSSInit {} {
@@ -89,36 +89,46 @@ proc ::tkchat::ShowRssInfo {} {
     .status.rss configure -image ::tkchat::img::feedLo
     set dlg .rssinfo
     variable $dlg
-    if {![winfo exists $dlg]} {
-        set dlg [Dialog $dlg]
-        wm title $dlg "RSS Feeds"
-        wm transient $dlg .
-        set txt [text $dlg.txt -borderwidth 0 -font FNT]
-        ${NS}::scrollbar $dlg.vs -command [list $txt yview]
-        $txt configure -yscrollcommand [list $dlg.vs set]
-        ${NS}::button $dlg.ok -default active -text "OK" \
-            -command [list set [namespace which -variable $dlg] ok]
+
+    if {[winfo exists $dlg]} {
+        wm deiconify $dlg
+        raise -force $dlg.ok
+    }
+
+    set dlg [Dialog $dlg]
+    wm withdraw $dlg
+    wm title $dlg "RSS Feeds"
+    wm transient $dlg .
+
+    set use_notebook [llength [info commands ${NS}::notebook]]
+    if {$use_notebook} {
+        set nb [${NS}::notebook $dlg.nb]
+    } else {
+        set nb [${NS}::frame $dlg.nb]
+    }
+    
+    set page 0
+    foreach {url token} [array get Rss] {
+        set f [${NS}::frame $nb.page$page]
+        set txt [text $f.txt -borderwidth 0 -font FNT]
+        set sb [${NS}::scrollbar $f.vs -command [list $txt yview]]
+        $txt configure -yscrollcommand [list $sb set]
         
         $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
         $txt tag bind URL <Leave> [list $txt configure -cursor {}]
+        $txt tag configure TITLE -font NAME -spacing3 2
+        $txt tag configure ITEM -lmargin1 6
+        $txt tag configure URL -underline 1
+        $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
+        $txt tag bind URL <Leave> [list $txt configure -cursor {}]
+        
+        grid $txt $sb -sticky news
+        grid rowconfigure $f 0 -weight 1
+        grid columnconfigure $f 0 -weight 1
 
-        grid $txt $dlg.vs -sticky news
-        grid $dlg.ok - -sticky e
-        grid rowconfigure $dlg 0 -weight 1
-        grid columnconfigure $dlg 0 -weight 1
-    }
-    
-    set txt $dlg.txt
-    $txt delete 0.0 end
-    eval [linsert [$txt tag names] 0 $txt tag delete]
-    $txt tag configure TITLE -font NAME -spacing3 2
-    $txt tag configure ITEM -lmargin1 6
-    $txt tag configure URL -underline 1
-    $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
-    $txt tag bind URL <Leave> [list $txt configure -cursor {}]
-
-    foreach {url token} [array get Rss] {
-        $txt insert end $url\n [list $url TITLE]
+        array set channel [rss::channel $token]
+        set title $url
+        if {[info exists channel(title)]} { set title $channel(title) }
         foreach item [rss::data $token] {
             array set a $item
             set tag URL-[incr RssUrlId]
@@ -129,9 +139,31 @@ proc ::tkchat::ShowRssInfo {} {
                 tooltip::tooltip $txt -tag $tag $a(link)
             }
         }
-    }
-    $txt see 0.0
+        
+        $txt configure -state disabled
+        if {$use_notebook} {
+            $nb add $f -text $title
+        } else {
+            ${NS}::button $nb.b$page -text $title\
+                -command [list raise $f]
+            grid $nb.b$page -row 0 -column $page -sticky w
+            grid $f  -row 1 -column 0 -sticky news -columnspan 100
+            grid columnconfigure $nb 0 -weight 1
+            grid rowconfigure $nb 1 -weight 1
+        }
 
+        incr page
+    }
+    
+    ${NS}::button $dlg.ok -default active -text "OK" \
+        -command [list set [namespace which -variable $dlg] ok]
+    
+    grid $nb     -sticky news -padx {2 1} -pady 2
+    grid $dlg.ok -sticky e
+    grid rowconfigure $dlg 0 -weight 1
+    grid columnconfigure $dlg 0 -weight 1
+
+    if {!$use_notebook} {catch {$nb.b0 invoke}}
     wm deiconify $dlg
     catch {tk::PlaceWindow $dlg widget .}
     tkwait variable [namespace which -variable $dlg]
