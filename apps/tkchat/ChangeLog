@@ -1,3 +1,10 @@
+2007-09-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:          Added support for checking RSS/ATOM feeds
+	* tkchat_rss.tcl:      with understated notification in the status
+	* rssrdr/rssrdr.tcl:   bar when something new arrives.
+	* rssrdr/pkgIndex.tcl:
+
 2007-09-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:  Added fallback to IRC in the event of being unable

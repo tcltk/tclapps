@@ -195,7 +195,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.386 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.387 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -208,7 +208,7 @@ namespace eval ::tkchat {
     variable HOST http://mini.net
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.386 2007/09/02 22:11:55 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.387 2007/09/09 19:58:37 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -821,8 +821,8 @@ proc ::tkchat::HttpServerError {token {prefix ""}} {
 # -------------------------------------------------------------------------
 
 proc ::tkchat::fetchurldone {cmd tok} {
-    ::log::log info \
-	    "fetchurl: status was [::http::status $tok] [::http::code $tok]"
+    set url [set [set tok](url)]
+    ::log::log info "fetchurl ($url): [::http::code $tok]"
     if {[winfo exists .status.progress]} {
         grid forget .status.progress
     }
@@ -1207,7 +1207,7 @@ proc ::tkchat::checkSubject { w msgtype nick msg } {
     global Options
     if { [info exists Options(Subjects)] } {
 	foreach subj $Options(Subjects) {
-	    if { [string match $subj $msg] } {
+	    if { [string match -nocase $subj $msg] } {
 		return 1
 	    }
 	}
@@ -1659,12 +1659,7 @@ proc ::tkchat::Progress {tok total current} {
     if {![winfo exists .status.progress]} { return }
     log::log debug "Progress $total $current"
     set w .status.progress
-    if {![winfo ismapped $w]} {
-        if {$total == $current} { return }
-        set slaves [lreverse [grid slaves .status]]
-        eval [linsert $slaves 0 grid forget]
-        eval grid [linsert $slaves 1 $w] -sticky news
-    }
+    StatusbarAddWidget .status $w 1
     if {$total == $current} {
         if {[string equal [$w cget -mode] "determinate"]} {
             $w stop
@@ -1677,6 +1672,15 @@ proc ::tkchat::Progress {tok total current} {
     } elseif {$total != 0} {
         $w configure -mode determinate \
             -value [expr {int(double($current)/double($total) * 100)}]
+    }
+}
+
+proc ::tkchat::StatusbarAddWidget {bar slave pos} {
+    if {![winfo exists $bar]} { return }
+    if {![winfo ismapped $slave]} {
+        set slaves [lreverse [grid slaves $bar]]
+        eval [linsert $slaves 0 grid forget]
+        eval grid [linsert $slaves $pos $slave] -sticky news
     }
 }
 
@@ -2055,6 +2059,12 @@ proc ::tkchat::CreateGUI {} {
 	    -label [msgcat::mc Login] \
 	    -underline 0 \
 	    -command ::tkchat::logonScreen
+    if {[package provide picoirc] ne {}} {
+        $m add command \
+            -label [msgcat::mc "Login via IRC ..."] \
+            -underline 10 \
+            -command ::tkchat::IRCLogonScreen
+    }
     $m add command \
 	    -label "Save Options" \
 	    -underline 0 \
@@ -4149,7 +4159,7 @@ proc ::tkchat::logonScreen {} {
     variable DlgDone
     variable NS
 
-    tkjabber::disconnect
+    if {$::tkchat::LoggedIn} { tkjabber::disconnect }
     if {![winfo exists .logon]} {
 	Dialog .logon
 	wm withdraw .logon
@@ -4306,6 +4316,72 @@ proc ::tkchat::logonScreen {} {
 
 	# connect
 	logonChat
+    }
+}
+
+proc ::tkchat::IRCLogonScreen {} {
+    global Options
+    variable NS
+    variable irc
+    if {![info exists irc]} {
+        array set irc {server irc.freenode.net port 6667 channel "#tcl"}
+    }
+    set dlg .irclogon
+    variable $dlg {}
+    if {![winfo exists $dlg]} {
+        set dlg [Dialog $dlg]
+        wm withdraw $dlg
+        wm title $dlg "Connect to IRC"
+        
+        set f [${NS}::frame $dlg.f]
+        set g [${NS}::frame $f.g]
+        ${NS}::label $f.sl -text Server
+        ${NS}::entry $f.se -textvariable [namespace which -variable irc](server)
+        ${NS}::entry $f.sp -textvariable [namespace which -variable irc](port) -width 5
+        ${NS}::label $f.cl -text Channel
+        ${NS}::entry $f.cn -textvariable [namespace which -variable irc](channel)
+        ${NS}::label $f.nl -text Nick
+        ${NS}::entry $f.nn -textvariable [namespace which -variable Options](Nickname)
+        ${NS}::button $f.ok -text Login -default active \
+            -command [list set [namespace which -variable $dlg] "ok"]
+        ${NS}::button $f.cancel -text Cancel \
+            -command [list set [namespace which -variable $dlg] "cancel"]
+        
+        bind $dlg <Return> [list $f.ok invoke]
+        bind $dlg <Escape> [list $f.cancel invoke]
+        wm protocol $dlg WM_DELETE_WINDOW [list $f.cancel invoke]
+        
+        grid $f.sl $f.se $f.sp -in $g -sticky new -padx 1 -pady 1
+        grid $f.cl $f.cn -     -in $g -sticky new -padx 1 -pady 1
+        grid $f.nl $f.nn -     -in $g -sticky new -padx 1 -pady 1
+        grid columnconfigure $g 1 -weight 1
+
+        grid $g    -         -sticky news
+        grid $f.ok $f.cancel -sticky e -padx 1 -pady 1
+        grid rowconfigure    $f 0 -weight 1
+        grid columnconfigure $f 0 -weight 1
+        
+        grid $f -sticky news
+        grid rowconfigure $dlg 0 -weight 1
+        grid columnconfigure $dlg 0 -weight 1
+
+	wm resizable $dlg 0 0
+        raise $dlg
+    }
+
+    catch {::tk::PlaceWindow $dlg widget .}
+    wm deiconify $dlg
+    tkwait visibility $dlg
+    focus -force $dlg.f.ok
+    grab $dlg
+    vwait [namespace which -variable $dlg]
+    grab release $dlg
+    wm withdraw $dlg
+
+    if {[set $dlg] eq "ok"} {
+        if {$::tkchat::LoggedIn} { tkjabber::disconnect }
+        set url irc://$irc(server):$irc(port)/$irc(channel)
+        after idle ::tkchat::PicoIRC $url
     }
 }
 
@@ -4536,39 +4612,57 @@ proc ::tkchat::buildRow { f idx disp } {
 
 proc ::tkchat::SpecifySubjects {} {
     variable NS
-    
-    set t .macros
-    catch {destroy $t}
-    Dialog $t
+
+    set t .alertpatterns
+    if {[winfo exists $t]} {
+        wm deiconify $t
+        focus $t
+        return
+    }
+    set t [Dialog $t]
     wm withdraw $t
-    wm title $t "Specify alert subjects"
+    wm title $t "Specify alert patterns"
 
-    listbox $t.lst -yscroll "$t.scr set" -font FNT -selectmode extended
-    ${NS}::scrollbar $t.scr -command "$t.lst yview"
-    ${NS}::label $t.lbl1 -text "Subject:" -font NAME
-    ${NS}::entry $t.sub -font FNT
-    bind $t.sub <Return> "$t.sav invoke"
-    bind $t.lst <Double-Button-1> "::tkchat::SubjectSel %W @%x,%y"
-    button $t.sav -text Save -command "::tkchat::SubjectSave $t"
-    button $t.del -text Delete -command "::tkchat::SubjectKill $t.lst"
-    set    help "Specify subject as pattern suitable for use with:\n\n"
-    append help "    string match -nocase <pattern> <message>\n"
-    append help "\n"
-    ${NS}::label $t.hlp -text $help -font FNT -justify left
+    ${NS}::labelframe $t.pat -text Patterns
+    ${NS}::labelframe $t.new -text "New pattern"
+    ${NS}::label $t.hlp -justify left -anchor nw -text \
+        "Specify match-text as a case-insensitive glob pattern."
+    listbox $t.lst -yscroll "$t.scr set" -height 8 -selectmode extended
+    ${NS}::scrollbar $t.scr -command [list $t.lst yview]
+    ${NS}::entry $t.sub
+    ${NS}::button $t.sav -text Add \
+        -command [list [namespace origin SubjectSave] $t]
+    ${NS}::button $t.del -text Delete \
+        -command [list [namespace origin SubjectKill] $t.lst]
+    ${NS}::button $t.ok -text OK -command [list destroy $t]
 
-    grid $t.lst - $t.scr -sticky news
-    grid $t.del - - -sticky {} -pady 3
-    grid $t.lbl1 $t.sub - -sticky news
-    grid $t.sav - - -sticky {} -pady 3
-    grid $t.hlp - - -sticky news -padx 10
+    bind $t.sub <Return> [list $t.sav invoke]
+    bind $t.lst <Double-Button-1> {::tkchat::SubjectSel %W @%x,%y}
+    bind $t <Return> [list $t.ok invoke]
+    bind $t <Escape> [list $t.ok invoke]
 
-    grid rowconfigure $t 0 -weight 10
-    grid columnconfigure $t 1 -weight 10
+    grid $t.lst $t.scr -in $t.pat -sticky news
+    grid $t.del -      -in $t.pat -sticky e
+    grid columnconfigure $t.pat 0 -weight 1
+    grid rowconfigure    $t.pat 0 -weight 1
+
+    grid $t.hlp -in $t.new -sticky ew
+    grid $t.sub -in $t.new -sticky ew
+    grid $t.sav -in $t.new -sticky e
+    grid columnconfigure $t.new 0 -weight 1
+    grid rowconfigure    $t.new 1 -weight 1
+
+    grid $t.pat -sticky news -padx 2 -pady 2
+    grid $t.new -sticky news -padx 2 -pady 2
+    grid $t.ok  -sticky e    -padx 2 -pady {4 2}
+    grid rowconfigure $t 0 -weight 1
+    grid columnconfigure $t 0 -weight 1
 
     tkchat::SubjectList $t.lst
     catch {::tk::PlaceWindow $t widget .}
     wm deiconify $t
 }
+
 proc ::tkchat::SubjectSave {t} {
     global Options
     if { ![info exists Options(Subjects)] } {
@@ -4577,7 +4671,7 @@ proc ::tkchat::SubjectSave {t} {
     set m [string trim [$t.sub get]]
     if {[string length $m] > 0} {
 	lappend Options(Subjects) $m
-	::tkchat::SubjectList $t.lst
+	SubjectList $t.lst
     }
 }
 proc ::tkchat::SubjectKill { w } {
@@ -5071,7 +5165,7 @@ proc ::tkchat::saveRC {} {
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Subjects Theme Transparency UseBabelfish 
         UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain 
-        Visibility,*
+        Visibility,* RSS,*
     }
 
     foreach key $keep {
@@ -6012,6 +6106,8 @@ proc ::tkchat::GetDefaultOptions {} {
 	Visibility,SYSTEM	0
 	Visibility,TRAFFIC	0
 	WhisperIndicatorColor	#ffe0e0
+	RSS,watch,http://wiki.tcl.tk/rss.xml 1
+	RSS,watch,http://paste.tclers.tk/rss.atom 1
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
     foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 SubjectBG ffff00 } {
@@ -6793,6 +6889,7 @@ proc ::tkchat::EditOptions {} {
     set EditOptions(AutoFadeLimit) $Options(AutoFadeLimit)
     set EditOptions(Transparency)  $Options(Transparency)
     set EditOptions(UseTkOnly)     $Options(UseTkOnly)
+    array set EditOptions [array get Options RSS,watch,*]
 
     if {[winfo exists .options]} {destroy .options}
     set dlg [Dialog .options]
@@ -6837,6 +6934,7 @@ proc ::tkchat::EditOptions {} {
 
     set sf [${NS}::labelframe $f.sf -text "Tk style"] ;#-padx 1 -pady 1]
     set gf [${NS}::labelframe $f.gf -text "Gimmiks"] ;#  -padx 1 -pady 1]
+    set rf [${NS}::labelframe $f.rf -text "RSS Feeds"]
 
     ${NS}::label $sf.m -anchor nw -font FNT -wraplength 4i -justify left \
 	-text "The Tk style selection available here will apply when you \
@@ -6910,6 +7008,27 @@ proc ::tkchat::EditOptions {} {
 	grid columnconfigure $gf 4 -weight 1
     }
 
+    set rss 0
+    if {[package provide rssrdr] ne {}} {
+        set rss 1
+        set n 0
+        foreach feed [array names EditOptions RSS,watch,*] {
+            set url [lindex [split $feed ,] 2]
+            array set U [uri::split $url]
+            set text $U(host)
+            if {[info exists Options(RSS,title,$url)]} {
+                if {[string length $Options(RSS,title,$url)] > 0} {
+                    set text $Options(RSS,title,$url)
+                }
+            }
+            ${NS}::checkbutton [set w $rf.wf[incr n]] \
+                -text $text -underline 0 \
+                -variable ::tkchat::EditOptions($feed)
+            grid $w -sticky we -padx 2
+        }
+        grid columnconfigure $rf 0 -weight 1
+    }
+
     ${NS}::button $f.ok -text OK -underline 0 -default active \
 	-command [list set ::tkchat::EditOptions(Result) 1]
     ${NS}::button $f.cancel -text Cancel -underline 0 \
@@ -6918,9 +7037,8 @@ proc ::tkchat::EditOptions {} {
     grid $af - -sticky news -padx 2 -pady 2
     grid $bf - -sticky news -padx 2 -pady 2
     grid $sf - -sticky news -padx 2 -pady 2
-    if {$gimmicks} {
-	grid $gf - -sticky news -padx 2 -pady 2
-    }
+    if {$gimmicks} { grid $gf - -sticky news -padx 2 -pady 2 }
+    if {$rss}      { grid $rf - -sticky news -padx 2 -pady 2 }
     grid $f.ok $f.cancel -sticky e
     grid rowconfigure $f 0 -weight 1
     grid columnconfigure $f 0 -weight 1
@@ -6947,6 +7065,14 @@ proc ::tkchat::EditOptions {} {
 		set Options($property) $EditOptions($property)
 	    }
 	}
+        set feed_refresh 0
+        foreach feed [array names EditOptions RSS,watch,*] {
+            if {$Options($feed) != $EditOptions($feed)} {
+                set feed_refresh 1
+                set Options($feed) $EditOptions($feed)
+            }
+        }
+        if {$feed_refresh} { after idle ::tkchat::CheckRSSFeeds }
     } else {
 	# This one is the reverse of the other dialog properties. In this case
 	# the Options copy is the one always updated and the EditOptions value
@@ -7128,7 +7254,7 @@ proc ::tkchat::ConsoleInit {} {
 	 #
 	 #       Provides a console window.
 	 #
-	 # Last modified on: $Date: 2007/09/02 22:11:55 $
+	 # Last modified on: $Date: 2007/09/09 19:58:37 $
 	 # Last modified by: $Author: patthoyts $
 	 #
 	 # This file is evaluated to provide a console window interface to the
@@ -7752,7 +7878,7 @@ proc tkjabber::CheckCertificate {} {
                 && [llength [package provide tooltip]] > 0} {
                 set tip "Authenticated by $I(O)"
                 tooltip::tooltip .status.ssl $tip
-                bind .status.ssl <Double-Button-1> \
+                bind .status.ssl <Button-1> \
                     [list tkchat::ShowCertificate . 0 [array get cert]]
             }
         } err]} {
@@ -8502,6 +8628,9 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 	    }
             tkchat::addStatus 0 "Joined chat at $conference"
 	    autoStatus
+            if {[llength [info commands ::tkchat::RSSInit]] > 0} {
+                ::tkchat::RSSInit
+            }
             #after 500 [namespace origin ParticipantVersions]
 	}
 	default {
@@ -9700,6 +9829,12 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
         }
     }
 }
+
+# -------------------------------------------------------------------------
+
+source [file join $::tkchat_dir tkchat_rss.tcl]
+
+# -------------------------------------------------------------------------
 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
