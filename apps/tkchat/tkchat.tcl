@@ -152,6 +152,13 @@ namespace eval ::tkchat {
 	    }
 	}
     }
+    if {$useTile && [tk windowingsystem] eq "aqua"} {
+        # use native scrollbars on the mac
+        if {[llength [info commands ::ttk::_scrollbar]] == 0} {
+            rename ::ttk::scrollbar ::ttk::_scrollbar
+            interp alias {} ::ttk::scrollbar {} ::tk::scrollbar
+        }
+    }
 }
 
 # If we're using KHIM, make all entries and texts use it.
@@ -195,20 +202,15 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.388 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.389 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
-
-    # Everything will eventually be namespaced
     variable MessageHooks
     array set MessageHooks {}
 
-    # this is http://mini.net - but that recently had a dns problem
-    variable HOST http://mini.net
-
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.388 2007/09/09 23:06:22 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.389 2007/09/11 16:58:32 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1448,9 +1450,6 @@ proc ::tkchat::gotoURL {url} {
     if {[regexp -nocase -- {&url=(.*)} $url -> trueUrl]} {
 	# this was a redirect - just get final destination
 	set url $trueUrl
-    } elseif {[regexp -nocase -- {^chat} $url]} {
-	# this is a relative url
-	set url "$::tkchat::HOST/cgi-bin/$url"
     } else {
 	# assume a raw url
     }
@@ -3237,7 +3236,7 @@ proc ::tkchat::About {} {
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
     ${NS}::button $w.b -text Dismiss -command [list wm withdraw $dlg] -default active
-    ScrolledWidget text $w.text 0 1 -height 22 -width 80 \
+    ScrolledWidget text $w.text 0 1 -height 23 -width 80 \
         -borderwidth 0 -padx 2 -pady 2 -font FNT
     grid $w.text -sticky news
     grid $w.b -sticky se
@@ -9652,8 +9651,11 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 # -------------------------------------------------------------------------
 # Load in code from separate sibling files...
 
-source [file join $::tkchat_dir tkchat_rss.tcl]
-source [file join $::tkchat_dir tkchat_console.tcl]
+foreach file {tkchat_rss.tcl tkchat_console.tcl} {
+    if {[file exists [file join $tkchat_dir $file]]} {
+        source [file join $tkchat_dir $file]
+    }
+}
 
 # -------------------------------------------------------------------------
 
