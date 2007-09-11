@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.2 2007/09/09 23:06:22 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.3 2007/09/11 17:37:06 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 proc ::tkchat::RSSInit {} {
@@ -65,14 +65,19 @@ proc ::tkchat::RSSInit {} {
                 Hyw0MPFPxAABsGPDHtDhX0AAOw==
             }
 
-            ttk::label .status.rss -image ::tkchat::img::feedLo
-            bind .status.rss <Button-1> [list [namespace origin ShowRssInfo]]
-            if {[llength [package provide tooltip]] > 0} {
-                set var [namespace which -variable RSStip]
-                trace add variable $var write [list after 0 [namespace origin RssUpdateTip]]
+            # At this time, the only interface is via the statusbar
+            if {[winfo exists .status]} {
+                ttk::label .status.rss -image ::tkchat::img::feedLo
+                bind .status.rss <Button-1> \
+                    [list [namespace origin ShowRssInfo]]
+                if {[llength [package provide tooltip]] > 0} {
+                    set var [namespace which -variable RSStip]
+                    trace add variable $var write \
+                        [list after 0 [namespace origin RssUpdateTip]]
+                }
+                
+                after idle [namespace origin CheckRSSFeeds]
             }
-
-            after idle [namespace origin CheckRSSFeeds]
         }
     }
 }
@@ -174,6 +179,10 @@ proc ::tkchat::CheckRSSFeeds {} {
     global Options
     variable RSStimer
     variable RSStip {}
+
+    if {![winfo exists .status.rss]} {
+        return
+    }
 
     log::log info "checking rss feeds"
     catch {after cancel $RSStimer}
