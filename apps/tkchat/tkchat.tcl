@@ -202,7 +202,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.389 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.390 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -210,7 +210,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.389 2007/09/11 16:58:32 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.390 2007/09/12 08:12:06 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7691,13 +7691,15 @@ proc tkjabber::CheckCertificate {} {
             if {[info exists O(CN)]} {
                 tkchat::addStatus SSL $O(CN)
             }
-            .status.ssl configure -image ::tkchat::img::link_secure
-            if {[info exists I(O)] 
-                && [llength [package provide tooltip]] > 0} {
-                set tip "Authenticated by $I(O)"
-                tooltip::tooltip .status.ssl $tip
-                bind .status.ssl <Button-1> \
-                    [list tkchat::ShowCertificate . 0 [array get cert]]
+            if {[winfo exists .status.ssl]} {
+                .status.ssl configure -image ::tkchat::img::link_secure
+                if {[info exists I(O)] 
+                    && [llength [package provide tooltip]] > 0} {
+                    set tip "Authenticated by $I(O)"
+                    tooltip::tooltip .status.ssl $tip
+                    bind .status.ssl <Button-1> \
+                        [list tkchat::ShowCertificate . 0 [array get cert]]
+                }
             }
         } err]} {
             log::log notice "SSL Warning: $err"
