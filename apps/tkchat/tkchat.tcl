@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.391 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.392 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.391 2007/09/12 10:26:09 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.392 2007/09/12 12:23:52 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7247,53 +7247,6 @@ proc tkchat::whiteboard_open {} {
 
 # Reconfigure tkchat to use IRC
 proc ::tkchat::PicoIRC {{url "#tcl@irc.freenode.net"}} {
-    proc ::tkchat::PicoIrcCallback {context state args} {
-        switch -exact -- $state {
-            init {}
-            connect {
-                tkchat::addStatus 0 "Connection to IRC server established."
-                tkchat::addStatus 1 "connected"
-                after 0 ::tkchat::LoadHistory
-            }
-            close {
-                tkchat::addStatus 0 "Disconnected from IRC server."
-                tkchat::addStatus 1 "not connected"
-                rename ::tkchat::userPost {}
-                rename ::tkchat::userPost_orig ::tkchat::userPost
-                rename [namespace origin [lindex [info level 0] 0]] {}
-            }
-            userlist {
-                variable OnlineUsers
-                foreach nick [lindex $args 0] {
-		    set OnlineUsers(IRC-$nick,status) [list online]
-		    lappend OnlineUsers(IRC) $nick
-		}
-		set OnlineUsers(IRC) \
-                    [lsort -dictionary -unique $OnlineUsers(IRC)]
-		::tkchat::updateOnlineNames
-            }
-            chat {
-                foreach {nick msg type} $args break
-                if {$type eq ""} {set type NORMAL}
-                addMessage .txt {} $nick $msg $type end 0
-            }
-            system {
-                addSystem .txt [lindex $args 0]
-            }
-            topic {
-                variable chatWindowTitle
-                set chatWindowTitle [lindex $args 0]
-            }
-            traffic {
-                foreach {action nick new} $args break
-                if {$action eq "nickchange"} {set nick [list $nick $new]}
-		::tkchat::addTraffic .txt $nick $action end 0
-            }
-            default {
-                addSystem .txt "unknown irc callback \"$state\": $args"
-            }
-        }
-    }
     set irc [picoirc::connect \
                  [namespace origin PicoIrcCallback] \
                  $::Options(Username) $url]
@@ -7303,6 +7256,52 @@ proc ::tkchat::PicoIRC {{url "#tcl@irc.freenode.net"}} {
         .eMsg delete 0 end
         ::picoirc::Post %irc $msg
     }]
+}
+proc ::tkchat::PicoIrcCallback {context state args} {
+    switch -exact -- $state {
+        init {}
+        connect {
+            tkchat::addStatus 0 "Connection to IRC server established."
+            tkchat::addStatus 1 "connected"
+            after 0 ::tkchat::LoadHistory
+        }
+        close {
+            tkchat::addStatus 0 "Disconnected from IRC server."
+            tkchat::addStatus 1 "not connected"
+            rename ::tkchat::userPost {}
+            rename ::tkchat::userPost_orig ::tkchat::userPost
+        }
+        userlist {
+            variable OnlineUsers
+            foreach nick [lindex $args 0] {
+                set OnlineUsers(IRC-$nick,status) [list online]
+                lappend OnlineUsers(IRC) $nick
+            }
+            set OnlineUsers(IRC) \
+                [lsort -dictionary -unique $OnlineUsers(IRC)]
+            ::tkchat::updateOnlineNames
+        }
+        chat {
+            foreach {nick msg type} $args break
+            if {$type eq ""} {set type NORMAL}
+            addMessage .txt {} $nick $msg $type end 0
+        }
+        system {
+            addSystem .txt [lindex $args 0]
+        }
+        topic {
+            variable chatWindowTitle
+            set chatWindowTitle [lindex $args 0]
+        }
+        traffic {
+            foreach {action nick new} $args break
+            if {$action eq "nickchange"} {set nick [list $nick $new]}
+            ::tkchat::addTraffic .txt $nick $action end 0
+        }
+        default {
+            addSystem .txt "unknown irc callback \"$state\": $args"
+        }
+    }
 }
 
 # -------------------------------------------------------------------------
@@ -9654,7 +9653,7 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 # -------------------------------------------------------------------------
 # Load in code from separate sibling files...
 
-foreach file {tkchat_rss.tcl tkchat_console.tcl} {
+foreach file {tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl} {
     if {[file exists [file join $tkchat_dir $file]]} {
         source [file join $tkchat_dir $file]
     }

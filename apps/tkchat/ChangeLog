@@ -1,5 +1,6 @@
 2007-09-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* mousewheel.tcl:  Added tip 171 mouse wheel handling suggestion
 	* tkchat.tcl:      Check the statusbar exists before using it.
 	* tkchat_rss.tcl:  Added requirement for the uri package.
 	                   Fixed Dutch message typo.
