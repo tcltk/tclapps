@@ -3,8 +3,10 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.3 2007/09/11 17:37:06 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.4 2007/09/12 10:26:09 patthoyts Exp $
 # -------------------------------------------------------------------------
+
+if {[catch {package require rssrdr}]} { return }
 
 proc ::tkchat::RSSInit {} {
     global Options
@@ -97,7 +99,8 @@ proc ::tkchat::ShowRssInfo {} {
 
     if {[winfo exists $dlg]} {
         wm deiconify $dlg
-        raise -force $dlg.ok
+        focus -force $dlg.ok
+        return
     }
 
     set dlg [Dialog $dlg]
@@ -138,7 +141,7 @@ proc ::tkchat::ShowRssInfo {} {
             array set a $item
             set tag URL-[incr RssUrlId]
             $txt insert end $a(title) [list $url URL ITEM $tag] \
-                "\n$a(description)\n\n" [list $url ITEM $tag]
+                "\n$a(description)\n\n" [list $url ITEM]
             $txt tag bind $tag <Button-1> [list ::tkchat::gotoURL $a(link)]
             if {[llength [package provide tooltip]] > 0} {
                 tooltip::tooltip $txt -tag $tag $a(link)
@@ -162,6 +165,9 @@ proc ::tkchat::ShowRssInfo {} {
     
     ${NS}::button $dlg.ok -default active -text "OK" \
         -command [list set [namespace which -variable $dlg] ok]
+
+    bind $dlg <Return> [list $dlg.ok invoke]
+    bind $dlg <Escape> [list $dlg.ok invoke]
     
     grid $nb     -sticky news -padx {2 1} -pady 2
     grid $dlg.ok -sticky e
@@ -170,6 +176,7 @@ proc ::tkchat::ShowRssInfo {} {
 
     if {!$use_notebook} {catch {$nb.b0 invoke}}
     wm deiconify $dlg
+    focus $dlg.ok
     catch {tk::PlaceWindow $dlg widget .}
     tkwait variable [namespace which -variable $dlg]
     destroy $dlg

@@ -1,7 +1,10 @@
 2007-09-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:      Check the statusbar exists before using it.
-	* tkchat_rss.tcl:
+	* tkchat_rss.tcl:  Added requirement for the uri package.
+	                   Fixed Dutch message typo.
+	                   Fixed typo rss dialog (focus, not raise)
+	                   RSS active tag was excessive - just the title
 
 2007-09-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

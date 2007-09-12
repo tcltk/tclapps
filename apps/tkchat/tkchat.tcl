@@ -40,6 +40,7 @@ package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 package require base64		; # tcllib
+package require uri             ; # tcllib
 
 catch {package require tls}	; # tls (optional)
 catch {package require choosefont};# font selection (optional) 
@@ -202,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.390 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.391 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -210,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.390 2007/09/12 08:12:06 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.391 2007/09/12 10:26:09 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -222,7 +223,7 @@ namespace eval ::tkchat {
 	    "%user% is feeling chatty!" \
 	    "A limousine pulls up, and %user% steps out into the crowd of waiting paparazzi." \
 	    "%user% valt door een gat in het plafond naar binnen." \
-	    "%user% wandeld luid schreeuwend binnen." \
+	    "%user% wandelt luid schreeuwend binnen." \
 	    "%user% \u8FDB\u95E8" \
 	    "%user% \u9032\u9580" \
 	    ]
