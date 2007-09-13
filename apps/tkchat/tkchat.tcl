@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.394 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.395 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.394 2007/09/13 17:54:15 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.395 2007/09/13 18:00:31 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5743,7 +5743,6 @@ proc ::tkchat::Init {args} {
 
     SetTheme $Options(Theme)
 
-    # do this first so we have images available
     # build screen
     CreateGUI
     foreach idx [array names Options Visibility,*] {

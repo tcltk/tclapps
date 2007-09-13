@@ -4,6 +4,10 @@
 	downloading and caching them in .tkchatrc. Downloading new and
 	changed emoticons is automatically done at startup and can be
 	manually triggered at runtime from the Emoticons menu.
+
+	Use new-tab instead of new-page for sending URLs to the browser,
+	as it seems that new-page is undocumented and newer releases of
+	Firefox don't accept it anymore.
 	
 2007-09-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
