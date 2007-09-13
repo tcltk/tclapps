@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.393 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.394 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.393 2007/09/13 14:29:38 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.394 2007/09/13 17:54:15 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1501,7 +1501,7 @@ proc ::tkchat::gotoURL {url} {
 		# 		Try that first
 		if { [catch {
 		    if {$Options(BrowserTab)} {
-			exec $Options(Browser) -remote "openURL($url,new-page)" 2> /dev/null
+			exec $Options(Browser) -remote "openURL($url,new-tab)" 2> /dev/null
 		    } else {
 		    	exec $Options(Browser) -remote openURL($url) 2> /dev/null
 		    }
@@ -2292,25 +2292,16 @@ proc ::tkchat::CreateGUI {} {
 	    -onvalue 1 \
 	    -offvalue 0 \
 	    -command ::tkchat::DoAnim
-
+    $m add command \
+            -label "Update Emoticons" \
+            -underline 1 \
+            -command { ::tkchat::Smile }
     # Insert Cascade Menu
     menu $m.mnu -tearoff 0 -title Insert
     $m add cascade \
 	    -label Insert \
 	    -underline 0 \
 	    -menu $m.mnu
-    variable IMG
-    foreach { img txt } [array get IMG] {
-	set tmp($txt) $img
-    }
-    foreach { img txt } [array get tmp] {
-	$m.mnu add command \
-		-image ::tkchat::img::$img \
-		-command [string map [list %txt% $txt] {
-		    .eMsg insert insert "%txt% "
-		    .tMsg insert insert "%txt% "
-		}]
-    }
 
     ## Visibility Menu
     ##
@@ -5129,7 +5120,7 @@ proc ::tkchat::quit {} {
 }
 
 proc ::tkchat::saveRC {} {
-    global Options
+    global Options Images
     variable useTile
     # Exit early if there is no home directory to save to
     if { ![info exists ::env(HOME)] } {
@@ -5220,12 +5211,20 @@ proc ::tkchat::saveRC {} {
     foreach option [lsort -dictionary [array names tmp]] {
 	lappend oplist [list $option $tmp($option)]
     }
+
     if { ![catch { open $rcfile [list WRONLY CREAT TRUNC] 0600 } fd] } {
 	fconfigure $fd -encoding utf-8
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	puts $fd "array set Options \{"
 	puts $fd [join $oplist "\n"]
+        puts $fd "\}"
+
+        puts $fd "array set Images \{"
+        foreach image [lsort -dictionary [array names Images]] {
+            puts $fd [list $image $Images($image)]
+        }
 	puts $fd "\}"
+
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	close $fd
     } else {
@@ -5378,12 +5377,15 @@ proc ::tkchat::DoAnim {} {
 proc ::tkchat::anim {image {idx -1}} {
     namespace eval ::tkchat::img {} ; # create img namespace
     incr idx
+    puts stderr $image:0:$idx
     if {[catch {$image configure -format "GIF -index $idx"}]} {
+        puts stderr $image:1
 	if {$idx == 1} {
 	    # stop animating, only base image exists
 	    return
 	} else {
 	    # restart the cycle
+            puts stderr $image:2
 	    set idx 0
 	    $image configure -format "GIF -index $idx"
 	}
@@ -5393,15 +5395,46 @@ proc ::tkchat::anim {image {idx -1}} {
 	    [after $::tkchat::img::delay [list ::tkchat::anim $image $idx]]
 }
 
-proc ::tkchat::SmileId {{image {}} args} {
+# A simple proc for retrieving the content of an URL.
+# In case of errors it returns an empty string.
+# Currently only used by Smile and SmileId
+proc ::tkchat::GET {URL} {
+    addStatus 0 "Downloading $URL ..."
+    set t [http::geturl $URL]
+    if {[http::ncode $t] == 200} {
+        set data [http::data $t]
+    } else {
+        set data ""
+    }
+    http::cleanup $t
+    return $data
+}
+
+proc ::tkchat::SmileId {name serial triggers {location {}}} {
     # Here be magic
     variable IMG
+    global Images
+
+    if {$location eq ""} {
+        set location http://tclers.tk/~jabber/emoticons/$name.gif
+    }
+    
+    if {![info exists Images($name,data)] || $Images($name,serial) < $serial} {
+        set data [GET $location]
+        # silently fail if we can't get the image data
+        if {$data eq ""} return
+        # the newlines make .tkchatrc look nicer
+        set Images($name,data) \n[base64::encode $data]\n
+        set Images($name,serial) $serial
+    }
+
+    image create photo ::tkchat::img::$name -format GIF -data $Images($name,data)
 
     # Do some checking so that things like 'C:/temp/tcl98/blah' and
     # 'lollipop' don't get smileys inserted
     set ids ""
-    foreach arg $args {
-	set IMG($arg) $image
+    foreach arg $triggers {
+	set IMG($arg) $name
 	if { [string is alnum -strict -failindex i $arg] } {
 	    lappend ids "\1$arg\2"
 	} elseif { [string is alnum -strict [string index $arg end]] } {
@@ -5436,311 +5469,44 @@ proc ::tkchat::SmileId {{image {}} args} {
 }
 
 proc ::tkchat::Smile {} {
-    namespace eval ::tkchat::img {} ; # create img namespace
-    set ::tkchat::img::delay 150
-    SmileId cry ":-(" ":^(" ":("
-    image create photo ::tkchat::img::cry -format GIF -data {
-	R0lGODlhDwAPANUAAP8AzeEDueQFvcUFp8kKq1AqdFJDkCQhUiIvaQASIQUr
-	SAAdMQEjOgBtqABqowJ5uj1ofwCf9QCI0QB/xAB9vwB7vQB3twB1swBzsQBw
-	rABhlAGb7QKo/gKU4gKFywWO18DAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAACAALAAAAAAPAA8AAAaa
-	QJBQiFAoGIehElRAeDqdTwVRWBqenGxkI7EYhgVPlgONSJ6YKgjRyXoSCQo8
-	M0GADpNIpANPVPoVDQcMH3oRHxAfGxMVFh4PCwwSG5QdEJRnExMXkU9QHQ8S
-	DxgZFRQYCwcYURIORkcKGhUaSQgUXbENDg4asXZMDWelFhcYF7xqIAYOF4zE
-		xxrJQk0OGQ0NGlRLQwcL3klKQQA7
-    }
-    SmileId grrr "8-(" "8^(" "8(" "8-|" "8^|" "8|"
-    image create photo ::tkchat::img::grrr -format GIF -data {
-	R0lGODlhDwAPANX/AMDAwM/RAMXHALGzAJKUAP//AOvrAOfnAObmAN/fANzc
-	ANfYANjYANXVAM7PAM7OAMrKAMDBAMHBAL29ALS1ALW1ALO0ALS0AK6vAK6u
-	AKytAKusAKysAKurAKqqAKmpAKOkAKSkAKKjAKChAJiZAJmZAJGSAJKSAJGR
-	AI2OAI6NAI6OAI2NAHd3AP///8PDwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAAaB
-	QIBQCCsWh0hAcfXxfFZHJCxlwjgCDgyKBRtON8VQAlTcpLpKUwV0JsBUIcqp
-	a6zb6y37x56HeUpGEAUQRiUeRR8PEQ8TBwYFCg8SD3swKxALHUYTDQgMEFBK
-	HBcwLy4vYQEaaFMCJEYiIzAboUQpHBkDFg8QKGdJS01PUUlKdUlBADs=
-    }
-    SmileId LOL-anim LOL lol
-    image create photo ::tkchat::img::LOL-anim -format GIF -data {
-	R0lGODlhFQAYAKIFAAAAABhr/+fn5///AP///wAAAAAAAAAAACH/C05FVFND
-	QVBFMi4wAwEAAAAh+QQFCgAFACwAAAAAFQAYAAADS1i63P4wykmrvbiAve0e
-	INgtgAOEqKicJZm+JcucwyfSce3eoV3jq5fQ1sENeSocrafsaZgcnzR44ziB
-	VGFStRuuOA3fzRPNmM+WBAAh+QQFCgAFACwKAAkABwADAAADCAgwrMrjrTYS
-	ACH5BAkKAAUALAoACAAHAAQAAAMIOADK/SPKORMAIfkECQoABQAsAAAGABIA
-	DgAAAz1YUNwNEDIwllN06ArrzV1Xec82ZqelmBQKLqjJbrBsu+t4468caRYQ
-	IQIZgkoVglLZiiA5v8HlaZs+YpwEACH5BAkKAAUALAAABAASABAAAANDWFDc
-	/mosSOOEIGcGJO5DKGWjA5KkFG6R2IHqyom067Y1DS9wvsqtnus0G9U0miKA
-	gFxeTCuCVNqh7JChipBWUQgzCQAh+QQJCgAFACwAAAIAEgASAAADRVhQ3P5q
-	LEjjrA9IDDW4zicymgR+Q5qK6uWhbLlFrVSvpKrfk7zzuZ9O1FsJQUHUEEkD
-	EIhOZpNApWooMmiq4tthlC1AAgAh+QQJCgAFACwAAAEAEwATAAADTVhQ3P4M
-	jAVrnNZKmt/m3TWBEWBy0oA1puqaysuO3yfHatvm+ez+rx4OCDxRUsQfxEaE
-	eXI72mCZIxBOVkklBbB6U9uX0aVJCrdIaCEBACH5BAkKAAUALAAAAQATABMA
-	AANJWLrc/jDKBaYDo1qaIfgfpzHfYJohFoolmGGvAqPZWaOyrdP4vJ+ziuqH
-	gmlUPmCpU1ARQNAnNPd6WksP4/VpyipdXS9xdEmGEgAh+QQJCgAFACwAAAEA
-	EwATAAADTli63P5wgQjBmLRZnOWtQMhtnBIOKBoW1jW66Xmq5qXadvuxad/r
-	E5JPNcNsCKIksmW8IJ8AaLImgi5L1KsSa4p6rVxeCGypEEU0kG+VAAAh+QQJ
-	CgAFACwAAAEAEwATAAADTli63A0uMjCgjNTeV7fL2gSMGlWF46CqY2F2Crim
-	KRtXLI6/1rv+ut4JyKoJAQSSMqm8IZ/JaMg5kjKnrpNyi3lun5iTNSUxbW1l
-	36mQAAAh+QQJCgAFACwAAAAAFAAWAAADXlhQ3P4NjAVrnDZLmuHm3TWBoTRg
-	D6Cqjoky6imzynzFZ7yY3BZMwMAnF/nJjgPhivJx5WKeCWG5mg6igKk2y72m
-	Rtwt9Este1vg8jjFLU9JsNH2/fqmeR3cDF6hOhIAIfkECQoABQAsAAAAABQA
-	GAAAA2tYutwOLjYwoJTU3ld3zJqnUFU4AmhIdgs6vC86wloGx91qZYHelzFF
-	DxAIVI7FVLBAdN1izZSwR0hZqwGHEVAVALze6oCTqpqVZKuakl6jJyW3qy0f
-	P7juqmmGOutZHHFOewxONIR3UgsJAAAh+QQJCgAFACwAAAAAFAAYAAADXli6
-	3P4wSgfmA6NahvVWHQSMI5d5IDasJ7iW7sjKlZrFQaYHna0BOZZwwFOVerYX
-	7RUjkJ5O3a3QcVoB1xMMeXXKKNrncwAWm8kUrFmNWvS6NJGSxIzIhLCJ+MPn
-	JwAAIfkECQoABQAsAAAAABQAGAAAA2tYutwOLjYwoJTU3ld3zJqnUFU4AmhI
-	dgs6vC86wloGx91qZYHelzFFDxAIVI7FVLBAdN1izZSwR0hZqwGHEVAVALze
-	6oCTqpqVZKuakl6jJyW3qy0fP7juqmmGOutZHHFOewxONIR3UgsJAAAh+QQJ
-	CgAFACwAAAAAFAAYAAADYlhQ3P4NjAVrnDZLmuHm3TWBoTRgD6Cqjoky6imz
-	ynzFZ7yY3BZMwMAnF/nJjgPhivJx5WKeCWG5mg6igKk2y72mRtwt9Este1vg
-	8jjFLU9JsNH2/fqmeR3cDF6hhv6AFgkAACH5BAkKAAUALAAAAAAUABgAAANr
-	WLrcDi42MKCU1N5Xd8yap1BVOAJoSHYLOrwvOsJaBsfdamWB3pcxRQ8QCFSO
-	xVSwQHTdYs2UsEdIWasBhxFQFQC83uqAk6qalWSrmpJeoyclt6stHz+47qpp
-	hjrrWRxxTnsMTjSEd1ILCQAAIfkECQoABQAsAAAAABQAGAAAA15Yutz+MEoH
-	5gOjWob1Vh0EjCOXeSA2rCe4lu7IypWaxUGmB52tATmWcMBTlXq2F+0VI5Ce
-	Tt2t0HFaAdcTDHl1yija53MAFpvJFKxZjVr0ujSRksSMyISwifjD5ycAACH5
-	BAkKAAUALAAAAAAUABgAAANrWLrcDi42MKCU1N5Xd8yap1BVOAJoSHYLOrwv
-	OsJaBsfdamWB3pcxRQ8QCFSOxVSwQHTdYs2UsEdIWasBhxFQFQC83uqAk6qa
-	lWSrmpJeoyclt6stHz+47qpphjrrWRxxTnsMTjSEd1ILCQAAIfkECQoABQAs
-	AAAAABQAGAAAA2JYUNz+DYwFa5w2S5rh5t01gaE0YA+gqo6JMuops8p8xWe8
-	mNwWTMDAJxf5yY4D4YryceVinglhuZoOooCpNsu9pkbcLfRLLXtb4PI4xS1P
-	SbDR9v36pnkd3AxeoYb+gBYJAAAh+QQJCgAFACwAAAAAFAAYAAADa1i63A4u
-	NjCglNTeV3fMmqdQVTgCaEh2Czq8LzrCWgbH3Wplgd6XMUUPEAhUjsVUsEB0
-	3WLNlLBHSFmrAYcRUBUAvN7qgJOqmpVkq5qSXqMnJberLR8/uO6qaYY661kc
-	cU57DE40hHdSCwkAACH5BAkKAAUALAAAAAAUABgAAANeWLrc/jBKB+YDo1qG
-	9VYdBIwjl3kgNqwnuJbuyMqVmsVBpgedrQE5lnDAU5V6thftFSOQnk7drdBx
-	WgHXEwx5dcoo2udzABabyRSsWY1a9Lo0kZLEjMiEsIn4w+cnAAAh+QQJCgAF
-	ACwAAAAAFAAYAAADa1i63A4uNjCglNTeV3fMmqdQVTgCaEh2Czq8LzrCWgbH
-	3Wplgd6XMUUPEAhUjsVUsEB03WLNlLBHSFmrAYcRUBUAvN7qgJOqmpVkq5qS
-	XqMnJberLR8/uO6qaYY661kccU57DE40hHdSCwkAACH5BAkKAAUALAAAAAAU
-	ABgAAANiWFDc/g2MBWucNkua4ebdNYGhNGAPoKqOiTLqKbPKfMVnvJjcFkzA
-	wCcX+cmOA+GK8nHlYp4JYbmaDqKAqTbLvaZG3C30Sy17W+DyOMUtT0mw0fb9
-	+qZ5HdwMXqGG/oAWCQAAIfkECQoABQAsAAAAABQAGAAAA2tYutwOLjYwoJTU
-	3ld3zJqnUFU4AmhIdgs6vC86wloGx91qZYHelzFFDxAIVI7FVLBAdN1izZSw
-	R0hZqwGHEVAVALze6oCTqpqVZKuakl6jJyW3qy0fP7juqmmGOutZHHFOewxO
-	NIR3UgsJAAAh+QQJCgAFACwAAAAAFAAYAAADXli63P4wSgfmA6NahvVWHQSM
-	I5d5IDasJ7iW7sjKlZrFQaYHna0BOZZwwFOVerYX7RUjkJ5O3a3QcVoB1xMM
-	eXXKKNrncwAWm8kUrFmNWvS6NJGSxIzIhLCJ+MPnJwAAIfkECQoABQAsAAAA
-	ABQAGAAAA2tYutwOLjYwoJTU3ld3zJqnUFU4AmhIdgs6vC86wloGx91qZYHe
-	lzFFDxAIVI7FVLBAdN1izZSwR0hZqwGHEVAVALze6oCTqpqVZKuakl6jJyW3
-	qy0fP7juqmmGOutZHHFOewxONIR3UgsJAAAh+QQJCgAFACwAAAAAFAAYAAAD
-	YlhQ3P4NjAVrnDZLmuHm3TWBoTRgD6Cqjoky6imzynzFZ7yY3BZMwMAnF/nJ
-	jgPhivJx5WKeCWG5mg6igKk2y72mRtwt9Este1vg8jjFLU9JsNH2/fqmeR3c
-	DF6hhv6AFgkAACH5BAkKAAUALAAAAAAUABgAAANrWLrcDi42MKCU1N5Xd8ya
-	p1BVOAJoSHYLOrwvOsJaBsfdamWB3pcxRQ8QCFSOxVSwQHTdYs2UsEdIWasB
-	hxFQFQC83uqAk6qalWSrmpJeoyclt6stHz+47qpphjrrWRxxTnsMTjSEd1IL
-	CQAAIfkECQoABQAsAAAAABQAGAAAA15Yutz+MEoH5gOjWob1Vh0EjCOXeSA2
-	rCe4lu7IypWaxUGmB52tATmWcMBTlXq2F+0VI5CeTt2t0HFaAdcTDHl1yija
-	53MAFpvJFKxZjVr0ujSRksSMyISwifjD5ycAACH5BAUKAAUALAAAAAAUABgA
-	AANrWLrcDi42MKCU1N5Xd8yap1BVOAJoSHYLOrwvOsJaBsfdamWB3pcxRQ8Q
-	CFSOxVSwQHTdYs2UsEdIWasBhxFQFQC83uqAk6qalWSrmpJeoyclt6stHz+4
-	7qpphjrrWRxxTnsMTjSEd1ILCQAAIf4aQ29weXJpZ2h0IKkgMjAwMCBLbGFh
-	cyBXaXQAOw==
-    }
-    SmileId mad ">:(" ">:-(" ">:^("
-    image create photo ::tkchat::img::mad -format GIF -data {
-	R0lGODlhDwAPALP/AMDAwEpKSjk5Kd7ehP//Y729QoSEKefnKa2tEEpKAISE
-	AK2tAL29AO/vAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAARlEEhZ0EJlalAW
-	+9+1IUqyNOiSKMtUMKzCNPAiI5LXKIfhw7TWCyUIHAqHgADFqMwaRYJUybQ8
-	fVKCj3l5HrLSQ3WIkg6kKBpOh/IZxEEJ4tNYnBh3Bi4XSnvwI38gIhsUFgh7ExEAOw==
-    }
-    SmileId oh ":-o" ":^o" ":o" ":-O" ":^O" ":O"
-    image create photo ::tkchat::img::oh -format GIF -data {
-	R0lGODlhDwAPALMAAAAAABgYGGPG/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAPAA8AAAQyMEgJap04VMH5
-	xUAnelM4jgDlmcLWap3bsvIp1vaao+z+9pab6gYsxWQpUG+WKVmSkwgAOw==
-    }
-    SmileId smile ":-)" ":^)" ":)"
-    image create photo ::tkchat::img::smile -format GIF -data {
-	R0lGODlhDwAPAJEBAAAAAL+/v///AAAAACH5BAEAAAEALAAAAAAPAA8AAAIu
-	jA2Zx5EC4WIgWnnqvQBJLTyhE4khaG5Wqn4tp4ErFnMY+Sll9naUfGpkFL5DAQA7
-    }
-    SmileId smile-big ":-D" ":^D" ":D"
-    image create photo ::tkchat::img::smile-big -format GIF -data {
-	R0lGODlhEAAQALMAAAAAAKamAP//AP///wAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAQABAAAAQ/MEgJqp04VMF7
-	zUAnelPocSZKiWYqANrYyu5Io1a+ve0wAD7gD4fTWYivoHL4iiWFwNaqeFRN
-	bdZSjZfR5jIRADs=
-    }
-    SmileId smile-dork "<:-)" "<:^)" "<:)"
-    image create photo ::tkchat::img::smile-dork -format GIF -data {
-	R0lGODlhEQAfAKIEAP//AAAAAP///zMzM////wAAAAAAAAAAACH5BAEAAAQA
-	LAAAAAARAB8AAANhSLrcPi6uIGMQtLKL9RSdR3ChRmYmCKLSoJbWu1akyja1
-	LeVzLPc4WWB4U5wCgOTQQUQmn4CbE0plOYdPbHSSnWq3I6pYaRyLM9fxtaxs
-	flFeDCa7ycq9uC6eOW2bmiIeCQA7
-    }
-    SmileId smile-glasses "8-)" "8^)" "8)"
-    image create photo ::tkchat::img::smile-glasses -format GIF -data {
-	R0lGODlhFAAQALMAAAAAAAD/ANbWAP//AP///wAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAUABAAAARUMMgZgL00Tzu6
-	t9rmjV8ICGQKaOc1uivVEjTQATRhx9Wl17jfZUUUBHW33K4iORk5HyivIkCl
-	SFPnwIYtyarbIXfLqhp1uPF0Yx56TU7zM5QRryURADs=
-    }
-    SmileId smile-tongue-anim ":-p" ":^p" ":p"
-    image create photo ::tkchat::img::smile-tongue-anim -format GIF -data {
-	R0lGODlhDwAPAMQTAAAAADExAGMxAGNjAGNjMZxjAJycAJycMc6cAM7OAM7O
-	Mc7OY/8AMf/OAP//AP//Mf//Y///nP///wAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQFZAAT
-	ACwAAAAADwAPAAAIjQAnCBw4gMCAgQgHHoAQIQIEBQcSClzQ0CGEiwoSKmh4
-	8YFHjwgUXoQAAIDHkg8cFBCoYGRJBw5KQmgQkoBHBSlh6kzAk0CABwgCNNCp
-	M8CABAEINGgg4OjOAgEQJCAwAUGDAVizZk1gQODRARLCipXwdaCBBGDHHu2K
-	0IBWrFwlThhwlqdbuQMJ6JUYEAAh+QQFDAATACwDAAUACQAKAAAIRQAhQAAA
-	wIEDgg4UPDDI0EGCAA0aGgwgYEAChgkKBEgwoCODjgEMJBiJgAEDBCNTqhwp
-	cmUCAxMGtHw5YILNCQQCELgZEAAh+QQFDAATACwGAAkAAwAFAAAIDAAZCBxI
-	UGACBgkCAgAh+QQFDAATACwEAAQACAALAAAIQgAhCHzwYCCAgw4cHATwIKFD
-	BwkaPEwYYEAChwkKVBzAoOOAAAYSJOjIAIFIkSRPouwo0sAAAyRdTphJgAGB
-	mRMCAgAh+QQFDAATACwGAA0AAwACAAAICQATMEhAoGBAAAAh+QQFDAATACwG
-	AAsAAwADAAAICgATMEhAsGCCgAAAIfkEBQwAEwAsBQAJAAUAAwAACAwABwgc
-	mKDggAQEAwIAOw==
-    }
-    SmileId smirk-glasses ";/" ";-/" ";^/" ":/" ":-/" ":^/" "8/" "8-/" "8^/"
-    image create photo ::tkchat::img::smirk-glasses -format GIF -data {
-	R0lGODlhDwAPANX/AMDAwM/RAKepAJmbAI2PAICCAHp7AGxtAGlqAP//APr7
-	APX2APX1AOrqANzdANXVAM7OAMzNAMvMAMnKAMnJAMjIAMfHAMTFAMLDAMDB
-	ALu7ALi5ALe4ALa3ALe3ALGxALCwAKurAKqqAKenAKWmAKOkAKSkAKGiAKCg
-	AJ6fAJucAJqbAJubAJmaAJGSAI6PAI+PAIiIAIWGAIaGAIGCAIKCAICBAIGB
-	AGlpAFNTAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAAaG
-	QIBQqCsWh0hAkUZTrWpHpA4hi+lEmZMMpxvquEXUY2PMdZUzF8t0qVxKKsPR
-	SK/TD/VRHa9TwYwUCRRGLypFAxkeIQ8JjQ8WHBktSxogOhAMCgsNDhEaNF06
-	KQI6IxQSEw4BGClnOjYdBHQfGB0FZ0o3KSckIyQaKTe4RDo0LU6gw1J0SUEAOw==
-    }
-    SmileId tongue2 ":-P" ":^P" ":P"
-    image create photo ::tkchat::img::tongue2 -format GIF -data {
-	R0lGODlhDwAPAMT/AMDAwFoAAJQAAK0AAM4QADkQAKUxAFI5EL21ADExKVpa
-	Ss7Oa///c/f3Y4SEKe/vSv//SrW1MXNzGK2tEPf3CBgYAGNjAIyMAKWlAM7O
-	AAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAAAALAAAAAAPAA8AAAWHICCK0WRG
-	Ywo4Vpsh7aFOF4YgVIbt2BghGYuGQsRoLoiJCEipVCIQiERjeQEimQwlkVhE
-	HZVqpqSlOBQNRmORwGVMZciDQZcT35M4JN2I5t5YGRcZD4UPRBQWFygIGC0S
-	Dg4HBwUBFxckTIgEAwIDSSMTQGUEAgIGPSmiWS8GAqkqVyYTKCkhADs=
-    }
-    SmileId updown "(:" "(^:" "(-:"
-    image create photo ::tkchat::img::updown -format GIF -data {
-	R0lGODlhDwAPALMAAAAAAFr/zv//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAEALAAAAAAPAA8AAAQwMEgJap04VMH5
-	xUAnelPoWaYAUN5orunoxnK31TOen3YK88CVRkdi4YQl2iejQWUiADs=
-    }
-    SmileId wink-anim ";-)" ";^)" ";)"
-    image create photo ::tkchat::img::wink-anim -format GIF -data {
-	R0lGODlhDwAPAPcAAOD0AL/WAKu6AF9oAICMAERKALe3t11oAm57A6y7MaWz
-	L+//Y/H/Wer/N+j9M+j4MsfZL7jEMpWiKvD/cfD/SdnoMOz8NODvM73OMBwd
-	CfH/e8nbM+7/WyQnDTo9IwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-	AAAAAAAAAAAAAAAAAAAAACH5BAEAAAYALAAAAAAPAA8AAAinAA0IFNihYMGB
-	CA0UvECBQgMIBxF2YKhBw4QFDB5g6DCwQ4WGDRcscMAwAkeFFT6o/LDhgcoK
-	FTh22LCggQUMGzhYULmhQYKCDUSKrMigwgYHDyB2cJCRwYIJExg00HhhY4cH
-	FzxEaMiApAStVrcm8KAAAoYIXyVskCCzggMFHuLGlQDhJ8EEJCMkSKCgLAS2
-	HRVgMAqhcALAEjso0Hs4YkKFBk8ODAgAOw==
-    }
-    SmileId blush ":-\}" ":^\}" ":8\}" ":\}"
-    image create photo ::tkchat::img::blush -format GIF -data {
-	R0lGODlhEAAQAMIAAAAAAPiUGPisEPj8APj8+AAAAAAAAAAAACH5BAEAAAQA
-	LAAAAAAQABAAAAM9SKrQvpC0QWuLoGq78v4AQ02WF3oDOaKTIHyUmwJCELxb
-	fTc6rvUtX+510jhQKRHM2FmOMMhVpHMMTa/XBAA7
-    }
-    SmileId coffee LP
-    image create photo ::tkchat::img::coffee -format GIF -data {
-	R0lGODlhEAAQAIQVAAAAAFJSUlpaWmNjY2tra3Nzc3t7e4SEhIyMjJSUlJyc
-	nKWlpa2trbW1tcbGxs7OztbW1t7e3ufn5+/v7/f39///////////////////
-	/////////////////////////yH5BAEAAB8ALAAAAAAQABAAAAV64CeOZEkC
-	aAqYH8q8MIOejGIYB4IkieKsIgCFEQgICAXEwkEBtiITinT6cChmT0m1wVgo
-	CgbbNbvtKghhVEStdXAXCfQVsKa334nBYV6H3Ltxe2ooDn9wBXsGCSsADRBl
-	cDiLQAAJDQ5ugAcHBE4tAAZKhwNYJSopJiEAOw==
-    }
-    SmileId lunch |O| |o| |0|
-    image create photo ::tkchat::img::lunch -format GIF -data {
-	R0lGODlhEAAQAPABAAAAAP///yH5BAEAAAEALAAAAAAQABAAAAKRTJgwYcKE
-	CRMmRIgwYcKECRMCBIgwYcKECRMCBIgwIUCACBMCBIgQIECAABECBIgQYMKE
-	ARECBAgQYcKECQECDAgQYcKECQECDAgQYcKECQECDAgQYcKECQECDAgQYcKE
-	CQECDIgQYMKEARECDIgQIECAABECDIgwIUCACBMCDIgwYcKECRMGTJgwYcKE
-	CRMmBQA7
-    }
-    SmileId snooze zz zzz zzZ zZZ ZZZ ZZ
-    image create photo ::tkchat::img::snooze -format GIF -data {
-	R0lGODlhEAALAPABAAAAAP///yH5BAEAAAEALAAAAAAQAAsAAAJkTJgwYcKE
-	AAECTJgwYcKEAAECTJgwYcKECRMCTJgwYcKECQMiTJgQIECECQEmTJgwYUCE
-	AREmTJgwIcCEABMmBIgwIMKEAAECTIgQYMKEAAECDJgQIECECRMmBIgwYcKE
-	CRMmBQA7
-    }
-    SmileId beer "|_P"
-    image create photo ::tkchat::img::beer -format GIF -data {
-	R0lGODlhEAAQAKECAAAAAP//AP///////yH/C05FVFNDQVBFMi4wAwEAAAAh
-	/hVDcmVhdGVkIHdpdGggVGhlIEdJTVAAIfkECQEAAgAsAAAAABAAEAAAAjWU
-	jymgx/iAXPK5GnCeBoQPglX0eWHWMeZZXitraaLoZiyavnOk3mXVCb2AQZ+l
-	eDtSRsxEAQAh+QQJAQADACwAAAAAEAAQAAACNZyPOaDH+IBc8rkacJ4GhPyF
-	G+eJYsSU5mdpodpK4BqrZ3bZJrrcb9VZ/VpCVkJ3OlaWQEQBACH5BAkBAAMA
-	LAAAAAAQABAAAAI1nI85oMf4gFzyuRpwngaED4JVFJYR44Vpdnmr2pafG8tz
-	PcPUYs9V19tYXqZEisiCjJYWQwEAIfkECQEAAwAsAAAAABAAEAAAAjWcjzmg
-	x/iAXPK5GnCeBoQPglUUZmLHeF6ZXWupuuyJviZN2TC6zN/Y8W0sK10LIrTU
-	RkBEAQAh+QQJAQADACwAAAAAEAAQAAACNpyPOaDH+IBc8rkacJ4GhP95YdVl
-	4Bkx4mlaGhteqwm6ElzLeEwt+8YRzUaun6W0O1IqTM6hAAAh+QQJAQADACwA
-	AAAAEAAQAAACNZyPOaDH+IBc8rkacJ4G5ACGG+eJoBcxpXle6xdaGpu5dNtJ
-	d00tJ1uJ7CqOYeIF47mCwUQBACH5BAkBAAMALAAAAAAQABAAAAI2nI85oMf4
-	gFzyuRpwngaED2Yb54VhxJSfml2saWnm6s5gLK0zuthr1fGNHLBbwvOiQSpM
-	IKIAACH5BAkBAAMALAAAAAAQABAAAAI0nI85oMf4gFzyuRpwngaED4JVFHpi
-	x5jhiaprdrmrpclw+7KTLVbd3KNlcpbfy1OkjJaJAgAh+QQJAQADACwAAAAA
-	EAAQAAACNpyPOaDH+IBc8rkacJ4GhJ+BG+eJYsSU5mdpa3aVKthKLxvfMLWY
-	ahUJrSqOl8fS0SEpwGaiAAAh+QQJAQADACwAAAAAEAAQAAACNJyPOaDH+IBc
-	8rkacJ4GhA+CVRSWEeOV4pWmoaWpGSt/sGSu1JLJY+fbwGozyOuVGCk5hwIA
-	IfkECQEAAwAsAAAAABAAEAAAAjWcjzmgx/iAXPK5GnCeBoQPglUUlhHjZWV2
-	pSvbSe9naaLYquu5vN7YmW1qIRfMIbTERsxEAQA7
-    }
+    variable IMG
+    array unset IMG; # needed for reload
 
-    SmileId cyclops "O-\]" "O-)" "0-\]" "0-)"
-    image create photo ::tkchat::img::cyclops -format GIF -data {
-	R0lGODlhDwAPAKEAANnZ2QAAAP//AP///yH5BAEAAAMALAAAAAAPAA8AAAIz
-	nB2Zx5MC4WIhWnlqVDagDYSa4I2BKG4jGQLr08HqRUvaumH3dX82h/HVPBTc
-	pOFQEA8FADs=
+    namespace eval ::tkchat::img {
+        variable delay 150
     }
+    
+    # create a slave interpreter with no commands in it.
+    interp create -safe I
+    foreach cmd [I aliases] {
+        I alias $cmd {}
+    }
+    foreach cmd [I eval info commands] {
+        switch -- $cmd {
+            "set" - "if" {}
+            default { I hide $cmd }
+        }
+    }
+    I alias SmileId ::tkchat::SmileId
+    set code [GET http://tclers.tk/~jabber/emoticons/emoticons.tcl]
+    I eval $code
+    interp delete I
 
-    SmileId donuts "donuts"
-    image create photo ::tkchat::img::donuts -format GIF -data {
-	R0lGODlhKAAPALIBAAAAAP//AGNjY0JC/0JCQjExMQAAAAAAACH/C05FVFND
-	QVBFMi4wAwEAAAAh+QQJCgAGACwAAAAAKAAPAAADfmiq0L0wyklbuPfRKboX
-	E4CN2RYNAqGuICSSJGAu6Gq3DBxY+6zUNlZOx+vNgEFV56UbyRjPUyrJYjZL
-	hqgESRVYMd+nQ/ubdr1Nq2xN4d4WX7AjS9dA3ErXNcM2fT4ScWAMPgseG0V8
-	cwoFjY6NEEEmY2SMAgWXmQUKVCoLCQAh+QQJCgAGACwAAAAAKAAPAAADf2iq
-	0L0wyklbuPfRKboXE4CN2RYNAqGuICSSJGAu6Gq3DBxY+6zUNlZOx+vNgEFV
-	56UbyRjPUyrJYjZLhqgESRVYMd+nY8INLptWmVoDKQuHMIeaQXETcNlrRpzV
-	Lj4fEl9OC34bHhtFe3IKBY6PjhBBJnKGBgUCmJqZClQqCwkAIfkECQoABgAs
-	AAAAACgADwAAA3xoqtC9MMpJW7j30Sm6FxOAjdkWDQKhriAkkiRgLuhqtwwc
-	WPus1DZWTsfrzYBBVeelG8kYz1MqyWI2S4aoBEkVWDHfp2PCDS6bVpl2O03i
-	vuCxWAMpK13XzHzz+UjgYAtiMx4bRXoOTwWLjIsQQSaJawoFApWXlgpUKgsJ
-	ACH5BAkKAAYALAAAAAAoAA8AAAN9aKrQvTDKSVu499EpuhcTgI3ZFg0Coa4g
-	JJIkYC7oarcMHFj7rNQ2Vk7H682AQVXnpRvJjqkki9ksMZ6nqJQgoGK8T6wE
-	mVw2qbK0mKYN4rxfhyG8/rWFC3gsbPp8JHpWc3N1ER4bRRkOGgWNjo0QQSaL
-	hQUClpiXClsECwkAIfkECQoABgAsAAAAACgADwAAA35oqtC9MMpJW7j30Sm6
-	FxOAjdkWDQKhriAkkiRgLuhqtwwcWPus1DZWTsfrzYBBVeelG8mOqSSL2Swx
-	nqeolCCgYrxPrASZXDapYcdYG8R5v2qDTAwhCxfv2GNOV3w+EnlWcj5+HRtF
-	GQ4aBY2OjRBBJot9BgUCl5mYClsECwkAIfkECQoABgAsAAAAACgADwAAA31o
-	qtC9MMpJW7j30Sm6FxOAjdkWDQKhriAkkiRgLuhqtwwcWPus1DZWTsfrzYBB
-	VeelG8lcT1oqyWI2S4soBEkVWDFfreM07Xqb1qh2Ww7ivuAxwyCXdl3XjKMe
-	+XwkcGBzDBocHRtFenUFjI2MEEEme2sKBQKWmJcKVCoLCQAh+QQFCgAGACwA
-	AAAAKAAPAAADfWiq0L0wyklbuPfRKboXE4CN2RYNAqGuICSSJGAu6Gq3DBxY
-	+6zUNlZOx+vNgEFV56UbyRjPUyrJYjZLhqgESRVYMd+nY8INLptWmXY7TeK+
-	4HFUAykrXdfMfPP5SOBgLllrER4bRXoODwWMjYwQQSaKhAYFApaYlwpUKgsJ
-	ADs=
-    }
+    set m .mbar.emot.mnu
+    $m delete 0 end
 
-    SmileId bug "bug #" "bug#"
-    image create photo ::tkchat::img::bug -format GIF -data {
-	R0lGODlhEAAQAKEAAAAAAP///////////yH5BAEAAAIALAAAAAAQABAAAAIr
-	lA94y5kMhYsL2Psg3tGGAHxWg4EgZjwbKlXr6L6sKqfxSsqXneI8BQweCgA7
+    foreach { img txt } [array get IMG] {
+        lappend tmp($txt) $img
     }
+    foreach { img txt } [array get tmp] {
+	$m add command \
+            -image ::tkchat::img::$img \
+            -command [string map [list %txt% [join $txt]] {
+                .eMsg insert insert "%txt% "
+                .tMsg insert insert "%txt% "
+            }]
+    }
+    DoAnim
 }
 
 proc ::tkchat::ShowSmiles {} {
@@ -5818,7 +5584,7 @@ proc ::tkchat::Init {args} {
 		fconfigure $f -encoding utf-8
 		set d [read $f]
 		close $f
-		eval $d
+		uplevel "#0" $d
 	    }
 	}
     }
@@ -5978,7 +5744,6 @@ proc ::tkchat::Init {args} {
     SetTheme $Options(Theme)
 
     # do this first so we have images available
-    Smile
     # build screen
     CreateGUI
     foreach idx [array names Options Visibility,*] {
@@ -5989,7 +5754,7 @@ proc ::tkchat::Init {args} {
     Hook add message [namespace origin IncrMessageCounter]
     BookmarkInit
     WinicoInit
-    DoAnim
+    Smile
 
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
