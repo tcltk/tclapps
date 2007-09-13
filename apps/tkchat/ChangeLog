@@ -1,3 +1,9 @@
+2007-09-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Moved the emoticon init to post login dialog as
+	http proxy configuration occurs here.
+	Some bug fixes and typos in the new whiteboard code resolved.
+
 2007-09-13  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Moved the emoticons to the web and added code for

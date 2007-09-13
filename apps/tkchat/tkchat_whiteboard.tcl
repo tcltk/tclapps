@@ -1,10 +1,12 @@
 #
 # Safe Whiteboard
 #
-# $Id: tkchat_whiteboard.tcl,v 1.1 2007/09/13 14:29:38 patthoyts Exp $
+# $Id: tkchat_whiteboard.tcl,v 1.2 2007/09/13 21:25:41 patthoyts Exp $
 
 namespace eval ::tkchat::Whiteboard {
     variable version 1.0
+    variable History
+    if {![info exists History]} { set History [list] }
 }
 
 proc ::tkchat::Whiteboard::Init {} {
@@ -28,10 +30,13 @@ proc ::tkchat::Whiteboard::Init {} {
                 ttk::frame .wb
                 ttk::entry .wb.e -textvariable wbentry
                 ttk::button .wb.bclear -text Clear -command WhiteboardClear
+                ttk::label .wb.status -anchor w
+
             } else {
                 frame .wb
                 entry .wb.e -background white -textvariable wbentry
                 button .wb.bclear -text Clear -command WhiteboardClear
+                label .wb.status -anchor w
             }
             canvas .wb.c -background white -width 350 -height 300
             bind .wb.c <Button-1> {
@@ -45,14 +50,16 @@ proc ::tkchat::Whiteboard::Init {} {
             }
             bind .wb.e <Return> {WhiteboardScript $::wbentry}
 
-            grid .wb.e .wb.bclear -sticky new
+            grid .wb.e .wb.bclear -sticky news
             grid .wb.c -          -sticky news
+            grid .wb.status -     -sticky sew
             grid rowconfigure    .wb 1 -weight 1
             grid columnconfigure .wb 0 -weight 1
 
             grid .wb -sticky news
             grid columnconfigure . 0 -weight 1
             grid rowconfigure    . 0 -weight 1
+            proc Status {s} {.wb.status configure -text $s}
         }
     }
 }
@@ -72,16 +79,13 @@ proc ::tkchat::Whiteboard::Line {w id} {
 # called from the safe interp, clean the whiteboard and tell everyone
 proc ::tkchat::Whiteboard::Clear {} {
     set cmd [list .wb.c delete all]
-    foreach c [whiteboard eval [list $w coords $id]] {
-	lappend cmd [expr { int(round($c)) }]
-    }
-    Transmit $cmd
+    Script $cmd
 }
     
 # called from safe interp - eval script and transmit script
 proc ::tkchat::Whiteboard::Script {script} {
     if {[catch { whiteboard eval $script }]} {
-        puts $err
+        whiteboard eval [list Status $err]
         return
     }
     Transmit $script
@@ -90,29 +94,36 @@ proc ::tkchat::Whiteboard::Script {script} {
 # -------------------------------------------------------------------------
 
 # Evaluate transmitted script inside the safe interp
-proc ::tkchat::Whiteboard::Eval {script {color {}}} {
+proc ::tkchat::Whiteboard::Eval {who script {color {}}} {
+    global Options
+    variable History
     if {![interp exists whiteboard]} {
-        if {!$::tkchat::Options(EnableWhiteboard)} {
+        if {!$Options(EnableWhiteboard)} {
             return
         }
         Init
     }
 
     if {[catch {whiteboard eval $script} err]} {
-        puts $::errorInfo
+        log::log info $::errorInfo
+        whiteboard eval [list Status $err]
+    } else {
+        lappend History [list $who $script]
+        whiteboard eval [list Status "$who is drawing"]
     }
 }
 
 # Transmit some tcl script to all listeners
 proc ::tkchat::Whiteboard::Transmit {script} {
+    global Options
     if {[catch {
         variable ::tkjabber::jabber
         variable ::tkjabber::conference
-        set attrs [list xmlns urn:tkchat:whiteboard color $::Options(MyColor)]
+        set attrs [list xmlns urn:tkchat:whiteboard color $Options(MyColor)]
         set xlist [list [wrapper::createtag x -attrlist $attrs -chdata $script]]
         $jabber send_message $conference -type groupchat -xlist $xlist
     } err]} {
-        puts $::errorInfo
+        whiteboard eval [list Status $err]
     }
 }
 

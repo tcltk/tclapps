@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.395 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.396 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.395 2007/09/13 18:00:31 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.396 2007/09/13 21:25:41 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -760,6 +760,8 @@ proc ::tkchat::logonChat {} {
     if {[info exists Options(JabberDebug)] && $Options(JabberDebug)} {
 	set jlib::debug 2
     }
+
+    after 1 [list [namespace origin Smile]]
 
     # Logon to the jabber server.
     if {[tkjabber::connect]} {
@@ -1359,11 +1361,11 @@ proc ::tkchat::InsertTimestamp { w nick mark timestamp {tags {}} } {
 
 proc ::tkchat::Insert { w str tags url mark } {
     global Options
+    variable IMG
+    variable IMGre
 
     # Don't do emoticons on URLs
-    if { ($url eq "") && $Options(Emoticons) } {
-	variable IMG
-	variable IMGre
+    if { ($url eq "") && $Options(Emoticons) && [info exists IMGre] } {
 	set i 0
 	foreach match [regexp -inline -all -indices -- $IMGre $str] {
 	    foreach { start end } $match break
@@ -5377,15 +5379,15 @@ proc ::tkchat::DoAnim {} {
 proc ::tkchat::anim {image {idx -1}} {
     namespace eval ::tkchat::img {} ; # create img namespace
     incr idx
-    puts stderr $image:0:$idx
+    #puts stderr $image:0:$idx
     if {[catch {$image configure -format "GIF -index $idx"}]} {
-        puts stderr $image:1
+        #puts stderr $image:1
 	if {$idx == 1} {
 	    # stop animating, only base image exists
 	    return
 	} else {
 	    # restart the cycle
-            puts stderr $image:2
+            #puts stderr $image:2
 	    set idx 0
 	    $image configure -format "GIF -index $idx"
 	}
@@ -5399,14 +5401,21 @@ proc ::tkchat::anim {image {idx -1}} {
 # In case of errors it returns an empty string.
 # Currently only used by Smile and SmileId
 proc ::tkchat::GET {URL} {
-    addStatus 0 "Downloading $URL ..."
-    set t [http::geturl $URL]
-    if {[http::ncode $t] == 200} {
-        set data [http::data $t]
-    } else {
-        set data ""
+    set data ""
+    addStatus 0 "Downloading '$URL' ..."
+    if {[catch {
+        set t [http::geturl $URL -timeout 60000 \
+                   -progress [namespace origin Progress]]
+        if {[http::ncode $t] == 200} {
+            set data [http::data $t]
+        } else {
+            set data ""
+        }
+        http::cleanup $t
+    } err]} then {
+        addSystem .txt "error fetching data from '$URL': $err" end ERROR
     }
-    http::cleanup $t
+
     return $data
 }
 
@@ -5488,7 +5497,7 @@ proc ::tkchat::Smile {} {
         }
     }
     I alias SmileId ::tkchat::SmileId
-    set code [GET http://tclers.tk/~jabber/emoticons/emoticons.tcl]
+    set code [GET "http://tclers.tk/~jabber/emoticons/emoticons.tcl"]
     I eval $code
     interp delete I
 
@@ -5714,9 +5723,10 @@ proc ::tkchat::Init {args} {
     if {[info exists Options(UserAgent)]} {
 	http::config -useragent $Options(UserAgent)
     } else {
-	http::config -useragent "Mozilla/4.0\
-	    ([string totitle $::tcl_platform(platform)];\
-	    $::tcl_platform(os)) http/[package provide http]\
+	http::config -useragent "Mozilla/5.0\
+	    ([string totitle $::tcl_platform(platform)]; U;\
+	    $::tcl_platform(os) $::tcl_platform(osVersion))\
+            Tkchat/[package provide app-tkchat]\
 	    Tcl/[package provide Tcl]"
     }
     http::config -proxyfilter ::tkchat::proxyfilter
@@ -5753,7 +5763,6 @@ proc ::tkchat::Init {args} {
     Hook add message [namespace origin IncrMessageCounter]
     BookmarkInit
     WinicoInit
-    Smile
 
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
@@ -7684,7 +7693,8 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		    set color [wrapper::getattribute $x color]
 		}
 		"urn:tkchat:whiteboard" {
-		    tkchat::Whiteboard::Eval [wrapper::getcdata $x] \
+		    tkchat::Whiteboard::Eval $m(-from) \
+                        [wrapper::getcdata $x] \
                         [wrapper::getattribute $x color]
 		    return
 		}
@@ -7723,6 +7733,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		regexp {^([^@]+)@} $m(-from) -> from
 		set w [getChatWidget $m(-from) $from]
 	    }
+            LogPrivateChat $from $m(-body)
 	    if {$w eq ".txt"} {
 		::tkchat::addMessage $w $color $from " whispers: $m(-body)" \
 			ACTION end $timestamp
@@ -9075,7 +9086,8 @@ proc ::tkjabber::autoStatus {} {
 # -------------------------------------------------------------------------
 
 proc ::tkchat::GetTipIndex {} {
-    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt -timeout 15000 \
+    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt \
+        -timeout 15000 \
         -progress ::tkchat::Progress \
         -command [list [namespace origin fetchurldone] \
                       [namespace origin GetTipIndexDone]]
@@ -9087,7 +9099,8 @@ proc ::tkchat::GetTipIndexDone {tok} {
 }
 
 proc ::tkchat::CheckVersion {} {
-    http::geturl http://tclers.tk/~jabber/current.html -timeout 15000 \
+    http::geturl http://tclers.tk/~jabber/current.html \
+        -timeout 15000 \
         -command [list [namespace origin fetchurldone] \
                       [namespace origin CheckVersionDone]]
 }
@@ -9100,7 +9113,8 @@ proc ::tkchat::CheckVersionDone {tok} {
         addStatus 0 "Latest tkchat version is $latest"
         if {$current < $latest} {
             addSystem .txt \
-                "There is a newer version of tkchat available at $url" end NOTICE
+                "There is a newer version of tkchat available at $url" \
+                end NOTICE
         }
     }
 }
@@ -9213,7 +9227,7 @@ if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} 
 
 # -------------------------------------------------------------------------
 
-proc tkchat::EvalPaste {dlg} {
+proc tkchat::PasteEval {dlg} {
     set script [string trim [$dlg.f1.txt get 0.0 end]]
     Whiteboard::Init
     Whiteboard::Script $script
@@ -9226,6 +9240,7 @@ proc tkchat::PasteDlg {} {
     set wid paste[incr paste_uid]
     set dlg [Dialog .$wid]
     wm title $dlg "Paste data to paste.tclers.tk"
+    wm transient $dlg {}
     set f [${NS}::frame $dlg.f1 -borderwidth 0]
     set f2 [${NS}::frame $f.f2 -borderwidth 0]
     ${NS}::label $f2.lbl -text Subject
@@ -9235,8 +9250,6 @@ proc tkchat::PasteDlg {} {
     set f3 [${NS}::frame $f.f3 -borderwidth 0]
     set send [${NS}::button $f3.send -text [msgcat::mc Send] -default active \
                   -command [list set [namespace current]::$wid send]]
-    set wbeval [${NS}::button $f.f3.eval -text [msgcat::mc Whiteboard] \
-                    -command [list [namespace origin EvalPaste] $dlg]]
     set cancel [${NS}::button $f3.cancel -text [msgcat::mc Cancel] \
                     -default normal \
                     -command [list set [namespace current]::$wid cancel]]
@@ -9248,10 +9261,16 @@ proc tkchat::PasteDlg {} {
 	    break
         }
     }
+    set m [menu $dlg.popup -tearoff 0]
+    $m add command -label "Clear" -command [list $f.txt delete 0.0 end]
+    $m add command -label "Eval in whiteboard" \
+        -command [list [namespace origin PasteEval] $dlg]
+    bind $f.txt <Button-3> [list tk_popup $m %X %Y]
+    
     bind $dlg <Key-Escape> [list $cancel invoke]
     pack $f2.lbl -side left
     pack $subject -side right -fill x -expand 1
-    pack $cancel $wbeval $send -side right
+    pack $cancel $send -side right
     grid $f2    -     -sticky ew -pady 2
     grid $f.txt $f.vs -sticky news
     grid $f3    -     -sticky se
@@ -9300,6 +9319,10 @@ proc ::tkjabber::StoreMessage {from subject message} {
         }
     }
     return
+}
+
+proc ::tkjabber::LogPrivateChat {from message} {
+    log::log debug "LogChat $from $message"
 }
 
 # A users role in a MUC can be one of:
