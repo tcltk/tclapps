@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.392 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.393 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.392 2007/09/12 12:23:52 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.393 2007/09/13 14:29:38 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -333,7 +333,7 @@ if {[info exists ::env(HOME)] \
 proc ::tkchat::Toplevel {w args} {
     variable useTile
     eval [linsert $args 0 ::toplevel $w]
-    if {$useTile} {
+    if {$useTile && ![$w cget -container]} {
         place [::ttk::frame $w.tilebg] -x 0 -y 0 -relwidth 1 -relheight 1
     }
     return $w
@@ -2073,7 +2073,7 @@ proc ::tkchat::CreateGUI {} {
     $m add command \
 	    -label "Open Whiteboard" \
 	    -underline 5 \
-	    -command ::tkchat::whiteboard_open
+	    -command ::tkchat::Whiteboard::Init
     $m add command \
             -label "Open Paste Dialog" \
             -underline 5 \
@@ -5989,6 +5989,7 @@ proc ::tkchat::Init {args} {
     Hook add message [namespace origin IncrMessageCounter]
     BookmarkInit
     WinicoInit
+    DoAnim
 
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
@@ -7167,83 +7168,6 @@ proc ::tkchat::GtkLookStyleInit {} {
 
     option add *Dialog.msg.font GtkLookDialogFont
 }
-# -------------------------------------------------------------------------
-# Whiteboard
-
-proc tkchat::whiteboard_eval { wbitem color } {
-
-    if { ![winfo exists .wb]  } {
-	if { !$::Options(EnableWhiteboard) } {
-	    return
-	}
-	whiteboard_open
-    }
-
-    set ::wbentry $wbitem
-
-    catch {
-	interp eval .wbinterp $::wbentry
-    }
-}
-
-proc tkchat::whiteboard_transmit {w id} {
-    set attrs [list xmlns urn:tkchat:whiteboard color $::Options(MyColor)]
-
-    set wbitem [list .wb.c create line]
-    foreach c [$w coords $id] {
-	lappend wbitem [expr { int(round($c)) }]
-    }
-    set xlist [list [wrapper::createtag x -attrlist $attrs -chdata $wbitem]]
-
-    $tkjabber::jabber send_message $tkjabber::conference -type groupchat -xlist $xlist
-
-    .wb.e selection range 0 end
-}
-
-proc tkchat::whiteboard_clear {} {
-    set attrs [list xmlns urn:tkchat:whiteboard color $::Options(MyColor)]
-
-    set wbitem ".wb.c delete all"
-
-    set xlist [list [wrapper::createtag x -attrlist $attrs -chdata $wbitem]]
-
-    $tkjabber::jabber send_message $tkjabber::conference -type groupchat -xlist $xlist
-
-    .wb.e selection range 0 end
-
-}
-
-proc tkchat::whiteboard_open {} {
-    variable useTile
-    variable NS
-
-    if { ![winfo exists .wb] } {
-	set wb [Dialog .wb]
-
-	${NS}::entry $wb.e -textvar ::wbentry -width 80
-	if {$useTile == 0} { $wb.e configure -background white }
-	bind $wb.e <Return> {interp eval .wbinterp $::wbentry}
-	set white_board [canvas $wb.c -background white -width 350 -height 300]
-	${NS}::button $wb.bclear -text "clear" -command ::tkchat::whiteboard_clear
-	bind $wb.c <Button-1> {
-	    set entry ""
-	    set id [%W create line %x %y %x %y]
-	}
-	bind $wb.c <Button1-Motion> \
-		{%W coords $id [concat [%W coords $id] %x %y]}
-	bind $wb.c <ButtonRelease-1> {::tkchat::whiteboard_transmit %W $id}
-	grid $wb.e $wb.bclear -sticky new
-	grid $wb.c - -sticky new
-	#pack $wb.e $wb.c -fill both -expand 1
-
-	catch {
-	    interp create -safe .wbinterp
-	    interp alias .wbinterp .wb.c {} .wb.c
-	}
-    } else {
-	focus .wb
-    }
-}
 
 # Reconfigure tkchat to use IRC
 proc ::tkchat::PicoIRC {{url "#tcl@irc.freenode.net"}} {
@@ -7996,8 +7920,8 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		    set color [wrapper::getattribute $x color]
 		}
 		"urn:tkchat:whiteboard" {
-		    tkchat::whiteboard_eval [wrapper::getcdata $x] \
-			    [wrapper::getattribute $x color]
+		    tkchat::Whiteboard::Eval [wrapper::getcdata $x] \
+                        [wrapper::getattribute $x color]
 		    return
 		}
 		"urn:tkchat:changenick" {
@@ -9525,6 +9449,12 @@ if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} 
 
 # -------------------------------------------------------------------------
 
+proc tkchat::EvalPaste {dlg} {
+    set script [string trim [$dlg.f1.txt get 0.0 end]]
+    Whiteboard::Init
+    Whiteboard::Script $script
+}
+
 proc tkchat::PasteDlg {} {
     variable paste_uid
     variable NS
@@ -9541,6 +9471,8 @@ proc tkchat::PasteDlg {} {
     set f3 [${NS}::frame $f.f3 -borderwidth 0]
     set send [${NS}::button $f3.send -text [msgcat::mc Send] -default active \
                   -command [list set [namespace current]::$wid send]]
+    set wbeval [${NS}::button $f.f3.eval -text [msgcat::mc Whiteboard] \
+                    -command [list [namespace origin EvalPaste] $dlg]]
     set cancel [${NS}::button $f3.cancel -text [msgcat::mc Cancel] \
                     -default normal \
                     -command [list set [namespace current]::$wid cancel]]
@@ -9555,7 +9487,7 @@ proc tkchat::PasteDlg {} {
     bind $dlg <Key-Escape> [list $cancel invoke]
     pack $f2.lbl -side left
     pack $subject -side right -fill x -expand 1
-    pack $cancel $send -side right
+    pack $cancel $wbeval $send -side right
     grid $f2    -     -sticky ew -pady 2
     grid $f.txt $f.vs -sticky news
     grid $f3    -     -sticky se
@@ -9653,7 +9585,7 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 # -------------------------------------------------------------------------
 # Load in code from separate sibling files...
 
-foreach file {tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl} {
+foreach file {tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl tkchat_whiteboard.tcl} {
     if {[file exists [file join $tkchat_dir $file]]} {
         source [file join $tkchat_dir $file]
     }

@@ -1,3 +1,9 @@
+2007-09-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Extracted whiteboard code to a separate file
+	* tkchat_whiteboard.tcl: Whiteboard is now created as safeTk
+	windows to evade issues identified by Zarutian in event handling
+
 2007-09-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* mousewheel.tcl:  Added tip 171 mouse wheel handling suggestion
