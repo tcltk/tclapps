@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.397 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.398 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.397 2007/09/14 23:05:22 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.398 2007/09/14 23:37:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1150,7 +1150,8 @@ proc ::tkchat::alertCallback {} {
     unset -nocomplain alert_pending
     if {$Options(Alert,RAISE) && [llength [focus -displayof .]]==0} {
 	# Only call this if the window doesn't already have focus
-        if {[tk windowingsystem] eq "aqua" && [package present Ffidl]} {
+        if {[tk windowingsystem] eq "aqua" \
+            && [llength [package provide Ffidl]] > 0} {
             ShowHideProcess [binary format I2 {0 2}] 1
         }
 	wm deiconify .
