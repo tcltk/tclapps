@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.396 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.397 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.396 2007/09/13 21:25:41 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.397 2007/09/14 23:05:22 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3745,6 +3745,7 @@ proc ::tkchat::checkAlias { msg } {
 }
 
 proc ::tkchat::userPostOneToOne {p jid} {
+    global Options
     if {[winfo ismapped $p.eMsg]} {
 	set str [$p.eMsg get]
     } else {
@@ -3759,7 +3760,9 @@ proc ::tkchat::userPostOneToOne {p jid} {
     } else {
 	set msgtype NORMAL
     }
-    addMessage $p.txt "" $::Options(Nickname) $msg $msgtype end 0
+    ::tkjabber::LogPrivateChat [tkjabber::normalized_jid $jid] \
+        $Options(Nickname) 0 $msg
+    addMessage $p.txt "" $Options(Nickname) $msg $msgtype end 0
     $p.eMsg delete 0 end
     $p.tMsg delete 1.0 end
 }
@@ -4655,6 +4658,8 @@ proc ::tkchat::SpecifySubjects {} {
     tkchat::SubjectList $t.lst
     catch {::tk::PlaceWindow $t widget .}
     wm deiconify $t
+    tkwait visibility $t
+    focus $t.ok ; grab $t
 }
 
 proc ::tkchat::SubjectSave {t} {
@@ -6829,8 +6834,10 @@ proc ::tkchat::EditOptions {} {
     wm resizable $dlg 0 0
     catch {::tk::PlaceWindow $dlg widget .}
     wm deiconify $dlg
-
+    tkwait visibility $dlg
+    focus $f.ok ; grab $dlg
     tkwait variable ::tkchat::EditOptions(Result)
+    grab release $dlg
 
     if {$EditOptions(Result) == 1} {
 	set Options(Browser) $EditOptions(Browser)
@@ -7733,7 +7740,9 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		regexp {^([^@]+)@} $m(-from) -> from
 		set w [getChatWidget $m(-from) $from]
 	    }
-            LogPrivateChat $from $m(-body)
+            
+            LogPrivateChat [normalized_jid $m(-from)] \
+                $from $timestamp $m(-body)
 	    if {$w eq ".txt"} {
 		::tkchat::addMessage $w $color $from " whispers: $m(-body)" \
 			ACTION end $timestamp
@@ -8346,6 +8355,19 @@ proc ::tkjabber::jid {part jid} {
     return $r
 }
 
+# accept a chatroom nick or a full jid and try and return
+# the users canonical jid
+proc ::tkjabber::normalized_jid {jid} {
+    if {[string first @ $jid] == -1} {
+	if {[info exists OnlineUsers(Jabber-$jid,jid)]} {
+	    set jid $OnlineUsers(Jabber-$jid,jid)
+	} else {
+            set jid $Options(JabberConference)/$jid
+	}
+    }
+    return $jid
+}
+
 # Send a Jabber message to the full jid of a user. Accept either a full
 # JID or lookup a chatroom nick in the OnlineUsers array. Such messages
 # are held for the user if the user is not currently available.
@@ -8369,7 +8391,7 @@ proc ::tkjabber::send_memo {to msg {subject Memo}} {
     set a [list xmlns jabber:client type normal from $myId to $to]
     set m [list message $a 0 "" $k]
     $jabber send $m
-    tkchat::addStatus 0 "Memo send to $to."
+    tkchat::addStatus 0 "Memo sent to $to."
 }
 
 proc ::tkchat::updateOnlineNames {} {
@@ -9321,8 +9343,23 @@ proc ::tkjabber::StoreMessage {from subject message} {
     return
 }
 
-proc ::tkjabber::LogPrivateChat {from message} {
-    log::log debug "LogChat $from $message"
+proc ::tkjabber::LogPrivateChat {user spkr ztime message} {
+    global Options env
+    if {![info exist env(HOME)]} { return }
+    if {[info exists Options(LogPrivateChat)] && $Options(LogPrivateChat)} {
+        variable PrivateChatLogs
+        set user [string map {/ _ \\ _ : _ . _} $user]
+        if {![info exists PrivateChatLogs]} { array set PrivateChatLogs {} }
+        if {![info exists PrivateChatLogs($user)]} {
+            set dir [file join $env(HOME) .tkchat_logs]
+            if {![file isdirectory $dir]} { file mkdir $dir }
+            set PrivateChatLogs($user) [open [file join $dir $user] a+ 0600]
+            fconfigure $PrivateChatLogs($user) -encoding utf-8 -buffering line
+        }
+        if {$ztime eq "" || $ztime == 0} { set ztime [clock seconds] }
+        set message [string map [list \n \\n \r ""] $message]
+        puts $PrivateChatLogs($user) [list $ztime $spkr $message]
+    }
 }
 
 # A users role in a MUC can be one of:
