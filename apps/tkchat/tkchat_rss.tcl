@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.4 2007/09/12 10:26:09 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.5 2007/09/17 09:03:00 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 if {[catch {package require rssrdr}]} { return }
@@ -68,7 +68,7 @@ proc ::tkchat::RSSInit {} {
             }
 
             # At this time, the only interface is via the statusbar
-            if {[winfo exists .status]} {
+            if {[winfo exists .status] && ![winfo exists .status.rss]} {
                 ttk::label .status.rss -image ::tkchat::img::feedLo
                 bind .status.rss <Button-1> \
                     [list [namespace origin ShowRssInfo]]

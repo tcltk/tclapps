@@ -1,3 +1,7 @@
+2007-09-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_rss.tcl: Avoid recreating the rss label if present.
+
 2007-09-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Moved the emoticon init to post login dialog as
