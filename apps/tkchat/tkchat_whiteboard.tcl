@@ -1,7 +1,7 @@
 #
 # Safe Whiteboard
 #
-# $Id: tkchat_whiteboard.tcl,v 1.2 2007/09/13 21:25:41 patthoyts Exp $
+# $Id: tkchat_whiteboard.tcl,v 1.3 2007/09/18 19:39:53 patthoyts Exp $
 
 namespace eval ::tkchat::Whiteboard {
     variable version 1.0
@@ -10,6 +10,7 @@ namespace eval ::tkchat::Whiteboard {
 }
 
 proc ::tkchat::Whiteboard::Init {} {
+    global Options
     if { [winfo exists .whiteboard] } {
 
         wm deiconify .whiteboard
@@ -19,19 +20,20 @@ proc ::tkchat::Whiteboard::Init {} {
         set dlg [::tkchat::Dialog .whiteboard -container 1]
         wm title $dlg "Whiteboard"
         wm transient $dlg {}
+        wm withdraw $dlg
         set slave [::safe::interpCreate whiteboard]
         ::safe::loadTk $slave -use $dlg
         bind $dlg <Destroy> [list interp delete $slave]
         interp alias $slave ::WhiteboardClear {} [namespace origin Clear]
         interp alias $slave ::WhiteboardLine {} [namespace origin Line]
         interp alias $slave ::WhiteboardScript {} [namespace origin Script]
+        whiteboard eval [list set tkonly $Options(UseTkOnly)]
         whiteboard eval {
-            if {[llength [info commands ::ttk::entry]] > 0} {
+            if {[llength [info commands ::ttk::entry]] > 0 && !$tkonly} {
                 ttk::frame .wb
                 ttk::entry .wb.e -textvariable wbentry
                 ttk::button .wb.bclear -text Clear -command WhiteboardClear
                 ttk::label .wb.status -anchor w
-
             } else {
                 frame .wb
                 entry .wb.e -background white -textvariable wbentry
@@ -61,6 +63,8 @@ proc ::tkchat::Whiteboard::Init {} {
             grid rowconfigure    . 0 -weight 1
             proc Status {s} {.wb.status configure -text $s}
         }
+        wm deiconify $dlg
+        #if {$Options(UseTkOnly)} { wm geometry $dlg 350x300 }
     }
 }
 

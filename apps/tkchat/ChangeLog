@@ -1,5 +1,7 @@
 2007-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat_whiteboard.tcl:      Support UseTkOnly flag.
+
 	* jabberlib/wrapper.tcl:      Dealt with an evil bug in the tdom/
 	* jabberlib/wrapper-tdom.tcl: expat wrapper where one invalid stream
 	* tkchat_rss.tcl:             effectively terminated all other streams
