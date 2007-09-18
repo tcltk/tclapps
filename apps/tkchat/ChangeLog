@@ -2,6 +2,8 @@
 
 	* tkchat.tcl: Fixed bug #1796255 - emoticon insertion copied in
 	_all_ the emotes. We only need one.
+	* tkchat.tcl: Fix openURL on windows when browser is IE and added
+	support for Opera.
 
 2007-09-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

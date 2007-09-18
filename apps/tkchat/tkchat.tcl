@@ -203,7 +203,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.399 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.400 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.399 2007/09/18 00:25:28 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.400 2007/09/18 12:01:06 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1526,17 +1526,16 @@ proc ::tkchat::gotoURL {url} {
 	    # DDE uses commas to separate command parts
 	    set url [string map {, %2c} $url]
 
-	    # See if we can use dde and an existing browser.
+	    # See if we can use dde and an existing browser. Firefox, Opera and IE all
+            # support this dde topic, Safari does not.
 	    set handled 0
-	    foreach app \
-		    {Firefox {Mozilla Firebird} Mozilla Netscape IExplore} {
+	    foreach app {Firefox Mozilla Netscape Opera IExplore} {
 		if {[set srv [dde services $app WWW_OpenURL]] != {}} {
-		    if {[catch {dde execute $app WWW_OpenURL $url} msg]} {
-			::log::log debug "dde exec $app failed: \"$msg\""
-		    } else {
-			set handled 1
-			break
-		    }
+                    # You cannot use the catch result to determine success here.
+                    # Firefox always returns 0, Opera and IE always yield 1
+		    catch {dde execute $app WWW_OpenURL $url}
+                    set handled 1
+                    break
 		}
 	    }
 
@@ -1549,8 +1548,8 @@ proc ::tkchat::gotoURL {url} {
 		if { [catch {
 		    eval exec [auto_execok start] [list $url] &
 		} emsg]} then {
-		    tk_messageBox -message \
-			    "Error displaying $url in browser\n$emsg"
+		    tk_messageBox -icon error -type ok -title "Failed to open url" \
+                        -message "Error displaying \"$url\" in browser\n$emsg"
 		}
 	    }
 	}
@@ -2518,28 +2517,21 @@ proc ::tkchat::CreateGUI {} {
     ## Help Menu
     ##
     set m .mbar.help
-    $m add command \
-	    -label "Quick Help..." \
-	    -underline 0 \
-	    -command ::tkchat::Help
-    $m add command \
-	    -label "Help (wiki)..." \
-	    -underline 0 \
-	    -command { ::tkchat::gotoURL http://wiki.tcl.tk/tkchat }
+    $m add command -label "Quick Help..." -underline 0 \
+        -command [list [namespace origin Help]]
+    $m add command -label "Help (wiki)..." -underline 0 \
+        -command [list [namespace origin gotoURL] http://wiki.tcl.tk/tkchat]
     $m add separator
-    $m add cascade \
-	    -label "Translate Selection" \
-	    -underline 0 \
-	    -command ::tkchat::babelfishMenu
+    $m add cascade -label "Translate Selection" -underline 0 \
+        -command [list [namespace origin babelfishMenu]]
     $m add separator
-    $m add command \
-            -label "Check version" \
-            -underline 6 \
-            -command { after idle {::tkchat::CheckVersion}}
-    $m add command \
-	    -label "About..." \
-	    -underline 0 \
-	    -command ::tkchat::About
+    $m add command -label "Check version" -underline 6 \
+        -command [list after idle [list [namespace origin CheckVersion]]]
+    $m add command -label "View ChangeLog..." -underline 11 \
+        -command [list after idle [list [namespace origin gotoURL] \
+            [string map {tkchat.tcl ChangeLog} $::tkchat::HEADUrl]]]
+    $m add command -label "About..." -underline 0 \
+        -command [list [namespace origin About]]
 
     # a pane for the main display (chat window and users window):
     if {$useTile} {
