@@ -27,7 +27,9 @@ proc ::rss::create {} {
 proc ::rss::parse {Rss xml} {
     upvar #0 $Rss rss
     Reset $Rss
-    wrapper::parse $rss(parser) $xml
+    if {[catch {wrapper::parse $rss(parser) $xml} err]} {
+        StreamError $Rss $err
+    }
     return
 }
 

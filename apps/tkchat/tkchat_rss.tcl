@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.5 2007/09/17 09:03:00 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.6 2007/09/18 19:13:19 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 if {[catch {package require rssrdr}]} { return }
@@ -117,6 +117,7 @@ proc ::tkchat::ShowRssInfo {} {
     
     set page 0
     foreach {url token} [array get Rss] {
+        if {[rss::status $token] ne "ok"} { continue }
         set f [${NS}::frame $nb.page$page]
         set txt [text $f.txt -borderwidth 0 -font FNT]
         set sb [${NS}::scrollbar $f.vs -command [list $txt yview]]
@@ -266,7 +267,8 @@ proc ::tkchat::CheckRSS_Inner {tok} {
             addStatus 0 "RSS Error $err" end ERROR
         }
     } else {
-        addStatus 0 "Failed to parse RSS data: [rss::error $RssRdr]" end ERROR
+        addStatus 0 "Failed to parse RSS data from $feed:\
+            [rss::error $Rss($feed)]" end ERROR
     }
 
     return

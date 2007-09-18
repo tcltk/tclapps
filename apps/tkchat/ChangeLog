@@ -1,5 +1,11 @@
 2007-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* jabberlib/wrapper.tcl:      Dealt with an evil bug in the tdom/
+	* jabberlib/wrapper-tdom.tcl: expat wrapper where one invalid stream
+	* tkchat_rss.tcl:             effectively terminated all other streams
+	* rssrdr/rssrdr.tcl:          so a bad rss feed killed the jabber
+	link. Fixed the wrapper library and provide better reporting in rss.
+
 	* tkchat.tcl: Fixed bug #1796255 - emoticon insertion copied in
 	_all_ the emotes. We only need one.
 	* tkchat.tcl: Fix openURL on windows when browser is IE and added
