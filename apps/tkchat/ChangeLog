@@ -1,3 +1,8 @@
+2007-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed bug #1796255 - emoticon insertion copied in
+	_all_ the emotes. We only need one.
+
 2007-09-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_rss.tcl: Avoid recreating the rss label if present.

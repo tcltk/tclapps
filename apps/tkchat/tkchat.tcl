@@ -197,13 +197,13 @@ if {$tcl_platform(platform) eq "windows"
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
     # This package also provides more efficient IP sockets on windows.
-    #catch {package require Iocpsock}
+    catch {package require Iocpsock}
 }
 
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.398 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.399 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -211,7 +211,7 @@ namespace eval ::tkchat {
     array set MessageHooks {}
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.398 2007/09/14 23:37:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.399 2007/09/18 00:25:28 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5516,7 +5516,7 @@ proc ::tkchat::Smile {} {
     foreach { img txt } [array get tmp] {
 	$m add command \
             -image ::tkchat::img::$img \
-            -command [string map [list %txt% [join $txt]] {
+            -command [string map [list %txt% [lindex $txt 0]] {
                 .eMsg insert insert "%txt% "
                 .tMsg insert insert "%txt% "
             }]
