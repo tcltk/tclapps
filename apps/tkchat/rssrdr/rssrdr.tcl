@@ -167,6 +167,7 @@ proc ::rss::StreamParseAtom {Rss xlist} {
         }
         entry {
             set e {}
+            set mtime 0
             foreach node [wrapper::getchildren $xlist] {
                 set ntag [wrapper::gettag $node]
                 switch -exact -- $ntag {
@@ -181,13 +182,17 @@ proc ::rss::StreamParseAtom {Rss xlist} {
                         }
                         if {[llength $authors]>0} {lappend e author $authors}
                     }
-                    id {}
-                    updated {lappend e mtime [ParseDate [wrapper::getcdata $node]]}
-                    summary {lappend e description [wrapper::getcdata $node]}
+                    id {lappend e id [wrapper::getcdata $node]}
+                    published - updated {
+                        if {[set t [ParseDate [wrapper::getcdata $node]]] > $mtime} {
+                            set mtime $t
+                        }
+                    }
+                    summary - content {lappend e description [wrapper::getcdata $node]}
                     default { puts "unhandle entry tag \"$ntag\""}
                 }
             }
-            if {[llength $e] > 0} {lappend rss(data) $e}
+            if {[llength $e] > 0} {lappend e mtime $mtime ; lappend rss(data) $e}
         }
     }
     return

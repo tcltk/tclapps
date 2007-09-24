@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.6 2007/09/18 19:13:19 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.7 2007/09/24 22:24:15 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 if {[catch {package require rssrdr}]} { return }
@@ -140,6 +140,9 @@ proc ::tkchat::ShowRssInfo {} {
         if {[info exists channel(title)]} { set title $channel(title) }
         foreach item [rss::data $token] {
             array set a $item
+            if {![info exists a(title)] || [string length $a(title)] < 1} {
+                set a(title) "(no title)"
+            }
             set tag URL-[incr RssUrlId]
             $txt insert end $a(title) [list $url URL ITEM $tag] \
                 "\n$a(description)\n\n" [list $url ITEM]
@@ -238,7 +241,17 @@ proc ::tkchat::CheckRSS_Inner {tok} {
     set count 0
     set feed [set [set tok](url)]
     if {![info exists Rss($feed)]} { set Rss($feed) [::rss::create] }
-    ::rss::parse $Rss($feed) [http::data $tok]
+
+    # As rss is transmitted as application/* the http package doesn't handle
+    # the encoding for us and we must do it here. Default for xml files is utf-8
+    set encodings [string tolower [encoding names]]
+    set encoding [string tolower [set [set tok](charset)]]
+    set idx [lsearch -exact $encodings $encoding]
+    set enc utf-8
+    if {$idx >= 0} { set enc [lindex $encodings $idx] }
+
+    set data [encoding convertfrom $enc [http::data $tok]]
+    ::rss::parse $Rss($feed) $data
     if {[::rss::status $Rss($feed)] eq "ok"} {
         if {[catch {
             set last 0

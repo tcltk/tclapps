@@ -1,3 +1,8 @@
+2007-09-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_rss.tcl:    Fix encoding handling 
+	* rssrdr/rssrdr.tcl: handle additiona atom fields.
+
 2007-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_whiteboard.tcl:      Support UseTkOnly flag.
