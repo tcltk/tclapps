@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.7 2007/09/24 22:24:15 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.8 2007/09/25 17:42:53 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 if {[catch {package require rssrdr}]} { return }
@@ -286,3 +286,5 @@ proc ::tkchat::CheckRSS_Inner {tok} {
 
     return
 }
+
+::tkchat::Hook add login ::tkchat::RSSInit

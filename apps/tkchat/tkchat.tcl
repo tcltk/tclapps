@@ -197,21 +197,26 @@ if {$tcl_platform(platform) eq "windows"
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
     # This package also provides more efficient IP sockets on windows.
-    catch {package require Iocpsock}
+    #if {![catch {package require Iocpsock}]} {
+    #    # Not working!?! We get the data but then timeout
+    #    #::http::register http 80 ::socket2
+    #}
 }
 
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.400 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.401 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
-    variable MessageHooks
-    array set MessageHooks {}
+    variable MessageHooks ; if {![info exists MessageHooks]} { array set MessageHooks {} }
+    variable PreInitHooks ; if {![info exists PreInitHooks]} { array set PreInitHooks {} }
+    variable InitHooks ; if {![info exists InitHooks]} { array set InitHooks {} }
+    variable LoginHooks ; if {![info exists LoginHooks]} { array set LoginHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.400 2007/09/18 12:01:06 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.401 2007/09/25 17:42:52 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1392,15 +1397,20 @@ proc ::tkchat::Insert { w str tags url mark } {
     }
 }
 
+# Hooks:
+#  message hooks are called before displaying a new message
+#  preinit hooks are called after app initialization before gui creation
+#  init hooks are called after gui creation before login
+#  login hooks are called after login
 proc ::tkchat::Hook {do type cmd} {
-    switch -glob -- $type {
-	msg -
-	mes* {
-	    set var [namespace current]::MessageHooks
-	}
+    switch -exact -- $type {
+	message { set var [namespace current]::MessageHooks }
+        preinit { set var [namespace current]::PreInitHooks }
+        init    { set var [namespace current]::InitHooks }
+        login   { set var [namespace current]::LoginHooks }
 	default {
-	    return -code error \
-		    "unknown hook type \"$type\": must be message"
+	    return -code error "unknown hook type \"$type\":\
+                must be message, preinit, init or login"
 	}
     }
     switch -exact -- $do {
@@ -2000,29 +2010,36 @@ proc ::tkchat::InstallXDG {} {
            desktop menu group."
 }
 
+# Pick an enhanced Tk style.
+proc ::tkchat::SelectTkStyle {} {
+    global Options
+    set style {}
+    if { $Options(Style) eq "any" || [string match "as*" $Options(Style)] } {
+	if { ![catch { package require as::style }] } {
+	    as::style::init
+	    set style as
+	} elseif { ![catch { package require style::as }] } {
+	    style::as::init
+	    set style as
+	}
+    }
+    if { $style eq {}
+	    && ($Options(Style) eq "any"
+		|| [string match "g*" $Options(Style)])
+	    && [tk windowingsystem] eq "x11" } {
+	::tkchat::GtkLookStyleInit
+        set style gtk
+    }
+    return $style
+}
+
 proc ::tkchat::CreateGUI {} {
     global Options
     variable chatWindowTitle
     variable useTile
     variable NS
 
-    # Pick an enhanced Tk style.
-    set done 0
-    if { $Options(Style) eq "any" || [string match "as*" $Options(Style)] } {
-	if { ![catch { package require as::style }] } {
-	    as::style::init
-	    set done 1
-	} elseif { ![catch { package require style::as }] } {
-	    style::as::init
-	    set done 1
-	}
-    }
-    if { !$done
-	    && ($Options(Style) eq "any"
-		|| [string match "g*" $Options(Style)])
-	    && [tk windowingsystem] eq "x11" } {
-	::tkchat::GtkLookStyleInit
-    }
+    SelectTkStyle
 
     wm title . $chatWindowTitle
     wm withdraw .
@@ -5749,9 +5766,12 @@ proc ::tkchat::Init {args} {
 	set Options(ChatLogOff) 1
     }
 
-    SetTheme $Options(Theme)
+    variable PreInitHooks
+    foreach cmd [array names PreInitHooks] {
+        if {[catch {$cmd} err]} { puts stderr "error running hook \"$cmd\": $err" }
+    }
 
-    # build screen
+    SetTheme $Options(Theme)
     CreateGUI
     foreach idx [array names Options Visibility,*] {
 	set tag [string range $idx 11 end]
@@ -5761,6 +5781,11 @@ proc ::tkchat::Init {args} {
     Hook add message [namespace origin IncrMessageCounter]
     BookmarkInit
     WinicoInit
+
+    variable InitHooks
+    foreach cmd [array names InitHooks] {
+        if {[catch {$cmd} err]} { puts stderr "error running init hook: $err" }
+    }
 
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
@@ -8149,9 +8174,6 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 	    }
             tkchat::addStatus 0 "Joined chat at $conference"
 	    autoStatus
-            if {[llength [info commands ::tkchat::RSSInit]] > 0} {
-                ::tkchat::RSSInit
-            }
             #after 500 [namespace origin ParticipantVersions]
 	}
 	default {
@@ -8954,7 +8976,11 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
     variable have_tls
 
     ::tkchat::addStatus 0 "Connecting to proxy $proxyserver:$proxyport"
-    set sock [socket $proxyserver $proxyport]
+    set socketCmd [info command ::socket]
+    if {[llength [package provide Iocpsock]] > 0} {
+        set socketCmd ::socket2
+    }
+    set sock [$socketCmd $proxyserver $proxyport]
     fconfigure $sock -blocking 0 -buffering line -translation crlf
 
     set proxyauth [join [::tkchat::buildProxyHeaders] {: }]
@@ -9402,7 +9428,10 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 # -------------------------------------------------------------------------
 # Load in code from separate sibling files...
 
-foreach file {tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl tkchat_whiteboard.tcl} {
+foreach file {
+    tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl
+    tkchat_whiteboard.tcl tkchat_mms.tcl tkchat_nola.tcl
+} {
     if {[file exists [file join $tkchat_dir $file]]} {
         source [file join $tkchat_dir $file]
     }

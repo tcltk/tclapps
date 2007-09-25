@@ -1,3 +1,10 @@
+2007-09-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mms.tcl:  Multimedia stream support with snack.
+	* tkchat_nola.tcl: demo plugin (New Orleans clock display)
+	* tkchat.tcl:      Extended hooks to be more useful for plugins
+	* tkchat_rss.tcl:  Use init hook to initialize.
+
 2007-09-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_rss.tcl:    Fix encoding handling 
