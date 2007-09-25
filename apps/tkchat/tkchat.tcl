@@ -206,7 +206,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.401 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.402 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -216,7 +216,7 @@ namespace eval ::tkchat {
     variable LoginHooks ; if {![info exists LoginHooks]} { array set LoginHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.401 2007/09/25 17:42:52 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.402 2007/09/25 22:17:50 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -9429,8 +9429,8 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 # Load in code from separate sibling files...
 
 foreach file {
-    tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl
-    tkchat_whiteboard.tcl tkchat_mms.tcl tkchat_nola.tcl
+    tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl tkchat_whiteboard.tcl
+    tkchat_mms.tcl tkchat_nola.tcl tkchat_mjpeg.tcl
 } {
     if {[file exists [file join $tkchat_dir $file]]} {
         source [file join $tkchat_dir $file]
