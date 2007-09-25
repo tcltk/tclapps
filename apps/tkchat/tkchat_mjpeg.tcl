@@ -14,13 +14,16 @@ if {[catch {
     return
 }
 
-namespace eval ::tkchat::mjpeg {}
+namespace eval ::tkchat::mjpeg {
+    variable subsample 2
+}
 
 proc ::tkchat::mjpeg::Read {dlg fd tok} {
     variable state
     variable toread
     variable frame
     variable expected
+    variable subsample
     variable token $tok
 
     switch -- $state {
@@ -45,8 +48,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
             return [string length $line]
 	}
 	data {
-	    set n [expr { $toread > 1000 ? 1000 : $toread }]
-	    set data [read $fd $n]
+	    set data [read $fd $toread]
 	    incr toread -[string length $data]
 	    append frame $data
             Progress $dlg $tok $expected [string length $frame]
@@ -54,7 +56,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
                 Status $dlg "Ready."
                 if {[catch {
                     foo configure -data $frame
-                    foo2 copy foo -subsample 2 2
+                    foo2 copy foo -shrink -subsample $subsample $subsample
                     $dlg.image configure -image foo2
                 } err]} { Status $dlg "error: $err" }
 		set frame ""
@@ -87,9 +89,19 @@ proc ::tkchat::mjpeg::Progress {dlg tok total current} {
 
 proc ::tkchat::mjpeg::Cleanup {dlg} {
     variable token
-    catch {close [set [set $token](socket)]}
+    #catch {close [set [set $token](socket)]}
     catch {::http::cleanup $token}
     unset -nocomplain token
+    destroy $dlg
+}
+
+proc ::tkchat::mjpeg::Scaling {dlg factor} {
+    variable subsample
+    $dlg.status.pane$subsample configure -relief flat
+    set subsample $factor
+    foo2 copy foo -shrink -subsample $subsample $subsample
+    $dlg.image configure -image foo2
+    $dlg.status.pane$factor configure -relief sunken
 }
 
 proc ::tkchat::mjpeg::Open {url {title "Conference video stream"}} {
@@ -104,20 +116,29 @@ proc ::tkchat::mjpeg::Open {url {title "Conference video stream"}} {
     wm title $dlg $title
     wm protocol $dlg WM_DELETE_WINDOW [list [namespace origin Cleanup] $dlg]
 
-    image create photo foo -width 800 -height 600
-    image create photo foo2
-    foo2 copy foo -subsample 2 2
-    ${NS}::label $dlg.image -image foo2
+    ${NS}::label $dlg.image
     ${NS}::frame $dlg.status
 
     ${NS}::label $dlg.status.pane0 -anchor w
-    grid $dlg.status.pane0 -row 0 -column 0 -sticky news
+    ${NS}::label $dlg.status.pane1 -text 1
+    ${NS}::label $dlg.status.pane2 -text \u00bd
+    bind $dlg.status.pane1 <Button-1> [list [namespace origin Scaling] $dlg 1]
+    bind $dlg.status.pane2 <Button-1> [list [namespace origin Scaling] $dlg 2]
+    set column 0
+    grid $dlg.status.pane0 -row 0 -column $column -sticky news
+    grid $dlg.status.pane1 -row 0 -column [incr column] -sticky e
+    grid $dlg.status.pane2 -row 0 -column [incr column] -sticky e
     if {[llength [info commands ${NS}::progressbar]] > 0} {
         ${NS}::progressbar $dlg.status.progress
-        grid $dlg.status.progress -row 0 -column 1 -sticky w
+        grid $dlg.status.progress -row 0 -column [incr column] -sticky e
     }
     grid columnconfigure $dlg.status 0 -weight 1
     grid rowconfigure $dlg.status 0 -weight 1
+
+    image create photo foo -width 800 -height 600
+    image create photo foo2
+    variable subsample
+    Scaling $dlg $subsample
 
     grid $dlg.image -sticky news
     grid $dlg.status -sticky ew
