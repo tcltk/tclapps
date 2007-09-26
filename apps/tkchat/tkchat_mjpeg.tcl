@@ -89,9 +89,9 @@ proc ::tkchat::mjpeg::Progress {dlg tok total current} {
 
 proc ::tkchat::mjpeg::Cleanup {dlg} {
     variable token
-    #catch {close [set [set $token](socket)]}
-    catch {::http::cleanup $token}
-    unset -nocomplain token
+    catch {close [set [set $token](socket)]}
+    #catch {::http::cleanup $token}
+    #unset -nocomplain token
     destroy $dlg
 }
 
