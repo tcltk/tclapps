@@ -9,21 +9,19 @@ namespace eval ::tkchat::nola {
 
 proc ::tkchat::nola::Init {} {
     variable ::tkchat::NS
-    variable TZ
-    set t [clock seconds]
-    set zulu [scan [clock format $t -format %H -gmt 1] %d]
-    set local [scan [clock format $t -format %H -gmt 0] %d]
-    variable gmtoffset [expr {($local - $zulu) + $TZ}]
     if {[winfo exists .status] && ![winfo exists .status.nola]} {
         ${NS}::label .status.nola -font FNT -pad 1
         ::tkchat::StatusbarAddWidget .status .status.nola 1
+        if {[package provide tooltip] ne {}} {
+            tooltip::tooltip .status.nola "Current time in New Orleans"
+        }
         after idle [list [namespace origin Tick] 1000]
     }
 }
 
 proc ::tkchat::nola::Tick {interval} {
-    variable gmtoffset
-    set t [expr {[clock seconds] + (3600 * $gmtoffset)}]
+    variable TZ
+    set t [expr {[clock seconds] + (3600 * $TZ)}]
     set txt [clock format $t -format "NOLA: %H:%M:%S" -gmt 1]
     .status.nola configure -text $txt
     variable afterid [after $interval [info level 0]]
