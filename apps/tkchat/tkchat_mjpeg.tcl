@@ -123,6 +123,8 @@ proc ::tkchat::mjpeg::Open {url {title "Conference video stream"}} {
     ${NS}::label $dlg.status.pane0 -anchor w
     ${NS}::label $dlg.status.pane1 -text 1
     ${NS}::label $dlg.status.pane2 -text \u00bd
+    ${NS}::button $dlg.status.snap -text Snap \
+        -command [list [namespace origin Snapshot] $dlg]
     bind $dlg.status.pane1 <Button-1> [list [namespace origin Scaling] $dlg 1]
     bind $dlg.status.pane2 <Button-1> [list [namespace origin Scaling] $dlg 2]
     set column 0
@@ -133,6 +135,7 @@ proc ::tkchat::mjpeg::Open {url {title "Conference video stream"}} {
         ${NS}::progressbar $dlg.status.progress
         grid $dlg.status.progress -row 0 -column [incr column] -sticky e
     }
+    grid $dlg.status.snap  -row 0 -column [incr column] -sticky e
     grid columnconfigure $dlg.status 0 -weight 1
     grid rowconfigure $dlg.status 0 -weight 1
 
@@ -189,5 +192,72 @@ proc ::tkchat::mjpeg::InitHook {} {
         }
     }
 }
+
+# -------------------------------------------------------------------------
+#
+# Snapshots are displayed in their own dialog window
+#
+proc ::tkchat::mjpeg::Snapshot {main} {
+    variable ::tkchat::NS
+    set img [image create photo]
+    if {$img ne {}} {
+        variable uid
+        set dlg [toplevel $main.snap[incr uid] -class SnapshotDialog]
+        wm withdraw $dlg
+        wm geometry $dlg +0+0
+        $img copy foo;                 # copy the full size image  
+        #wm maxsize $dlg [$img cget -width] [$img cget -height]
+        ${NS}::label $dlg.im -image $img
+        ${NS}::button $dlg.bx -text "Close" \
+            -command [list [namespace origin SnapClose] $dlg $img]
+        ${NS}::button $dlg.bs -text "Save as" \
+            -command [list [namespace origin SnapSaveAs] $img]
+        bind $dlg <Escape> [list $dlg.bx invoke]
+        bind $dlg <Return> [list $dlg.bs invoke]
+        grid $dlg.im - -sticky news
+        grid $dlg.bs $dlg.bx -sticky nse
+        grid rowconfigure $dlg 0 -weight 1
+        grid columnconfigure $dlg 0 -weight 1
+        wm deiconify $dlg
+        tkwait visibility $dlg.im
+        focus $dlg.bs
+    }
+}
+
+proc ::tkchat::mjpeg::SnapClose {dlg img} {
+    if {[winfo exists $dlg]} {destroy $dlg}
+    catch {image delete $img}
+}
+
+proc ::tkchat::mjpeg::SnapSaveAs {img} {
+    variable lastdir ; if {![info exists lastdir]} {set lastdir {}}
+    set file [tk_getSaveFile \
+                  -initialfile [clock format [clock seconds] \
+                                    -format "Tcl2007-%a-%H%M%S.jpg"] \
+                  -initialdir $lastdir \
+                  -defaultextension .jpg -filetypes {
+                      {"JPEG files"   .jpg {}}
+                      {"GIF files"    .gif {}}
+                      {"PNG files"    .png {}}
+                      {"All image files" {.jpg .gif .png} {}}
+                      {"All fles"    {.*} {}}}]
+    if {$file != {}} {
+        set lastdir [file dirname $file]
+        switch -exact -- [set fmt [string tolower [file extension $file]]] {
+            .gif { set fmt gif }
+            .jpg { set fmt jpeg }
+            .png { set fmt png }
+            default {
+                tk_messageBox -icon error -title "Bad image format" \
+                    -message "Unrecognised image format \"$fmt\". The file\
+                       type must be one of .jpg, .gif or .png"
+                return
+            }
+        }
+        $img write $file -format $fmt
+    }
+}
+
+# -------------------------------------------------------------------------
 
 ::tkchat::Hook add init ::tkchat::mjpeg::InitHook
