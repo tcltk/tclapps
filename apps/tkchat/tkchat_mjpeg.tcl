@@ -28,13 +28,25 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
     variable hdrs
     variable token $tok
 
+    variable boundary
+    if {![info exists boundary]} {
+        Watchdog $fd $tok
+        set boundary "--myboundary"
+        foreach {key val} [set [set tok](meta)] {
+            if {[string match -nocase content-type $key]} {
+                set r [regexp {boundary=([^\s;]+)} $val -> boundary]
+                break
+            }
+        }
+    }
+    
     switch -- $state {
 	boundary {
             Status $dlg "Waiting for image"
             Progress $dlg $tok 100 0
             fconfigure $fd -buffering line -translation crlf
 	    gets $fd line
-	    if {$line eq "--myboundary"} {set state mime; set hdrs {}}
+	    if {$line eq $boundary} {set state mime; set hdrs {}}
             return [string length $line]
 	}
 	mime {
@@ -73,6 +85,13 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
 	}
     }
     return 0
+}
+
+proc ::tkchat::mjpeg::Watchdog {sock tok} {
+    if {[catch {fconfigure $sock}]} {
+        puts stderr "Watchdog Alert: dead socket $sock $tok"
+    }
+    variable watchdog [after 1000 [info level 0]]
 }
 
 proc ::tkchat::mjpeg::Status {dlg msg} {
@@ -170,6 +189,7 @@ proc ::tkchat::mjpeg::OpenStream {url dlg} {
     if {[catch {
         variable toread 0
         variable state boundary
+        variable boundary ; unset boundary
         variable frame ""
         variable token; if {[info exists token]} { catch {http::cleanup $token} }
         puts stderr "Open $url"

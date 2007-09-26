@@ -206,7 +206,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.403 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.404 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -216,7 +216,7 @@ namespace eval ::tkchat {
     variable LoginHooks ; if {![info exists LoginHooks]} { array set LoginHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.403 2007/09/26 11:31:43 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.404 2007/09/26 22:04:14 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -8072,6 +8072,13 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 		    -command ::tkjabber::MucEnterCB
 	    # We are logged in. Now any of the callbacks can be called,
 	    # Likely ones are MsgCB, MucEnterCB, RosterCB for normal traffic.
+
+            variable ::tkchat::LoginHooks
+            foreach cmd [array names LoginHooks] {
+                if {[catch {$cmd} err]} {
+                    puts stderr "error running hook \"$cmd\": $err" 
+                }
+            }
 	}
 	default {
 	    tkchat::addSystem .txt "LoginCB: type=$type, theQuery='$theQuery'"
