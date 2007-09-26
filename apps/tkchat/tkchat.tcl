@@ -206,7 +206,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.402 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.403 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -216,7 +216,7 @@ namespace eval ::tkchat {
     variable LoginHooks ; if {![info exists LoginHooks]} { array set LoginHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.402 2007/09/25 22:17:50 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.403 2007/09/26 11:31:43 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -417,6 +417,14 @@ proc ::tkchat::proxyfilter {host} {
     set r {}
     if {$Options(UseProxy)} {
         if {[string length $Options(ProxyHost)] != 0} {
+
+            if {[info exists Options(NoProxy)]} {
+                foreach domain $Options(NoProxy) {
+                    if {[string match $domain $host]} {
+                        return {}
+                    }
+                }
+            }
 
             # Add authorisation header to the request (by Anders Ramdahl)
             catch {
@@ -5743,6 +5751,10 @@ proc ::tkchat::Init {args} {
 	    $::tcl_platform(os) $::tcl_platform(osVersion))\
             Tkchat/[package provide app-tkchat]\
 	    Tcl/[package provide Tcl]"
+    }
+    set Options(NoProxy) [list localhost 127.0.0.1]
+    if {[info exists env(no_proxy)]} {
+        set Options(NoProxy) [split $env(no_proxy) ",;"]
     }
     http::config -proxyfilter ::tkchat::proxyfilter
 

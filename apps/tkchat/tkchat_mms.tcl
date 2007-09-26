@@ -18,6 +18,7 @@ namespace eval ::tkchat::mms {
         set streams {
             "Tcl conference (EU server)" "http://eu.tclers.tk/conference.ogg"
             "Tcl conference (US server)" "http://us.tclers.tk/conference.ogg"
+            "Tcl conference (localhost:3128)" "http://localhost:3128/conference.ogg"
             "-"            {}
             "Trance"       "http://scfire-ntc-aa04.stream.aol.com:80/stream/1003"
             "Top 40 Hits"  "http://scfire-nyk-aa01.stream.aol.com:80/stream/1014"

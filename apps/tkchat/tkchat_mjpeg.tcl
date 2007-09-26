@@ -135,6 +135,11 @@ proc ::tkchat::mjpeg::Open {url {title "Conference video stream"}} {
     grid columnconfigure $dlg.status 0 -weight 1
     grid rowconfigure $dlg.status 0 -weight 1
 
+    if {[package provide tooltip] ne {}} {
+        tooltip::tooltip $dlg.status.pane1 "Full size"
+        tooltip::tooltip $dlg.status.pane2 "Half size"
+    }
+
     image create photo foo -width 800 -height 600
     image create photo foo2
     variable subsample
@@ -178,6 +183,8 @@ proc ::tkchat::mjpeg::InitHook {} {
                 -command [list [namespace origin Open] http://eu.tclers.tk/video.mjpg]
             $m add command -label "Tcl conference (US)"\
                 -command [list [namespace origin Open] http://us.tclers.tk/video.mjpg]
+            $m add command -label "Tcl conference (localhost)"\
+                -command [list [namespace origin Open] http://localhost:3128/video.mjpg]
         }
     }
 }
