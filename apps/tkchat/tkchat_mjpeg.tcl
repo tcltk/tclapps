@@ -201,7 +201,7 @@ proc ::tkchat::mjpeg::Snapshot {main} {
     variable ::tkchat::NS
     set img [image create photo]
     if {$img ne {}} {
-        variable uid
+        variable uid; if {![info exists uid]} {set uid 0}
         set dlg [toplevel $main.snap[incr uid] -class SnapshotDialog]
         wm withdraw $dlg
         wm geometry $dlg +0+0
