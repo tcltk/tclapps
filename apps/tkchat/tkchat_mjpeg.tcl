@@ -25,6 +25,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
     variable frame
     variable expected
     variable subsample
+    variable hdrs
     variable token $tok
 
     switch -- $state {
@@ -33,7 +34,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
             Progress $dlg $tok 100 0
             fconfigure $fd -buffering line -translation crlf
 	    gets $fd line
-	    if {$line eq "--myboundary"} {set state mime}
+	    if {$line eq "--myboundary"} {set state mime; set hdrs {}}
             return [string length $line]
 	}
 	mime {
@@ -45,7 +46,11 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
                 variable expected $toread
 		fconfigure $fd -translation binary
 		set state data
-	    }
+	    } else {
+                if {[regexp {^([^:]+):\s*(.+)$} $line -> key value]} {
+                    lappend hdrs $key $value
+                }
+            }
             return [string length $line]
 	}
 	data {
