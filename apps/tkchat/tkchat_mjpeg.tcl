@@ -15,7 +15,8 @@ if {[catch {
 }
 
 namespace eval ::tkchat::mjpeg {
-    variable subsample 2
+    variable subsample
+    if {![info exists subsample]} { set subsample 2 }
 }
 
 proc ::tkchat::mjpeg::Read {dlg fd tok} {
