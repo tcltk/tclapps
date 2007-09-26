@@ -64,9 +64,11 @@ proc ::tkchat::mms::Wait {total {done 0}} {
 proc ::tkchat::mms::Pause {} {
     snd pause
     if {[.status.mms itemcget pause -image] eq "::tkchat::mms::imgPause"} {
-        .status.mms itemconfigure pause -image ::tkchat::mms::imgPlay
+        .status.mms itemconfigure pause -image ::tkchat::mms::imgPlay \
+            -activeimage ::tkchat::mms::actPlay
     } else {
-        .status.mms itemconfigure pause -image ::tkchat::mms::imgPause
+        .status.mms itemconfigure pause -image ::tkchat::mms::imgPause \
+            -activeimage ::tkchat::mms::actPause
     }
 }
 
@@ -104,10 +106,16 @@ proc ::tkchat::mms::Init {} {
         static unsigned char play_bits[] = {
             0x03, 0x07, 0x0f, 0x1f, 0x0f, 0x07, 0x03};
     }
+    image create bitmap ::tkchat::mms::actPause -foreground yellow \
+        -data [::tkchat::mms::imgPause cget -data]
+    image create bitmap ::tkchat::mms::actPlay -foreground yellow \
+        -data [::tkchat::mms::imgPlay cget -data]
     if {[winfo exists .status] && ![winfo exists .status.mms]} {
-        canvas .status.mms -width 96 -height 18 -background black
-        .status.mms create image 80 4 -tags pause -anchor nw -image ::tkchat::mms::imgPause
-        .status.mms create rectangle 88 3 95 10 -tags stop -fill green
+        canvas .status.mms -width 96 -height 18 -background black \
+            -borderwidth 0 -highlightthickness 0
+        .status.mms create image 80 4 -tags pause -anchor nw \
+            -image ::tkchat::mms::imgPause -activeimage ::tkchat::mms::actPause
+        .status.mms create rectangle 88 3 95 10 -tags stop -fill green -activefill yellow
         .status.mms bind pause <Button-1> [list [namespace origin Pause]]
         .status.mms bind stop <Button-1> [list [namespace origin Stop]]
         .status.mms create text 2 2 -tags label -fill green -anchor nw -font MMS
@@ -116,8 +124,24 @@ proc ::tkchat::mms::Init {} {
         snack::levelMeter .status.mms.right -width 8 -length 16 -orient vertical
         .status.mms create window 62 2 -tags left -anchor nw -window .status.mms.left
         .status.mms create window 70 2 -tags right -anchor nw -window .status.mms.right
+        .status.mms create line 56 2 56 18 -tags vline -fill green
+        .status.mms create rectangle 53 14 59 18 -tags gain -fill green -activefill yellow
+        .status.mms bind gain <ButtonRelease-1> [list [namespace origin MoveGain] %x %y]
         ::tkchat::StatusbarAddWidget .status .status.mms 1
     }
+}
+
+proc ::tkchat::mms::MoveGain {x y} {
+    foreach {x1 y1 x2 y2} [.status.mms coords gain] break
+    set cy [expr {$y1 + (($y2 - $y1)/2)}]
+    set dy [expr {$cy - $y}]
+    set y1 [expr {$y1 - $dy}]
+    if {$y1 > 14} {set y1 14} ; if {$y1 < 0} {set y1 0}
+    set y2 [expr {$y2 - $dy}]
+    if {$y2 > 18} {set y2 18} ; if {$y2 < 4} {set y2 4}
+    .status.mms coords gain $x1 $y1 $x2 $y2
+    set gain [expr {int((double(16 - $y) / 16) * 100)}]
+    snack::audio play_gain $gain
 }
 
 proc ::tkchat::mms::ChooseStream {} {
@@ -183,7 +207,9 @@ proc ::tkchat::mms::Update {{interval 100}} {
         .status.mms.left configure -level $l
         .status.mms.right configure -level $r
     } err]} { puts stderr $err }
-    variable updateid [after $interval [info level 0]]
+    if {[winfo exists .status.mms]} {
+        variable updateid [after $interval [info level 0]]
+    }
 }
 
 proc ::tkchat::mms::FillMenu {m} {
