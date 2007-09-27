@@ -17,6 +17,8 @@ if {[catch {
 namespace eval ::tkchat::mjpeg {
     variable subsample
     if {![info exists subsample]} { set subsample 2 }
+    variable retrycount
+    if {![info exists retrycount]} { set retrycount 0 }
 }
 
 proc ::tkchat::mjpeg::Read {dlg fd tok} {
@@ -26,11 +28,11 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
     variable expected
     variable subsample
     variable hdrs
-    variable token $tok
+    variable token $tok    
 
     variable boundary
     if {![info exists boundary]} {
-        Watchdog $fd $tok
+        after idle [list [namespace origin Watchdog] $dlg $fd $tok]
         set boundary "--myboundary"
         foreach {key val} [set [set tok](meta)] {
             if {[string match -nocase content-type $key]} {
@@ -87,11 +89,16 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
     return 0
 }
 
-proc ::tkchat::mjpeg::Watchdog {sock tok} {
+proc ::tkchat::mjpeg::Watchdog {dlg sock tok} {
+    variable retrycount
     if {[catch {fconfigure $sock}]} {
-        puts stderr "Watchdog Alert: dead socket $sock $tok"
+        Status $dlg "MJPEG stream has died, retrying ($retrycount)"
+        if {[catch {::http::Eof $tok} err]} {Status $dlg $err}
+        if {[catch {Cleanup $dlg 1} err]} { puts stderr $err }
+    } else {
+        set retrycount 0
+        variable watchdog [after 1000 [info level 0]]
     }
-    variable watchdog [after 1000 [info level 0]]
 }
 
 proc ::tkchat::mjpeg::Status {dlg msg} {
@@ -112,12 +119,26 @@ proc ::tkchat::mjpeg::Progress {dlg tok total current} {
     }
 }
 
-proc ::tkchat::mjpeg::Cleanup {dlg} {
+proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
     variable token
-    catch {close [set [set $token](socket)]}
-    #catch {::http::cleanup $token}
+    variable watchdog
+    variable retrycount
+    upvar #0 $token state
+    set url $state(url)
+    if {[catch {::http::Eof $token} err]} { puts stderr $err }
+    if {[catch {::http::cleanup $token} err]} { puts stderr $err }
+    after cancel watchdog
     #unset -nocomplain token
-    destroy $dlg
+    if {$retry && $retrycount < 10} {
+        incr retrycount
+        OpenStream $url $dlg
+    } else {
+        if {$retrycount > 2} {
+            ::tkchat::addStatus 0 "Too many failed attempts\
+               accessing MJPEG stream. Giving up." end ERROR
+        }
+        destroy $dlg
+    }
 }
 
 proc ::tkchat::mjpeg::Scaling {dlg factor} {
@@ -189,7 +210,7 @@ proc ::tkchat::mjpeg::OpenStream {url dlg} {
     if {[catch {
         variable toread 0
         variable state boundary
-        variable boundary ; unset boundary
+        variable boundary ; unset -nocomplain boundary
         variable frame ""
         variable token; if {[info exists token]} { catch {http::cleanup $token} }
         puts stderr "Open $url"
