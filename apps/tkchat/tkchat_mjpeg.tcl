@@ -124,18 +124,23 @@ proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
     variable watchdog
     variable retrycount
     upvar #0 $token state
-    set url $state(url)
-    if {[catch {::http::Eof $token} err]} { puts stderr $err }
-    if {[catch {::http::cleanup $token} err]} { puts stderr $err }
+    set url ""
+    if {[info exists state]} {
+        catch {set url $state(url)}
+        if {[catch {::http::Eof $token} err]} { puts stderr $err }
+        if {[catch {::http::cleanup $token} err]} { puts stderr $err }
+    }
     after cancel watchdog
     #unset -nocomplain token
-    if {$retry && $retrycount < 10} {
+    if {$retry && $retrycount < 10 && $url ne ""} {
         incr retrycount
         OpenStream $url $dlg
     } else {
         if {$retrycount > 2} {
             ::tkchat::addStatus 0 "Too many failed attempts\
                accessing MJPEG stream. Giving up." end ERROR
+        } elseif {$url eq ""} {
+            ::tkchat::addStatus 0 "Lost the video stream. Giving up." end ERROR
         }
         destroy $dlg
     }
