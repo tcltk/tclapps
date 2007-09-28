@@ -52,6 +52,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
             return [string length $line]
 	}
 	mime {
+            variable retrycount 0
             Status $dlg "Reading image"
             fconfigure $fd -buffering line -translation crlf
 	    gets $fd line
@@ -123,6 +124,7 @@ proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
     variable token
     variable watchdog
     variable retrycount
+    after cancel $watchdog
     upvar #0 $token state
     set url ""
     if {[info exists state]} {
@@ -130,8 +132,8 @@ proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
         if {[catch {::http::Eof $token} err]} { puts stderr $err }
         if {[catch {::http::cleanup $token} err]} { puts stderr $err }
     }
-    after cancel watchdog
     #unset -nocomplain token
+    puts stderr "Cleanup: $dlg retry?:$retry count:$retrycount url:$url"
     if {$retry && $retrycount < 10 && $url ne ""} {
         incr retrycount
         OpenStream $url $dlg
@@ -139,7 +141,7 @@ proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
         if {$retrycount > 2} {
             ::tkchat::addStatus 0 "Too many failed attempts\
                accessing MJPEG stream. Giving up." end ERROR
-        } elseif {$url eq ""} {
+        } elseif {$retry && $url eq ""} {
             ::tkchat::addStatus 0 "Lost the video stream. Giving up." end ERROR
         }
         destroy $dlg
