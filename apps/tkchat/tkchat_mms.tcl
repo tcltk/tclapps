@@ -25,30 +25,46 @@ namespace eval ::tkchat::mms {
             "Classical"    "http://scfire-dll-aa02.stream.aol.com:80/stream/1006"
         }
     }
+    variable gain_changing 0
 }
 
 proc ::tkchat::mms::Play {url} {
-    if {[catch {http::geturl $url -handler [namespace origin Stream]} err]} {
-        tkchat::addStatus 0 "Unable to open stream at \"$url\": $err" end ERROR
+    if {[catch {http::geturl $url \
+                    -handler [namespace origin Stream] \
+                    -command [namespace origin StreamFinished]
+    } err]} then {
+        ::tkchat::addStatus 0 "error fetching \"$url\": $err"
     }
 }
 
 proc ::tkchat::mms::Stream {sock tok} {
-    fileevent $sock readable {}
-    Init
-    Status Buffering
-    ::snack::sound snd -channel $sock -buffersize 163840
-    Wait 3000
-    Status Playing
-    after idle [list snd play -blocking 0 \
-                    -command [list [namespace origin CloseStream] $sock $tok]]
+    if {[::http::ncode $tok] >= 300} {
+        ::tkchat::addStatus 0 "Failed to open stream: [::http::code $tok]"
+        ::http::Eof $tok
+        return 0
+    }
+    if {[catch {
+        fileevent $sock readable {}
+        Init
+        Status Buffering
+        ::snack::sound snd -channel $sock -buffersize 163840
+        Wait 3000
+        Status Playing
+        after idle [list snd play -blocking 0 \
+                        -command [list [namespace origin CloseStream] $sock $tok]]
+    } err]} { puts stderr "Stream: $err" }
     return 0
 }
 
+# called when the http request gets closed.
+proc ::tkchat::mms::StreamFinished {tok} {
+    if {[catch {::http::cleanup $tok} err]} { puts stderr "StreamFinished: $err" }
+}
+
+# Called when snack finds the end of the sound stream
+# We must call Eof on the token because we took over the fileevents
 proc ::tkchat::mms::CloseStream {sock tok} {
-    puts stderr [info level 0]
-    catch {close $sock}
-    ::http::cleanup $tok
+    if {[catch {::http::Eof $tok} err]} { puts stderr "CloseStream: $err" }
 }
 
 proc ::tkchat::mms::Wait {total {done 0}} {
@@ -127,22 +143,33 @@ proc ::tkchat::mms::Init {} {
         .status.mms create window 70 2 -tags right -anchor nw -window .status.mms.right
         .status.mms create line 56 2 56 18 -tags vline -fill green
         .status.mms create rectangle 53 14 59 18 -tags gain -fill green -activefill yellow
-        .status.mms bind gain <ButtonRelease-1> [list [namespace origin MoveGain] %x %y]
+        .status.mms bind gain <ButtonPress-1> [list [namespace origin GainStart] %x %y]
+        .status.mms bind gain <Motion> [list [namespace origin GainMotion] %x %y]
+        .status.mms bind gain <ButtonRelease-1> [list [namespace origin GainEnd] %x %y]
         ::tkchat::StatusbarAddWidget .status .status.mms 1
     }
 }
 
-proc ::tkchat::mms::MoveGain {x y} {
-    foreach {x1 y1 x2 y2} [.status.mms coords gain] break
-    set cy [expr {$y1 + (($y2 - $y1)/2)}]
-    set dy [expr {$cy - $y}]
-    set y1 [expr {$y1 - $dy}]
-    if {$y1 > 14} {set y1 14} ; if {$y1 < 0} {set y1 0}
-    set y2 [expr {$y2 - $dy}]
-    if {$y2 > 18} {set y2 18} ; if {$y2 < 4} {set y2 4}
-    .status.mms coords gain $x1 $y1 $x2 $y2
-    set gain [expr {int((double(16 - $y) / 16) * 100)}]
-    snack::audio play_gain $gain
+proc ::tkchat::mms::GainStart {x y} {
+    variable gain_changing 1
+}
+proc ::tkchat::mms::GainEnd {x y} {
+    variable gain_changing 0
+}
+proc ::tkchat::mms::GainMotion {x y} {
+    variable gain_changing
+    if {$gain_changing} {
+        foreach {x1 y1 x2 y2} [.status.mms coords gain] break
+        set cy [expr {$y1 + (($y2 - $y1)/2)}]
+        set dy [expr {$cy - $y}]
+        set y1 [expr {$y1 - $dy}]
+        if {$y1 > 14} {set y1 14} ; if {$y1 < 0} {set y1 0}
+        set y2 [expr {$y2 - $dy}]
+        if {$y2 > 18} {set y2 18} ; if {$y2 < 4} {set y2 4}
+        .status.mms coords gain $x1 $y1 $x2 $y2
+        set gain [expr {int((double(16 - $y) / 16) * 100)}]
+        snack::audio play_gain $gain
+    }
 }
 
 proc ::tkchat::mms::ChooseStream {} {
@@ -182,6 +209,7 @@ proc ::tkchat::mms::ChooseStream {} {
     if {[set $dlg] eq "ok"} {
         set title [$f.te get]
         set url [$f.e get]
+        variable streams
         lappend streams $title $url
         after idle [list [namespace origin Play] $url]
     }
@@ -203,12 +231,12 @@ proc ::tkchat::mms::ChooseFile {} {
 }
 
 proc ::tkchat::mms::Update {{interval 100}} {
-    if {[catch {
-        foreach {l r} [snd sample [snd current_position]] break
-        .status.mms.left configure -level $l
-        .status.mms.right configure -level $r
-    } err]} { puts stderr $err }
-    if {[winfo exists .status.mms]} {
+    # If we cannot get the sample (ie: streaming channel) give up
+    if {[catch {snd sample [snd current_position]} sample]} { return }
+    foreach {l r} $sample break
+    .status.mms.left configure -level $l
+    .status.mms.right configure -level $r
+    if {[winfo exists .status.mms] && [::snack::audio currentSound] ne ""} {
         variable updateid [after $interval [info level 0]]
     }
 }
