@@ -64,6 +64,7 @@ proc ::tkchat::mms::StreamFinished {tok} {
 # Called when snack finds the end of the sound stream
 # We must call Eof on the token because we took over the fileevents
 proc ::tkchat::mms::CloseStream {sock tok} {
+    Status Stopped
     if {[catch {::http::Eof $tok} err]} { puts stderr "CloseStream: $err" }
 }
 
@@ -136,16 +137,18 @@ proc ::tkchat::mms::Init {} {
         .status.mms bind pause <Button-1> [list [namespace origin Pause]]
         .status.mms bind stop <Button-1> [list [namespace origin Stop]]
         .status.mms create text 2 2 -tags label -fill green -anchor nw -font MMS
-        # These are canvases, could just use variable height rects myself ...
+        # These are canvases, could just use variable height rects myself...
         snack::levelMeter .status.mms.left -width 8 -length 16 -orient vertical
         snack::levelMeter .status.mms.right -width 8 -length 16 -orient vertical
         .status.mms create window 62 2 -tags left -anchor nw -window .status.mms.left
         .status.mms create window 70 2 -tags right -anchor nw -window .status.mms.right
+        # A small gain slider...
         .status.mms create line 56 2 56 18 -tags vline -fill green
         .status.mms create rectangle 53 14 59 18 -tags gain -fill green -activefill yellow
         .status.mms bind gain <ButtonPress-1> [list [namespace origin GainStart] %x %y]
         .status.mms bind gain <Motion> [list [namespace origin GainMotion] %x %y]
         .status.mms bind gain <ButtonRelease-1> [list [namespace origin GainEnd] %x %y]
+        GainInit [snack::audio play_gain]
         ::tkchat::StatusbarAddWidget .status .status.mms 1
     }
 }
@@ -170,6 +173,12 @@ proc ::tkchat::mms::GainMotion {x y} {
         set gain [expr {int((double(16 - $y) / 16) * 100)}]
         snack::audio play_gain $gain
     }
+}
+proc ::tkchat::mms::GainInit {level} {
+    foreach {x1 y1 x2 y2} [.status.mms coords gain] break
+    set center [expr {16 - int(16 * ($level / 100.0))}]
+    set dy [expr {abs($y2 - $y1)/2}]
+    .status.mms coords gain $x1 [expr {$center - $dy}] $x2 [expr {$center + $dy}]
 }
 
 proc ::tkchat::mms::ChooseStream {} {
@@ -202,7 +211,7 @@ proc ::tkchat::mms::ChooseStream {} {
     catch {::tk::PlaceWindow $dlg widget [winfo toplevel $dlg]}
     wm deiconify $dlg
     tkwait visibility $dlg
-    focus $f.e
+    focus $f.te
     grab $dlg
     tkwait variable [namespace which -variable $dlg]
     grab release $dlg
