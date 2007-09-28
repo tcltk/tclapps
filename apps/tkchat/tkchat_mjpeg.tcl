@@ -114,7 +114,6 @@ proc ::tkchat::mjpeg::Progress {dlg tok total current} {
             $dlg.status.progress configure -mode indeterminate
         } else {
             set value [expr {int(double($current)/double($total) * 100)}]
-            #puts stderr "progress $dlg $tok $total $current => $value"
             $dlg.status.progress configure -mode determinate -value $value
         }
     }
@@ -133,7 +132,6 @@ proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
         if {[catch {::http::cleanup $token} err]} { puts stderr $err }
     }
     #unset -nocomplain token
-    puts stderr "Cleanup: $dlg retry?:$retry count:$retrycount url:$url"
     if {$retry && $retrycount < 10 && $url ne ""} {
         incr retrycount
         OpenStream $url $dlg
