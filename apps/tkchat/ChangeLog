@@ -1,3 +1,9 @@
+2007-09-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:       Ignore groupchat messages with empty bodies 
+	* tkchat_mjpeg.tcl: (ie: coccinella whiteboard messages). Remove 
+	* tkchat_mms.tcl:   the conference special features/streams.
+
 2007-09-26  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:   Implement the login hooks.

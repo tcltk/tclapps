@@ -206,7 +206,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.404 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.405 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -214,9 +214,10 @@ namespace eval ::tkchat {
     variable PreInitHooks ; if {![info exists PreInitHooks]} { array set PreInitHooks {} }
     variable InitHooks ; if {![info exists InitHooks]} { array set InitHooks {} }
     variable LoginHooks ; if {![info exists LoginHooks]} { array set LoginHooks {} }
+    variable SaveHooks ; if {![info exists SaveHooks]} { array set SaveHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.404 2007/09/26 22:04:14 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.405 2007/09/30 22:21:13 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1416,9 +1417,10 @@ proc ::tkchat::Hook {do type cmd} {
         preinit { set var [namespace current]::PreInitHooks }
         init    { set var [namespace current]::InitHooks }
         login   { set var [namespace current]::LoginHooks }
+        save    { set var [namespace current]::SaveHooks }
 	default {
 	    return -code error "unknown hook type \"$type\":\
-                must be message, preinit, init or login"
+                must be message, preinit, init, login or save"
 	}
     }
     switch -exact -- $do {
@@ -5250,6 +5252,15 @@ proc ::tkchat::saveRC {} {
         }
 	puts $fd "\}"
 
+        variable SaveHooks
+        foreach cmd [array names SaveHooks] {
+            if {[catch {$cmd} err]} {
+                puts stderr "error running hook \"$cmd\": $err"
+            } else {
+                puts $fd $err
+            }
+        }
+
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	close $fd
     } else {
@@ -7729,6 +7740,9 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		    array set tkchatAttr [wrapper::getattrlist $x]
 		    set color [wrapper::getattribute $x color]
 		}
+                "coccinella:wb" {
+                    ::tkchat::addStatus 0 "Coccinella whiteboard message from $m(-from)"
+                }
 		"urn:tkchat:whiteboard" {
 		    tkchat::Whiteboard::Eval $m(-from) \
                         [wrapper::getcdata $x] \
@@ -7819,7 +7833,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 			    $color $from $msg ACTION end $timestamp
 		}
 	    } else {
-		if { [info exists m(-body)] } {
+		if { [info exists m(-body)] && $m(-body) ne ""} {
 		    parseMsg $from $m(-body) $color end $timestamp
 		} else {
 		    ::log::log notice "Unknown message from $from: '$args'"
@@ -9449,7 +9463,7 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 
 foreach file {
     tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl tkchat_whiteboard.tcl
-    tkchat_mms.tcl tkchat_nola.tcl tkchat_mjpeg.tcl
+    tkchat_mms.tcl
 } {
     if {[file exists [file join $tkchat_dir $file]]} {
         source [file join $tkchat_dir $file]

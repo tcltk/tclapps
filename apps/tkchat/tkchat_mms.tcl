@@ -16,10 +16,6 @@ namespace eval ::tkchat::mms {
     variable streams
     if {![info exists streams]} {
         set streams {
-            "Tcl conference (EU server)" "http://eu.tclers.tk/conference.ogg"
-            "Tcl conference (US server)" "http://us.tclers.tk/conference.ogg"
-            "Tcl conference (localhost:3128)" "http://localhost:3128/conference.ogg"
-            "-"            {}
             "Trance"       "http://scfire-ntc-aa04.stream.aol.com:80/stream/1003"
             "Top 40 Hits"  "http://scfire-nyk-aa01.stream.aol.com:80/stream/1014"
             "Classical"    "http://scfire-dll-aa02.stream.aol.com:80/stream/1006"
@@ -186,19 +182,23 @@ proc ::tkchat::mms::ChooseStream {} {
     set dlg [::tkchat::Dialog .choosestream]
     variable $dlg {}
     wm withdraw $dlg
-    wm title $dlg "Select stream URL"
+    wm title $dlg "Select stream"
     set f [${NS}::frame $dlg.f -padding 2]
 
-    ${NS}::label $f.tl -text "Title: "
+    ${NS}::label $f.info -text "Enter a URL to open.\
+         The title is optional and will be displayed in the\
+         \nmenu for this stream." -anchor nw
+    ${NS}::label $f.tl -anchor nw -text "Title: "
     ${NS}::entry $f.te -width 24
-    ${NS}::label $f.l -text "Stream URL: "
+    ${NS}::label $f.l -anchor nw -text "Stream URL: "
     ${NS}::entry $f.e -width 24
     ${NS}::button $f.ok -text OK -command [list set [namespace which -variable $dlg] ok]
     ${NS}::button $f.cn -text Cancel -command [list set [namespace which -variable $dlg] cancel]
-    grid $f.tl $f.te - -sticky new
-    grid $f.l $f.e - -sticky new
-    grid x $f.ok $f.cn -sticky se
-    grid rowconfigure $f 2 -weight 1
+    grid $f.info -   - -sticky new -pady 1
+    grid $f.tl $f.te - -sticky new -pady 1
+    grid $f.l $f.e - -sticky new -pady 1
+    grid x $f.ok $f.cn -sticky se -pady 1
+    grid rowconfigure $f 3 -weight 1
     grid columnconfigure $f 1 -weight 1
 
     grid $f -sticky news
@@ -228,7 +228,9 @@ proc ::tkchat::mms::ChooseStream {} {
 
 proc ::tkchat::mms::ChooseFile {} {
     variable updateid
-    set file [snack::getOpenFile -title "Select audio file"]
+    set types {{{Sound files} {.mp3 .ogg .wav}} {{All Files} {*.*}}}
+    set file [tk_getOpenFile -title "Select audio file" \
+                 -filetypes $types -defaultextension .mp3]
     if {[string length $file] > 0 && [file exists $file]} {
         Init
         Status Playing
@@ -279,4 +281,10 @@ proc ::tkchat::mms::InitHook {} {
     }
 }
 
+proc ::tkchat::mms::Save {} {
+    variable streams
+    return [list namespace eval [namespace current] [list variable streams $streams]]
+}
+
+::tkchat::Hook add save ::tkchat::mms::Save
 ::tkchat::Hook add init ::tkchat::mms::InitHook
