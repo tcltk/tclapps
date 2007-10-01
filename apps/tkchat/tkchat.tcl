@@ -203,11 +203,6 @@ if {$tcl_platform(platform) eq "windows"
     #}
 }
 
-package forget app-tkchat	; # Workaround until I can convince people
-				; # that apps are not packages. :)  DGP
-package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.406 $}]
-
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
     variable MessageHooks ; if {![info exists MessageHooks]} { array set MessageHooks {} }
@@ -217,7 +212,7 @@ namespace eval ::tkchat {
     variable SaveHooks ; if {![info exists SaveHooks]} { array set SaveHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.406 2007/10/01 12:31:21 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.407 2007/10/01 22:40:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5759,11 +5754,11 @@ proc ::tkchat::Init {args} {
     if {[info exists Options(UserAgent)]} {
 	http::config -useragent $Options(UserAgent)
     } else {
+        set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
 	http::config -useragent "Mozilla/5.0\
 	    ([string totitle $::tcl_platform(platform)]; U;\
 	    $::tcl_platform(os) $::tcl_platform(osVersion))\
-            Tkchat/[package provide app-tkchat]\
-	    Tcl/[package provide Tcl]"
+            Tkchat/$tkchatver Tcl/[package provide Tcl]"
     }
     set Options(NoProxy) [list localhost 127.0.0.1]
     if {[info exists env(no_proxy)]} {
@@ -9002,9 +8997,10 @@ proc tkjabber::on_iq_version {token from subiq args} {
 	append os " $tcl_platform(osVersion)"
     }
     append os "/Tcl [info patchlevel]"
+    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
     set subtags [list  \
       [wrapper::createtag name    -chdata "Tkchat"]  \
-      [wrapper::createtag version -chdata [package provide app-tkchat]]  \
+      [wrapper::createtag version -chdata $tkchatver]  \
       [wrapper::createtag os      -chdata $os] ]
     set xmllist [wrapper::createtag query -subtags $subtags  \
                      -attrlist {xmlns jabber:iq:version}]
@@ -9334,7 +9330,7 @@ if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} 
 # -------------------------------------------------------------------------
 
 proc tkchat::PasteEval {dlg} {
-    set script [string trim [$dlg.f1.txt get 0.0 end]]
+    set script [string trim [$dlg.f1.txt get 1.0 {end - 1c}]]
     Whiteboard::Init
     Whiteboard::Script $script
 }
@@ -9387,7 +9383,7 @@ proc tkchat::PasteDlg {} {
     focus $subject
     tkwait variable [namespace current]::$wid
     if {[string equal [set [namespace current]::$wid] "send"]} {
-        set msg [string trim [$f.txt get 0.0 end]]
+        set msg [string trim [$f.txt get 1.0 {end - 1c}]]
         if {[string length $msg] > 0} {
             set k {}
             lappend k [list subject {} 0 [$subject get] {}]
@@ -9503,6 +9499,11 @@ foreach file {
 }
 
 # -------------------------------------------------------------------------
+# stupid app as a package stuff -- what is this used for?
+
+package forget app-tkchat	; # Workaround until I can convince people
+				; # that apps are not packages. :)  DGP
+package provide app-tkchat [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
