@@ -206,7 +206,7 @@ if {$tcl_platform(platform) eq "windows"
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
 package provide app-tkchat \
-	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.405 $}]
+	[regexp -inline -- {\d+(?:\.\d+)?} {$Revision: 1.406 $}]
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
@@ -217,7 +217,7 @@ namespace eval ::tkchat {
     variable SaveHooks ; if {![info exists SaveHooks]} { array set SaveHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.405 2007/09/30 22:21:13 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.406 2007/10/01 12:31:21 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4189,6 +4189,7 @@ proc ::tkchat::logonScreen {} {
 		-variable ::Options(UseProxy) \
 		-command ::tkjabber::TwiddlePort \
 		-underline 7
+        ${NS}::labelframe .logon.plf -labelwidget .logon.prx
 	${NS}::label .logon.lph -text "Proxy host:port" -underline 0
 	${NS}::frame .logon.fpx
 	${NS}::entry .logon.eph -textvariable Options(ProxyHost)
@@ -4290,19 +4291,20 @@ proc ::tkchat::logonScreen {} {
 		-in .logon.sslopt \
 		-side left
 
-	grid .logon.prx	-	      -		   -in $lf -sticky w  -pady 3
-	grid x		.logon.lph    .logon.fpx   -in $lf -sticky w  -pady 3
-	grid x		.logon.lpan   .logon.epan  -in $lf -sticky w  -pady 3
-	grid x		.logon.lpap   .logon.epap  -in $lf -sticky w  -pady 3
-	grid .logon.lnm	.logon.enm    -		   -in $lf -sticky ew -pady 5
-	grid .logon.lpw	.logon.epw    -		   -in $lf -sticky ew
-	grid x		.logon.rpw    -		   -in $lf -sticky w  -pady 3
-	grid x		.logon.ljsrv  .logon.fjsrv -in $lf -sticky w  -pady 3
-	grid x		.logon.ljres  .logon.ejres -in $lf -sticky w  -pady 3
-	grid x		.logon.lconf  .logon.econf -in $lf -sticky w  -pady 3
-	grid x		.logon.sslopt -		   -in $lf -sticky w  -pady 3
-	grid x		.logon.atc    .logon.vsc   -in $lf -sticky w  -pady 3
-	grid x		x	      .logon.f	   -in $lf -sticky e  -pady 4
+        grid .logon.lph  .logon.fpx  -in .logon.plf -sticky w -pady 2
+        grid .logon.lpan .logon.epan -in .logon.plf -sticky w -pady 2
+        grid .logon.lpap .logon.epap -in .logon.plf -sticky w -pady 2
+
+        grid .logon.plf -             -            -in $lf -sticky ew -pady 2 -padx 2
+	grid .logon.lnm	.logon.enm    -		   -in $lf -sticky ew -pady 5 -padx 2
+	grid .logon.lpw	.logon.epw    -		   -in $lf -sticky ew         -padx 2
+	grid x		.logon.rpw    -		   -in $lf -sticky w  -pady 2
+	grid x		.logon.ljsrv  .logon.fjsrv -in $lf -sticky w  -pady 2
+	grid x		.logon.ljres  .logon.ejres -in $lf -sticky w  -pady 2
+	grid x		.logon.lconf  .logon.econf -in $lf -sticky w  -pady 2
+	grid x		.logon.sslopt -		   -in $lf -sticky w  -pady 2
+	grid x		.logon.atc    .logon.vsc   -in $lf -sticky w  -pady 2
+	grid x		x	      .logon.f	   -in $lf -sticky e  -pady 3
 
 	pack $lf -side top -fill both -expand 1
 	wm resizable .logon 0 0
@@ -6717,15 +6719,22 @@ proc ::tkchat::EditOptions {} {
     wm withdraw $dlg
     wm title $dlg "Tkchat Options"
 
-    set f [${NS}::frame $dlg.base -borderwidth 0]
+    set use_notebook [expr {$useTile && [llength [info commands ${NS}::notebook]]>0}]
+    set base [${NS}::frame $dlg.base -borderwidth 0]
     if {$useTile} {
+        set nb [${NS}::notebook $base.nb]
+        set f [${NS}::frame $base.page0 -borderwidth 0]
         set af [${NS}::labelframe $f.af -text "General" -underline 1]
-    } else { 
+    } else {
+        set nb [${NS}::frame $base.nb]
+        set f [${NS}::frame $base.page0 -borderwidth 0]
         set af [${NS}::labelframe $f.af -text "General"]
     }
     ${NS}::checkbutton $af.store -text "Store private messages" \
         -variable ::Options(StoreMessages) -onvalue 1 -offvalue 0 \
         -underline 0
+    if {!$useTile} {$af.store configure -anchor nw}
+
     pack $af.store -side top -fill x -expand 1
     bind $dlg <Alt-e> [list focus $af]
     bind $dlg <Alt-s> [list $af.store invoke]
@@ -6746,6 +6755,7 @@ proc ::tkchat::EditOptions {} {
     }
     ${NS}::checkbutton $bf.tab -text "Force new Tab, if possible (Unix only)" \
 	-variable ::tkchat::EditOptions(BrowserTab) -underline 0
+    if {!$useTile} {$bf.tab configure -anchor nw}
 
     grid $bf.m - -sticky news -padx 2
     grid $bf.e $bf.b -sticky ew -padx 2
@@ -6753,24 +6763,28 @@ proc ::tkchat::EditOptions {} {
     grid rowconfigure $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
-    set sf [${NS}::labelframe $f.sf -text "Tk style"] ;#-padx 1 -pady 1]
-    set gf [${NS}::labelframe $f.gf -text "Gimmiks"] ;#  -padx 1 -pady 1]
-    set rf [${NS}::labelframe $f.rf -text "RSS Feeds"]
+    set sf [${NS}::labelframe $f.sf -text "Tk style"] ;#-padx 1 -pady 1
+    set gf [${NS}::labelframe $f.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
 
     ${NS}::label $sf.m -anchor nw -font FNT -wraplength 4i -justify left \
 	-text "The Tk style selection available here will apply when you \
 	   next restart tkchat."
     ${NS}::radiobutton $sf.as -text "ActiveState" -underline 0 \
 	-variable ::tkchat::EditOptions(Style) -value as_style
+    if {!$useTile} { $sf.as configure -anchor nw }
     ${NS}::radiobutton $sf.gtk -text "GTK look" -underline 0 \
 	-variable ::tkchat::EditOptions(Style) -value gtklook
+    if {!$useTile} { $sf.gtk configure -anchor nw }
     ${NS}::radiobutton $sf.any -text "Any" -underline 1 \
 	-variable ::tkchat::EditOptions(Style) -value any
+    if {!$useTile} { $sf.any configure -anchor nw }
     ${NS}::radiobutton $sf.def -text "Tk default" -underline 0 \
 	-variable ::tkchat::EditOptions(Style) -value tk
+    if {!$useTile} { $sf.def configure -anchor nw }
     ${NS}::checkbutton $sf.tkonly -text "Use only Tk widgets" \
 	-variable ::tkchat::EditOptions(UseTkOnly) -onvalue 1 -offvalue 0 \
 	-underline 12
+    if {!$useTile} { $sf.tkonly configure -anchor nw }
 
     if {[catch {package require style::as}]
 	&& [catch {package require as::style}]} {
@@ -6832,6 +6846,7 @@ proc ::tkchat::EditOptions {} {
     set rss 0
     if {[package provide rssrdr] ne {}} {
         set rss 1
+        set page1 [${NS}::frame $base.page1 -borderwidth 0]
         set n 0
         foreach feed [array names EditOptions RSS,watch,*] {
             set url [lindex [split $feed ,] 2]
@@ -6842,41 +6857,58 @@ proc ::tkchat::EditOptions {} {
                     set text $Options(RSS,title,$url)
                 }
             }
-            ${NS}::checkbutton [set w $rf.wf[incr n]] \
+            ${NS}::checkbutton [set w $page1.wf[incr n]] \
                 -text $text -underline 0 \
                 -variable ::tkchat::EditOptions($feed)
-            grid $w -sticky we -padx 2
+            if {!$useTile} {$w configure -anchor nw}
+            grid $w -sticky new -padx 2 -pady 2
         }
-        grid columnconfigure $rf 0 -weight 1
+        grid columnconfigure $page1 0 -weight 1
+        grid rowconfigure    $page1 $n -weight 1
     }
 
-    ${NS}::button $f.ok -text OK -underline 0 -default active \
-	-command [list set ::tkchat::EditOptions(Result) 1]
-    ${NS}::button $f.cancel -text Cancel -underline 0 \
-	-command [list set ::tkchat::EditOptions(Result) 0]
+    set b_ok [${NS}::button $base.ok -text OK -underline 0 -default active -width -12 \
+                  -command [list set ::tkchat::EditOptions(Result) 1]]
+    set b_cn [${NS}::button $base.cancel -text Cancel -underline 0 -width -12 \
+                  -command [list set ::tkchat::EditOptions(Result) 0]]
 
     grid $af - -sticky news -padx 2 -pady 2
     grid $bf - -sticky news -padx 2 -pady 2
     grid $sf - -sticky news -padx 2 -pady 2
     if {$gimmicks} { grid $gf - -sticky news -padx 2 -pady 2 }
-    if {$rss}      { grid $rf - -sticky news -padx 2 -pady 2 }
-    grid $f.ok $f.cancel -sticky e
-    grid rowconfigure $f 0 -weight 1
-    grid columnconfigure $f 0 -weight 1
 
-    pack $f -side top -fill both -expand 1
+    if {$use_notebook} {
+        $nb add $f     -text "Preferences"
+        $nb add $page1 -text "RSS Feeds"
+    } else {
+        ${NS}::button $nb.b_page0 -text "Preferences" -command [list raise $f]
+        ${NS}::button $nb.b_page1 -text "RSS Feeds" -command [list raise $page1]
+        grid $nb.b_page0 -row 0 -column 1 -sticky w
+        grid $nb.b_page1 -row 0 -column 2 -sticky w
+        grid $f     -in $nb -row 1 -column 0 -sticky news -columnspan 100
+        grid $page1 -in $nb -row 1 -column 0 -sticky news -columnspan 100
+        grid columnconfigure $nb 0 -weight 1
+        grid rowconfigure    $nb 1 -weight 1
+        raise $base.page0
+    }
+    grid $nb   -     -sticky news -padx 2 -pady 2
+    grid $b_ok $b_cn -sticky se
+    grid rowconfigure $base 0 -weight 1
+    grid columnconfigure $base 0 -weight 1
 
-    bind $dlg <Return> [list $f.ok invoke]
-    bind $dlg <Escape> [list $f.cancel invoke]
-    bind $dlg <Alt-o>  [list focus $f.ok]
-    bind $dlg <Alt-c>  [list focus $f.cancel]
+    pack $base -side top -fill both -expand 1
+
+    bind $dlg <Return> [list $b_ok invoke]
+    bind $dlg <Escape> [list $b_cn invoke]
+    bind $dlg <Alt-o>  [list focus $b_ok]
+    bind $dlg <Alt-c>  [list focus $b_cn]
     focus $bf.e
 
     wm resizable $dlg 0 0
     catch {::tk::PlaceWindow $dlg widget .}
     wm deiconify $dlg
     tkwait visibility $dlg
-    focus $f.ok ; grab $dlg
+    focus $b_ok ; grab $dlg
     tkwait variable ::tkchat::EditOptions(Result)
     grab release $dlg
 
