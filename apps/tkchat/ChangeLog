@@ -1,3 +1,11 @@
+2007-10-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:       Reworked the hooks system to include priority
+	* tkchat_mjpeg.tcl: and added an options hook to permit plugins to
+	* tkchat_mms.tcl:   add a page to the options dialog. All plugins now
+	* tkchat_rss.tcl:   use hooks. RSS removed from the main file.
+	* tkchat_clock.tcl  Generalized the NOLA plugin into a clock demo.
+
 2007-10-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Add tabs to Options dialog (with suitable non-tile
@@ -16,7 +24,7 @@
 
 2007-09-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
-	* tkchat_mjpeg:    MPJEG stream handling for the Tcl conference
+	* tkchat_mjpeg:    MJPEG stream handling for the Tcl conference
 	
 	* tkchat_mms.tcl:  Multimedia stream support with snack.
 	* tkchat_nola.tcl: demo plugin (New Orleans clock display)

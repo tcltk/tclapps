@@ -13,6 +13,7 @@ if {[catch {
 }
 
 namespace eval ::tkchat::mms {
+    variable version 1.0.0
     variable streams
     if {![info exists streams]} {
         set streams {
@@ -286,5 +287,8 @@ proc ::tkchat::mms::Save {} {
     return [list namespace eval [namespace current] [list variable streams $streams]]
 }
 
+# -------------------------------------------------------------------------
 ::tkchat::Hook add save ::tkchat::mms::Save
 ::tkchat::Hook add init ::tkchat::mms::InitHook
+package provide tkchat::mms $::tkchat::mms::version
+# -------------------------------------------------------------------------

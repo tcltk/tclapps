@@ -3,12 +3,16 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.8 2007/09/25 17:42:53 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.9 2007/10/04 08:44:51 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 if {[catch {package require rssrdr}]} { return }
 
-proc ::tkchat::RSSInit {} {
+namespace eval ::tkchat::rss {
+    variable version 1.0.0
+}
+
+proc ::tkchat::rss::Init {} {
     global Options
     global tkchat_dir
     variable RSStip {}
@@ -84,13 +88,13 @@ proc ::tkchat::RSSInit {} {
     }
 }
 
-proc ::tkchat::RssUpdateTip {varname op} {
+proc ::tkchat::rss::RssUpdateTip {varname op} {
     variable RSStip
     tooltip::tooltip .status.rss [string trim $RSStip \n]
 }
 
-proc ::tkchat::ShowRssInfo {} {
-    variable NS
+proc ::tkchat::rss::ShowRssInfo {} {
+    variable ::tkchat::NS
     variable Rss
     variable RssUrlId ; if {![info exists RssUrlId]} {set RssUrlId 0}
     .status.rss configure -image ::tkchat::img::feedLo
@@ -103,7 +107,7 @@ proc ::tkchat::ShowRssInfo {} {
         return
     }
 
-    set dlg [Dialog $dlg]
+    set dlg [::tkchat::Dialog $dlg]
     wm withdraw $dlg
     wm title $dlg "RSS Feeds"
     wm transient $dlg .
@@ -186,7 +190,7 @@ proc ::tkchat::ShowRssInfo {} {
     destroy $dlg
 }
 
-proc ::tkchat::CheckRSSFeeds {} {
+proc ::tkchat::rss::CheckRSSFeeds {} {
     global Options
     variable RSStimer
     variable RSStip {}
@@ -204,7 +208,7 @@ proc ::tkchat::CheckRSSFeeds {} {
     }
 
     if {$active} {
-        StatusbarAddWidget .status .status.rss 1
+        ::tkchat::StatusbarAddWidget .status .status.rss 1
         foreach feed [array names Options RSS,watch,*] {
             if {$Options($feed)} {
                 set url [lindex [split $feed ,] 2]
@@ -215,26 +219,26 @@ proc ::tkchat::CheckRSSFeeds {} {
     }
 }
 
-proc ::tkchat::CheckRSS {url} {
+proc ::tkchat::rss::CheckRSS {url} {
     if {[package provide rssrdr] ne {}} {
         if {[catch {
             set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
             ::http::geturl $url -headers $hdrs -timeout 10000 \
-                -command [list ::tkchat::fetchurldone ::tkchat::CheckRSS_Done]
+                -command [list ::tkchat::fetchurldone [namespace origin CheckRSS_Done]]
         } msg]} then {
             addStatus 0 "Unable to obtain RSS feed from $url" end ERROR
         }
     }
 }
 
-proc ::tkchat::CheckRSS_Done {tok} {
-    if {[catch {::tkchat::CheckRSS_Inner $tok} err]} {
+proc ::tkchat::rss::CheckRSS_Done {tok} {
+    if {[catch {[namespace origin CheckRSS_Inner] $tok} err]} {
         puts stderr $::errorInfo
     }
     return
 }
 
-proc ::tkchat::CheckRSS_Inner {tok} {
+proc ::tkchat::rss::CheckRSS_Inner {tok} {
     global Options
     variable Rss
     variable RSStip
@@ -287,4 +291,52 @@ proc ::tkchat::CheckRSS_Inner {tok} {
     return
 }
 
-::tkchat::Hook add login ::tkchat::RSSInit
+proc ::tkchat::rss::OptionsHook {parent} {
+    global Options
+    variable ::tkchat::NS ; variable ::tkchat::useTile
+    variable EditOptions
+    array set EditOptions [array get Options RSS,watch,*]
+
+    set page [${NS}::frame $parent.rssOptions -borderwidth 0]
+    set n 0
+    foreach feed [array names EditOptions RSS,watch,*] {
+        set url [lindex [split $feed ,] 2]
+        array set U [uri::split $url]
+        set text $U(host)
+        if {[info exists Options(RSS,title,$url)]} {
+            if {[string length $Options(RSS,title,$url)] > 0} {
+                set text $Options(RSS,title,$url)
+            }
+        }
+        ${NS}::checkbutton [set w $page.wf[incr n]] \
+            -text $text -underline 0 \
+            -variable [namespace current]::EditOptions($feed)
+        if {!$useTile} {$w configure -anchor nw}
+        grid $w -sticky new -padx 2 -pady 2
+    }
+    grid columnconfigure $page 0 -weight 1
+    grid rowconfigure    $page $n -weight 1
+
+    bind $page <<TkchatOptionsAccept>> [namespace code {
+        variable EditOptions; global Options
+        set feed_refresh 0
+        foreach feed [array names EditOptions RSS,watch,*] {
+            if {$Options($feed) != $EditOptions($feed)} {
+                set feed_refresh 1
+                set Options($feed) $EditOptions($feed)
+            }
+        }
+        if {$feed_refresh} { after idle [namespace origin CheckRSSFeeds] }
+        unset EditOptions
+    }]
+    bind $page <<TkchatOptionsCancel>> [namespace code {
+        variable EditOptions; unset EditOptions
+    }]
+    return [list "RSS Feeds" $page]
+}
+
+# -------------------------------------------------------------------------
+::tkchat::Hook add login ::tkchat::rss::Init
+::tkchat::Hook add options ::tkchat::rss::OptionsHook
+package provide tkchat::rss $::tkchat::rss::version
+# -------------------------------------------------------------------------

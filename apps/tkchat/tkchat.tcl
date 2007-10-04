@@ -205,14 +205,9 @@ if {$tcl_platform(platform) eq "windows"
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
-    variable MessageHooks ; if {![info exists MessageHooks]} { array set MessageHooks {} }
-    variable PreInitHooks ; if {![info exists PreInitHooks]} { array set PreInitHooks {} }
-    variable InitHooks ; if {![info exists InitHooks]} { array set InitHooks {} }
-    variable LoginHooks ; if {![info exists LoginHooks]} { array set LoginHooks {} }
-    variable SaveHooks ; if {![info exists SaveHooks]} { array set SaveHooks {} }
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.407 2007/10/01 22:40:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.408 2007/10/04 08:44:51 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1243,10 +1238,7 @@ proc ::tkchat::setAlert { tag } {
     }
 }
 
-proc ::tkchat::addMessage \
-	{ w clr nick msg msgtype mark timestamp {extraOpts ""} } {
-    variable MessageHooks
-
+proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}} {
     array set opts $extraOpts
             
     #for colors, it is better to extract the displayed nick from the one used
@@ -1273,9 +1265,7 @@ proc ::tkchat::addMessage \
     if { $mark ne "HISTORY" } {
 	set subjectFound [checkAlert $w $msgtype $nick $msg]
 	if { $w eq ".txt" } {
-	    foreach cmd [array names MessageHooks] {
-		eval $cmd [list $nick $msg $msgtype $mark $timestamp]
-	    }
+            Hook run message $nick $msg $msgtype $mark $timestamp
 	}
     } else {
 	set subjectFound [checkSubject $w $msgtype $nick $msg]
@@ -1406,28 +1396,63 @@ proc ::tkchat::Insert { w str tags url mark } {
 #  preinit hooks are called after app initialization before gui creation
 #  init hooks are called after gui creation before login
 #  login hooks are called after login
-proc ::tkchat::Hook {do type cmd} {
+#  save hook are called when saving options to file.
+#  options hooks are called to add pages to the Prefernces dialog
+proc ::tkchat::Hook {do type args} {
     switch -exact -- $type {
-	message { set var [namespace current]::MessageHooks }
-        preinit { set var [namespace current]::PreInitHooks }
-        init    { set var [namespace current]::InitHooks }
-        login   { set var [namespace current]::LoginHooks }
-        save    { set var [namespace current]::SaveHooks }
+	message { set Hook [namespace current]::MessageHooks }
+        preinit { set Hook [namespace current]::PreInitHooks }
+        init    { set Hook [namespace current]::InitHooks }
+        login   { set Hook [namespace current]::LoginHooks }
+        save    { set Hook [namespace current]::SaveHooks }
+        options { set Hook [namespace current]::OptionsHooks }
 	default {
 	    return -code error "unknown hook type \"$type\":\
-                must be message, preinit, init, login or save"
+                must be message, preinit, init, login, options or save"
 	}
     }
     switch -exact -- $do {
 	add {
-	    set ${var}($cmd) {}
+            if {[llength $args] > 2} {
+                return -code error "wrong # args: should be \"add hook cmd ?priority?\""
+            }
+            foreach {cmd pri} $args break
+            if {$pri eq {}} { set pri 50 }
+            lappend $Hook [list $cmd $pri]
+            set $Hook [lsort -real -index 1 [lsort -unique [set $Hook]]]
 	}
-	remove {
-	    unset -nocomplain -- ${var}($cmd)
-	}
+        remove {
+            if {[llength $args] != 1} {
+                return -code error "wrong # args: should be \"remove hook cmd\""
+            }
+            if {![info exists $Hook]} { return }
+            upvar #0 $Hook hook
+            for {set ndx 0} {$ndx < [llength $hook]} {incr ndx} {
+                set item [lindex $hook $ndx]
+                if {[lindex $item 0] eq [lindex $args 0]} {
+                    set hook [lreplace $hook $ndx $ndx]
+                    break
+                }
+            }
+            set $Hook
+        }
+        run {
+            if {![info exists $Hook]} { return }
+            foreach item [set $Hook] {
+                foreach {cmd pri} $item break
+                set code [catch {eval $cmd $args} err]
+                if {$code} {
+                    ::bgerror "error running \"$type\" hook: $err"
+                    break
+                } else {
+                    lappend res $err
+                }
+            }
+            return $res
+        }
 	default {
-	    return -code error \
-		    "unknown hook action \"$type\": must be add or remove"
+	    return -code error "unknown hook action \"$type\":\
+                must be add or or run"
 	}
     }
 }
@@ -1707,7 +1732,6 @@ proc ::tkchat::StatusbarAddWidget {bar slave pos} {
 proc ::tkchat::addTraffic { w nick action mark timestamp } {
     # Action should be entered, left, nickchange or availability
     variable MSGS
-    variable MessageHooks
     variable OnlineUsers
 
     set newnick ""
@@ -1723,9 +1747,7 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
 
     # Call message activity hooks
     if { $mark ne "HISTORY" } {
-	foreach cmd [array names MessageHooks] {
-	    eval $cmd [list $nick $action TRAFFIC $mark $timestamp]
-	}
+        Hook run message $nick $action TRAFFIC $mark $timestamp
 	if { $action eq "entered" } {
 	    if { $network ne "Jabber" } {
 		set OnlineUsers($network-$nick,status) [list online]
@@ -2141,14 +2163,6 @@ proc ::tkchat::CreateGUI {} {
 	    -label "Colors ..." \
 	    -underline 0 \
 	    -command ::tkchat::ChangeColors
-    $m add command \
-	    -label "Macros ..." \
-	    -underline 0 \
-	    -command ::tkchat::EditMacros
-    $m add command \
-	    -label "Subjects ..." \
-	    -underline 0 \
-	    -command ::tkchat::SpecifySubjects
     if {[llength [package provide choosefont]] != 0} {
         $m add command \
 	    -label "Font ..." \
@@ -4624,36 +4638,23 @@ proc ::tkchat::buildRow { f idx disp } {
 	    -padx 2 -pady 2 -sticky ew
 }
 
-proc ::tkchat::SpecifySubjects {} {
+proc ::tkchat::SpecifySubjects {parent} {
     variable NS
-
-    set t .alertpatterns
-    if {[winfo exists $t]} {
-        wm deiconify $t
-        focus $t
-        return
-    }
-    set t [Dialog $t]
-    wm withdraw $t
-    wm title $t "Specify alert patterns"
-
+    set t [${NS}::frame $parent.tkchatSubjects]
     ${NS}::labelframe $t.pat -text Patterns
     ${NS}::labelframe $t.new -text "New pattern"
     ${NS}::label $t.hlp -justify left -anchor nw -text \
         "Specify match-text as a case-insensitive glob pattern."
-    listbox $t.lst -yscroll "$t.scr set" -height 8 -selectmode extended
+    listbox $t.lst -yscrollcommand [list $t.scr set] -height 8 -selectmode extended
     ${NS}::scrollbar $t.scr -command [list $t.lst yview]
     ${NS}::entry $t.sub
     ${NS}::button $t.sav -text Add \
         -command [list [namespace origin SubjectSave] $t]
     ${NS}::button $t.del -text Delete \
         -command [list [namespace origin SubjectKill] $t.lst]
-    ${NS}::button $t.ok -text OK -command [list destroy $t]
 
     bind $t.sub <Return> [list $t.sav invoke]
     bind $t.lst <Double-Button-1> {::tkchat::SubjectSel %W @%x,%y}
-    bind $t <Return> [list $t.ok invoke]
-    bind $t <Escape> [list $t.ok invoke]
 
     grid $t.lst $t.scr -in $t.pat -sticky news
     grid $t.del -      -in $t.pat -sticky e
@@ -4668,15 +4669,11 @@ proc ::tkchat::SpecifySubjects {} {
 
     grid $t.pat -sticky news -padx 2 -pady 2
     grid $t.new -sticky news -padx 2 -pady 2
-    grid $t.ok  -sticky e    -padx 2 -pady {4 2}
     grid rowconfigure $t 0 -weight 1
     grid columnconfigure $t 0 -weight 1
 
-    tkchat::SubjectList $t.lst
-    catch {::tk::PlaceWindow $t widget .}
-    wm deiconify $t
-    tkwait visibility $t
-    focus $t.ok ; grab $t
+    SubjectList $t.lst
+    return [list "Subjects" $t]
 }
 
 proc ::tkchat::SubjectSave {t} {
@@ -4722,27 +4719,47 @@ proc ::tkchat::SubjectList {w} {
     }
 }
 
-proc ::tkchat::EditMacros {} {
+proc ::tkchat::EditMacros {parent} {
     variable NS
-    
-    set t .macros
-    catch {destroy $t}
-    Dialog $t
-    wm withdraw $t
-    wm title $t "Edit Macros"
+    set t [${NS}::frame $parent.tkchatMacros]
 
-    listbox $t.lst -yscroll "$t.scr set" -font FNT -selectmode extended
-    ${NS}::scrollbar $t.scr -command "$t.lst yview"
-    ${NS}::label $t.lbl1 -text "Macro:" -font NAME
-    ${NS}::entry $t.mac -width 10 -font FNT -validate all \
-	-validatecommand {regexp -- {^\S*$} %P}
-    bind $t.mac <Return> "focus $t.txt"
-    ${NS}::label $t.lbl2 -text "Text:" -font NAME
-    ${NS}::entry $t.txt -width 40 -font FNT
-    bind $t.txt <Return> "$t.sav invoke"
-    bind $t.lst <Double-Button-1> "::tkchat::MacroSel %W @%x,%y"
-    button $t.sav -text Save -command "::tkchat::MacroSave $t"
-    button $t.del -text Delete -command "::tkchat::MacroKill $t.lst"
+    set mf [${NS}::labelframe $t.mf -text "Macros"]
+    listbox $mf.lst -yscrollcommand [list $mf.scr set] -selectmode extended
+    ${NS}::scrollbar $mf.scr -command [list $t.lst yview]
+    ${NS}::button $mf.del -text Delete -command [list [namespace origin MacroKill] $mf.lst]
+    grid $mf.lst $mf.scr -sticky news
+    grid $mf.del -       -sticky e
+    grid rowconfigure $mf 0 -weight 1
+    grid columnconfigure $mf 0 -weight 1
+
+    set af [${NS}::labelframe $t.af -text "Define new macros"]
+    ${NS}::label $af.lbl1 -anchor w -text "Name:"
+    ${NS}::entry $af.mac -width 10 -validate all -validatecommand {regexp -- {^\S*$} %P}
+    ${NS}::label $af.lbl2 -anchor w -text "Text:"
+    ${NS}::entry $af.txt -width 40
+    ${NS}::button $af.sav -text Save -command [list [namespace origin MacroSave] $t]
+    ${NS}::button $af.hlp -text Help -command [list [namespace origin MacroHelp] $t]
+
+    grid $af.lbl1 $af.mac - -sticky new -padx 1 -pady 1
+    grid $af.lbl2 $af.txt - -sticky new -padx 1 -pady 1
+    grid x $af.sav $af.hlp -sticky ne  -padx 1 -pady 1
+    grid rowconfigure $af 4 -weight 1
+    grid columnconfigure $af 1 -weight 1
+
+    bind $af.mac <Return> [list focus $af.txt]
+    bind $af.txt <Return> [list $af.sav invoke]
+    bind $mf.lst <Double-Button-1> [list [namespace origin MacroSel] $t @%x,%y]
+
+    grid $mf -sticky news -padx 2 -pady 2
+    grid $af -sticky news -padx 2 -pady 2
+    grid rowconfigure $t 0 -weight 1
+    grid columnconfigure $t 0 -weight 1
+
+    tkchat::MacroList $mf.lst
+    return [list Macros $t]
+}
+
+proc ::tkchat::MacroHelp {t} {
     set    help "Macros are invoked whenever the first word in the posted\n"
     append help "message matches a defined macro name. Instead of the\n"
     append help "original message being sent, the Text from the macro\n"
@@ -4762,30 +4779,16 @@ proc ::tkchat::EditMacros {} {
     append help "         Result is everyone else seeing:\n"
     append help "    *user needs to wash his monkey at the zoo because he is so dirty\n"
     append help "\n"
-    ${NS}::label $t.hlp -text $help -font FNT -justify left
-
-    grid $t.lst - $t.scr -sticky news
-    grid $t.del - - -sticky {} -pady 3
-    grid $t.lbl1 $t.mac - -sticky nws
-    grid $t.lbl2 $t.txt - -sticky news
-    grid $t.sav - - -sticky {} -pady 3
-    grid $t.hlp - - -sticky news -padx 10
-
-    grid rowconfigure $t 0 -weight 10
-    grid columnconfigure $t 1 -weight 10
-
-    tkchat::MacroList $t.lst
-    catch {::tk::PlaceWindow $t widget .}
-    wm deiconify $t
+    tk_messageBox -title "About tkchat macros" -message $help
 }
 proc ::tkchat::MacroSave {t} {
     global Options
-    set m [string trim [$t.mac get]]
-    set s [string trim [$t.txt get]]
+    set m [string trim [$t.af.mac get]]
+    set s [string trim [$t.af.txt get]]
     if {[string length $m] > 0 &&
 	[string length $s] > 0} {
 	set Options(Macro,$m) $s
-	::tkchat::MacroList $t.lst
+	::tkchat::MacroList $t.mf.lst
     }
 }
 proc ::tkchat::MacroKill { w } {
@@ -4796,14 +4799,14 @@ proc ::tkchat::MacroKill { w } {
     }
     tkchat::MacroList $w
 }
-proc ::tkchat::MacroSel { w idx} {
+proc ::tkchat::MacroSel { t idx} {
     global Options
-    set m [lindex [split [$w get $idx]] 0]
+    set m [lindex [split [$t.mf.lst get $idx]] 0]
     if {[info exists Options(Macro,$m)]} {
-	[winfo parent $w].mac delete 0 end
-	[winfo parent $w].txt delete 0 end
-	[winfo parent $w].mac insert end $m
-	[winfo parent $w].txt insert end $Options(Macro,$m)
+	$t.af.mac delete 0 end
+	$t.af.txt delete 0 end
+	$t.mac insert end $m
+	$t.txt insert end $Options(Macro,$m)
     }
 }
 proc ::tkchat::MacroList {w} {
@@ -5249,14 +5252,7 @@ proc ::tkchat::saveRC {} {
         }
 	puts $fd "\}"
 
-        variable SaveHooks
-        foreach cmd [array names SaveHooks] {
-            if {[catch {$cmd} err]} {
-                puts stderr "error running hook \"$cmd\": $err"
-            } else {
-                puts $fd $err
-            }
-        }
+        Hook run save
 
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	close $fd
@@ -5786,10 +5782,7 @@ proc ::tkchat::Init {args} {
 	set Options(ChatLogOff) 1
     }
 
-    variable PreInitHooks
-    foreach cmd [array names PreInitHooks] {
-        if {[catch {$cmd} err]} { puts stderr "error running hook \"$cmd\": $err" }
-    }
+    Hook run preinit
 
     SetTheme $Options(Theme)
     CreateGUI
@@ -5802,10 +5795,7 @@ proc ::tkchat::Init {args} {
     BookmarkInit
     WinicoInit
 
-    variable InitHooks
-    foreach cmd [array names InitHooks] {
-        if {[catch {$cmd} err]} { puts stderr "error running init hook: $err" }
-    }
+    Hook run init
 
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
@@ -6692,49 +6682,33 @@ proc ::tkchat::FocusOutHandler {w args} {
     }
 }
 
-proc ::tkchat::EditOptions {} {
+proc ::tkchat::PreferencesPage {parent} {
     global Options
     variable NS
     variable useTile
 
     variable EditOptions
-    array set EditOptions {Result -1}
-    set EditOptions(Browser) $Options(Browser)
-    set EditOptions(BrowserTab) $Options(BrowserTab)
-
+    set EditOptions(Browser)       $Options(Browser)
+    set EditOptions(BrowserTab)    $Options(BrowserTab)
     set EditOptions(Style)         $Options(Style)
     set EditOptions(AutoFade)      $Options(AutoFade)
     set EditOptions(AutoFadeLimit) $Options(AutoFadeLimit)
     set EditOptions(Transparency)  $Options(Transparency)
     set EditOptions(UseTkOnly)     $Options(UseTkOnly)
-    array set EditOptions [array get Options RSS,watch,*]
 
-    if {[winfo exists .options]} {destroy .options}
-    set dlg [Dialog .options]
-    wm withdraw $dlg
-    wm title $dlg "Tkchat Options"
+    set page [${NS}::frame $parent.preferences -borderwidth 0]
 
-    set use_notebook [expr {$useTile && [llength [info commands ${NS}::notebook]]>0}]
-    set base [${NS}::frame $dlg.base -borderwidth 0]
-    if {$useTile} {
-        set nb [${NS}::notebook $base.nb]
-        set f [${NS}::frame $base.page0 -borderwidth 0]
-        set af [${NS}::labelframe $f.af -text "General" -underline 1]
-    } else {
-        set nb [${NS}::frame $base.nb]
-        set f [${NS}::frame $base.page0 -borderwidth 0]
-        set af [${NS}::labelframe $f.af -text "General"]
-    }
+    set af [${NS}::labelframe $page.af -text "General"]
     ${NS}::checkbutton $af.store -text "Store private messages" \
         -variable ::Options(StoreMessages) -onvalue 1 -offvalue 0 \
         -underline 0
     if {!$useTile} {$af.store configure -anchor nw}
 
     pack $af.store -side top -fill x -expand 1
-    bind $dlg <Alt-e> [list focus $af]
-    bind $dlg <Alt-s> [list $af.store invoke]
+    bind $parent <Alt-e> [list focus $af]
+    bind $parent <Alt-s> [list $af.store invoke]
 
-    set bf [${NS}::labelframe $f.bf -text "Preferred browser" ]
+    set bf [${NS}::labelframe $page.bf -text "Preferred browser" ]
 
     ${NS}::label $bf.m -anchor nw -font FNT -wraplength 4i -justify left \
 	-text "Provide the command used to launch your web browser. For\
@@ -6752,14 +6726,13 @@ proc ::tkchat::EditOptions {} {
 	-variable ::tkchat::EditOptions(BrowserTab) -underline 0
     if {!$useTile} {$bf.tab configure -anchor nw}
 
-    grid $bf.m - -sticky news -padx 2
-    grid $bf.e $bf.b -sticky ew -padx 2
-    grid $bf.tab -sticky ew -padx 2 -columnspan 2
-    grid rowconfigure $bf 0 -weight 1
+    grid $bf.m -     -sticky news -padx 2
+    grid $bf.e $bf.b -sticky ew   -padx 2
+    grid $bf.tab     -sticky ew   -padx 2 -columnspan 2
+    grid rowconfigure    $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
-    set sf [${NS}::labelframe $f.sf -text "Tk style"] ;#-padx 1 -pady 1
-    set gf [${NS}::labelframe $f.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
+    set sf [${NS}::labelframe $page.sf -text "Tk style"] ;#-padx 1 -pady 1
 
     ${NS}::label $sf.m -anchor nw -font FNT -wraplength 4i -justify left \
 	-text "The Tk style selection available here will apply when you \
@@ -6786,20 +6759,21 @@ proc ::tkchat::EditOptions {} {
 	$sf.as configure -state disabled
     }
 
-    bind $dlg <Alt-a> [list $sf.as invoke]
-    bind $dlg <Alt-g> [list $sf.gtk invoke]
-    bind $dlg <Alt-n> [list $sf.any invoke]
-    bind $dlg <Alt-t> [list $sf.def invoke]
-    bind $dlg <Alt-w> [list $af.tkonly invoke]
+    bind $parent <Alt-a> [list $sf.as invoke]
+    bind $parent <Alt-g> [list $sf.gtk invoke]
+    bind $parent <Alt-n> [list $sf.any invoke]
+    bind $parent <Alt-t> [list $sf.def invoke]
+    bind $parent <Alt-w> [list $af.tkonly invoke]
 
     grid $sf.m  -       -       -       -sticky news -padx 2
     grid $sf.as $sf.gtk $sf.any $sf.def -sticky ew -padx 2
     grid $sf.tkonly -   -       -       -sticky ew -padx 2
-    grid rowconfigure $bf 0 -weight 1
+    grid rowconfigure    $bf 0 -weight 1
     grid columnconfigure $bf 0 -weight 1
 
     # Gimmicks section.
     set gimmicks 0
+    set gf [${NS}::labelframe $page.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
     if {[lsearch [wm attributes .] -alpha] != -1} {
 	set gimmicks 1
 	${NS}::checkbutton $gf.fade -text "When not active, fade to " -underline 2 \
@@ -6829,8 +6803,8 @@ proc ::tkchat::EditOptions {} {
 	#[expr {int([wm attributes . -alpha] * 100)}]
 	$gf.alpha configure -command [namespace origin SetAlpha]
 
-	bind $dlg <Alt-h> [list $gf.face invoke]
-	bind $dlg <Alt-r> [list focus $gf.alpha]
+	bind $parent <Alt-h> [list $gf.fade invoke]
+	bind $parent <Alt-r> [list focus $gf.alpha]
 
 	grid $gf.fade   - $gf.fadelimit $gf.pct x -sticky w -padx 2
 	grid $gf.alabel $gf.alpha - - - -sticky we -padx 2
@@ -6838,76 +6812,13 @@ proc ::tkchat::EditOptions {} {
 	grid columnconfigure $gf 4 -weight 1
     }
 
-    set rss 0
-    if {[package provide rssrdr] ne {}} {
-        set rss 1
-        set page1 [${NS}::frame $base.page1 -borderwidth 0]
-        set n 0
-        foreach feed [array names EditOptions RSS,watch,*] {
-            set url [lindex [split $feed ,] 2]
-            array set U [uri::split $url]
-            set text $U(host)
-            if {[info exists Options(RSS,title,$url)]} {
-                if {[string length $Options(RSS,title,$url)] > 0} {
-                    set text $Options(RSS,title,$url)
-                }
-            }
-            ${NS}::checkbutton [set w $page1.wf[incr n]] \
-                -text $text -underline 0 \
-                -variable ::tkchat::EditOptions($feed)
-            if {!$useTile} {$w configure -anchor nw}
-            grid $w -sticky new -padx 2 -pady 2
-        }
-        grid columnconfigure $page1 0 -weight 1
-        grid rowconfigure    $page1 $n -weight 1
-    }
-
-    set b_ok [${NS}::button $base.ok -text OK -underline 0 -default active -width -12 \
-                  -command [list set ::tkchat::EditOptions(Result) 1]]
-    set b_cn [${NS}::button $base.cancel -text Cancel -underline 0 -width -12 \
-                  -command [list set ::tkchat::EditOptions(Result) 0]]
-
     grid $af - -sticky news -padx 2 -pady 2
     grid $bf - -sticky news -padx 2 -pady 2
     grid $sf - -sticky news -padx 2 -pady 2
     if {$gimmicks} { grid $gf - -sticky news -padx 2 -pady 2 }
 
-    if {$use_notebook} {
-        $nb add $f     -text "Preferences"
-        $nb add $page1 -text "RSS Feeds"
-    } else {
-        ${NS}::button $nb.b_page0 -text "Preferences" -command [list raise $f]
-        ${NS}::button $nb.b_page1 -text "RSS Feeds" -command [list raise $page1]
-        grid $nb.b_page0 -row 0 -column 1 -sticky w
-        grid $nb.b_page1 -row 0 -column 2 -sticky w
-        grid $f     -in $nb -row 1 -column 0 -sticky news -columnspan 100
-        grid $page1 -in $nb -row 1 -column 0 -sticky news -columnspan 100
-        grid columnconfigure $nb 0 -weight 1
-        grid rowconfigure    $nb 1 -weight 1
-        raise $base.page0
-    }
-    grid $nb   -     -sticky news -padx 2 -pady 2
-    grid $b_ok $b_cn -sticky se
-    grid rowconfigure $base 0 -weight 1
-    grid columnconfigure $base 0 -weight 1
-
-    pack $base -side top -fill both -expand 1
-
-    bind $dlg <Return> [list $b_ok invoke]
-    bind $dlg <Escape> [list $b_cn invoke]
-    bind $dlg <Alt-o>  [list focus $b_ok]
-    bind $dlg <Alt-c>  [list focus $b_cn]
-    focus $bf.e
-
-    wm resizable $dlg 0 0
-    catch {::tk::PlaceWindow $dlg widget .}
-    wm deiconify $dlg
-    tkwait visibility $dlg
-    focus $b_ok ; grab $dlg
-    tkwait variable ::tkchat::EditOptions(Result)
-    grab release $dlg
-
-    if {$EditOptions(Result) == 1} {
+    bind $page <<TkchatOptionsAccept>> [namespace code {
+        global Options ; variable EditOptions
 	set Options(Browser) $EditOptions(Browser)
 	set Options(BrowserTab) $EditOptions(BrowserTab)
 	foreach property {Style AutoFade AutoFadeLimit UseTkOnly} {
@@ -6915,23 +6826,97 @@ proc ::tkchat::EditOptions {} {
 		set Options($property) $EditOptions($property)
 	    }
 	}
-        set feed_refresh 0
-        foreach feed [array names EditOptions RSS,watch,*] {
-            if {$Options($feed) != $EditOptions($feed)} {
-                set feed_refresh 1
-                set Options($feed) $EditOptions($feed)
-            }
-        }
-        if {$feed_refresh} { after idle ::tkchat::CheckRSSFeeds }
-    } else {
-	# This one is the reverse of the other dialog properties. In this case
-	# the Options copy is the one always updated and the EditOptions value
-	# is the backup.
+        unset EditOptions
+    }]
+    # This one is the reverse of the other dialog properties. In this case
+    # the Options copy is the one always updated and the EditOptions value
+    # is the backup.
+    bind $page <<TkchatOptionsCancel>> [namespace code {
+        global Options ; variable EditOptions
 	set Options(Transparency) $EditOptions(Transparency)
+        unset EditOptions
+    }]
+    return [list Preferences $page]
+}
+
+proc ::tkchat::EditOptions {} {
+    global Options
+    variable NS
+    variable useTile
+
+    if {[winfo exists .options]} {destroy .options}
+    set dlg [Dialog .options]
+    variable _editoptions {}
+    wm withdraw $dlg
+    wm title $dlg "Tkchat Options"
+
+    set use_notebook [expr {$useTile && [llength [info commands ${NS}::notebook]]>0}]
+    if {$use_notebook} {
+        set nb [${NS}::notebook $dlg.nb]
+    } else {
+        set nb [${NS}::frame $dlg.nb]
     }
 
+    Hook add options [namespace origin PreferencesPage] 10
+    Hook add options [namespace origin SpecifySubjects] 20
+    Hook add options [namespace origin EditMacros] 30
+    set pages [Hook run options $nb]
+
+    set col 0
+    foreach pair $pages {
+        foreach {title page} $pair break
+        if {$use_notebook} {
+            $nb add $page -text $title
+        } else {
+            set butn [${NS}::button $nb.b_[string map [list "." "X"] $page] \
+                          -text $title -command [list raise $page]]
+            grid $butn -row 0 -column [incr col] -sticky w
+            grid $page -row 1 -column 0 -sticky news -columnspan 100
+        }
+    }
+    
+    if {!$use_notebook} {
+        grid columnconfigure $nb 0 -weight 1
+        grid rowconfigure    $nb 1 -weight 1
+        raise [lindex [lindex $pages 0] 1]
+    }
+
+    set b_ok [${NS}::button $dlg.ok -text OK -underline 0 -default active -width -12 \
+                  -command [list [namespace origin EditOptionsClose] $dlg ok $pages]]
+    set b_cn [${NS}::button $dlg.cancel -text Cancel -underline 0 -width -12 \
+                  -command [list [namespace origin EditOptionsClose] $dlg cancel $pages]]
+
+    grid $nb   -     -sticky news -padx 2 -pady 2
+    grid $b_ok $b_cn -sticky se
+    grid rowconfigure    $dlg 0 -weight 1
+    grid columnconfigure $dlg 0 -weight 1
+
+    bind $dlg <Return> [list $b_ok invoke]
+    bind $dlg <Escape> [list $b_cn invoke]
+    bind $dlg <Alt-o>  [list focus $b_ok]
+    bind $dlg <Alt-c>  [list focus $b_cn]
+
+    wm protocol $dlg WM_DELETE_WINDOW [list $b_cn invoke]
+    wm resizable $dlg 0 0
+    catch {::tk::PlaceWindow $dlg widget .}
+    wm deiconify $dlg
+    tkwait visibility $dlg
+    focus $b_ok ; grab $dlg
+    tkwait variable [namespace which -variable _editoptions]
+    grab release $dlg
     destroy $dlg
-    unset EditOptions
+}
+
+proc ::tkchat::EditOptionsClose {dlg type pages} {
+    foreach pair $pages {
+        foreach {title page} $pair break
+        if {$type eq "ok"} {
+            event generate $page <<TkchatOptionsAccept>>
+        } else {
+            event generate $page <<TkchatOptionsCancel>>
+        }
+    }
+    variable _editoptions $type
 }
 
 # -------------------------------------------------------------------------
@@ -8114,15 +8099,10 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 	    # We are logged in. Now any of the callbacks can be called,
 	    # Likely ones are MsgCB, MucEnterCB, RosterCB for normal traffic.
 
-            variable ::tkchat::LoginHooks
-            foreach cmd [array names LoginHooks] {
-                if {[catch {$cmd} err]} {
-                    puts stderr "error running hook \"$cmd\": $err" 
-                }
-            }
+            ::tkchat::Hook run login
 	}
 	default {
-	    tkchat::addSystem .txt "LoginCB: type=$type, theQuery='$theQuery'"
+	    ::tkchat::addSystem .txt "LoginCB: type=$type, theQuery='$theQuery'"
 	}
     }
     return
@@ -9381,7 +9361,17 @@ proc tkchat::PasteDlg {} {
     pack $f -side top -fill both -expand 1
     catch {::tk::PlaceWindow $dlg widget .}
     focus $subject
-    tkwait variable [namespace current]::$wid
+    while {1} {
+        tkwait variable [namespace current]::$wid
+        if {[set [namespace current]::$wid] eq "send" \
+                && [string length [$subject get]] < 1} {
+            tk_messageBox -icon info -title "Subject required" \
+                -message "You must provide a subject to be displayed\
+                as the title for this paste."
+            continue
+        }
+        break
+    }
     if {[string equal [set [namespace current]::$wid] "send"]} {
         set msg [string trim [$f.txt get 1.0 {end - 1c}]]
         if {[string length $msg] > 0} {
@@ -9489,12 +9479,9 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 # -------------------------------------------------------------------------
 # Load in code from separate sibling files...
 
-foreach file {
-    tkchat_rss.tcl tkchat_console.tcl mousewheel.tcl tkchat_whiteboard.tcl
-    tkchat_mms.tcl
-} {
-    if {[file exists [file join $tkchat_dir $file]]} {
-        source [file join $tkchat_dir $file]
+foreach file [glob -nocomplain -directory $tkchat_dir tkchat_*.tcl mousewheel.tcl] {
+    if {[file exists $file] && [file readable $file]} {
+        source $file
     }
 }
 

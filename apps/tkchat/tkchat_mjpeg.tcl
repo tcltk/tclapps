@@ -3,7 +3,7 @@
 # Copyright (c) 2007 Reinhard Max
 # Copyright (c) 2007 Pat Thoyts
 #
-# Original code: http://wiki.tcl.tk/19957
+# Original stream reading code: http://wiki.tcl.tk/19957
 #
 
 if {[catch {
@@ -15,10 +15,16 @@ if {[catch {
 }
 
 namespace eval ::tkchat::mjpeg {
+    variable version 1.0.0
     variable subsample
     if {![info exists subsample]} { set subsample 2 }
     variable retrycount
     if {![info exists retrycount]} { set retrycount 0 }
+    variable streams
+    if {![info exists streams]} {
+        # list of: title url title url ...
+        set streams {}
+    }
 }
 
 proc ::tkchat::mjpeg::Read {dlg fd tok} {
@@ -123,27 +129,30 @@ proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
     variable token
     variable watchdog
     variable retrycount
-    after cancel $watchdog
-    upvar #0 $token state
-    set url ""
-    if {[info exists state]} {
-        catch {set url $state(url)}
-        if {[catch {::http::Eof $token} err]} { puts stderr $err }
-        if {[catch {::http::cleanup $token} err]} { puts stderr $err }
-    }
-    #unset -nocomplain token
-    if {$retry && $retrycount < 10 && $url ne ""} {
-        incr retrycount
-        OpenStream $url $dlg
-    } else {
-        if {$retrycount > 2} {
-            ::tkchat::addStatus 0 "Too many failed attempts\
-               accessing MJPEG stream. Giving up." end ERROR
-        } elseif {$retry && $url eq ""} {
-            ::tkchat::addStatus 0 "Lost the video stream. Giving up." end ERROR
+    if {[info exists watchdog]} { after cancel $watchdog }
+    if {[info exists token]} {
+        upvar #0 $token state
+        set url ""
+        if {[info exists state]} {
+            catch {set url $state(url)}
+            if {[catch {::http::Eof $token} err]} { puts stderr $err }
+            if {[catch {::http::cleanup $token} err]} { puts stderr $err }
         }
+        if {$retry && $retrycount < 10 && $url ne ""} {
+            incr retrycount
+            OpenStream $url $dlg
+        } else {
+            if {$retrycount > 2} {
+                ::tkchat::addStatus 0 "Too many failed attempts\
+                    accessing MJPEG stream. Giving up." end ERROR
+            } elseif {$retry && $url eq ""} {
+                ::tkchat::addStatus 0 "Lost the video stream. Giving up." end ERROR
+            }
+            destroy $dlg
+        }
+    } else {
         destroy $dlg
-    }
+    }        
 }
 
 proc ::tkchat::mjpeg::Scaling {dlg factor} {
@@ -228,20 +237,86 @@ proc ::tkchat::mjpeg::OpenStream {url dlg} {
     }
 }
 
+proc ::tkchat::mjpeg::ChooseStream {} {
+    variable ::tkchat::NS
+    set dlg [::tkchat::Dialog .mjpeg_choosestream]
+    variable $dlg {}
+    wm withdraw $dlg
+    wm title $dlg "Select stream"
+    set f [${NS}::frame $dlg.f -padding 2]
+
+    ${NS}::label $f.info -text "Enter a URL to open.\
+         The title is optional and will be displayed in the\
+         \nmenu for this stream." -anchor nw
+    ${NS}::label $f.tl -anchor nw -text "Title: "
+    ${NS}::entry $f.te -width 24
+    ${NS}::label $f.l -anchor nw -text "URL: "
+    ${NS}::entry $f.e -width 24
+    ${NS}::button $f.ok -text OK -command [list set [namespace which -variable $dlg] ok]
+    ${NS}::button $f.cn -text Cancel -command [list set [namespace which -variable $dlg] cancel]
+    grid $f.info -   - -sticky new -pady 1
+    grid $f.tl $f.te - -sticky new -pady 1
+    grid $f.l $f.e - -sticky new -pady 1
+    grid x $f.ok $f.cn -sticky se -pady 1
+    grid rowconfigure $f 3 -weight 1
+    grid columnconfigure $f 1 -weight 1
+
+    grid $f -sticky news
+    grid rowconfigure $dlg 0 -weight 1
+    grid columnconfigure $dlg 0 -weight 1
+
+    bind $dlg <Return> [list $f.ok invoke]
+    bind $dlg <Escape> [list $f.cn invoke]
+    
+    catch {::tk::PlaceWindow $dlg widget [winfo toplevel $dlg]}
+    wm deiconify $dlg
+    tkwait visibility $dlg
+    focus $f.te
+    grab $dlg
+    tkwait variable [namespace which -variable $dlg]
+    grab release $dlg
+    if {[set $dlg] eq "ok"} {
+        set title [$f.te get]
+        set url [$f.e get]
+        variable streams
+        lappend streams $title $url
+        after idle [list [namespace origin Open] $url]
+    }
+    unset -nocomplain $dlg 
+    destroy $dlg
+}
+
+proc ::tkchat::mjpeg::FillMenu {m} {
+    variable streams
+    $m delete 0 end
+    $m add command -label "Open stream..." -underline 0 \
+        -command [namespace origin ChooseStream]
+    $m add separator
+    foreach {name url} $streams {
+        if {$name eq "-"} {
+            $m add separator
+        } else {
+            $m add command -label $name -command [list [namespace origin Open] $url]
+        }
+    }
+}
+
+# Inject our menu into the tkchat File menu.
 proc ::tkchat::mjpeg::InitHook {} {
     set str "Video feeds"
     if {[catch {.mbar.file index $str}]} {
         if {![catch {set ndx [.mbar.file index "Exit"]}]} {
             .mbar.file insert [incr ndx -1] cascade -label $str \
-                -menu [set m [menu .mbar.file.video -tearoff 0]]
-            $m add command -label "Tcl conference (EU)"\
-                -command [list [namespace origin Open] http://eu.tclers.tk/video.mjpg]
-            $m add command -label "Tcl conference (US)"\
-                -command [list [namespace origin Open] http://us.tclers.tk/video.mjpg]
-            $m add command -label "Tcl conference (localhost)"\
-                -command [list [namespace origin Open] http://localhost:3128/video.mjpg]
+                -menu [menu .mbar.file.video -tearoff 0 \
+                           -postcommand [list [namespace origin FillMenu] .mbar.file.video]]
         }
     }
+}
+
+# Hook the tkchat save to record our new streams
+proc ::tkchat::mjpeg::SaveHook {} {
+    variable streams
+    return [list namespace eval [namespace current] [list variable streams $streams]]
 }
 
 # -------------------------------------------------------------------------
@@ -310,5 +385,7 @@ proc ::tkchat::mjpeg::SnapSaveAs {img} {
 }
 
 # -------------------------------------------------------------------------
-
 ::tkchat::Hook add init ::tkchat::mjpeg::InitHook
+::tkchat::Hook add save ::tkchat::mjpeg::SaveHook
+package provide tkchat::mjpeg $::tkchat::mjpeg::version
+# -------------------------------------------------------------------------
