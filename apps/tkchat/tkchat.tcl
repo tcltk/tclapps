@@ -44,8 +44,9 @@ package require uri             ; # tcllib
 
 catch {package require tls}	; # tls (optional)
 catch {package require choosefont};# font selection (optional) 
-catch {package require askleo}  ;# german translations (optional)
-catch {package require picoirc} ;# irc client (optional)
+catch {package require askleo}  ; # german translations (optional)
+catch {package require picoirc} ; # irc client (optional)
+catch {package require Img}     ; # more image types (optional)
 
 package require sha1		; # tcllib
 package require jlib		; # jlib
@@ -207,7 +208,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.408 2007/10/04 08:44:51 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.409 2007/10/04 20:39:53 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5252,7 +5253,9 @@ proc ::tkchat::saveRC {} {
         }
 	puts $fd "\}"
 
-        Hook run save
+        foreach chunk [Hook run save] {
+            puts $fd $chunk
+        }
 
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
 	close $fd
@@ -6196,6 +6199,30 @@ proc ::tkchat::UserInfoAppendChild {xmllist tags child} {
     return $xmllist
 }
 
+proc ::tkchat::UserInfoPhotoDialog {parent varname} {
+    variable NS
+    upvar #0 $varname UI
+    if {[catch {
+        set img [image create photo -data $UI(PHOTO_BINVAL)]
+        set dlg [Dialog $parent.image]
+        wm withdraw $dlg
+        wm title $dlg $UI(FN)
+        wm protocol $dlg WM_DELETE_WINDOW [string map [list %img $img %dlg $dlg] {
+            destroy %dlg
+            image delete %img
+        }]
+        ${NS}::label $dlg.photo -image $img
+        ${NS}::button $dlg.ok -text Close -command [list destroy $dlg]
+        grid $dlg.photo -sticky news
+        grid $dlg.ok    -sticky e
+        grid rowconfigure $dlg 0 -weight 1
+        grid columnconfigure $dlg 0 -weight 1
+        wm deiconify $dlg
+    } err]} {
+        tk_messageBox -icon error -title "Failed to display image" -message $err
+    }
+}
+
 proc ::tkchat::UserInfoDialog {{jid {}}} {
     variable UserInfo
     variable UserInfoBtn
@@ -6244,6 +6271,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 
     set [namespace current]::$id -1
     set dlg [Dialog .$id]
+    wm withdraw $dlg
     wm title $dlg "User info for $jid"
     set f [${NS}::frame $dlg.f]
     if {!$useTile} { $dlg.f configure -bd 0 }
@@ -6278,11 +6306,13 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 
     set btns [${NS}::frame $dlg.buttons]
     if {!$useTile} { $dlg.buttons configure -bd 1 }
+    ${NS}::button $btns.photo -text "Photo" -width 10 -state disabled \
+        -command [list [namespace origin UserInfoPhotoDialog] $dlg $uivar]
     ${NS}::button $btns.ok -text Save -width 10 -state disabled \
 	-command [list set [namespace current]::$id 1]
     ${NS}::button $btns.cancel -text Close -width 10 -state active \
 	-command [list set [namespace current]::$id 0]
-    pack $btns.cancel $btns.ok -side right
+    pack $btns.cancel $btns.ok $btns.photo -side right
 
     pack $btns -fill x -side bottom
     pack $f -fill both -expand 1 -side top
@@ -6292,11 +6322,14 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 	$btns.ok configure -state active
 	$btns.cancel configure -state normal
     }
+    if {[info exists UI(PHOTO_BINVAL)] && [string length $UI(PHOTO_BINVAL)]} {
+        $btns.photo configure -state normal
+    }
 
     bind .$id <Key-Escape> [list set [namespace current]::$id 0]
-
+    wm protocol $dlg WM_DELETE_WINDOW [list set [namespace current]::$id 0]
     set UserInfoBtn -1
-
+    wm deiconify $dlg
     tkwait variable [namespace current]::$id
 
     if {[set [namespace current]::$id] == 1} {

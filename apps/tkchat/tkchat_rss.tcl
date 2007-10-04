@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.9 2007/10/04 08:44:51 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.10 2007/10/04 20:39:53 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 if {[catch {package require rssrdr}]} { return }
@@ -226,7 +226,7 @@ proc ::tkchat::rss::CheckRSS {url} {
             ::http::geturl $url -headers $hdrs -timeout 10000 \
                 -command [list ::tkchat::fetchurldone [namespace origin CheckRSS_Done]]
         } msg]} then {
-            addStatus 0 "Unable to obtain RSS feed from $url" end ERROR
+            ::tkchat::addStatus 0 "Unable to obtain RSS feed from $url" end ERROR
         }
     }
 }
@@ -277,14 +277,14 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
             }
             append RSStip "$count new items from $hdrs(title)\n" 
             if {$count > 0} {
-                addStatus 0 "$count new items from $hdrs(title)"
+                ::tkchat::addStatus 0 "$count new items from $hdrs(title)"
                 .status.rss configure -image ::tkchat::img::feedHi
             }
         } err]} then {
-            addStatus 0 "RSS Error $err" end ERROR
+            ::tkchat::addStatus 0 "RSS Error $err" end ERROR
         }
     } else {
-        addStatus 0 "Failed to parse RSS data from $feed:\
+        ::tkchat::addStatus 0 "Failed to parse RSS data from $feed:\
             [rss::error $Rss($feed)]" end ERROR
     }
 

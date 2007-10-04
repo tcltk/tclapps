@@ -1,5 +1,8 @@
 2007-10-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl:       Display images from the VCARD if present.
+	* tkchat_mjpeg.tcl: Fix namespace of addStatus call.
+
 	* tkchat.tcl:       Reworked the hooks system to include priority
 	* tkchat_mjpeg.tcl: and added an options hook to permit plugins to
 	* tkchat_mms.tcl:   add a page to the options dialog. All plugins now
