@@ -17,7 +17,7 @@ if {[catch {
 namespace eval ::tkchat::mjpeg {
     variable version 1.0.0
     variable subsample
-    if {![info exists subsample]} { set subsample 2 }
+    if {![info exists subsample]} { set subsample 1 }
     variable retrycount
     if {![info exists retrycount]} { set retrycount 0 }
     variable streams
@@ -82,9 +82,16 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
 	    if {$toread == 0} {
                 Status $dlg "Ready."
                 if {[catch {
-                    foo configure -data $frame
-                    foo2 copy foo -shrink -subsample $subsample $subsample
-                    $dlg.image configure -image foo2
+                    set img [namespace current]::rawImg
+                    if {[info commands $img] eq {}} {
+                        image create photo $img -data $frame
+                        image create photo [namespace current]::displayImg
+                    } else {
+                        $img configure -data $frame
+                    }
+                    [namespace current]::displayImg copy $img \
+                        -shrink -subsample $subsample $subsample
+                    $dlg.image configure -image [namespace current]::displayImg
                 } err]} { Status $dlg "error: $err" }
 		set frame ""
 		set state boundary
@@ -138,6 +145,8 @@ proc ::tkchat::mjpeg::Cleanup {dlg {retry 0}} {
             if {[catch {::http::Eof $token} err]} { puts stderr $err }
             if {[catch {::http::cleanup $token} err]} { puts stderr $err }
         }
+        catch {image delete [namespace current]::rawImg}
+        catch {image delete [namespace current]::displayImg}
         if {$retry && $retrycount < 10 && $url ne ""} {
             incr retrycount
             OpenStream $url $dlg
@@ -159,12 +168,16 @@ proc ::tkchat::mjpeg::Scaling {dlg factor} {
     variable subsample
     $dlg.status.pane$subsample configure -relief flat
     set subsample $factor
-    foo2 copy foo -shrink -subsample $subsample $subsample
-    $dlg.image configure -image foo2
+    set img [namespace current]::rawImg
+    if {[info commands $img] ne {}} {
+        [namespace current]::displayImg copy $img \
+            -shrink -subsample $subsample $subsample
+        $dlg.image configure -image [namespace current]::displayImg
+    }
     $dlg.status.pane$factor configure -relief sunken
 }
 
-proc ::tkchat::mjpeg::Open {url {title "Conference video stream"}} {
+proc ::tkchat::mjpeg::Open {url {title "Video stream"}} {
     variable ::tkchat::NS
     set dlg .videofeed
     if {[winfo exists $dlg]} {
@@ -203,8 +216,8 @@ proc ::tkchat::mjpeg::Open {url {title "Conference video stream"}} {
         tooltip::tooltip $dlg.status.pane2 "Half size"
     }
 
-    image create photo foo -width 800 -height 600
-    image create photo foo2
+    #image create photo [namespace current]::rawImg -width 800 -height 600
+    #image create photo foo2
     variable subsample
     Scaling $dlg $subsample
 
@@ -280,7 +293,7 @@ proc ::tkchat::mjpeg::ChooseStream {} {
         set url [$f.e get]
         variable streams
         lappend streams $title $url
-        after idle [list [namespace origin Open] $url]
+        after idle [list [namespace origin Open] $url $title]
     }
     unset -nocomplain $dlg 
     destroy $dlg
@@ -296,7 +309,7 @@ proc ::tkchat::mjpeg::FillMenu {m} {
         if {$name eq "-"} {
             $m add separator
         } else {
-            $m add command -label $name -command [list [namespace origin Open] $url]
+            $m add command -label $name -command [list [namespace origin Open] $url $name]
         }
     }
 }
@@ -331,7 +344,7 @@ proc ::tkchat::mjpeg::Snapshot {main} {
         set dlg [toplevel $main.snap[incr uid] -class SnapshotDialog]
         wm withdraw $dlg
         wm geometry $dlg +0+0
-        $img copy foo;                 # copy the full size image  
+        $img copy [namespace current]::rawImg; # copy the full size image  
         #wm maxsize $dlg [$img cget -width] [$img cget -height]
         ${NS}::label $dlg.im -image $img
         ${NS}::button $dlg.bx -text "Close" \
@@ -359,7 +372,7 @@ proc ::tkchat::mjpeg::SnapSaveAs {img} {
     variable lastdir ; if {![info exists lastdir]} {set lastdir {}}
     set file [tk_getSaveFile \
                   -initialfile [clock format [clock seconds] \
-                                    -format "Tcl2007-%a-%H%M%S.jpg"] \
+                                    -format "%a-%H%M%S.jpg"] \
                   -initialdir $lastdir \
                   -defaultextension .jpg -filetypes {
                       {"JPEG files"   .jpg {}}
