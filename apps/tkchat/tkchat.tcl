@@ -42,11 +42,12 @@ package require log		; # tcllib
 package require base64		; # tcllib
 package require uri             ; # tcllib
 
-catch {package require tls}	; # tls (optional)
-catch {package require choosefont};# font selection (optional) 
-catch {package require askleo}  ; # german translations (optional)
-catch {package require picoirc} ; # irc client (optional)
-catch {package require Img}     ; # more image types (optional)
+catch {package require tls}	  ; # tls (optional)
+catch {package require choosefont}; # font selection (optional) 
+catch {package require askleo}    ; # german translations (optional)
+catch {package require picoirc}   ; # irc client (optional)
+catch {package require img::png}  ; # more image types (optional)
+catch {package require img::jpeg} ; # more image types (optional)
 
 package require sha1		; # tcllib
 package require jlib		; # jlib
@@ -208,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.409 2007/10/04 20:39:53 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.410 2007/10/07 22:58:05 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -9068,11 +9069,14 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
     }
     puts $sock ""
 
-    fileevent $sock readable {set proxy_readable ""}
-    global proxy_readable
-    vwait proxy_readable
+    variable proxy_readable 0
+    fileevent $sock readable [list set [namespace which -variable proxy_readable] 1]
+    vwait [namespace which -variable proxy_readable]
     fileevent $sock readable {}
 
+    if {[eof $sock]} {
+        return -code error "eof on proxy socket"
+    }
     set block [read $sock]
     set result [lindex [split $block \n] 0]
     set code [lindex [split $result { }] 1]
