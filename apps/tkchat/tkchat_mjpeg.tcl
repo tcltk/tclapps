@@ -38,6 +38,10 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
 
     variable boundary
     if {![info exists boundary]} {
+        # Work around the broken timeout in the http package
+        upvar #0 $tok http
+        if {[info exists http(after)]} { after cancel $http(after) }
+
         after idle [list [namespace origin Watchdog] $dlg $fd $tok]
         set boundary "--myboundary"
         foreach {key val} [set [set tok](meta)] {
@@ -243,6 +247,7 @@ proc ::tkchat::mjpeg::OpenStream {url dlg} {
         puts stderr "Open $url"
         Status $dlg "Opening $url"
         http::geturl $url \
+            -timeout 10000 \
             -handler [list [namespace origin Read] $dlg] \
             -command [list [namespace origin OpenStream] $url $dlg]
     } err]} {

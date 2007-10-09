@@ -1,3 +1,8 @@
+2007-10-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mjpeg.tcl: Use asynchronous connect to avoid blocking
+	when reconnecting the stream (interrupts the audio).
+
 2007-10-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:       Display images from the VCARD if present.
