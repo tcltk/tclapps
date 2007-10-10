@@ -43,7 +43,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
         if {[info exists http(after)]} { after cancel $http(after) }
 
         after idle [list [namespace origin Watchdog] $dlg $fd $tok]
-        set boundary "--myboundary"
+        set boundary "myboundary"
         foreach {key val} [set [set tok](meta)] {
             if {[string match -nocase content-type $key]} {
                 set r [regexp {boundary=([^\s;]+)} $val -> boundary]
@@ -58,7 +58,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
             Progress $dlg $tok 100 0
             fconfigure $fd -buffering line -translation crlf
 	    gets $fd line
-	    if {$line eq $boundary} {set state mime; set hdrs {}}
+	    if {[string match --$boundary* $line]} {set state mime; set hdrs {}}
             return [string length $line]
 	}
 	mime {
