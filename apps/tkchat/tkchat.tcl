@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.410 2007/10/07 22:58:05 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.411 2007/10/11 22:53:45 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1651,11 +1651,15 @@ proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
                     set tip [fconfigure $::tkjabber::socket -peername]
                     set tip [lindex $tip 0]:[lindex $tip 2]
                     set tip "Connected to $tip"
-                    tooltip::tooltip .status.pane1 $tip
+                    if {[package provide tooltip] ne {}} {
+                        tooltip::tooltip .status.pane1 $tip
+                    }
                 }
             } else {
                 .status.pane1 configure -image ::tkchat::img::link_disconnected
-                tooltip::tooltip .status.pane1 ""
+                if {[package provide tooltip] ne {}} {
+                    tooltip::tooltip .status.pane1 ""
+                }
             }
         }
     } else {
@@ -1665,6 +1669,7 @@ proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
 
 proc ::tkchat::ShowStatusHistory {} {
     variable NS
+    variable useTile
     if {[winfo exists .statushistory]} {
         raise .statuswindow
         return
@@ -1675,6 +1680,7 @@ proc ::tkchat::ShowStatusHistory {} {
     text $f.txt -yscrollcommand [list $f.vs set]
     ${NS}::scrollbar $f.vs -command [list $f.txt yview]
     ${NS}::button $f.ok -text OK -command [list destroy $dlg] -default active
+    if {!$useTile} {$f.ok configure -width -8}
 
     grid $f.txt $f.vs -sticky news
     grid $f.ok  -     -sticky e
@@ -2734,30 +2740,7 @@ proc ::tkchat::CreateGUI {} {
     eval grid $lower_row [list -in .btm -sticky ews -padx 2 -pady 2]
     grid configure .eMsg -sticky ew
 
-    if {$useTile} {
-        variable Status
-        array set Status {0 Ready. 1 "not connected" SSL "  "}
-        set st [ttk::frame .status]
-        for {set pn 0} {$pn < 2} {incr pn} {
-            ttk::label $st.pane$pn -anchor w \
-                -textvariable [namespace current]::Status($pn)
-            ttk::separator $st.sep$pn -orient vertical
-        }
-        ttk::progressbar $st.progress
-        $st.pane1 configure -image ::tkchat::img::link_disconnected
-        ttk::label $st.ssl -anchor w -compound right \
-            -image ::tkchat::img::link_insecure \
-            -textvariable [namespace current]::Status(SSL)
-        if {[llength [info commands ::ttk::sizegrip]] > 0} {
-            ttk::sizegrip $st.sg
-        } else {
-            ttk::frame $st.sg -width 16
-        }
-        grid $st.pane0 $st.sep0 $st.pane1 $st.sep1 $st.ssl \
-            $st.sg -sticky news
-        grid columnconfigure $st 0 -weight 1
-        grid .status -sticky ew
-    }
+    grid [CreateStatusbar .status] -sticky ew
 
     grid rowconfigure	 . 0 -weight 1
     grid columnconfigure . 0 -weight 1
@@ -2794,7 +2777,7 @@ proc ::tkchat::CreateGUI {} {
 	 	set Options(PaneUsersWidth) [expr { [winfo width .pane] \
 	 	   - [lindex [.pane sash coord 0] 0] }]
     }
-	 bind .pane <Configure> { after idle [list ::tkchat::PaneConfigure %W %w] }
+    bind .pane <Configure> { after idle [list ::tkchat::PaneConfigure %W %w] }
     bind .pane <Leave>     { ::tkchat::PaneLeave %W }
 
     # update the pane immediately.
@@ -2803,6 +2786,40 @@ proc ::tkchat::CreateGUI {} {
     # call this to activate the option on whether the users should be shown
     MsgTo "All Users"
     displayUsers
+}
+
+proc ::tkchat::CreateStatusbar {w} {
+    variable NS
+    variable useTile
+    variable Status
+
+    array set Status {0 Ready. 1 "not connected" SSL "  "}
+    set st [${NS}::frame $w]
+    for {set pn 0} {$pn < 2} {incr pn} {
+        ${NS}::label $st.pane$pn -anchor w \
+            -textvariable [namespace current]::Status($pn)
+        if {$useTile} {
+            ttk::separator $st.sep$pn -orient vertical
+        } else {
+            ${NS}::frame $st.sep$pn -width 2
+        }
+    }
+    $st.pane1 configure -image ::tkchat::img::link_disconnected
+    ${NS}::label $st.ssl -anchor w -compound right \
+        -image ::tkchat::img::link_insecure \
+        -textvariable [namespace current]::Status(SSL)
+    if {$useTile && [llength [info commands ::ttk::sizegrip]] > 0} {
+        ttk::sizegrip $st.sg
+    } else {
+        ${NS}::frame $st.sg -width 16
+    }
+    if {$useTile} {
+        ttk::progressbar $st.progress
+    }
+    grid $st.pane0 $st.sep0 $st.pane1 $st.sep1 $st.ssl \
+        $st.sg -sticky news
+    grid columnconfigure $st 0 -weight 1
+    return $st
 }
 
 proc ::tkchat::ToggleStatusbar {} {
@@ -3260,7 +3277,7 @@ proc ::tkchat::About {} {
     set ver "Using Tcl/Tk [info patchlevel]"
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
-    ${NS}::button $w.b -text Dismiss -command [list wm withdraw $dlg] -default active
+    ${NS}::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
     ScrolledWidget text $w.text 0 1 -height 23 -width 80 \
         -borderwidth 0 -padx 2 -pady 2 -font FNT
     grid $w.text -sticky news
@@ -3320,7 +3337,8 @@ proc ::tkchat::Help {} {
     text $w.text -height 32 -bd 1 -width 100 -wrap word \
         -yscrollcommand [list $w.vs set]
     ${NS}::scrollbar $w.vs -command [list $w.text yview]
-    ${NS}::button $w.b -text "Dismiss" -command [list wm withdraw $w] -default active
+    ${NS}::button $w.b -text "Dismiss" -width -12 \
+        -command [list wm withdraw $w] -default active
     grid $w.text $w.vs -in $w.f -sticky news
     grid $w.b -        -in $w.f -sticky e
     grid rowconfigure $w.f 0 -weight 1
@@ -4351,6 +4369,7 @@ proc ::tkchat::logonScreen {} {
 
 proc ::tkchat::IRCLogonScreen {} {
     global Options
+    variable useTile
     variable NS
     variable irc
     if {![info exists irc]} {
@@ -4376,6 +4395,7 @@ proc ::tkchat::IRCLogonScreen {} {
             -command [list set [namespace which -variable $dlg] "ok"]
         ${NS}::button $f.cancel -text Cancel \
             -command [list set [namespace which -variable $dlg] "cancel"]
+        if {!$useTile} {$f.ok configure -width -8 ; $f.cancel configure -width -8}
         
         bind $dlg <Return> [list $f.ok invoke]
         bind $dlg <Escape> [list $f.cancel invoke]
@@ -5574,7 +5594,7 @@ proc ::tkchat::ShowSmiles {} {
 	set sb [${NS}::scrollbar $f.sb -command [list $txt yview]]
 	$txt configure -yscrollcommand [list $sb set]
         set b [${NS}::button $f.ok -default active -text OK \
-                   -command [list wm withdraw $t]]
+                   -width -8 -command [list wm withdraw $t]]
 	bind $t <Escape> [list $b invoke]
         bind $t <Return> [list $b invoke]
 
@@ -6213,7 +6233,7 @@ proc ::tkchat::UserInfoPhotoDialog {parent varname} {
             image delete %img
         }]
         ${NS}::label $dlg.photo -image $img
-        ${NS}::button $dlg.ok -text Close -command [list destroy $dlg]
+        ${NS}::button $dlg.ok -text Close -width -10 -command [list destroy $dlg]
         grid $dlg.photo -sticky news
         grid $dlg.ok    -sticky e
         grid rowconfigure $dlg 0 -weight 1
@@ -6751,7 +6771,7 @@ proc ::tkchat::PreferencesPage {parent} {
 	mozilla-type browsers we will call the -remote option to\
 	try to use a previously existing browser."
     ${NS}::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
-    ${NS}::button $bf.b -text "..."  -command {
+    ${NS}::button $bf.b -text "..."  -width 4 -command {
 	if {[set file [tk_getOpenFile]] != {}} {
 	    set ::tkchat::EditOptions(Browser) $file
 	}
@@ -6915,10 +6935,11 @@ proc ::tkchat::EditOptions {} {
         raise [lindex [lindex $pages 0] 1]
     }
 
-    set b_ok [${NS}::button $dlg.ok -text OK -underline 0 -default active -width -12 \
+    set b_ok [${NS}::button $dlg.ok -text OK -underline 0 -default active \
                   -command [list [namespace origin EditOptionsClose] $dlg ok $pages]]
-    set b_cn [${NS}::button $dlg.cancel -text Cancel -underline 0 -width -12 \
+    set b_cn [${NS}::button $dlg.cancel -text Cancel -underline 0 \
                   -command [list [namespace origin EditOptionsClose] $dlg cancel $pages]]
+    if {!$useTile} {$b_ok configure -width -10; $b_cn configure -width -10}
 
     grid $nb   -     -sticky news -padx 2 -pady 2
     grid $b_ok $b_cn -sticky se
@@ -7487,7 +7508,9 @@ proc tkjabber::CheckCertificate {} {
                 if {[info exists I(O)] 
                     && [llength [package provide tooltip]] > 0} {
                     set tip "Authenticated by $I(O)"
-                    tooltip::tooltip .status.ssl $tip
+                    if {[package provide tooltip] ne {}} {
+                        tooltip::tooltip .status.ssl $tip
+                    }
                     bind .status.ssl <Button-1> \
                         [list tkchat::ShowCertificate . 0 [array get cert]]
                 }
@@ -9304,8 +9327,8 @@ proc ::tkchat::ShowCertificate {owner depth info} {
     $t insert end "SHA1 Fingerprint\t[SafeGet C sha1_hash]\n"
     $t insert end "MD5 Fingerprint\t[SafeGet C md5_hash]\n"
     $t configure -state disabled
-    ${NS}::button $dlg.ok -text OK -command [list destroy $top] -default active
-    ${NS}::button $dlg.is -text Issuer -state disabled
+    ${NS}::button $dlg.ok -text OK -width -10 -command [list destroy $top] -default active
+    ${NS}::button $dlg.is -text Issuer -width -10 -state disabled
     if {!$self_signed && $depth < ([llength $CertChain] - 1)} {
         set next [incr depth]
         set issuer [lindex $CertChain [expr {[llength $CertChain] - $next - 1}]]
@@ -9367,10 +9390,11 @@ proc tkchat::PasteDlg {} {
     text $f.txt -background white -font FNT -yscrollcommand [list $f.vs set]
     ${NS}::scrollbar $f.vs -command [list $f.txt yview]
     set f3 [${NS}::frame $f.f3 -borderwidth 0]
-    set send [${NS}::button $f3.send -text [msgcat::mc Send] -default active \
+    set send [${NS}::button $f3.send -text [msgcat::mc Send] \
+                  -default active -width -12 \
                   -command [list set [namespace current]::$wid send]]
     set cancel [${NS}::button $f3.cancel -text [msgcat::mc Cancel] \
-                    -default normal \
+                    -default normal -width -12 \
                     -command [list set [namespace current]::$wid cancel]]
 
     foreach s {PRIMARY CLIPBOARD} {

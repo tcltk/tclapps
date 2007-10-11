@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: tkchat_rss.tcl,v 1.10 2007/10/04 20:39:53 patthoyts Exp $
+# $Id: tkchat_rss.tcl,v 1.11 2007/10/11 22:53:45 patthoyts Exp $
 # -------------------------------------------------------------------------
 
 if {[catch {package require rssrdr}]} { return }
@@ -73,7 +73,8 @@ proc ::tkchat::rss::Init {} {
 
             # At this time, the only interface is via the statusbar
             if {[winfo exists .status] && ![winfo exists .status.rss]} {
-                ttk::label .status.rss -image ::tkchat::img::feedLo
+                variable ::tkchat::NS
+                ${NS}::label .status.rss -image ::tkchat::img::feedLo
                 bind .status.rss <Button-1> \
                     [list [namespace origin ShowRssInfo]]
                 if {[llength [package provide tooltip]] > 0} {
@@ -90,14 +91,18 @@ proc ::tkchat::rss::Init {} {
 
 proc ::tkchat::rss::RssUpdateTip {varname op} {
     variable RSStip
-    tooltip::tooltip .status.rss [string trim $RSStip \n]
+    if {[package provide tooltip] ne {}} {
+        tooltip::tooltip .status.rss [string trim $RSStip \n]
+    }
 }
 
 proc ::tkchat::rss::ShowRssInfo {} {
     variable ::tkchat::NS
     variable Rss
     variable RssUrlId ; if {![info exists RssUrlId]} {set RssUrlId 0}
-    .status.rss configure -image ::tkchat::img::feedLo
+    if {[winfo exists .status.rss]} {
+        .status.rss configure -image ::tkchat::img::feedLo
+    }
     set dlg .rssinfo
     variable $dlg
 
@@ -171,7 +176,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
         incr page
     }
     
-    ${NS}::button $dlg.ok -default active -text "OK" \
+    ${NS}::button $dlg.ok -default active -text "OK" -width -12 \
         -command [list set [namespace which -variable $dlg] ok]
 
     bind $dlg <Return> [list $dlg.ok invoke]

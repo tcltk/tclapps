@@ -1,3 +1,7 @@
+2007-10-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Enabled status bar in the absence of ttk widgets
+
 2007-10-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_mjpeg.tcl: Use asynchronous connect to avoid blocking
