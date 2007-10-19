@@ -1,6 +1,11 @@
+2007-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* apps/picoirc/*: added IRC client as a demo of the picoirc
+	package in the tcllib irc module and the chatwidget now in tklib
+
 2007-05-08  Stephane Arnold <sarnold75@users.sourceforge.net>
 
-    * apps/tsreplace/*: added to CVS.
+	* apps/tsreplace/*: added to CVS.
 
 2007-03-07  Andreas Kupries  <andreask@activestate.com>
 
