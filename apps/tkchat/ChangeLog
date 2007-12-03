@@ -1,3 +1,8 @@
+2007-12-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed erroneous handling of 404 error condition.
+	Added some extra checks for the existence of nick colours.
+
 2007-10-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Enabled status bar in the absence of ttk widgets

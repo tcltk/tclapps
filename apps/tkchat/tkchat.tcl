@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.411 2007/10/11 22:53:45 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.412 2007/12/03 22:43:01 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -498,22 +498,6 @@ proc ::tkchat::Retrieve {} {
 	    }
 	}
     }
-}
-
-# FIXME: no status page is available yet
-proc ::tkchat::ShowStatusPage {} {
-    set url http://mini.net/tcl/status_tclers.tk
-    if { [catch {
-	::http::geturl $url -command [list ::tkchat::fetchurldone \
-                                          ::tkchat::ShowStatusPage2]
-    } msg] } then {
-	addStatus 0 "Unable to obtain status page from $url" end ERROR
-    }
-}
-
-# FIXME: no status page is available yet
-proc ::tkchat::ShowStatusPage2 {} {
-    # parse and display
 }
 
 proc ::tkchat::GetHistLogIdx {url} {
@@ -1001,6 +985,9 @@ proc ::tkchat::getColor { nick } {
 	set w [lindex $Options(Color,$nick) 0]
 	set clr [lindex $Options(Color,$nick) $w]
     } else {
+        if { ![info exists Options(Color,NICK-$nick)] } {
+            set Options(Color,NICK-$nick) $Options(Color,MainFG)
+        }
 	set w [lindex $Options(Color,NICK-$nick) 0]
 	set clr [lindex $Options(Color,NICK-$nick) $w]
     }
@@ -1094,6 +1081,9 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 	} else {
 	    incr match
 	}
+    }
+    if { ![info exists Options(Color,NICK-$nick)] } {
+        set Options(Color,NICK-$nick) $Options(Color,MainFG)
     }
     if { $match == [llength $Options(NickList)] } {
 	# Set text indent
@@ -7954,9 +7944,9 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		    404 {
 			# This has been seen when sending a private message
 			# to a disconnected user.
-			::tkchat::addSystem .txt [concat \
-				"Your message to $m(-from) could not be"
-				"delivered. The recipient has disconnected"]
+                        set msg "Your message to $m(-from) could not be\
+                            delivered. The recipient has disconnected."
+			::tkchat::addSystem .txt $msg
 		    }
 		    405 {
 			if { [catch {
