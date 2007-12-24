@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.412 2007/12/03 22:43:01 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.413 2007/12/24 23:51:33 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2629,7 +2629,7 @@ proc ::tkchat::CreateGUI {} {
     ${NS}::frame .btm
     ${NS}::button .ml
     ${NS}::entry .eMsg
-    .eMsg configure -foreground black
+    .eMsg configure -foreground black -font FNT
     .ml configure -text ">>" -width 0 -command ::tkchat::showExtra
 
     bind .eMsg <Return>		::tkchat::userPost
@@ -8974,25 +8974,28 @@ proc tkjabber::SubscriptionRequest {from status} {
 }
 
 proc ::tkjabber::away { status {show away} } {
-    variable AwayStatus
     variable conference
+    variable jabber
 
-    set AwayStatus $status
-    set jid $conference/[$tkjabber::muc mynick $conference]
-    $tkjabber::jabber send_presence -type available \
-	    -from $jid -to $conference -show $show -status $status
+    variable AwayStatus $status
+    # Notify the MUC itself so it can inform the members.
+    $jabber send_presence -show $show -status $status -to $conference
+    # Notify the server of our status so it can tell our roster.
+    $jabber send_presence -show $show -status $status
     autoStatus
 }
 
-proc ::tkjabber::back { status } {
+proc ::tkjabber::back { status {show online} } {
     variable Away 0
     variable AutoAway 0
-    variable AwayStatus ""
     variable conference
+    variable jabber
 
-    set jid $conference/[$::tkjabber::muc mynick $conference]
-    $::tkjabber::jabber send_presence -type available \
-	    -from $jid -to $conference -show online -status $status
+    variable AwayStatus $status
+    # Notify the MUC itself so it can inform the members.
+    $jabber send_presence -show $show -status $status -to $conference
+    # Notify the server of our status so it can tell our roster.
+    $jabber send_presence -show $show -status $status
     autoStatus
 }
 
