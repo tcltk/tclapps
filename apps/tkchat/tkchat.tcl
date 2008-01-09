@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.413 2007/12/24 23:51:33 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.414 2008/01/09 00:07:06 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1068,6 +1068,11 @@ proc ::tkchat::parseStr {str} {
 proc ::tkchat::checkNick { w nick clr timestamp } {
     global Options
 
+    # If the nick is > 12 chars truncate it
+    if {[string length $nick] > 12} {
+        set nick [string range $nick 0 9]...
+    }
+    
     if { $timestamp == 0 } {
 	set timestamp [clock seconds]
     }
@@ -1108,8 +1113,11 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 	$w tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
 	$w tag lower NICK-$nick STAMP
     }
+    return $nick
 }
 
+# Adjust the nick margin to accommodate the longest nick up to a limit
+# of 12 X chars plus a bit for the bookmark.
 proc ::tkchat::checkNickWidth { nick } {
     set nickWidth [expr { [font measure NAME <$nick>] + 10 }]
     if { $nickWidth > $::Options(Offset) } {
@@ -1117,7 +1125,7 @@ proc ::tkchat::checkNickWidth { nick } {
 	set max [expr { [font measure NAME [string repeat X 12]] + 10 }]
 	if { $nickWidth <= $max } {
 	    set ::Options(Offset) $nickWidth
-	}
+        }
     }
 }
 
@@ -1238,10 +1246,11 @@ proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}}
     set displayNick $nick
     regexp -- {^<{0,2}(.+?)>{0,2}$} $nick displayNick nick
 
+    set nick [checkNick $w $nick $clr $timestamp]
+
     if { [nickIsNoisy $nick] } {
 	return
     }
-    checkNick $w $nick $clr $timestamp
 
     # Special handling for single dot action message
     set tags [list NICK-$nick]
@@ -3884,13 +3893,19 @@ proc ::tkchat::checkCommand { msg } {
 	{^/colou?rs?$} {
 	    ChangeColors
 	}
-	{^/font } {
-	    set name [string trim [string range $msg 5 end]]
-	    catch {ChangeFont -family $name}
-	}
-	{^/(font)?size [0-9]+} {
-	    regexp -- {[0-9]+} $msg size
+	{^/(font)?size -?[0-9]+} {
+	    regexp -- {-?[0-9]+} $msg size
 	    catch {ChangeFont -size $size}
+	}
+	{^/font} {
+	    set name [string trim [string range $msg 5 end]]
+            if {[string length $name] < 1} {
+                if {[llength [package provide choosefont]] != 0} {
+                    ChooseFont
+                }
+            } else {
+                catch {ChangeFont -family $name}
+            }
 	}
 	{^/macros?$} {
 	    EditMacros
@@ -5425,6 +5440,7 @@ proc ::tkchat::anim {image {idx -1}} {
         #puts stderr $image:1
 	if {$idx == 1} {
 	    # stop animating, only base image exists
+            catch {unset ::tkchat::img::id($image)}
 	    return
 	} else {
 	    # restart the cycle

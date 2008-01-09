@@ -28,7 +28,11 @@ namespace eval ::critcl2 {
                 }
             }
         }
-        lappend provide [list load $lib $package]
+        # we have a fallback to pure-Tcl if no platform-specific version
+        # is present: in this case we don't build on the fly.
+        if {[file exists $lib]} {
+            lappend provide [list load $lib $package]
+        }
         foreach t [glob -nocomplain [file join $dir Tcl *.tcl]] {
             lappend provide [list source $t]
         }

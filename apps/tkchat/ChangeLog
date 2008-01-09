@@ -1,8 +1,15 @@
+2008-01-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* choosefont/critcl.tcl: Fix fallback to tcl for platforms with no
+	pre-built binary.
+	* tkchat.tcl: Fixed /font to call the choosefont dialog if available
+	Also attempting to limit nick length.
+	
 2007-12-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Broadcast presence changes to the xmpp server to
 	ensure that roster contacts and notified as well as MUC members.
-	* choosefont/critcl.tc: critcl stuff moved to critcl2 which uses
+	* choosefont/critcl.tcl: critcl stuff moved to critcl2 which uses
 	8.5 compatible platform testing code.
 
 2007-12-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
