@@ -51,8 +51,8 @@ catch {package require img::jpeg} ; # more image types (optional)
 
 package require sha1		; # tcllib
 package require jlib		; # jlib
-package require browse		; # jlib
 package require muc		; # jlib
+package require disco           ; # jlib 
 
 catch {package require khim}    ; # khim (optional)
 catch {package require tooltip 1.2};# tooltips (optional)  
@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.414 2008/01/09 00:07:06 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.415 2008/01/25 23:58:37 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -432,72 +432,6 @@ proc ::tkchat::proxyfilter {host} {
         }
     }
     return $r
-}
-
-# Retrieve the lastest version of tkchat from the SourceForge CVS.
-# This code is (almost) entirely ripped from TkCon. - PT.
-proc ::tkchat::Retrieve {} {
-    variable HEADUrl
-    set rcsVersion {}
-
-    set defExt ""
-    if {[string match "windows" $::tcl_platform(platform)]} {
-	set defExt ".tcl"
-    }
-
-    set file [tk_getSaveFile \
-	    -title "Save Latest TkChat to ..." \
-	    -defaultextension $defExt \
-	    -initialdir [file dirname $::argv0] \
-	    -initialfile [file tail $::argv0] \
-	    -parent . \
-	    -filetypes {{"Tcl Files" {.tcl .tk}} {"All Files" {*.*}}}]
-    if {[string compare $file ""]} {
-	set token [::http::geturl $HEADUrl -timeout 30000]
-	::http::wait $token
-	if {[::http::status $token] eq "ok" && [::http::ncode $token] == 200} {
-	    set code [catch {
-		set data [::http::data $token]
-		if {[string length $data] < 1} {
-		    return -code error "Document was empty"
-		}
-		set fid [open $file w]
-		fconfigure $fid -translation binary
-		puts -nonewline $fid $data
-		close $fid
-		regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $data -> rcsVersion
-	    } err]
-	} else {
-	    set code 1
-	    set err [::http::error $token]
-	    if {[string length $err] < 1} {
-		# limit this to 30 lines
-		set err [join [lrange [split \
-			[http::data $token] "\n"] 0 30] "\n"]
-	    }
-	}
-
-	::http::cleanup $token
-
-	if {$code} {
-	    tk_messageBox \
-		    -type ok \
-		    -icon error \
-		    -title "Error retrieving tkchat from CVS" \
-		    -message $err
-	    ::log::log error $err
-	} else {
-	    set resource? [tk_messageBox \
-		    -type yesno \
-		    -icon info \
-		    -title "Retrieved tkchat $rcsVersion" \
-		    -message "Successfully retrieved v$rcsVersion.\
-		    Do you want to reload from the new version?"]
-	    if { ${resource?} eq "yes" } {
-		Debug reload
-	    }
-	}
-    }
 }
 
 proc ::tkchat::GetHistLogIdx {url} {
@@ -1143,23 +1077,24 @@ proc ::tkchat::alertWhenIdle { w } {
 	    .txt mark set AddBookmark "end - 1 line linestart"
 	    BookmarkToggle auto
 	}
-	after idle [namespace origin alertCallback]
+	after idle [list [namespace origin alertCallback] $w]
     }
 }
 
-proc ::tkchat::alertCallback {} {
+proc ::tkchat::alertCallback {w} {
     global Options
     variable alert_pending
 
+    set top [winfo toplevel $w]
     unset -nocomplain alert_pending
-    if {$Options(Alert,RAISE) && [llength [focus -displayof .]]==0} {
+    if {$Options(Alert,RAISE) && [llength [focus -displayof $top]]==0} {
 	# Only call this if the window doesn't already have focus
         if {[tk windowingsystem] eq "aqua" \
             && [llength [package provide Ffidl]] > 0} {
             ShowHideProcess [binary format I2 {0 2}] 1
         }
-	wm deiconify .
-	raise .
+	wm deiconify $top
+	raise $top
     }
     if {$Options(Alert,SOUND)} bell
 }
@@ -2454,10 +2389,6 @@ proc ::tkchat::CreateGUI {} {
 	    -label "Restart script" \
 	    -underline 2 \
 	    -command { ::tkchat::Debug restart }
-    $m add command \
-	    -label "Retrieve script" \
-	    -underline 2 \
-	    -command { ::tkchat::Debug retrieve }
     $m add command \
 	    -label "Evaluate selection" \
 	    -underline 1 \
@@ -4211,6 +4142,7 @@ proc ::tkchat::logonScreen {} {
     variable NS
 
     if {$::tkchat::LoggedIn} { tkjabber::disconnect }
+    ::tkjabber::cancelReconnect
     if {![winfo exists .logon]} {
 	Dialog .logon
 	wm withdraw .logon
@@ -5338,9 +5270,6 @@ proc ::tkchat::Debug {cmd args } {
 	    unset ::Options
 	    after 2000 [linsert $::argv 0 ::tkchat::Init]
 	}
-	retrieve {
-	    Retrieve
-	}
 	purge {
 	    .txt configure -state normal
 	    .txt delete 1.0 end
@@ -5482,7 +5411,7 @@ proc ::tkchat::SmileId {name serial triggers {location {}}} {
     global Images
 
     if {$location eq ""} {
-        set location http://tclers.tk/~jabber/emoticons/$name.gif
+        set location "http://tkchat.tcl.tk/emoticons/$name.gif"
     }
     
     if {![info exists Images($name,data)] || $Images($name,serial) < $serial} {
@@ -5554,7 +5483,7 @@ proc ::tkchat::Smile {} {
         }
     }
     I alias SmileId ::tkchat::SmileId
-    set code [GET "http://tclers.tk/~jabber/emoticons/emoticons.tcl"]
+    set code [GET "http://tkchat.tcl.tk/emoticons/emoticons.tcl"]
     I eval $code
     interp delete I
 
@@ -7150,7 +7079,7 @@ namespace eval tkjabber {
     # If the next entry is by this nick, don't display it (for nick changes.)
 
     Variable roster ""
-    Variable browser ""
+    Variable discovery ""
     Variable socket ""
     Variable conn
     Variable myId ""
@@ -7183,7 +7112,7 @@ proc ::tkjabber::connect {} {
     global Options
     variable jabber
     variable roster
-    variable browser
+    variable discovery
     variable socket
     variable reconnect
     variable conference
@@ -7191,10 +7120,7 @@ proc ::tkjabber::connect {} {
     variable reconnectAttempts
     variable have_tls
 
-    if { $reconnectTimer ne "" } {
-	after cancel $reconnectTimer
-	set reconnectTimer ""
-    }
+    cancelReconnect
 
     set conference $Options(JabberConference)
 
@@ -7214,7 +7140,7 @@ proc ::tkjabber::connect {} {
 		-presencecommand ::tkjabber::PresCB \
 		-keepalivesecs $keepalive_seconds]
 
-	set browser [::browse::new $jabber -command ::tkjabber::BrowseCB]
+        set discovery [::disco::new $jabber -command [namespace origin on_discovery]]
 
 	# override the jabberlib version info query
 	::jlib::iq_register $jabber get jabber:iq:version \
@@ -7223,6 +7149,14 @@ proc ::tkjabber::connect {} {
 	    [namespace origin on_iq_last] 40
 	::jlib::iq_register $jabber result jabber:iq:version \
 	    [namespace origin on_iq_version_result] 40
+
+        ::jlib::presence_register $jabber available \
+            [namespace origin on_pres_available]
+        ::jlib::presence_register $jabber unavailable \
+            [namespace origin on_pres_unavailable]
+        ::jlib::presence_register $jabber subscribe \
+            [namespace origin on_pres_subscribe]
+
     }
 
     set have_tls [expr {[package provide tls] != {}}]
@@ -7301,13 +7235,9 @@ proc ::tkjabber::connect {} {
 proc tkjabber::disconnect {} {
     variable socket
     variable reconnect 0
-    variable reconnectTimer
     variable reconnectAttempts 0
 
-    if { $reconnectTimer ne "" } {
-	after cancel $reconnectTimer
-	set reconnectTimer ""
-    }
+    cancelReconnect
 
     if { $socket eq "" } {
 	return
@@ -7719,14 +7649,6 @@ proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
     }
 }
 
-# Browse stuff...
-proc tkjabber::BrowseCB {browseName type jid xmllist args} {
-    tkchat::addSystem .txt "--browse-> browseName=$browseName type=$type, jid=$jid, xmllist='$xmllist', args='$args'"
-}
-proc tkjabber::BrowseErrorCB {browseName what jid errlist} {
-    tkchat::addSystem .txt "--browse-(error)-> what=$what, jid=$jid, errlist='$errlist'"
-}
-
 # The jabberlib stuff...
 proc tkjabber::ClientCB {jlibName cmd args} {
 
@@ -8063,13 +7985,32 @@ proc tkjabber::PresCB {jlibName type args} {
 	    # We do not need to reply.
 	}
 	subscribe {
-	    after idle [list [namespace origin SubscriptionRequest] \
+	    #after idle [list [namespace origin SubscriptionRequest] \
 			    $a(-from) $a(-status)]
 	}
 	default {
 	    tkchat::addSystem .txt "Received $type presence message from $a(-from)."
 	}
     }
+}
+
+# On receiving presence stanzas we get called here after the roster object is called
+proc ::tkjabber::on_pres_available {jlib from type args} {
+    #puts stderr "pres $jlib $from $type $args"
+    #array set a $args
+}
+proc ::tkjabber::on_pres_unavailable {jlib from type args} {
+    #puts stderr "pres $jlib $from $type $args"
+}
+proc ::tkjabber::on_pres_subscribe {jlib from type args} {
+    array set a [linsert $args 0 -status {}]
+    after idle [list [namespace origin SubscriptionRequest] $from $a(-status)]
+    return 1;# handled
+}
+
+proc ::tkjabber::on_discovery {disco type from subiq args} {
+    ::log::log debug "on_discovery $type $from $subiq $args"
+    return 1;# handled
 }
 
 proc tkjabber::httpCB { status message } {
@@ -8105,6 +8046,30 @@ proc tkjabber::RegisterCB {jlibName type theQuery} {
 	    tkchat::addSystem .txt "MyRegisterProc: type=$type, theQuery='$theQuery'"
 	}
     }
+}
+
+# Generate a XEP-0115 capabilities ver string (XEP-0115 section 5).
+proc ::tkjabber::get_caps_ver {} {
+    set S "client/pc<"
+    set features [list "http://jabber.org/protocol/disco#info" \
+                      "http://jabber.org/protocol/disco#items" \
+                      "http://jabber.org/protocol/muc"]
+    foreach f $features { append S $f "<" }
+    return [base64::encode -maxlen 0 [sha1::sha1 -bin $S]]
+}
+# Return a wrapper node for the caps sub-element for our client. Add to _ALL_
+# presence emissions: ie: $jlib send_presence $type -extra [list [get_caps]]
+# Until the disco#info stuff is sorted, lets return an old style caps.
+# For XEP-0115 use: node "http://tkchat.tclers.tk/#$tkchatver"
+#                    ver $tkchatver xmlns ... and _no_ ext.
+#
+proc ::tkjabber::get_caps {} {
+    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
+    set caps [wrapper::createtag c -attrlist \
+                  [list xmlns "http://jabber.org/protocol/caps" \
+                       node "http://tkchat.tclers.tk/caps" \
+                       ver $tkchatver ext {color time whiteboard}]]
+    return $caps
 }
 
 proc ::tkjabber::LoginCB { jlibname type theQuery } {
@@ -8150,7 +8115,8 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 	    if {$myId == {}} { set myId [$jabber myjid] }
 	    set tkjabber::reconnect 1
 	    set tkjabber::connectionRetryTime [expr {int(5+rand()*5.0)}]
-	    $jabber send_presence
+            $jabber send_presence -extras [list [get_caps]]
+                                               
 	    set muc [jlib::muc::new $jabber]
 	    if { $::Options(Nickname) eq "" } {
 		::tkchat::setNickname $::Options(Username)
@@ -8177,6 +8143,7 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 
     tkchat::addSystem .txt "MyLoginProc: type=$type, theQuery='$theQuery'"
 }
+
 proc tkjabber::SearchGetProc {jlibName type theQuery} {
     tkchat::addSystem .txt "MySearchGetProc: type=$type, theQuery='$theQuery'"
 }
@@ -8273,7 +8240,8 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 		set AutoAway 1
 		set jid $conference/[$muc mynick $conference]
 		$jabber send_presence -type available -from $jid \
-			-to $conference -show away -status $AwayStatus
+                    -to $conference -show away -status $AwayStatus \
+                    -extras [list [get_caps]]
 	    }
             tkchat::addStatus 0 "Joined chat at $conference"
 	    autoStatus
@@ -8786,15 +8754,16 @@ proc ::tkjabber::setNick { newnick } {
 
     if { [lsearch -exact $OnlineUsers(Jabber) $newnick] > -1 } {
 	# Perhaps it is my own nick, in another window?
-	set x [$roster getx $conference/[xmlSafe $newnick] muc#user]
-	set item [wrapper::getchildswithtag $x item]
+	set x [$roster getx $conference/[xmlSafe $newnick] "muc#user"]
+        set item [wrapper::getchildswithtag $x item]
 	set otherjid ""
 	if {[llength $item] > 0} {
 	    set otherjid [wrapper::getattribute [lindex $item 0] jid]
 	}
-	regexp {([^/]+)/(.+)} [$jabber myjid] -> myjid myres
+        jlib::splitjid [$jabber myjid] myjid myres
 
-	if { [regexp {([^/]+)/(.+)} $otherjid -> ojid ores] } {
+	if { $otherjid ne {} } {
+            jlib::splitjid $otherjid ojid ores
 	    if { $ojid eq $myjid && $ores ne $myres } {
 		# Yes, it is my JID, different resource.
 		# Send a rename request:
@@ -8828,9 +8797,8 @@ proc ::tkjabber::transferNick { reqfrom } {
     variable jabber
     variable ::tkchat::OnlineUsers
 
-    regexp {([^/]+)/(.+)} $reqfrom -> ojid ores
-
-    regexp {([^/]+)/(.+)} [$jabber myjid] -> myjid myres
+    jlib::splitjid $reqfrom ojid ores
+    jlib::splitjid [$jabber myjid] myjid myres
 
     if { $ojid ne $myjid } {
 	# No, it is not a request from an alter ego.
@@ -8863,10 +8831,8 @@ proc ::tkjabber::transferNick { reqfrom } {
 }
 
 proc ::tkjabber::setTopic { newtopic } {
-
     variable conference
     variable jabber
-
     $jabber send_message $conference -subject $newtopic -type groupchat
 }
 
@@ -8953,6 +8919,14 @@ proc ::tkjabber::scheduleReconnect {} {
     }
 }
 
+proc ::tkjabber::cancelReconnect {} {
+    variable reconnectTimer
+    if { $reconnectTimer ne "" } {
+	after cancel $reconnectTimer
+	set reconnectTimer ""
+    }
+}
+
 # Respond to subscriptin requests
 proc tkjabber::SubscriptionRequest {from status} {
     variable subs_uid
@@ -8983,8 +8957,7 @@ proc tkjabber::SubscriptionRequest {from status} {
     destroy $dlg
     set response [set [namespace current]::$wid]
     $tkjabber::jabber send_presence -type $response \
-	-from [$tkjabber::jabber myjid] \
-	-to $jid
+	-to $jid -extras [list [get_caps]]
     unset [namespace current]::$wid
     return
 }
@@ -8995,9 +8968,10 @@ proc ::tkjabber::away { status {show away} } {
 
     variable AwayStatus $status
     # Notify the MUC itself so it can inform the members.
-    $jabber send_presence -show $show -status $status -to $conference
+    $jabber send_presence -show $show -status $status -to $conference \
+        -extras [list [get_caps]]
     # Notify the server of our status so it can tell our roster.
-    $jabber send_presence -show $show -status $status
+    $jabber send_presence -show $show -status $status -extras [list [get_caps]]
     autoStatus
 }
 
@@ -9009,9 +8983,10 @@ proc ::tkjabber::back { status {show online} } {
 
     variable AwayStatus $status
     # Notify the MUC itself so it can inform the members.
-    $jabber send_presence -show $show -status $status -to $conference
+    $jabber send_presence -show $show -status $status -to $conference \
+        -extras [list [get_caps]]
     # Notify the server of our status so it can tell our roster.
-    $jabber send_presence -show $show -status $status
+    $jabber send_presence -show $show -status $status -extras [list [get_caps]]
     autoStatus
 }
 
@@ -9132,7 +9107,6 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
 # -------------------------------------------------------------------------
 
 proc ::tkjabber::getChatWidget { jid from } {
-
     variable ChatWindows
     global Options
     # Look in ChatWindows and maybe popup a new chat window
@@ -9250,7 +9224,7 @@ proc ::tkchat::GetTipIndexDone {tok} {
 }
 
 proc ::tkchat::CheckVersion {} {
-    http::geturl http://tclers.tk/~jabber/current.html \
+    http::geturl http://tkchat.tcl.tk/current.html \
         -timeout 15000 \
         -command [list [namespace origin fetchurldone] \
                       [namespace origin CheckVersionDone]]
@@ -9258,6 +9232,13 @@ proc ::tkchat::CheckVersion {} {
 
 proc ::tkchat::CheckVersionDone {tok} {
     variable rcsid
+    global Options
+    set meta [set [set tok](meta)]
+    if {[set ndx [lsearch -exact $meta [base64::decode WC1MT0xDQVRa]]] != -1} {
+        set Options(tagline) "[base64::decode TE9MQ2F0IHNheXM=]\
+            \"[lindex $meta [incr ndx]]\""
+        after 10000 [list [namespace origin addStatus] 0 $Options(tagline)]
+    }
     set url [string trim [http::data $tok]]
     if {[regexp {tkchat.tcl,v 1\.(\d+)} $rcsid -> current]
         && [regexp {tkchat-1\.(\d+)} $url -> latest]} {

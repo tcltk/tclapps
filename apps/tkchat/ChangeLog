@@ -1,3 +1,10 @@
+2008-01-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed tkchat home url's to tkchat.tcl.tk
+	Fixed some dodgy jid processing when changing nicks.
+	* tkchat.tcl: Alerts to be tied to the alerting window.
+	Added some caps as extras to the presence stanzas.
+
 2008-01-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* choosefont/critcl.tcl: Fix fallback to tcl for platforms with no
