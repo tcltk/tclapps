@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.24 2007/04/19 15:27:46 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.25 2008/01/27 00:37:35 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -625,7 +625,10 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     }
 
     # Eliminate known bridge prefixes (ircbridge is a webchat to irc bridge)
-    if {[string equal $who "azbridge"] || [string equal $who "ircbridge"]} {
+    if {[string equal $who "azbridge"] 
+	|| [string equal $who "webchain"]
+	|| [string equal $who "wubchain"]
+	|| [string equal $who "ircbridge"]} {
         regexp {^<(.*?)> (.*)$}  $msg -> who msg
         set emote [regexp {^\*{1,3} (\w+) (.*)$} $msg -> who msg]
     }
@@ -694,6 +697,11 @@ proc ::ijbridge::Bot_help {who msg} {
 
 proc ::ijbridge::Bot_test {who msg} {
     return "$who just tested the answer bot."
+}
+
+proc ::ijbridge::Bot_hello {who msg} {
+   return "Hello, $who. You have reached an automated message offering you a greeting. Perhaps you\
+     should get some real friends?"
 }
 
 proc ::ijbridge::Bot_eggdrop {who msg} {
@@ -926,7 +934,7 @@ proc client::create { server port nk chan } {
     variable channel $chan
     variable nick $nk
     variable whois
-    array set whois {nick "" caller "" realname "" url "" channels "" status "" host ""}
+    array set whois {nick "" caller "" realname "" url "" channels "" status "" host "" address ""}
     variable cn [::irc::connection]
 
     registerhandlers
@@ -992,7 +1000,7 @@ proc client::registerhandlers {} {
     }
    
     # WHOIS handling from Jabber user 
-    $cn registerevent 311 {set ::client::whois(realname) [msg]}
+    $cn registerevent 311 {set ::client::whois(realname) [msg];set ::client::whois(address) [additional]}
     $cn registerevent 312 {set ::client::whois(url) [msg]}
     $cn registerevent 319 {set ::client::whois(channels) [msg]}
     $cn registerevent 320 {set ::client::whois(status) [msg]}
@@ -1003,6 +1011,7 @@ proc client::registerhandlers {} {
         if {[string length $whois(caller)] > 0} {
             set info "Realname: $whois(realname)\n"
             append info "Host: $whois(host)\n"
+            append info "Address: $whois(address)\n"
             append info "Channels: $whois(channels)\n"
             append info "Status: $whois(status)"
             if {[info exists stats($whois(nick),t)]} {
@@ -1010,7 +1019,7 @@ proc client::registerhandlers {} {
             }
             ::ijbridge::send -user $whois(caller) $info
         }
-        array set whois {caller "" realname "" url "" channels "" status ""}
+        array set whois {caller "" realname "" url "" channels "" status "" address "" host ""}
     }
     $cn registerevent 401 {
         variable ::client::whois
@@ -1025,7 +1034,7 @@ proc client::registerhandlers {} {
     }
 
     $cn registerevent defaultnumeric {
-	::log::log notice "[action]:[target]:[msg]"
+	::log::log notice "[action]:[target]:[msg]:[additional]"
     }
 
     $cn registerevent defaultevent {

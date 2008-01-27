@@ -1,3 +1,8 @@
+2008-01-27  Pat Thoyts <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Fixed the userinfo to retrieve the users
+	host info from the 311 response (FR #1727793 mjanssen)
+
 2007-04-19  Pat Thoyts <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Changed handling of NAMES reponses to
