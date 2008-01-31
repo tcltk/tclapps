@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.415 2008/01/25 23:58:37 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.416 2008/01/31 18:26:05 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1033,19 +1033,18 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
 	set Options(NickList) [lsort -dictionary -index 0 $Options(NickList)]
 	set Options(Color,NICK-$nick) $Options(Color,MainFG)
 	NickVisMenu
-	if { $clr eq "" } {
-	    set clr [getColor MainFG]
-	}
+	if { $clr eq "" } { set clr [getColor MainFG] }
     }
     if { $clr ne "" && [lindex $Options(Color,NICK-$nick) 1] ne $clr } {
-	# new color
-	lset Options(Color,NICK-$nick) 1 $clr
-	lset Options(Color,NICK-$nick) 2 [invClr $clr]
-	set clr [getColor $nick]
-	$w tag configure NICK-$nick -foreground "#$clr"
-	.pane.names tag configure NICK-$nick -foreground "#$clr"
-	$w tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
-	$w tag lower NICK-$nick STAMP
+        catch {
+            $w tag configure NICK-$nick -foreground "#$clr"
+            lset Options(Color,NICK-$nick) 1 $clr
+            lset Options(Color,NICK-$nick) 2 [invClr $clr]
+            set clr [getColor $nick]
+            .pane.names tag configure NICK-$nick -foreground "#$clr"
+            $w tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
+            $w tag lower NICK-$nick STAMP
+        }
     }
     return $nick
 }
@@ -7736,6 +7735,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 		"urn:tkchat:chat" {
 		    array set tkchatAttr [wrapper::getattrlist $x]
 		    set color [wrapper::getattribute $x color]
+                    if {![regexp {^[[:xdigit:]]{6}$} $color]} { set color "" }
 		}
                 "coccinella:wb" {
                     ::tkchat::addStatus 0 "Coccinella whiteboard message from $m(-from)"

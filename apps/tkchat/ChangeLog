@@ -1,3 +1,8 @@
+2008-01-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added checking of colour info before recording it
+	for a user and validate colors read from the network.
+
 2008-01-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Changed tkchat home url's to tkchat.tcl.tk
