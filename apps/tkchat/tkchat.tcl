@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.416 2008/01/31 18:26:05 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.417 2008/02/03 13:10:58 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4943,8 +4943,10 @@ proc ::tkchat::applyColors { txt jid } {
     foreach nk $nicks {
 	set nk [lindex $nk 0]
 	set clr [getColor $nk]
-	$txt tag configure NICK-$nk -foreground "#$clr"
-	$txt tag configure NOLOG-$nk -foreground "#[fadeColor $clr]"
+        if {[catch {$txt tag configure NICK-$nk -foreground "#$clr"}]} {
+            set clr [set Options(Color,NICK-$nk) [getColor MainFG]]
+        }
+        $txt tag configure NOLOG-$nk -foreground "#[fadeColor $clr]"
 	.pane.names tag configure NICK-$nk -foreground "#$clr"
 	if { $Options(Visibility,STAMP) } {
 	    $txt tag raise NICK-$nk STAMP

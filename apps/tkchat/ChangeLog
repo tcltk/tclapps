@@ -1,3 +1,7 @@
+2008-02-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Avoid applying bad colours from the rc file too.
+
 2008-01-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added checking of colour info before recording it
