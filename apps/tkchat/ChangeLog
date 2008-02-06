@@ -1,3 +1,8 @@
+2008-02-06  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Addded an option to leave the enter/exit messages
+	plain. Option is on the options dialog page.
+
 2008-02-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Avoid applying bad colours from the rc file too.

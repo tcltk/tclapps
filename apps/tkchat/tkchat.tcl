@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.417 2008/02/03 13:10:58 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.418 2008/02/06 00:41:29 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1672,6 +1672,7 @@ proc ::tkchat::StatusbarAddWidget {bar slave pos} {
 # this way, the hide option can affect the past as well as the future
 proc ::tkchat::addTraffic { w nick action mark timestamp } {
     # Action should be entered, left, nickchange or availability
+    global Options
     variable MSGS
     variable OnlineUsers
 
@@ -1735,9 +1736,17 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
 	}
 	$w insert $mark "\n" $tags
     } else {
-	set msg [string map -nocase [list %user% $nick %newuser% $newnick] \
-		[lindex $MSGS($action) \
-		[expr { int(rand() * [llength $MSGS($action)]) }]]]
+        if {$Options(FunkyTraffic)} {
+            set ndx [expr {int(rand() * [llength $MSGS($action)])}]
+            set msg [string map -nocase \
+                         [list %user% $nick %newuser% $newnick] \
+                         [lindex $MSGS($action) $ndx]]
+        } else {
+            switch -exact -- $action {
+                nickchange { set msg "$nick is now known as $newnick" }
+                default { set msg "$nick $action" }
+            }
+        }
 	$w insert $mark "\t$msg\n" $tags
     }
     $w configure -state disabled
@@ -5138,8 +5147,8 @@ proc ::tkchat::saveRC {} {
 	AutoFadeLimit Browser BrowserTab ChatLogFile 
 	ChatLogOff Color,* DisplayUsers
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
-	Font,* Fullname Geometry HistoryLines JabberConference JabberPort
-	JabberResource JabberServer Khim 
+	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
+	JabberPort JabberResource JabberServer Khim 
 	LogFile LogLevel LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Subjects Theme Transparency UseBabelfish 
@@ -5833,6 +5842,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Font,-family		Helvetica
 	Font,-size		-12
 	Fullname		""
+        FunkyTraffic		1
 	Geometry		600x500
 	HistoryLines		-1
 	JabberConference	tcl@tach.tclers.tk
@@ -6692,9 +6702,16 @@ proc ::tkchat::PreferencesPage {parent} {
     ${NS}::checkbutton $af.store -text "Store private messages" \
         -variable ::Options(StoreMessages) -onvalue 1 -offvalue 0 \
         -underline 0
-    if {!$useTile} {$af.store configure -anchor nw}
+    ${NS}::checkbutton $af.traffic -underline 1 \
+        -text "Show humorous entered/left messages" \
+        -variable ::Options(FunkyTraffic) -onvalue 1 -offvalue 0
+    if {!$useTile} {
+        $af.store configure -anchor nw
+        $af.traffic configure -anchor nw
+    }
 
     pack $af.store -side top -fill x -expand 1
+    pack $af.traffic -side top -fill x -expand 1
     bind $parent <Alt-e> [list focus $af]
     bind $parent <Alt-s> [list $af.store invoke]
 
@@ -7979,6 +7996,11 @@ proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
 }
 
 proc tkjabber::PresCB {jlibName type args} {
+    if {[catch [linsert $args 0 PresCB2 $jlibName $type] err]} {
+        ::tkchat::addSystem .txt "error handling presence stanza: $err"
+    }
+}
+proc tkjabber::PresCB2 {jlibName type args} {
     ::log::log debug "|| PresCB > type=$type, args=$args"
     array set a {-from {} -to {} -status {}}
     array set a $args
@@ -7996,13 +8018,16 @@ proc tkjabber::PresCB {jlibName type args} {
     }
 }
 
-# On receiving presence stanzas we get called here after the roster object is called
+# On receiving presence stanzas we get called here after the roster
+# object is called
 proc ::tkjabber::on_pres_available {jlib from type args} {
-    #puts stderr "pres $jlib $from $type $args"
+    #puts stderr "pres_available $jlib $from $type $args"
     #array set a $args
+    return 0
 }
 proc ::tkjabber::on_pres_unavailable {jlib from type args} {
-    #puts stderr "pres $jlib $from $type $args"
+    #puts stderr "pres unavailable $jlib $from $type $args"
+    return 0
 }
 proc ::tkjabber::on_pres_subscribe {jlib from type args} {
     array set a [linsert $args 0 -status {}]
