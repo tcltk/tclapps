@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.419 2008/02/08 21:00:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.420 2008/02/08 22:05:40 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5372,7 +5372,7 @@ proc ::tkchat::ChangeFont {opt val} {
 	font configure $font $opt $val
     }
     if {$opt eq "-size"} {
-        font conigure FIXED -size $val
+        font configure FIXED -size $val
     }
 }
 
