@@ -2,6 +2,9 @@
 
 	* tkchat.tcl: Make the history timestamp recognition more fault
 	tolerant and read the ISO8601 format 
+	* tkchat.tcl: Added catch block around the main callback handlers
+	to try to avoid breaking the xml parser if there is an error in
+	the handler.
 
 2008-02-06  Pat Thoyts  <patthoyts@users.sourceforge.net>
 

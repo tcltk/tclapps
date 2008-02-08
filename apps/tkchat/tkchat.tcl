@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.420 2008/02/08 22:05:40 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.421 2008/02/08 23:28:01 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -7545,6 +7545,14 @@ proc ::tkjabber::PollIrcUserList {jid} {
 
 # The roster stuff...
 proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
+    if {[catch [linsert $args 0 RosterCB2 $rostName $what $jid] err]} {
+        set e "error handling roster update: $err"
+        ::log::log error $e
+        ::tkchat::addSystem .txt $e
+    }
+}
+
+proc ::tkjabber::RosterCB2 { rostName what {jid {}} args } {
     global Options
     variable conference
     variable grabNick
@@ -7751,6 +7759,14 @@ proc tkjabber::IqCB {jlibName type args} {
 }
 
 proc ::tkjabber::MsgCB {jlibName type args} {
+    if {[catch [linsert $args 0 MsgCB2 $jlibName $type] err]} {
+        set e "error handling message: $err"
+        ::log::log error $e
+        ::tkchat::addSystem .txt $e
+    }
+}
+
+proc ::tkjabber::MsgCB2 {jlibName type args} {
     global Options
     variable conference
     variable muc
