@@ -209,7 +209,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.418 2008/02/06 00:41:29 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.419 2008/02/08 21:00:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -483,20 +483,25 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 	    "History: status was [::http::status $tok] [::http::code $tok]"
     switch -- [::http::status $tok] {
 	ok {
-	    # Jabber logs
-	    set I [interp create -safe]
-	    interp alias $I m {} ::tkjabber::ParseLogMsg
-	    if { $reverse } {
-		set histTmp $::tkjabber::HistoryLines
-		set ::tkjabber::HistoryLines {}
-	    }
-            # At the moment, the logs are stored in utf-8 format on the 
-            # server but get issued as iso-8859-1 due to an error in the 
-            # tclhttpd configuration.
-            if {[string equal iso8859-1 [set [set tok](charset)]]} {
-                $I eval [encoding convertfrom utf-8 [http::data $tok]]
-            } else {
-                $I eval [http::data $tok]
+            if {[catch {
+                # Jabber logs
+                set I [interp create -safe]
+                interp alias $I m {} ::tkjabber::ParseLogMsg
+                if { $reverse } {
+                    set histTmp $::tkjabber::HistoryLines
+                    set ::tkjabber::HistoryLines {}
+                }
+                # At the moment, the logs are stored in utf-8 format on the 
+                # server but get issued as iso-8859-1 due to an error in the 
+                # tclhttpd configuration.
+                if {[string equal iso8859-1 [set [set tok](charset)]]} {
+                    $I eval [encoding convertfrom utf-8 [http::data $tok]]
+                } else {
+                    $I eval [http::data $tok]
+                }
+            } err]} then {
+                log::log error $err
+                bgerror $err
             }
 	    if { $reverse } {
 		set ::tkjabber::HistoryLines \
@@ -1332,7 +1337,7 @@ proc ::tkchat::Insert { w str tags url mark } {
 #  init hooks are called after gui creation before login
 #  login hooks are called after login
 #  save hook are called when saving options to file.
-#  options hooks are called to add pages to the Prefernces dialog
+#  options hooks are called to add pages to the Preferences dialog
 proc ::tkchat::Hook {do type args} {
     switch -exact -- $type {
 	message { set Hook [namespace current]::MessageHooks }
@@ -1385,9 +1390,13 @@ proc ::tkchat::Hook {do type args} {
             }
             return $res
         }
+        info {
+            if {![info exists $Hook]} { return {} }
+            return [set $Hook]
+        }
 	default {
 	    return -code error "unknown hook action \"$type\":\
-                must be add or or run"
+                must be add, info, remote or run"
 	}
     }
 }
@@ -1794,12 +1803,19 @@ proc ::tkchat::showInfo {title str} {
 }
 
 proc ::tkchat::createFonts {} {
-    font create FNT   -family helvetica -size -12 -weight normal -slant roman
-    font create ACT   -family helvetica -size -12 -weight normal -slant italic
-    font create NOLOG -family helvetica -size -12 -weight normal -slant roman
-    font create NAME  -family helvetica -size -12 -weight bold   -slant roman
-    font create SYS   -family helvetica -size -12 -weight bold   -slant italic
-    font create STAMP -family helvetica -size -12 -weight bold   -slant roman
+    if {[lsearch -exact [font names] TkDefaultFont] == -1} {
+        set basic [list -family helvetica -size -12 -weight normal -slant roman]
+        eval font create FIXED $basic -family courier
+    } else {
+        set basic [font actual TkDefaultFont]
+        eval font create FIXED [font actual TkFixedFont]
+    } 
+    eval font create FNT   $basic
+    eval font create ACT   $basic -slant italic
+    eval font create NOLOG $basic
+    eval font create NAME  $basic -weight bold
+    eval font create SYS   $basic -weight bold -slant italic
+    eval font create STAMP $basic -weight bold
 }
 
 proc ::tkchat::displayUsers {} {
@@ -5346,6 +5362,7 @@ proc ::tkchat::SetFont { fontString } {
     foreach font {FNT ACT NOLOG NAME SYS STAMP} {
 	font configure $font -family $family -size $size
     }
+    font configure FIXED -size $size
     return
 }
 
@@ -5353,6 +5370,9 @@ proc ::tkchat::ChangeFont {opt val} {
     set ::Options(Font,$opt) $val
     foreach font {FNT ACT NOLOG NAME SYS STAMP} {
 	font configure $font $opt $val
+    }
+    if {$opt eq "-size"} {
+        font conigure FIXED -size $val
     }
 }
 
@@ -6255,7 +6275,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     }
     set l [${NS}::label $f.lstuff -text "Anything else" -anchor nw]
     set e [${NS}::frame $f.estuff]
-    set et [text $e.text -height 6 -bd 1 -background white]
+    set et [text $e.text -height 6 -bd 1 -background white -font FIXED]
     set es [${NS}::scrollbar $e.scroll -command [list $et yview]]
     if {!$useTile} {
 	$f.estuff configure -bd 0
@@ -6681,6 +6701,12 @@ proc ::tkchat::FocusOutHandler {w args} {
 	after idle [namespace origin FadeAlpha]
     }
 }
+
+# -------------------------------------------------------------------------
+# The following section sets up the options dialog. The application
+# preferences are done on the PreferencesPage and plugins can provide
+# additional pages. If we don't have ttk then a tabbed dialog is mimicked.
+# See the tkchat_clock.tcl file for a sample plugin.
 
 proc ::tkchat::PreferencesPage {parent} {
     global Options
@@ -8866,8 +8892,25 @@ proc ::tkjabber::setTopic { newtopic } {
 proc ::tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
     variable HistoryLines
     variable HaveHistory
+    variable HistoryLastTimestamp
     set HaveHistory 1
-    set timestamp [clock scan ${when} -gmt 1]
+    set fail 1 ; set timestamp 0
+    if {[package vsatisfies [package provide Tcl] 8.5]} {
+        foreach format [list "%Y-%m-%dT%H:%M:%S%Z" "%Y%m%dT%H:%M:%S"] {
+            set fail [catch {clock scan $when -format $format -gmt 1} timestamp]
+            if {!$fail} break
+        }
+    } else {
+        set when [string map {- {} Z {}} $when]
+        set fail [catch {clock scan $when -gmt 1} timestamp]
+    }
+    if {$fail} {
+        log::log error $timestamp
+        if {![info exists HistoryLastTimestamp]} {set HistoryLastTimestamp 0}
+        set timestamp $HistoryLastTimestamp
+    } else {
+        set HistoryLastTimestamp $timestamp
+    }
     lappend HistoryLines [list $timestamp $nick $msg]
     if { [llength $args] > 0 } {
 	::log::log warning "Log incorrect log format."
