@@ -1,5 +1,6 @@
 2008-02-10  Pat Thoyts <patthoyts@users.sourceforge.net>
 
+	* ijbridge.tcl: Increment version to 1.1.0
 	* ijbridge.tcl: Switch to use of the digest version of the
 	jabberl:iq:auth authentication protocol.
 

@@ -23,8 +23,8 @@ namespace eval client {}
 
 namespace eval ::ijbridge {
 
-    variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.27 2008/02/10 15:57:23 patthoyts Exp $}
+    variable version 1.1.0
+    variable rcsid {$Id: ijbridge.tcl,v 1.28 2008/02/10 16:13:54 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
