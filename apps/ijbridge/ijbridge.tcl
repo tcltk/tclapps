@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.25 2008/01/27 00:37:35 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.26 2008/02/10 15:54:40 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -163,7 +163,7 @@ proc ::ijbridge::UpdateStats {who length} {
         set stats($who,c) [expr {wide($stats($who,c)) + $length}]
         set stats($who,l) [expr {wide($stats($who,l)) + 1}]
     }
-    set stats($who,t) [clock seconds]
+    set statS($who,t) [clock seconds]
 }
 
 # Dump stats to file and schedule another dump in 1 hour
@@ -197,8 +197,8 @@ proc ::ijbridge::OnConnect {token args} {
     set conn(id) [$token send_auth \
                       $Options(JabberUser) $Options(JabberResource) \
                       [namespace origin OnLogin] \
-                      -password $Options(JabberPassword)]
-    #-digest [sha1::sha1 $info(id)$JabberPassword]]
+                      -digest [sha1::sha1 $info(id)$Options(JabberPassword)]]
+                      #-password $Options(JabberPassword)
 }
 
 # ijbridge::OnLogin --
@@ -1181,6 +1181,7 @@ proc ::ijbridge::ReadControl {chan} {
 
 log::lvSuppressLE emerg 0
 log::lvSuppressLE debug 1
+#set jlib::debug 2
 
 proc Main {args} {
     global tcl_platform tcl_interactive tcl_service tk_version
