@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.0.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.26 2008/02/10 15:54:40 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.27 2008/02/10 15:57:23 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -214,8 +214,13 @@ proc ::ijbridge::OnLogin {token type query} {
         result {
             $token send_presence -type available
             set conn(muc) [jlib::muc::new $token]
+            set x {}
+            lappend x [wrapper::createtag x \
+                           -attrlist {xmlns http://jabber.org/protocol/muc} \
+                           -subtags [list [wrapper::createtag history \
+                                                -attrlist {maxchars 0}]]]
             $conn(muc) enter $Options(Conference) $Options(ConferenceNick) \
-                -command [namespace origin OnMucEnter]
+                -extras $x -command [namespace origin OnMucEnter]
         }
         error {
             log::log error "Failed to login! \"$query\""
