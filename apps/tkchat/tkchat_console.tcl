@@ -1,4 +1,13 @@
-proc ::tkchat::ConsoleInit {} {
+#
+#	Create the Tk console on unix or optionally on Windows we can 
+#	create a console that is embedded in some other window
+#	See the notepad demo code at the end.
+#
+#	Original unix console from the wiki.
+
+namespace eval ::tkchat {}
+
+proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
     #####
     #
     # "console for Unix"
@@ -8,7 +17,7 @@ proc ::tkchat::ConsoleInit {} {
     #
     #       Provides a console window.
     #
-    # Last modified on: $Date: 2007/09/11 16:58:32 $
+    # Last modified on: $Date: 2008/03/24 20:12:22 $
     # Last modified by: $Author: patthoyts $
     #
     # This file is evaluated to provide a console window interface to the
@@ -30,11 +39,17 @@ proc ::tkchat::ConsoleInit {} {
     # 1. Create an interpreter for the console window widget and load Tk
     set consoleInterp [interp create]
     $consoleInterp eval [list set ::tk_library $::tk_library]
-    $consoleInterp alias exit ::console hide
+    $consoleInterp alias exit $name hide
+
+    if {$parent ne {}} {
+        if {[string match ".*" $parent]} { set parent [winfo id $parent] }
+        $consoleInterp eval lappend argv -use $parent
+    }
+
     load "" Tk $consoleInterp
 
     # 2. A command 'console' in the application interpreter
-    proc ::console {sub {optarg {}}} [subst -nocommands {
+    proc $name {sub {optarg {}}} [subst -nocommands {
         switch -exact -- \$sub {
             title {
                 $consoleInterp eval wm title . [list \$optarg]
@@ -176,6 +191,23 @@ proc ::tkchat::ConsoleInit {} {
         }
         
         unset consoleInterp
-        ::console title "[wm title .] Console"
-        ::console hide
+        $name title "[wm title .] Console"
+        $name hide
+}
+
+proc ::tkchat::EmbeddedConsoleDemo {parent} {
+    set dlg [toplevel [join [list $parent embedconsoledemo] .] -class Dialog]
+    set nb [ttk::notebook $dlg.nb]
+    frame $nb.page0 -container 1 
+    tkchat::ConsoleInit $nb.page0 ::firstconsole
+
+    frame $nb.page1 -container 0 -background blue
+
+    $nb add $nb.page0 -text Console
+    $nb add $nb.page1 -text Second
+    grid $nb -sticky news
+    grid rowconfigure $dlg 0 -weight 1
+    grid columnconfigure $dlg 0 -weight 1
+    
+    bind $dlg <Destroy> {interp delete ::firstconsole}
 }

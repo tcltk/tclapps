@@ -109,6 +109,18 @@ if {[tk windowingsystem] eq "aqua"} {
     }
 }
 
+# Override the normal logging to include a timestamp
+proc ::log::Puts {level text} {
+    variable channelMap
+    variable fill
+    set chan $channelMap($level)
+    if {$chan ne {}} {
+        set t [clock format [clock seconds] -format {%T }]
+        puts $chan "$t$level$fill($level) $text"
+    }
+    return
+}
+
 # Ensure that Tk widgets are available in the tk namespace. This is useful
 # if we are using Ttk widgets as sometimes we need the originals.
 #
@@ -126,9 +138,9 @@ if {[llength [info commands ::tk::label]] < 1} {
 #
 namespace eval ::tkchat {
     variable useTile
+    variable useClosebutton 0
     if {![info exists useTile]} {
 	variable useTile 1
-	variable useClosebutton 0
 	variable NS "::ttk"
 	if {[llength [info commands ::ttk::*]] == 0} {
             if {![catch {package require tile 0.8}]} {
@@ -143,16 +155,6 @@ namespace eval ::tkchat {
 		set useTile 0
 		set NS "::tk"
 	    }
-	} else {
-	    # [PT]: experimental ttk styled pane closebutton.
-	    if {[lsearch [ttk::style element names] "MDIButton.close"] != -1} {
-                ttk::style layout TMDIButton.close {
-                    MDIButton.padding -sticky nswe -children {
-                        MDIButton.close -sticky nswe
-		    }
-		}
-		set useClosebutton 1
-	    }
 	}
     }
     if {$useTile && [tk windowingsystem] eq "aqua"} {
@@ -160,6 +162,19 @@ namespace eval ::tkchat {
         if {[llength [info commands ::ttk::_scrollbar]] == 0} {
             rename ::ttk::scrollbar ::ttk::_scrollbar
             interp alias {} ::ttk::scrollbar {} ::tk::scrollbar
+        }
+    }
+    if {$useTile && [tk windowingsystem] eq "win32"} {
+        # [PT]: experimental ttk styled pane closebutton.
+        catch {
+            ttk::style element create close vsapi \
+                EXPLORERBAR 2 {pressed 3 active 2 {} 1}
+            ttk::style layout CloseButton {
+                CloseButton.padding -sticky news -children {
+                    Closebutton.close -sticky news
+                }
+            }
+            set useClosebutton 1
         }
     }
 }
@@ -199,17 +214,19 @@ if {$tcl_platform(platform) eq "windows"
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
     # This package also provides more efficient IP sockets on windows.
-    #if {![catch {package require Iocpsock}]} {
-    #    # Not working!?! We get the data but then timeout
-    #    #::http::register http 80 ::socket2
-    #}
+    # NOTE: iocpsock only works well with http 2.5.5 and above (bug #1868845)
+    if {![catch {package require Iocpsock}]} {
+        if {[package vsatisfies [package provide http] 2.5.5]} {
+            ::http::register http 80 ::socket2
+        }
+    }
 }
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.421 2008/02/08 23:28:01 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.422 2008/03/24 20:12:22 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -930,6 +947,9 @@ proc ::tkchat::getColor { nick } {
 	set w [lindex $Options(Color,NICK-$nick) 0]
 	set clr [lindex $Options(Color,NICK-$nick) $w]
     }
+    if {$nick ne "MainBG" && $clr eq [getColor MainBG]} {
+        set clr [invClr $clr 1]
+    }
     return $clr
 }
 
@@ -1042,10 +1062,10 @@ proc ::tkchat::checkNick { w nick clr timestamp } {
     }
     if { $clr ne "" && [lindex $Options(Color,NICK-$nick) 1] ne $clr } {
         catch {
-            $w tag configure NICK-$nick -foreground "#$clr"
             lset Options(Color,NICK-$nick) 1 $clr
             lset Options(Color,NICK-$nick) 2 [invClr $clr]
             set clr [getColor $nick]
+            $w tag configure NICK-$nick -foreground "#$clr"
             .pane.names tag configure NICK-$nick -foreground "#$clr"
             $w tag configure NOLOG-$nick -foreground "#[fadeColor $clr]"
             $w tag lower NICK-$nick STAMP
@@ -2663,7 +2683,7 @@ proc ::tkchat::CreateGUI {} {
     variable useClosebutton
     ${NS}::frame .cframe -relief groove
     if {$useClosebutton} {
-        ::ttk::button .cbtn -padding {1 1 0 0} -style TMDIButton.close
+        ::ttk::button .cbtn -padding {1 1 0 0} -style CloseButton
     } else {
         ${NS}::button .cbtn -text "Close history pane"
     }
@@ -4623,22 +4643,26 @@ proc ::tkchat::buildRow { f idx disp } {
 
 proc ::tkchat::SpecifySubjects {parent} {
     variable NS
+    set dlg [winfo toplevel $parent]
     set t [${NS}::frame $parent.tkchatSubjects]
-    ${NS}::labelframe $t.pat -text Patterns
-    ${NS}::labelframe $t.new -text "New pattern"
+    ${NS}::labelframe $t.pat -text Patterns -underline 0
+    ${NS}::labelframe $t.new -text "New pattern" -underline 0
     ${NS}::label $t.hlp -justify left -anchor nw -text \
         "Specify match-text as a case-insensitive glob pattern."
     listbox $t.lst -yscrollcommand [list $t.scr set] -height 8 -selectmode extended
     ${NS}::scrollbar $t.scr -command [list $t.lst yview]
     ${NS}::entry $t.sub
-    ${NS}::button $t.sav -text Add \
+    ${NS}::button $t.sav -text Add -underline 0 \
         -command [list [namespace origin SubjectSave] $t]
-    ${NS}::button $t.del -text Delete \
+    ${NS}::button $t.del -text Delete -underline 0 \
         -command [list [namespace origin SubjectKill] $t.lst]
 
     bind $t.sub <Return> [list $t.sav invoke]
     bind $t.lst <Double-Button-1> {::tkchat::SubjectSel %W @%x,%y}
-
+    bind $dlg <Alt-p> [list focus $t.lst]
+    bind $dlg <Alt-n> [list focus $t.sub]
+    bind $dlg <Alt-d> [list $t.del invoke]
+    bind $dlg <Alt-a> [list $t.sav invoke]
     grid $t.lst $t.scr -in $t.pat -sticky news
     grid $t.del -      -in $t.pat -sticky e
     grid columnconfigure $t.pat 0 -weight 1
@@ -5159,8 +5183,8 @@ proc ::tkchat::saveRC {} {
 
     # Save these options to resource file
     set keep {
-	Alert,* AnimEmoticons AutoAway AutoBookmark AutoConnect AutoFade
-	AutoFadeLimit Browser BrowserTab ChatLogFile 
+	Alert,* AnimEmoticons AutoAway AutoAwayMsg AutoBookmark AutoConnect
+	AutoFade AutoFadeLimit Browser BrowserTab ChatLogFile 
 	ChatLogOff Color,* DisplayUsers
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
@@ -5843,6 +5867,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Alert,TOPIC		1
 	AnimEmoticons		0
 	AutoAway		-1
+        AutoAwayMsg		"no activity"
 	AutoBookmark		0
 	AutoConnect		0
 	AutoFade		0
@@ -6721,7 +6746,9 @@ proc ::tkchat::PreferencesPage {parent} {
     set EditOptions(AutoFadeLimit) $Options(AutoFadeLimit)
     set EditOptions(Transparency)  $Options(Transparency)
     set EditOptions(UseTkOnly)     $Options(UseTkOnly)
+    set EditOptions(AutoAwayMsg)   $Options(AutoAwayMsg)
 
+    set dlg [winfo toplevel $parent]
     set page [${NS}::frame $parent.preferences -borderwidth 0]
 
     set af [${NS}::labelframe $page.af -text "General"]
@@ -6731,17 +6758,31 @@ proc ::tkchat::PreferencesPage {parent} {
     ${NS}::checkbutton $af.traffic -underline 1 \
         -text "Show humorous entered/left messages" \
         -variable ::Options(FunkyTraffic) -onvalue 1 -offvalue 0
+    ${NS}::label $af.aal -text "Inactive message" -underline 0 \
+        -anchor ne -font FNT
+    ${NS}::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
     if {!$useTile} {
         $af.store configure -anchor nw
         $af.traffic configure -anchor nw
     }
+    if {[llength [package provide tooltip]]>0} {
+        tooltip::tooltip $af.store "Control the persistence of one-to-one\
+            chats to the ~/.tkchat_msgs file."
+        tooltip::tooltip $af.traffic "Set the style of message displayed when\
+            a user enters or leaves the chat."
+        tooltip::tooltip $af.aae "Set the status message used when\
+            you are automatically made inactive."
+    }
+    
+    bind $dlg <Alt-s> [list $af.store invoke]
+    bind $dlg <Alt-h> [list $af.traffic invoke]
+    bind $dlg <Alt-i> [list focus $af.aae]
+    grid $af.store   -   -sticky ew -padx 2
+    grid $af.traffic -   -sticky ew -padx 2
+    grid $af.aal $af.aae -sticky ew -padx 2
+    grid columnconfigure $af 1 -weight 1
 
-    pack $af.store -side top -fill x -expand 1
-    pack $af.traffic -side top -fill x -expand 1
-    bind $parent <Alt-e> [list focus $af]
-    bind $parent <Alt-s> [list $af.store invoke]
-
-    set bf [${NS}::labelframe $page.bf -text "Preferred browser" ]
+    set bf [${NS}::labelframe $page.bf -text "Preferred browser" -underline 10]
 
     ${NS}::label $bf.m -anchor nw -font FNT -wraplength 4i -justify left \
 	-text "Provide the command used to launch your web browser. For\
@@ -6759,6 +6800,8 @@ proc ::tkchat::PreferencesPage {parent} {
 	-variable ::tkchat::EditOptions(BrowserTab) -underline 0
     if {!$useTile} {$bf.tab configure -anchor nw}
 
+    bind $dlg <Alt-b> [list focus $bf.e]
+    bind $dlg <Alt-f> [list $bf.tab invoke]
     grid $bf.m -     -sticky news -padx 2
     grid $bf.e $bf.b -sticky ew   -padx 2
     grid $bf.tab     -sticky ew   -padx 2 -columnspan 2
@@ -6792,11 +6835,11 @@ proc ::tkchat::PreferencesPage {parent} {
 	$sf.as configure -state disabled
     }
 
-    bind $parent <Alt-a> [list $sf.as invoke]
-    bind $parent <Alt-g> [list $sf.gtk invoke]
-    bind $parent <Alt-n> [list $sf.any invoke]
-    bind $parent <Alt-t> [list $sf.def invoke]
-    bind $parent <Alt-w> [list $af.tkonly invoke]
+    bind $dlg <Alt-a> [list $sf.as invoke]
+    bind $dlg <Alt-g> [list $sf.gtk invoke]
+    bind $dlg <Alt-n> [list $sf.any invoke]
+    bind $dlg <Alt-t> [list $sf.def invoke]
+    bind $dlg <Alt-w> [list $sf.tkonly invoke]
 
     grid $sf.m  -       -       -       -sticky news -padx 2
     grid $sf.as $sf.gtk $sf.any $sf.def -sticky ew -padx 2
@@ -6809,8 +6852,8 @@ proc ::tkchat::PreferencesPage {parent} {
     set gf [${NS}::labelframe $page.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
     if {[lsearch [wm attributes .] -alpha] != -1} {
 	set gimmicks 1
-	${NS}::checkbutton $gf.fade -text "When not active, fade to " -underline 2 \
-	    -variable ::tkchat::EditOptions(AutoFade)
+	${NS}::checkbutton $gf.fade -text "When not active, fade to " \
+            -underline 2 -variable ::tkchat::EditOptions(AutoFade)
         if {[info commands ::ttk::spinbox] ne {}} {
             # FIX ME: real experimental this part...
             proc [namespace current]::ValidateSpin {w from to} {
@@ -6830,14 +6873,15 @@ proc ::tkchat::PreferencesPage {parent} {
                 -textvariable ::tkchat::EditOptions(AutoFadeLimit)
         }
 	${NS}::label $gf.pct -text "%"
-	${NS}::label $gf.alabel -text Transparency
+	${NS}::label $gf.alabel -text Transparency -underline 1 \
+            -anchor ne -font FNT
 	${NS}::scale $gf.alpha -from 1 -to 100 -orient horizontal
 	$gf.alpha set $EditOptions(Transparency)
 	#[expr {int([wm attributes . -alpha] * 100)}]
 	$gf.alpha configure -command [namespace origin SetAlpha]
 
-	bind $parent <Alt-h> [list $gf.fade invoke]
-	bind $parent <Alt-r> [list focus $gf.alpha]
+	bind $dlg <Alt-e> [list $gf.fade invoke]
+	bind $dlg <Alt-r> [list focus $gf.alpha]
 
 	grid $gf.fade   - $gf.fadelimit $gf.pct x -sticky w -padx 2
 	grid $gf.alabel $gf.alpha - - - -sticky we -padx 2
@@ -6854,7 +6898,7 @@ proc ::tkchat::PreferencesPage {parent} {
         global Options ; variable EditOptions
 	set Options(Browser) $EditOptions(Browser)
 	set Options(BrowserTab) $EditOptions(BrowserTab)
-	foreach property {Style AutoFade AutoFadeLimit UseTkOnly} {
+	foreach property {Style AutoFade AutoFadeLimit UseTkOnly AutoAwayMsg} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
 	    }
@@ -7776,7 +7820,7 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 
     set LastMessage [clock seconds]
 
-    ::log::log debug "|| MsgCB > type=$type, args=$args"
+    ::log::log debug "message $type $args"
 
     set color ""
     set timestamp 0
@@ -8043,7 +8087,7 @@ proc tkjabber::PresCB {jlibName type args} {
     }
 }
 proc tkjabber::PresCB2 {jlibName type args} {
-    ::log::log debug "|| PresCB > type=$type, args=$args"
+    ::log::log debug "presence $type $args"
     array set a {-from {} -to {} -status {}}
     array set a $args
     switch -exact -- $type {
@@ -9284,7 +9328,7 @@ proc ::tkjabber::autoStatus {} {
     } elseif { $AutoAway == 0 && [idle::idletime] > $idle_time } {
 	set Away 2
 	set AutoAway 1
-	away "no activity" away
+	away $Options(AutoAwayMsg) away
     } elseif { $AutoAway == 1 && [idle::idletime] > $xa_time } {
 	set AutoAway 2
 	away $AwayStatus xa

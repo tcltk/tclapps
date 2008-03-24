@@ -1,3 +1,13 @@
+2008-03-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::getColor): If someone selects our
+	background colour to post with then we will invert them.
+
+2008-03-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Permit configuration of the auto-inactive status
+	message via the preferences page.
+
 2008-02-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Make the history timestamp recognition more fault

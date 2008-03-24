@@ -132,14 +132,13 @@ proc ::rss::StreamParseRss {Rss xlist} {
             description -
             link -
             title { lappend rss(channel) $tag [wrapper::getcdata $item] }
-            pubDate { lappend rss(channel) mtime [clock scan [wrapper::getcdata $item]] }
+            pubDate { lappend rss(channel) mtime [ParseRssDate [wrapper::getcdata $item]] }
             item {
                 set e {}
                 foreach node [wrapper::getchildren $item] {
                     set ntag [wrapper::gettag $node]
                     switch -exact -- $ntag {
-                        pubDate {lappend e mtime \
-                                     [clock scan [string trim [wrapper::getcdata $node]]]}
+                        pubDate {lappend e mtime [ParseRssDate [wrapper::getcdata $node]]}
                         default {
                             lappend e $ntag [string trim [wrapper::getcdata $node]]
                         }
@@ -162,7 +161,7 @@ proc ::rss::StreamParseAtom {Rss xlist} {
         updated {
             catch {
                 set date [wrapper::getcdata $xlist]
-                lappend rss(channel) mtime [ParseDate $date]
+                lappend rss(channel) mtime [ParseAtomDate $date]
             }
         }
         entry {
@@ -184,7 +183,7 @@ proc ::rss::StreamParseAtom {Rss xlist} {
                     }
                     id {lappend e id [wrapper::getcdata $node]}
                     published - updated {
-                        if {[set t [ParseDate [wrapper::getcdata $node]]] > $mtime} {
+                        if {[set t [ParseAtomDate [wrapper::getcdata $node]]] > $mtime} {
                             set mtime $t
                         }
                     }
@@ -198,14 +197,49 @@ proc ::rss::StreamParseAtom {Rss xlist} {
     return
 }
 
-proc ::rss::ParseDate {date} {
-    if {[catch {clock scan $date} time]} {
-        set date [string map {- ""} $date]
-        if {[catch {clock scan $date} time]} {
+# Try various ways to read an RSS timestamp.
+# RSS specifies pubDate as RFC822 time format
+# ie: Sat, 07 Sep 2002 00:00:01 GMT
+# Atom uses RFC3339 (ISO8601)
+if {[package vsatisfies [package provide Tcl] 8.5]} {
+
+    proc ::rss::ParseAtomDate {date} {
+        set date [string trim $date]
+        if {[catch {clock scan $date -format {%Y-%m-%dT%T%Z}} time]} {
+            if {[catch {clock scan $date} time]} {
+                set time 0
+            }
+        }
+        return $time
+    }
+    proc ::rss::ParseRssDate {date} {
+        set date [string trim $date]
+        if {[catch {clock scan $date -format {%a, %d %b %Y %T %Z}} time]} {
+            if {[catch {clock scan $date} time]} {
+                set time 0
+            }
+        }
+        return $time
+    }
+
+} else {
+
+    proc ::rss::ParseAtomDate {date} {
+        set date [string trim $date]
+        if {[catch {clock scan [string map {- ""} $date} time]} {
+            if {[catch {clock scan $date} time]} {
+                set time 0
+            }
+        }
+        return $time
+    }
+    proc ::rss::ParseRssDate {date} {
+        set date [string trim $date]
+        if {[catch {clock scan $data} time]} {
             set time 0
         }
+        return $time
     }
-    return $time
 }
 
 package provide rssrdr $::rss::version
