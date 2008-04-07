@@ -21,7 +21,7 @@ proc ::tkchat::clock::Init {} {
     variable Options
     if {$Options(Enabled)} {
         if {[winfo exists .status] && ![winfo exists .status.clock]} {
-            ${NS}::label .status.clock -font FNT
+            ${NS}::label .status.clock
             ::tkchat::StatusbarAddWidget .status .status.clock 1
             if {[package provide tooltip] ne {}} {
                 tooltip::tooltip .status.clock $Options(Tooltip)

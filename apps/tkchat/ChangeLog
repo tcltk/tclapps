@@ -1,3 +1,13 @@
+2008-04-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:       Applied patch #1935658 from Sergei Gavrikov to
+	* tkchat_clock.tcl: restrict the selected font to displayed text.
+
+2008-04-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix configure options when not using ttk in the
+	options dialog and added a 'i hate lolcatz' option.
+
 2008-03-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl (::tkchat::getColor): If someone selects our

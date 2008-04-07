@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.422 2008/03/24 20:12:22 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.423 2008/04/07 15:12:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4615,26 +4615,26 @@ proc ::tkchat::buildRow { f idx disp } {
 	incr buildRow_seq
     }
     set seq $buildRow_seq
-    ::tk::label $f.nm$seq -text "$disp" -anchor w -font NAME -padx 0 -pady 0
-    ::tk::radiobutton $f.def$seq -padx 0 -pady 0 -font FNT -indicatoron 0 \
+    ::tk::label $f.nm$seq -text "$disp" -anchor w -padx 0 -pady 0
+    ::tk::radiobutton $f.def$seq -padx 0 -pady 0 -indicatoron 0 \
 	    -text "default" \
 	    -variable ::tkchat::DlgData($idx) \
 	    -value 1 \
 	    -foreground  "#[lindex $DlgData(Color,$idx) 1]" \
 	    -selectcolor "#[lindex $DlgData(Color,$idx) 1]"
-    ::tk::radiobutton $f.inv$seq -padx 0 -pady 0 -font FNT -indicatoron 0 \
+    ::tk::radiobutton $f.inv$seq -padx 0 -pady 0 -indicatoron 0 \
 	    -text "inverted" \
 	    -variable ::tkchat::DlgData($idx) \
 	    -value 2 \
 	    -foreground "#[lindex $DlgData(Color,$idx) 2]" \
 	    -selectcolor "#[lindex $DlgData(Color,$idx) 2]"
-    ::tk::radiobutton $f.ovr$seq -padx 0 -pady 0 -font FNT -indicatoron 0 \
+    ::tk::radiobutton $f.ovr$seq -padx 0 -pady 0 -indicatoron 0 \
 	    -text "custom" \
 	    -variable ::tkchat::DlgData($idx) \
 	    -value 3 \
 	    -foreground "#[lindex $DlgData(Color,$idx) 3]" \
 	    -selectcolor  "#[lindex $DlgData(Color,$idx) 3]"
-    button $f.clr$seq -padx 0 -pady 0 -font FNT \
+    button $f.clr$seq -padx 0 -pady 0 \
 	    -text "..." \
 	    -command [list ::tkchat::newColor $f.ovr$seq $idx]
     grid $f.nm$seq $f.def$seq $f.inv$seq $f.ovr$seq $f.clr$seq \
@@ -4643,10 +4643,15 @@ proc ::tkchat::buildRow { f idx disp } {
 
 proc ::tkchat::SpecifySubjects {parent} {
     variable NS
+    variable useTile
     set dlg [winfo toplevel $parent]
     set t [${NS}::frame $parent.tkchatSubjects]
-    ${NS}::labelframe $t.pat -text Patterns -underline 0
-    ${NS}::labelframe $t.new -text "New pattern" -underline 0
+    ${NS}::labelframe $t.pat -text Patterns
+    ${NS}::labelframe $t.new -text "New pattern"
+    if {$useTile} {
+        $t.pat configure -underline 0
+        $t.new configure -underline 0
+    }
     ${NS}::label $t.hlp -justify left -anchor nw -text \
         "Specify match-text as a case-insensitive glob pattern."
     listbox $t.lst -yscrollcommand [list $t.scr set] -height 8 -selectmode extended
@@ -4848,10 +4853,10 @@ proc ::tkchat::ChangeColors {} {
     wm withdraw $t
     wm title $t "Color Settings"
 
-    label $t.l1 -text "Posting Color" -font NAME
+    label $t.l1 -text "Posting Color"
     label $t.l2 -text "Example Text" -background white \
 	-foreground \#$DlgData(MyColor) -font ACT
-    button $t.myclr -text "Change..." -font FNT -command {
+    button $t.myclr -text "Change..." -command {
 	set tmp [tk_chooseColor \
 		       -title "Select Your User Color" \
 		       -initialcolor \#$::tkchat::DlgData(MyColor)]
@@ -4861,7 +4866,7 @@ proc ::tkchat::ChangeColors {} {
 	}
     }
 
-    label $t.l3 -text "Display Color Overrides" -font NAME
+    label $t.l3 -text "Display Color Overrides"
     frame $t.f -relief sunken -bd 2 -height 300
     canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
 	  -width 10 -height 300 -highlightthickness 0 -bd 0
@@ -4876,7 +4881,7 @@ proc ::tkchat::ChangeColors {} {
 	[winfo parent %W] configure -width [expr {%w+5}] -scrollregion [list 0 0 %w %h]
     }
     foreach {key str} { 1 "All\nDefault" 2 "All\nInverted" 3 "All\nCustom"} {
-	button $f.all$key -text $str -padx 0 -pady 0 -font SYS -command \
+	button $f.all$key -text $str -padx 0 -pady 0 -command \
 		[string map [list %val% $key] {
 		    foreach idx [array names DlgData Color,*] {
 			set idx [string range $idx 6 end]
@@ -4888,7 +4893,7 @@ proc ::tkchat::ChangeColors {} {
     foreach {idx str} {MainBG Background MainFG Foreground SearchBG Searchbackgr SubjectBG Subjectbackgr} {
 	buildRow $f $idx $str
     }
-    grid [label $f.online -text "Online Users" -font SYS] - - -
+    grid [label $f.online -text "Online Users"] - - -
     set UserList [list]
     foreach network $OnlineUsers(networks) {
 	set UserList [concat $UserList $OnlineUsers($network)]
@@ -4899,7 +4904,7 @@ proc ::tkchat::ChangeColors {} {
 	    buildRow $f NICK-$nick $nick
 	}
     }
-    grid [label $f.offline -text "Offline Users" -font SYS] - - -
+    grid [label $f.offline -text "Offline Users"] - - -
     foreach nick $Options(NickList) {
 	set nick [lindex $nick 0]
 	if { [lsearch -exact $UserList $nick] == -1 } {
@@ -4910,18 +4915,15 @@ proc ::tkchat::ChangeColors {} {
     button $t.f2.ok \
 	    -width 8 \
 	    -text "OK" \
-	    -command { set ::tkchat::DlgDone ok } \
-	    -font SYS
+	    -command { set ::tkchat::DlgDone ok }
     button $t.f2.app \
 	    -width 8 \
 	    -text "Apply" \
-	    -command { set ::tkchat::DlgDone apply } \
-	    -font SYS
+	    -command { set ::tkchat::DlgDone apply }
     button $t.f2.can \
 	    -width 8 \
 	    -text "Cancel" \
-	    -command { set ::tkchat::DlgDone cancel} \
-	    -font SYS
+	    -command { set ::tkchat::DlgDone cancel}
     pack $t.f2.ok $t.f2.app $t.f2.can -side left -expand 1 -fill none
 
     grid $t.l1  $t.l2 $t.myclr x -padx 1 -pady 3 -sticky {}
@@ -5188,7 +5190,7 @@ proc ::tkchat::saveRC {} {
 	ChatLogOff Color,* DisplayUsers
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
-	JabberPort JabberResource JabberServer Khim 
+	JabberPort JabberResource JabberServer Khim HateLolcatz
 	LogFile LogLevel LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Subjects Theme Transparency UseBabelfish 
@@ -5889,6 +5891,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Fullname		""
         FunkyTraffic		1
 	Geometry		600x500
+        HateLolcatz             0
 	HistoryLines		-1
 	JabberConference	tcl@tach.tclers.tk
 	JabberLogs		"http://tclers.tk/conferences/tcl"
@@ -6747,23 +6750,29 @@ proc ::tkchat::PreferencesPage {parent} {
     set EditOptions(Transparency)  $Options(Transparency)
     set EditOptions(UseTkOnly)     $Options(UseTkOnly)
     set EditOptions(AutoAwayMsg)   $Options(AutoAwayMsg)
+    set EditOptions(HateLolcatz)   $Options(HateLolcatz)
+    set EditOptions(FunkyTraffic)  $Options(FunkyTraffic)
+    set EditOptions(StoreMessages) $Options(StoreMessages)
 
     set dlg [winfo toplevel $parent]
     set page [${NS}::frame $parent.preferences -borderwidth 0]
 
     set af [${NS}::labelframe $page.af -text "General"]
     ${NS}::checkbutton $af.store -text "Store private messages" \
-        -variable ::Options(StoreMessages) -onvalue 1 -offvalue 0 \
-        -underline 0
+        -variable ::tkchat::EditOptions(StoreMessages) \
+        -underline 0 -onvalue 1 -offvalue 0
     ${NS}::checkbutton $af.traffic -underline 1 \
-        -text "Show humorous entered/left messages" \
-        -variable ::Options(FunkyTraffic) -onvalue 1 -offvalue 0
+        -text "Show humorous entered/left messages" -offvalue 0\
+        -variable ::tkchat::EditOptions(FunkyTraffic) -onvalue 1
+    ${NS}::checkbutton $af.catz -text "I hate LOLCATZ"  -offvalue 0 \
+        -variable ::tkchat::EditOptions(HateLolcatz) -onvalue 1
     ${NS}::label $af.aal -text "Inactive message" -underline 0 \
-        -anchor ne -font FNT
+        -anchor ne
     ${NS}::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
     if {!$useTile} {
-        $af.store configure -anchor nw
-        $af.traffic configure -anchor nw
+        foreach w [list $af.store $af.traffic $af.catz] {
+            $w configure -anchor nw
+        }
     }
     if {[llength [package provide tooltip]]>0} {
         tooltip::tooltip $af.store "Control the persistence of one-to-one\
@@ -6772,6 +6781,8 @@ proc ::tkchat::PreferencesPage {parent} {
             a user enters or leaves the chat."
         tooltip::tooltip $af.aae "Set the status message used when\
             you are automatically made inactive."
+        tooltip::tooltip $af.catz "Toggle display of a LOLCATZ message in\
+            the statusbar after checking the current version."
     }
     
     bind $dlg <Alt-s> [list $af.store invoke]
@@ -6779,12 +6790,14 @@ proc ::tkchat::PreferencesPage {parent} {
     bind $dlg <Alt-i> [list focus $af.aae]
     grid $af.store   -   -sticky ew -padx 2
     grid $af.traffic -   -sticky ew -padx 2
+    grid $af.catz    -   -sticky ew -padx 2
     grid $af.aal $af.aae -sticky ew -padx 2
     grid columnconfigure $af 1 -weight 1
 
-    set bf [${NS}::labelframe $page.bf -text "Preferred browser" -underline 10]
+    set bf [${NS}::labelframe $page.bf -text "Preferred browser"]
+    if {$useTile} { $bf configure -underline 10 }
 
-    ${NS}::label $bf.m -anchor nw -font FNT -wraplength 4i -justify left \
+    ${NS}::label $bf.m -anchor nw -wraplength 4i -justify left \
 	-text "Provide the command used to launch your web browser. For\
 	instance /opt/bin/mozilla or xterm -e links. The URL to\
 	be opened will be appended to the command string and for\
@@ -6810,7 +6823,7 @@ proc ::tkchat::PreferencesPage {parent} {
 
     set sf [${NS}::labelframe $page.sf -text "Tk style"] ;#-padx 1 -pady 1
 
-    ${NS}::label $sf.m -anchor nw -font FNT -wraplength 4i -justify left \
+    ${NS}::label $sf.m -anchor nw -wraplength 4i -justify left \
 	-text "The Tk style selection available here will apply when you \
 	   next restart tkchat."
     ${NS}::radiobutton $sf.as -text "ActiveState" -underline 0 \
@@ -6874,7 +6887,7 @@ proc ::tkchat::PreferencesPage {parent} {
         }
 	${NS}::label $gf.pct -text "%"
 	${NS}::label $gf.alabel -text Transparency -underline 1 \
-            -anchor ne -font FNT
+            -anchor ne
 	${NS}::scale $gf.alpha -from 1 -to 100 -orient horizontal
 	$gf.alpha set $EditOptions(Transparency)
 	#[expr {int([wm attributes . -alpha] * 100)}]
@@ -6898,7 +6911,8 @@ proc ::tkchat::PreferencesPage {parent} {
         global Options ; variable EditOptions
 	set Options(Browser) $EditOptions(Browser)
 	set Options(BrowserTab) $EditOptions(BrowserTab)
-	foreach property {Style AutoFade AutoFadeLimit UseTkOnly AutoAwayMsg} {
+	foreach property {Style AutoFade AutoFadeLimit UseTkOnly
+            AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
 	    }
@@ -9367,7 +9381,9 @@ proc ::tkchat::CheckVersionDone {tok} {
     if {[set ndx [lsearch -exact $meta [base64::decode WC1MT0xDQVRa]]] != -1} {
         set Options(tagline) "[base64::decode TE9MQ2F0IHNheXM=]\
             \"[lindex $meta [incr ndx]]\""
-        after 10000 [list [namespace origin addStatus] 0 $Options(tagline)]
+        if {!$Options(HateLolcatz)} {
+            after 10000 [list [namespace origin addStatus] 0 $Options(tagline)]
+        }
     }
     set url [string trim [http::data $tok]]
     if {[regexp {tkchat.tcl,v 1\.(\d+)} $rcsid -> current]
