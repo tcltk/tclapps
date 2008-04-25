@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.424 2008/04/17 20:54:38 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.425 2008/04/25 10:24:23 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2588,10 +2588,11 @@ proc ::tkchat::CreateGUI {} {
 
     CreateTxtAndSbar
 
-    bind .txt <Button-3> { ::tkchat::OnTextPopup %W %x %y }
+    bind .txt <Button-3> [namespace code [list OnTextPopup %W %x %y]]
     if {[llength [package provide askleo]] > 0} {
         bind .txt <Shift-Button-3> { ::dict.leo.org::askLEOforSelection }
     }
+    bind .txt <Button-1> [namespace code [list OnTextFocus %W]]
 
     # user display
     ScrolledWidget text .pane.names 0 1\
@@ -2623,11 +2624,13 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
     bind .eMsg <Key-Prior>	{ .txt yview scroll -1 pages }
     bind .eMsg <Key-Next>	{ .txt yview scroll  1 pages }
+    bind .eMsg <Shift-Key-Up>   { .txt yview scroll -1 units }
+    bind .eMsg <Shift-Key-Down> { .txt yview scroll  1 units }
 
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
 
-    ${NS}::button .post  -text "Post"  -command ::tkchat::userPost
+    ${NS}::button .post -text "Post" -command [namespace code userPost]
 
     if {$useTile} {
 	ttk::menubutton .mb \
@@ -2667,7 +2670,7 @@ proc ::tkchat::CreateGUI {} {
     .txt configure -width 10
     .pane.names configure -width 10
     if {![catch {.txtframe cget -style} style] && $style eq "FakeText"} {
-        .txt configure -relief flat -borderwidth 0
+        .txt configure -relief flat -borderwidth 0 -highlightthickness 0
         grid .txt .sbar -in .txtframe -sticky news -padx 1 -pady 1
     } else {
         grid .txt .sbar -in .txtframe -sticky news
@@ -2805,6 +2808,20 @@ proc ::tkchat::ToggleStatusbar {} {
         if {!$Options(Visibility,STATUSBAR) && [winfo ismapped .status]} {
             grid forget .status
         }
+    }
+}
+
+proc ::tkchat::OnTextFocus {w} {
+    global Options
+    if {[info exists Options(ClickFocusEntry)] 
+        && $Options(ClickFocusEntry)} {
+        if {[winfo ismapped .eMsg]} {
+            focus .eMsg
+        } else {
+            focus .tMsg
+        }
+    } else {
+        focus $w
     }
 }
 
@@ -2994,7 +3011,7 @@ proc ::tkchat::CreateNewChatWindow { parent } {
 
     $parent.txt configure -width 10
     if {![catch {$parent.txtframe cget -style} style] && $style eq "FakeText"} {
-        $parent.txt configure -relief flat -borderwidth 0
+        $parent.txt configure -relief flat -borderwidth 0 -highlightthickness 0
     }
     grid $parent.txt $parent.sbar \
         -in $parent.txtframe -sticky news -padx 1 -pady 2
@@ -5187,7 +5204,7 @@ proc ::tkchat::saveRC {} {
     set keep {
 	Alert,* AnimEmoticons AutoAway AutoAwayMsg AutoBookmark AutoConnect
 	AutoFade AutoFadeLimit Browser BrowserTab ChatLogFile 
-	ChatLogOff Color,* DisplayUsers
+	ChatLogOff Color,* DisplayUsers ClickFocusEntry
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
 	JabberPort JabberResource JabberServer Khim HateLolcatz
@@ -5879,6 +5896,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	BrowserTab		0
 	ChatLogFile		""
 	ChatLogOff		1
+        ClickFocusEntry		1
 	DisplayUsers		1
 	ElideTags		{ SINGLEDOT AVAILABILITY TRAFFIC SYSTEM ERROR }
 	Emoticons		1
@@ -6714,17 +6732,18 @@ proc ::tkchat::PreferencesPage {parent} {
     variable useTile
 
     variable EditOptions
-    set EditOptions(Browser)       $Options(Browser)
-    set EditOptions(BrowserTab)    $Options(BrowserTab)
-    set EditOptions(Style)         $Options(Style)
-    set EditOptions(AutoFade)      $Options(AutoFade)
-    set EditOptions(AutoFadeLimit) $Options(AutoFadeLimit)
-    set EditOptions(Transparency)  $Options(Transparency)
-    set EditOptions(UseTkOnly)     $Options(UseTkOnly)
-    set EditOptions(AutoAwayMsg)   $Options(AutoAwayMsg)
-    set EditOptions(HateLolcatz)   $Options(HateLolcatz)
-    set EditOptions(FunkyTraffic)  $Options(FunkyTraffic)
-    set EditOptions(StoreMessages) $Options(StoreMessages)
+    set EditOptions(Browser)         $Options(Browser)
+    set EditOptions(BrowserTab)      $Options(BrowserTab)
+    set EditOptions(Style)           $Options(Style)
+    set EditOptions(AutoFade)        $Options(AutoFade)
+    set EditOptions(AutoFadeLimit)   $Options(AutoFadeLimit)
+    set EditOptions(Transparency)    $Options(Transparency)
+    set EditOptions(UseTkOnly)       $Options(UseTkOnly)
+    set EditOptions(AutoAwayMsg)     $Options(AutoAwayMsg)
+    set EditOptions(HateLolcatz)     $Options(HateLolcatz)
+    set EditOptions(FunkyTraffic)    $Options(FunkyTraffic)
+    set EditOptions(StoreMessages)   $Options(StoreMessages)
+    set EditOptions(ClickFocusEntry) $Options(ClickFocusEntry)
 
     set dlg [winfo toplevel $parent]
     set page [${NS}::frame $parent.preferences -borderwidth 0]
@@ -6738,11 +6757,13 @@ proc ::tkchat::PreferencesPage {parent} {
         -variable ::tkchat::EditOptions(FunkyTraffic) -onvalue 1
     ${NS}::checkbutton $af.catz -text "I hate LOLCATZ"  -offvalue 0 \
         -variable ::tkchat::EditOptions(HateLolcatz) -onvalue 1
+    ${NS}::checkbutton $af.cfe -text "Keep focus on entry"  -offvalue 0 \
+        -variable ::tkchat::EditOptions(ClickFocusEntry) -onvalue 1
     ${NS}::label $af.aal -text "Inactive message" -underline 0 \
         -anchor ne
     ${NS}::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
     if {!$useTile} {
-        foreach w [list $af.store $af.traffic $af.catz] {
+        foreach w [list $af.store $af.traffic $af.catz $af.cfe] {
             $w configure -anchor nw
         }
     }
@@ -6755,6 +6776,8 @@ proc ::tkchat::PreferencesPage {parent} {
             you are automatically made inactive."
         tooltip::tooltip $af.catz "Toggle display of a LOLCATZ message in\
             the statusbar after checking the current version."
+        tooltip::tooltip $af.cfe "Unset this option to permit setting focus\
+            on the main chat widget."
     }
     
     bind $dlg <Alt-s> [list $af.store invoke]
@@ -6763,6 +6786,7 @@ proc ::tkchat::PreferencesPage {parent} {
     grid $af.store   -   -sticky ew -padx 2
     grid $af.traffic -   -sticky ew -padx 2
     grid $af.catz    -   -sticky ew -padx 2
+    grid $af.cfe     -   -sticky ew -padx 2
     grid $af.aal $af.aae -sticky ew -padx 2
     grid columnconfigure $af 1 -weight 1
 
@@ -6884,7 +6908,8 @@ proc ::tkchat::PreferencesPage {parent} {
 	set Options(Browser) $EditOptions(Browser)
 	set Options(BrowserTab) $EditOptions(BrowserTab)
 	foreach property {Style AutoFade AutoFadeLimit UseTkOnly
-            AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages} {
+            AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages 
+            ClickFocusEntry} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
 	    }

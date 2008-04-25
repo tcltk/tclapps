@@ -1,3 +1,10 @@
+2008-04-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added Shift-Key-Up/Down bindings to the entry to
+	scroll the chat widget. Added an option to toggle focus mode for
+	the chat widget - either it accepts focus, or focus always goes to
+	the entry widget. Default is focus on entry widget.
+
 2008-04-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Proper quoting when cloning text widget data. We
