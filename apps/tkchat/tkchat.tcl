@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.425 2008/04/25 10:24:23 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.426 2008/04/30 23:12:11 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2626,6 +2626,7 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <Key-Next>	{ .txt yview scroll  1 pages }
     bind .eMsg <Shift-Key-Up>   { .txt yview scroll -1 units }
     bind .eMsg <Shift-Key-Down> { .txt yview scroll  1 units }
+    bind .eMsg <Button-3>       [namespace code [list OnEntryPopup %W %X %Y]]
 
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
@@ -2823,6 +2824,27 @@ proc ::tkchat::OnTextFocus {w} {
     } else {
         focus $w
     }
+}
+
+proc ::tkchat::LurkMode {state} {
+    if {$state eq "normal"} {
+        .eMsg configure -state $state -font FNT
+        .eMsg delete 0 end
+    } else {
+        .eMsg insert 0 "Lurking, select Unlurk\
+            from the context menu to re-enable"
+        .eMsg configure -state $state -font ACT
+    }
+}
+proc ::tkchat::OnEntryPopup {w x y} {
+    destroy $w.popup
+    set menu [menu $w.popup -tearoff 0]
+    if {[$w cget -state] eq "disabled"} {
+        $menu add command -label "Unlurk" -command {::tkchat::LurkMode normal}
+    } else {
+        $menu add command -label "Lurk" -command {::tkchat::LurkMode disabled}
+    }        
+    tk_popup $menu $x $y
 }
 
 proc ::tkchat::OnTextPopup { w x y } {
