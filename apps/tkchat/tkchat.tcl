@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.427 2008/05/08 16:52:16 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.428 2008/05/08 20:02:20 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2730,6 +2730,9 @@ proc ::tkchat::CreateGUI {} {
 	wm geometry . $Options(Geometry)
     }
     wm deiconify .
+    if { [info exists Options(StartZoomed)] && $Options(StartZoomed) == 1 } {
+	wm state . zoomed
+    }
 
     update
     if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2 } {
@@ -5208,6 +5211,12 @@ proc ::tkchat::saveRC {} {
     array set tmp [GetDefaultOptions]
 
     # Options that need to be computed at save time
+    if { [wm state .] eq "zoomed" } {
+	    set Options(StartZoomed) 1
+	    wm state . normal
+    } else {
+	    set Options(StartZoomed) 0
+    }
     set Options(Geometry) [wm geometry .]
     if {[package provide khim] ne {}} {
 	set Options(Khim) [::khim::getConfig]
@@ -5234,7 +5243,7 @@ proc ::tkchat::saveRC {} {
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Subjects Theme Transparency UseBabelfish 
         UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain 
-        Visibility,* RSS,*
+        Visibility,* RSS,* StartZoomed
     }
 
     foreach key $keep {
