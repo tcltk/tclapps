@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.426 2008/04/30 23:12:11 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.427 2008/05/08 16:52:16 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5281,7 +5281,7 @@ proc ::tkchat::saveRC {} {
     }
 
     # Save original Nickname
-    if { [info exists ::tkjabber::baseNick] } {
+    if { [info exists ::tkjabber::baseNick] && $::tkjabber::baseNick ne "" } {
 	set tmp(Nickname) $::tkjabber::baseNick
     }
 
