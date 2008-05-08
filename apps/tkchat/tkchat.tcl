@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.428 2008/05/08 20:02:20 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.429 2008/05/08 20:30:15 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1967,6 +1967,60 @@ proc ::tkchat::nickComplete {} {
     }
 }
 
+proc ::tkchat::toggleUnicodePoint_t {} {
+    set t .tMsg
+    set c ""; set h ""; set s ""
+
+    set s [$t get "insert linestart" insert]
+    set n [string length $s]
+
+    if { $n == 0 } {
+        return
+    }
+    if { $n < 4 } {
+        set h [format %0.4x [scan [string index $s end] %c]]
+    } else {
+        set h [string range $s end-3 end]
+        if {[catch {format %c 0x$h} c]} {
+            set c ""
+            set h [format %0.4x [scan [string index $s end] %c]]
+        }
+    }
+
+    if { "$c" == "" } {
+        $t replace "insert -1c" insert $h
+    } else {
+        $t replace "insert -4c" insert $c
+    }
+}
+proc ::tkchat::toggleUnicodePoint_e {} {
+    set e .eMsg
+    set c ""; set h ""
+    set s [$e get]
+    set n [$e index insert]
+    set n1 [expr { $n - 1 }]
+    set n4 [expr { $n - 4 }]
+
+    if { $n == 0 } {
+        return
+    }
+    if { $n < 4 } {
+        set h [format %0.4x [scan [string index $s $n1] %c]]
+    } else {
+        set h [string range $s $n4 $n1]
+        if {[catch {format %c 0x$h} c]} {
+            set c ""
+            set h [format %0.4x [scan [string index $s $n1] %c]]
+        }
+    }
+
+    if { "$c" == "" } {
+        $e delete $n1 $n; $e insert $n1 $h
+    } else {
+        $e delete $n4 $n; $e insert $n4 $c
+    }
+}
+
 # Install Tkchat into GNOME or KDE desktops.
 proc ::tkchat::InstallXDG {} {
     # The 'proper' way is to use the xdg-utils programs...
@@ -2627,9 +2681,11 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <Shift-Key-Up>   { .txt yview scroll -1 units }
     bind .eMsg <Shift-Key-Down> { .txt yview scroll  1 units }
     bind .eMsg <Button-3>       [namespace code [list OnEntryPopup %W %X %Y]]
+    bind .eMsg <Alt-x>		::tkchat::toggleUnicodePoint_e
 
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
+    bind .tMsg <Alt-x>		::tkchat::toggleUnicodePoint_t
 
     ${NS}::button .post -text "Post" -command [namespace code userPost]
 
@@ -4250,9 +4306,10 @@ proc ::tkchat::logonScreen {} {
 	${NS}::label .logon.lpap -text "Proxy Auth Password" -underline 13
 	${NS}::entry .logon.epan -textvariable Options(ProxyUsername)
 	${NS}::entry .logon.epap -textvariable Options(ProxyPassword) -show {*}
-	${NS}::label .logon.lnm -text "Chat Username" -underline 9
+	${NS}::label .logon.lnm -text "JID | Nick" -underline 6
 	${NS}::label .logon.lpw -text "Chat Password" -underline 6
 	${NS}::entry .logon.enm -textvariable Options(Username)
+	${NS}::entry .logon.enick -textvariable Options(Nickname)
 	${NS}::entry .logon.epw -textvariable Options(Password) -show *
 	${NS}::checkbutton .logon.rpw \
 		-text "Remember Chat Password" \
@@ -4348,7 +4405,7 @@ proc ::tkchat::logonScreen {} {
         grid .logon.lpap .logon.epap -in .logon.plf -sticky w -pady 2
 
         grid .logon.plf -             -            -in $lf -sticky ew -pady 2 -padx 2
-	grid .logon.lnm	.logon.enm    -		   -in $lf -sticky ew -pady 5 -padx 2
+	grid .logon.lnm	.logon.enm    .logon.enick -in $lf -sticky ew -pady 5 -padx 2
 	grid .logon.lpw	.logon.epw    -		   -in $lf -sticky ew         -padx 2
 	grid x		.logon.rpw    -		   -in $lf -sticky w  -pady 2
 	grid x		.logon.ljsrv  .logon.fjsrv -in $lf -sticky w  -pady 2
