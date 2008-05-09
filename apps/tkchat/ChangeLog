@@ -1,3 +1,17 @@
+2008-05-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Source plugins from ~/.tkchat_plugins or from any
+	directory listed in TKCHAT_PLUGINS environment variable.
+
+2008-05-08  Elchonon Edelson  <eee@users.sourceforge.net>
+
+	* tkchat.tcl: Added bindings to .eMsg and .tMsg message entry
+	widgets to toggle what's under the cursor between being a
+	character or its unicode value.
+	* tkchat.tcl: Remember whether chat window was maximized, restore
+	that on start.
+	* tkchat.tcl: Fixed a case where the saved nickname could be lost.
+	
 2008-05-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added a Lurk/Unlurk context menu on the entry widget

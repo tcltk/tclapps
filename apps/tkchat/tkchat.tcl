@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.429 2008/05/08 20:30:15 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.430 2008/05/09 22:20:44 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2886,6 +2886,8 @@ proc ::tkchat::OnTextFocus {w} {
 }
 
 proc ::tkchat::LurkMode {state} {
+    .post configure -state $state
+    .ml configure -state $state
     if {$state eq "normal"} {
         .eMsg configure -state $state -font FNT
         .eMsg delete 0 end
@@ -3350,7 +3352,7 @@ proc ::tkchat::About {} {
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
     ${NS}::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
-    ScrolledWidget text $w.text 0 1 -height 23 -width 80 \
+    ScrolledWidget text $w.text 0 1 -height 24 -width 80 \
         -borderwidth 0 -padx 2 -pady 2 -font FNT
     grid $w.text -sticky news
     grid $w.b -sticky se
@@ -3381,6 +3383,7 @@ proc ::tkchat::About {} {
     lappend txt "Donal K. Fellows"      "<dkf@users.sourceforge.net>"
     lappend txt "Daniel South"		"<wildcard_25@users.sourceforge.net>"
     lappend txt "Steve Landers"		"<steve@digitalsmarties.com>"
+    lappend txt "Elchonon Edelson"	"<eee@users.sourceforge.net>"
 
     insertHelpText $w.text $txt
 
@@ -9759,11 +9762,21 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 }
 
 # -------------------------------------------------------------------------
-# Load in code from separate sibling files...
+# Load in plugins from our directory and ~/.tkchat_plugins or from
+# anything in env(TKCHAT_PLUGINS) which may be a tcl list of directories.
 
-foreach file [glob -nocomplain -directory $tkchat_dir tkchat_*.tcl mousewheel.tcl] {
-    if {[file exists $file] && [file readable $file]} {
-        source $file
+set dirs [list $tkchat_dir [file normalize ~/.tkchat_plugins]]
+if {[info exists env(TKCHAT_PLUGINS)]} {
+    set dirs [linsert $env(TKCHAT_PLUGINS) 0 $tkchat_dir]
+}
+foreach dir $dirs {
+    foreach file [glob -nocomplain -directory $dir \
+                      tkchat_*.tcl mousewheel.tcl] {
+        if {[file exists $file] && [file readable $file]} {
+            if {[catch {source $file} err]} {
+                ::bgerror $err
+            }
+        }
     }
 }
 
