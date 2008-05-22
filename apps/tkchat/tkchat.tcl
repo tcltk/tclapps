@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.430 2008/05/09 22:20:44 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.431 2008/05/22 20:55:17 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3431,6 +3431,9 @@ proc ::tkchat::Help {} {
     lappend txt [list \
 	    "Send private message to a user identified by nickname or JID"]
 
+    lappend txt "/whisper ?reason?"
+    lappend txt [list "Synonym for /msg"]
+
     lappend txt "/chat <nick|JID> ?text?"
     lappend txt [list [concat \
 	    "Open a separate window to privately chat with the user" \
@@ -4135,8 +4138,9 @@ proc ::tkchat::checkCommand { msg } {
 			-attrs [list nolog 1]
 	    }
 	}
+	{^/whisper\s}  -
 	{^/msg\s} {
-	    if { [regexp {^/msg ([^ ]+) (.+)} $msg -> toNick privMsg] } {
+	    if { [regexp {^/(?:(?:msg)|(?:whisper))\s+([^ ]+) (.+)} $msg -> toNick privMsg] } {
 		if {[regexp {@} $toNick]} {
 		    tkjabber::msgSend $privMsg -tojid $toNick -type normal
 		} else {
@@ -4145,7 +4149,7 @@ proc ::tkchat::checkCommand { msg } {
 	    }
 	}
 	{^/chat\s?} {
-	    if {[regexp {^/chat ([^ ]+)(?:\ (.*))?} $msg -> toNick privMsg]} {
+	    if {[regexp {^/chat\s+([^ ]+)(?:\ (.*))?} $msg -> toNick privMsg]} {
 		# Are we talking to a nick in this MUC or to an arbitrary JID?
 		if {![regexp {([^@]+)@.*} $toNick toJID toNick]} {
 		    set toJID $::tkjabber::conference/$toNick
@@ -4180,13 +4184,18 @@ proc ::tkchat::checkCommand { msg } {
 	    ::tkjabber::away $status dnd
 	}
 	{^/back} {
-	    set status [string range $msg 6 end]
+            set status ""
+	    regexp {^/status\s*(.*)$} $msg -> status
 	    ::tkjabber::back $status
 	}
-        {^/quit} {
+        {^/quit$} {
             ::tkchat::quit
         }
-        {^/(kick)|(mute)|(unmute)|(op)|(deop)} {
+        {^/kick\s}   -
+        {^/mute\s}   -
+        {^/unmute\s} -
+        {^/op\s}     -
+        {^/deop\s}   {
             if {[regexp {^/((?:kick)|(?:mute)|(?:unmute)|(?:op)|(?:deop))\s+(\S+)(?:\s+(.*))?} $msg -> op nick reason]} {
                 switch -exact -- $op {
                     kick { set role none }
@@ -4202,7 +4211,7 @@ proc ::tkchat::checkCommand { msg } {
                     "error: must be /$op nick ?reason ...?"
             }
         }
-        {^/ban} {
+        {^/ban\s} {
             if {[regexp {^/ban\s+(\S+)(?:\s+(.*))?} $msg -> nick reason]} {
                 ::tkjabber::setaffiliation $nick outcast $reason
             } else {
