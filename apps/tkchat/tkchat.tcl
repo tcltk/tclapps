@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.431 2008/05/22 20:55:17 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.432 2008/05/23 18:51:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3367,7 +3367,7 @@ proc ::tkchat::About {} {
     $w.text insert end \
 	"TkChat v$rcsVersion\n" title "$ver\n\n" {h1 center} \
 	"$rcsid\n\n" center \
-	"Copyright (c) 2001-2007 by following authors:\n\n" {}
+	"Copyright (c) 2001-2008 by following authors:\n\n" {}
 
     lappend txt "Bruce B Hartweg"       "<brhartweg@bigfoot.com>"
     lappend txt "Don Porter"		"<dgp@users.sourceforge.net>"
