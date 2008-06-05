@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.432 2008/05/23 18:51:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.433 2008/06/05 11:28:11 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3431,7 +3431,7 @@ proc ::tkchat::Help {} {
     lappend txt [list \
 	    "Send private message to a user identified by nickname or JID"]
 
-    lappend txt "/whisper ?reason?"
+    lappend txt "/whisper <nick|JID> <text>"
     lappend txt [list "Synonym for /msg"]
 
     lappend txt "/chat <nick|JID> ?text?"
@@ -4185,7 +4185,7 @@ proc ::tkchat::checkCommand { msg } {
 	}
 	{^/back} {
             set status ""
-	    regexp {^/status\s*(.*)$} $msg -> status
+	    regexp {^/back\s*(.*)$} $msg -> status
 	    ::tkjabber::back $status
 	}
         {^/quit$} {

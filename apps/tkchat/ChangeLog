@@ -1,3 +1,8 @@
+2008-06-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch from bug #1985214 from Matthias Kraft
+	 to fix bugs in the /whisper and /back commands.
+
 2008-05-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Source plugins from ~/.tkchat_plugins or from any
