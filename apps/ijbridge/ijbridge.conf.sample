@@ -40,3 +40,5 @@ IrcNickPasswd  IRCNICKSERVPASSWORD
 # string then no file will be used.
 #
 StatisticsFile ""
+ColorsFile     ""
+

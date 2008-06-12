@@ -23,8 +23,8 @@ namespace eval client {}
 
 namespace eval ::ijbridge {
 
-    variable version 1.1.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.29 2008/06/12 23:16:31 patthoyts Exp $}
+    variable version 1.1.1
+    variable rcsid {$Id: ijbridge.tcl,v 1.30 2008/06/12 23:49:31 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -50,6 +50,7 @@ namespace eval ::ijbridge {
             IrcNickPasswd  {}
             StatisticsFile {}
             NotificationPort {}
+            ColorsFile     {}
         }
     }
 
@@ -173,6 +174,7 @@ proc ::ijbridge::DumpStats {{settimer 1}} {
     variable stats
     variable statid
     catch {after cancel $statid}
+    DumpColors
     if {[string length $Options(StatisticsFile)] > 0} {
         set f [open $Options(StatisticsFile) w]
         foreach name [lsort [array names stats]] {
@@ -180,6 +182,23 @@ proc ::ijbridge::DumpStats {{settimer 1}} {
         }
         close $f
         set statid [after 3600000 ::ijbridge::DumpStats]
+    }
+}
+
+proc ::ijbridge::DumpColors {} {
+    variable Options
+    variable stats
+    if {[string length $Options(ColorsFile)] > 0} {
+        set f [open $Options(ColorsFile) w]
+        fconfigure $f -encoding utf-8
+        puts $f "/* Tkchat user colors. Generated at\
+            [clock format [clock seconds] -format {%Y-%m-%dT%T} -gmt 1] */"
+        foreach key [lsort [array names stats *,r]] {
+            set name [string range $key 0 end-2]
+            set name [string map {"&" "&amp;" "<" "&\#60;" ">" "&\#62;"} $name]
+            puts $f "span.nick_$name {color:#$stats($key);}"
+        }
+        close $f
     }
 }
 
@@ -466,7 +485,21 @@ proc ::ijbridge::OnMessageBody {token type args} {
     variable Options
     variable conn
     variable IrcUserList
+    variable stats
 
+    set color {}
+    array set m [linsert $args 0 -body {} -from {} -subject {}]
+    if {[info exists m(-x)]} {
+        foreach x $m(-x) {
+            switch -exact -- [wrapper::getattribute $x xmlns] {
+                "urn:tkchat:chat" {
+                    array set xAttr [wrapper::getattrlist $x]
+                    set color [wrapper::getattribute $x color]
+                    if {![regexp {^[[:xdigit:]]{6}$} $color]} { set color {} }
+                }
+            }
+        }
+    }
     switch -exact -- $type {
         groupchat {
             # xmit to irc
@@ -479,25 +512,9 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 log::log debug "avoid resend"
             } else {
 
-                # This permits us to issue the last 30 seconds of Jabber room
-                # chat to the IRC channel on connection. In general this is
-                # probably not helpful, hence it is disabled.
-                if {0 && [info exists a(-x)]} {
-                    foreach chunk $a(-x) {
-                        if {[lsearch -exact [wrapper::getattrlist $chunk] \
-                                 jabber:x:delay] != -1} {
-                            set stamp [wrapper::getattribute $chunk stamp]
-                            if {[clock seconds]-[clock scan $stamp -gmt 1] > 30} {
-                                # We don't xmit history items.
-                                log::log debug "avoid xmit history items > 30s old"
-                                return
-                            }
-                        }
-                    }
-                }
-
                 set nickndx [string first / $a(-from)]
                 set nick [string range $a(-from) [incr nickndx] end]
+                if {$color ne {}} { set stats(${nick},r) $color }
                 set emote [string match /me* $a(-body)]
                 if {$emote} {
                     set a(-body) [string range $a(-body) 4 end]
@@ -1229,6 +1246,8 @@ proc ::ijbridge::NotificationGet {chan} {
                     || $channel eq [string map [list "#" ""] $Options(IrcChannel)]} {
                 BotSay $::client::channel \
                     "$user has created a new paste at $url \"$title\""
+            } else {
+                puts stderr "channel \"$channel\" ignored"
             }
         }
         NotificationClose $chan
