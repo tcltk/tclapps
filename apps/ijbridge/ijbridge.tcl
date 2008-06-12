@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.0
-    variable rcsid {$Id: ijbridge.tcl,v 1.28 2008/02/10 16:13:54 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.29 2008/06/12 23:16:31 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -49,6 +49,7 @@ namespace eval ::ijbridge {
             IrcChannel     {}
             IrcNickPasswd  {}
             StatisticsFile {}
+            NotificationPort {}
         }
     }
 
@@ -1183,6 +1184,65 @@ proc ::ijbridge::ReadControl {chan} {
 }
 
 # -------------------------------------------------------------------------
+# Notification service --
+#
+#	This listens on a port for messages from the pastebot and will
+#	announce new pastes onto the irc channel and jabber MUC.
+#
+#	Clients open a tcp stream and send a single line message
+#	the first word is the length of the message data, the next
+#	is the hex representation of the md5 hash of the message data
+#	and the third word is the base64 encoded message.
+#
+proc ::ijbridge::NotificationStart {} {
+    variable Options
+    variable NotificationSocket
+    set NotificationSocket \
+        [socket -server [namespace origin NotificationAccept] \
+             -myaddr localhost $Options(NotificationPort)]
+}
+proc ::ijbridge::NotificationAccept {chan addr port} {
+    upvar #0 [namespace current]::$chan state
+    array set state [list address $addr port $port]
+    set state(aid) [after 300000 \
+                        [namespace code [list NotificationClose $chan]]]
+    fconfigure $chan -encoding utf-8 -translation lf \
+        -blocking 0 -buffering line
+    fileevent $chan readable \
+        [namespace code [list NotificationGet $chan]]
+}
+proc ::ijbridge::NotificationGet {chan} {
+    variable Options
+    upvar #0 [namespace current]::$chan state
+    if {[gets $chan line] != -1} {
+        foreach {len hash data} $line break
+        set data [base64::decode $data]
+        set check [md5::md5 -hex $data]
+        if {[string length $data] != $len} {
+            puts stderr "failed length check from $state(addr):$state(port)"
+        } elseif {$check ne $hash} {
+            puts stderr "failed checksum from $state(addr):$state(port)"
+        } else {
+            foreach {user channel url title} $data break
+            if {$channel eq [jid node $Options(Conference)] \
+                    || $channel eq $Options(IrcChannel) \
+                    || $channel eq [string map [list "#" ""] $Options(IrcChannel)]} {
+                BotSay $::client::channel \
+                    "$user has created a new paste at $url \"$title\""
+            }
+        }
+        NotificationClose $chan
+    }
+}
+# close the client socket and cleanup
+proc ::ijbridge::NotificationClose {chan} {
+    upvar #0 [namespace current]::$chan state
+    catch {after cancel $state(aid)}
+    catch {close $chan}
+    unset state
+}
+
+# -------------------------------------------------------------------------
 
 log::lvSuppressLE emerg 0
 log::lvSuppressLE debug 1
@@ -1218,7 +1278,12 @@ proc Main {args} {
     # Connect to Jabber.
     eval [linsert $args 0 ::ijbridge::connect]
     set ::ijbridge::statid [after 3600000 ::ijbridge::DumpStats]
-    
+
+    # Create the notification service port
+    if {$ijbridge::Options(NotificationPort) ne {}} {
+        ::ijbridge::NotificationStart
+    }
+
     # Loop forever, dealing with Wish or Tclsh
     if {[llength [info commands tkcon]] == 0} {
         if {[info exists tk_version]} {
