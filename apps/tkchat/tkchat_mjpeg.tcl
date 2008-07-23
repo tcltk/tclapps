@@ -237,14 +237,14 @@ proc ::tkchat::mjpeg::Open {url {title "Video stream"}} {
     return
 }
 
-proc ::tkchat::mjpeg::OpenStream {url dlg} {
+proc ::tkchat::mjpeg::OpenStream {url dlg args} {
     if {[catch {
         variable toread 0
         variable state boundary
         variable boundary ; unset -nocomplain boundary
         variable frame ""
         variable token; if {[info exists token]} { catch {http::cleanup $token} }
-        puts stderr "Open $url"
+        puts stderr "Open $url (args:$args)"
         Status $dlg "Opening $url"
         http::geturl $url \
             -timeout 10000 \
