@@ -225,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.435 2008/07/24 13:10:55 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.436 2008/07/24 15:32:27 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1966,60 +1966,6 @@ proc ::tkchat::nickComplete {} {
     }
 }
 
-proc ::tkchat::toggleUnicodePoint_t {} {
-    set t .tMsg
-    set c ""; set h ""; set s ""
-
-    set s [$t get "insert linestart" insert]
-    set n [string length $s]
-
-    if { $n == 0 } {
-        return
-    }
-    if { $n < 4 } {
-        set h [format %0.4x [scan [string index $s end] %c]]
-    } else {
-        set h [string range $s end-3 end]
-        if {[catch {format %c 0x$h} c]} {
-            set c ""
-            set h [format %0.4x [scan [string index $s end] %c]]
-        }
-    }
-
-    if { "$c" == "" } {
-        $t replace "insert -1c" insert $h
-    } else {
-        $t replace "insert -4c" insert $c
-    }
-}
-proc ::tkchat::toggleUnicodePoint_e {} {
-    set e .eMsg
-    set c ""; set h ""
-    set s [$e get]
-    set n [$e index insert]
-    set n1 [expr { $n - 1 }]
-    set n4 [expr { $n - 4 }]
-
-    if { $n == 0 } {
-        return
-    }
-    if { $n < 4 } {
-        set h [format %0.4x [scan [string index $s $n1] %c]]
-    } else {
-        set h [string range $s $n4 $n1]
-        if {[catch {format %c 0x$h} c]} {
-            set c ""
-            set h [format %0.4x [scan [string index $s $n1] %c]]
-        }
-    }
-
-    if { "$c" == "" } {
-        $e delete $n1 $n; $e insert $n1 $h
-    } else {
-        $e delete $n4 $n; $e insert $n4 $c
-    }
-}
-
 # Install Tkchat into GNOME or KDE desktops.
 proc ::tkchat::InstallXDG {} {
     # The 'proper' way is to use the xdg-utils programs...
@@ -2097,6 +2043,69 @@ proc ::tkchat::SelectTkStyle {} {
         set style gtk
     }
     return $style
+}
+
+# Bind the Alt-x key for Entry and Text widgets to toggle
+# the character behind the cursor between a unicode character
+# and its code point (four hex digits).
+# We need two separate handler procs because of the different
+# ways of accessing/setting text in Entry and Text widgets.
+
+bind Entry <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
+bind Text  <Alt-x> [list ::tkchat::toggleUnicodePoint_t %W]
+
+proc ::tkchat::toggleUnicodePoint_t {t} {
+    set c ""; set h ""; set s ""
+
+    # $c holds the single character, $h holds the four hex bytes.
+    # $s will hold the four characters to the left of the cursor.
+    # If we have four hex bytes in $s, we convert them into a single
+    # character into $c, otherwise we get the last character of $s,
+    # and convert that to four hex bytes into $h.
+
+    set s [$t get "insert -4c" insert]
+    set n [string length $s]
+
+    if { $n == 0 } {
+        # If we can't do anything, just return. The keypress that triggered us
+	# will go on down the even chain, in case some other handler wants it.
+        return
+    }
+    if { $n < 4 || ! [string is xdigit $s] } {
+        set h [format %0.4x [scan [string index $s end] %c]]
+        $t replace "insert -1c" insert $h
+    } else {
+        set c [format %c "0x$s"]
+        $t replace "insert -4c" insert $c
+    }
+    # If we did a conversion, return a "break" code, ending event processing
+    # for our triggering keystroke.
+    return -code break
+}
+proc ::tkchat::toggleUnicodePoint_e {e} {
+    set c ""; set h ""
+    set s [$e get]
+    set n [$e index insert]
+    set n1 [expr { $n - 1 }]
+    set n4 [expr { $n - 4 }]
+
+    set s [string range $s $n4 $n1]
+
+    if { $n == 0 } {
+        # If we can't do anything, just return. The keypress that triggered us
+	# will go on down the even chain, in case some other handler wants it.
+        return
+    }
+    if { $n < 4 || ! [string is xdigit $s] } {
+        set h [format %0.4x [scan [string index $s end] %c]]
+        $e delete $n1 $n; $e insert $n1 $h
+    } else {
+        set c [format %c "0x$s"]
+        $e delete $n4 $n; $e insert $n4 $c
+    }
+    # If we did a conversion, return a "break" code, ending event processing
+    # for our triggering keystroke.
+    return -code break
 }
 
 proc ::tkchat::CreateGUI {} {
@@ -2677,11 +2686,9 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <Shift-Key-Up>   { .txt yview scroll -1 units }
     bind .eMsg <Shift-Key-Down> { .txt yview scroll  1 units }
     bind .eMsg <Button-3>       [namespace code [list OnEntryPopup %W %X %Y]]
-    bind .eMsg <Alt-x>		::tkchat::toggleUnicodePoint_e
 
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
-    bind .tMsg <Alt-x>		::tkchat::toggleUnicodePoint_t
 
     ${NS}::button .post -text "Post" -command [namespace code userPost]
 
