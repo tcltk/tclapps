@@ -23,6 +23,7 @@ namespace eval ::dict.leo.org {
 
     namespace export query askLEO askLEOforSelection
 
+    variable dialog .leo
     variable table ""
     variable last  ""
     variable Query ""
@@ -84,7 +85,8 @@ proc ::dict.leo.org::askLEOforSelection {} {
 
 proc ::dict.leo.org::askLEO {{query {}}} {
 
-    variable w
+    variable dialog
+    variable textwidget
     variable last
     variable Query
     set query [string trim $query]
@@ -92,76 +94,89 @@ proc ::dict.leo.org::askLEO {{query {}}} {
 	set Query $query
     }
     if { $Query ne $last } {
-	$w.bot.text configure -state normal
-	$w.bot.text delete 1.0 end
-	$w.bot.text configure -state disabled
+        set w $textwidget
+	$w configure -state normal
+	$w delete 1.0 end
+	$w configure -state disabled
 	if {$Query != ""} {
-	    $w.bot.text configure -cursor watch
+	    $w configure -cursor watch
 	    update
 	    set table [dict.leo.org::query $Query]
 	    set max 0
 	    foreach c $table {set max [max $max [string length $c]]}
-	    $w.bot.text configure -state normal
+	    $w configure -state normal
 	    if {$max} {
 		set sep [string repeat = $max]
 		set table [linsert $table 0 " English" " Deutsch" $sep $sep]
 		foreach {c1 c2} $table {
-		    $w.bot.text insert end \
-			[format "%-*s  %-*s\n" $max $c1 $max $c2]
+		    $w insert end [format "%-*s  %-*s\n" $max $c1 $max $c2]
 		}
 	    } else {
-		$w.bot.text insert end {No matches}
+		$w insert end {No matches}
 	    }
-	    $w.bot.text configure -state disabled
-	    if {![winfo ismapped $w]} {wm deiconify $w} else {raise $w}
-	    $w.bot.text configure -cursor ""
+	    $w configure -state disabled
+	    if {![winfo ismapped $dialog]} {wm deiconify $dialog} else {raise $dialog}
+	    $w configure -cursor ""
 	}
     }
     set last $Query
 }
 
 proc ::dict.leo.org::init {} {
-    variable w .leo
+    variable dialog
+    variable textwidget
     variable LEOlogo
-    catch {destroy $w}
-    toplevel $w
-    wm withdraw $w
-    bind $w <Double-Button-3> [list wm withdraw $w]
-    wm protocol $w WM_DELETE_WINDOW [list wm withdraw $w]
-    frame $w.main
-    frame  $w.top
-    entry  $w.top.ent -background white -textvariable [namespace current]::Query
-    button $w.top.but -text "ask LEO" -command [namespace code askLEO]
-    bind   $w.top.ent <Return> [list $w.top.but invoke]
+    set NS {}
+    if {[package vsatisfies [package provide Tk] 8.5]} { set NS ::ttk }
 
-    pack $w.top.ent -expand yes -fill x -side left
-    pack $w.top.but -expand no -fill none -side left
-    pack $w.top	    -fill x -in $w.main
+    catch {destroy $dialog}
+    image create photo LEOlogo -data $LEOlogo
+    
+    toplevel $dialog -class AskLEO
+    wm withdraw $dialog
+    wm title $dialog "askLEO"
+    wm protocol $dialog WM_DELETE_WINDOW [list wm withdraw $dialog]
 
-    frame $w.bot
-    scrollbar $w.bot.scry -command [list $w.bot.text yview]
-    scrollbar $w.bot.scrx -orient horizontal -command [list $w.bot.text xview]
-    text $w.bot.text -wrap no -font fixed -state disabled \
-	-yscrollcommand [list $w.bot.scry set] -xscrollcommand [list $w.bot.scrx set]
-    grid $w.bot.text -row 0 -column 0 -sticky nsew
-    grid $w.bot.scry -row 0 -column 1 -sticky ns
-    grid $w.bot.scrx -row 1 -column 0 -sticky ew
-    grid rowconfigure $w.bot 0 -weight 1
-    grid columnconfigure $w.bot 0 -weight 1
-    bind $w.bot.text <Button-2> [namespace code askLEOforSelection]
-    #pack $w.bot.text -expand yes -fill both -side right
-    pack $w.bot -expand yes -fill both -in $w.main
+    set f [${NS}::frame $dialog.main]
+    ${NS}::frame  $f.top
+    ${NS}::entry  $f.top.ent -background white -textvariable [namespace current]::Query
+    ${NS}::button $f.top.but -text "ask LEO" -command [namespace code askLEO]
 
-    pack $w.main -expand yes -fill both
-    focus $w.top.ent
-    wm title $w "askLEO"
+    grid $f.top.ent $f.top.but -sticky news
+    grid columnconfigure $f.top 0 -weight 1
 
-    if { $::tcl_platform(platform) ne "windows" } {
-	image create photo LEOlogo -data $LEOlogo
-	toplevel $w.icon -background ""
-	pack [label $w.icon.l -image LEOlogo]
-	wm iconwindow $w $w.icon
-    }
+    ${NS}::frame $f.bot
+    ${NS}::scrollbar $f.bot.vs -command [list $f.bot.text yview]
+    ${NS}::scrollbar $f.bot.hs -orient horizontal -command [list $f.bot.text xview]
+    set textwidget [text $f.bot.text -wrap no -font fixed -state disabled \
+                        -yscrollcommand [list $f.bot.vs set] \
+                        -xscrollcommand [list $f.bot.hs set]]
+    grid $f.bot.text $f.bot.vs -sticky news
+    grid $f.bot.hs   -         -sticky ew
+    grid rowconfigure $f.bot 0 -weight 1
+    grid columnconfigure $f.bot 0 -weight 1
+
+    grid $f.top -sticky ew -padx 1 -pady 1
+    grid $f.bot -sticky news  -padx 1 -pady 1
+    grid rowconfigure $f 1 -weight 1
+    grid columnconfigure $f 0 -weight 1
+
+    grid $f -sticky news
+    grid rowconfigure $dialog 0 -weight 1
+    grid columnconfigure $dialog 0 -weight 1
+
+    bind $f.top.ent <Return> [list $f.top.but invoke]
+    bind $f.bot.text <Button-2> [namespace code askLEOforSelection]
+    bind $dialog <Double-Button-3> [list wm withdraw $dialog]
+    focus $f.top.ent
+}
+
+proc ::dict.leo.org::show {} {
+    variable dialog
+    if {![winfo exists $dialog]} {init}
+    toplevel $dialog.icon -background ""
+    pack [label $dialog.icon.l -image LEOlogo]
+    wm iconwindow $dialog $dialog.icon
 }
 
 set ::dict.leo.org::LEOlogo {
@@ -193,6 +208,4 @@ set ::dict.leo.org::LEOlogo {
     URRFUQVFURRFURRFURRFgRRFURRFURQVAgA7
 }
 
-::dict.leo.org::init
-
-package provide askleo 1.0
+package provide askleo 1.1

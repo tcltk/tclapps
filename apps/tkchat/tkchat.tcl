@@ -44,7 +44,6 @@ package require uri             ; # tcllib
 
 catch {package require tls}	  ; # tls (optional)
 catch {package require choosefont}; # font selection (optional) 
-catch {package require askleo}    ; # german translations (optional)
 catch {package require picoirc}   ; # irc client (optional)
 catch {package require img::png}  ; # more image types (optional)
 catch {package require img::jpeg} ; # more image types (optional)
@@ -226,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.434 2008/07/24 00:05:33 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.435 2008/07/24 13:10:55 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2643,9 +2642,6 @@ proc ::tkchat::CreateGUI {} {
     CreateTxtAndSbar
 
     bind .txt <Button-3> [namespace code [list OnTextPopup %W %x %y]]
-    if {[llength [package provide askleo]] > 0} {
-        bind .txt <Shift-Button-3> { ::dict.leo.org::askLEOforSelection }
-    }
     bind .txt <Button-1> [namespace code [list OnTextFocus %W]]
 
     # user display
@@ -2751,9 +2747,6 @@ proc ::tkchat::CreateGUI {} {
     ScrolledWidget text .clone 0 1 \
 	-wrap word -background #f0f0f0 -relief sunken -borderwidth 2 \
 	-font FNT -cursor left_ptr -height 1
-    if {[llength [package provide askleo]] > 0} {
-        bind .clone <Shift-Button-3> {::dict.leo.org::askLEOforSelection}
-    }
     .clone tag bind URL <Enter> [list .clone configure -cursor hand2]
     .clone tag bind URL <Leave> [list .clone configure -cursor left_ptr]
     pack .clone -in .cframe -side bottom -expand 1 -fill both
