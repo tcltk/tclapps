@@ -31,7 +31,7 @@ proc ::tkchat::askleo::Show {} {
 proc ::tkchat::askleo::Init {} {
     variable statusbar
     variable enabled
-    if {!enabled} { return }
+    if {!$enabled} { return }
 
     # Initialize the askleo dialog (stays withdrawn)
     ::dict.leo.org::init
