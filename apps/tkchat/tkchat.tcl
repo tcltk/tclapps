@@ -226,7 +226,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.433 2008/06/05 11:28:11 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.434 2008/07/24 00:05:33 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5308,7 +5308,7 @@ proc ::tkchat::saveRC {} {
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
 	JabberPort JabberResource JabberServer Khim HateLolcatz
-	LogFile LogLevel LogStderr MyColor Nickname
+	LogFile LogLevel LogPrivateChat LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging Style Subjects Theme Transparency UseBabelfish 
         UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain 
@@ -5367,6 +5367,7 @@ proc ::tkchat::saveRC {} {
 	lappend oplist [list $option $tmp($option)]
     }
 
+    if {[file exists $rcfile]} {catch {file attributes $rcfile -hidden 0}}
     if { ![catch { open $rcfile [list WRONLY CREAT TRUNC] 0600 } fd] } {
 	fconfigure $fd -encoding utf-8
 	puts $fd "# Auto-generated file: DO NOT MUCK WITH IT!"
@@ -5390,6 +5391,7 @@ proc ::tkchat::saveRC {} {
         tk_messageBox -icon error -title "Failed save" \
             -message "Failed to save options to '$rcfile'\n$fd"
     }
+    if {[file exists $rcfile]} {catch {file attributes $rcfile -hidden 1}}
 }
 
 proc ::tkchat::scroll_set {sbar f1 f2} {
@@ -6018,6 +6020,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	JabberServer		all.tclers.tk
 	LogFile			""
 	LogLevel		notice
+        LogPrivateChat		0
 	LogStderr		1
 	MsgTo			"All Users"
 	MyColor			000000
@@ -6844,6 +6847,7 @@ proc ::tkchat::PreferencesPage {parent} {
     set EditOptions(FunkyTraffic)    $Options(FunkyTraffic)
     set EditOptions(StoreMessages)   $Options(StoreMessages)
     set EditOptions(ClickFocusEntry) $Options(ClickFocusEntry)
+    set EditOptions(LogPrivateChat)  $Options(LogPrivateChat)
 
     set dlg [winfo toplevel $parent]
     set page [${NS}::frame $parent.preferences -borderwidth 0]
@@ -6859,11 +6863,13 @@ proc ::tkchat::PreferencesPage {parent} {
         -variable ::tkchat::EditOptions(HateLolcatz) -onvalue 1
     ${NS}::checkbutton $af.cfe -text "Keep focus on entry"  -offvalue 0 \
         -variable ::tkchat::EditOptions(ClickFocusEntry) -onvalue 1
+    ${NS}::checkbutton $af.lpc -text "Log private chat" -offvalue 0 \
+        -variable ::tkchat::EditOptions(LogPrivateChat) -onvalue 1
     ${NS}::label $af.aal -text "Inactive message" -underline 0 \
         -anchor ne
     ${NS}::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
     if {!$useTile} {
-        foreach w [list $af.store $af.traffic $af.catz $af.cfe] {
+        foreach w [list $af.store $af.traffic $af.catz $af.cfe $af.lpc] {
             $w configure -anchor nw
         }
     }
@@ -6878,6 +6884,8 @@ proc ::tkchat::PreferencesPage {parent} {
             the statusbar after checking the current version."
         tooltip::tooltip $af.cfe "Unset this option to permit setting focus\
             on the main chat widget."
+        tooltip::tooltip $af.lpc "Enable logging of private chat conversations\
+            to a per-remote-user file in ~/.tkchat_logs."
     }
     
     bind $dlg <Alt-s> [list $af.store invoke]
@@ -6887,6 +6895,7 @@ proc ::tkchat::PreferencesPage {parent} {
     grid $af.traffic -   -sticky ew -padx 2
     grid $af.catz    -   -sticky ew -padx 2
     grid $af.cfe     -   -sticky ew -padx 2
+    grid $af.lpc     -   -sticky ew -padx 2
     grid $af.aal $af.aae -sticky ew -padx 2
     grid columnconfigure $af 1 -weight 1
 
@@ -7009,7 +7018,7 @@ proc ::tkchat::PreferencesPage {parent} {
 	set Options(BrowserTab) $EditOptions(BrowserTab)
 	foreach property {Style AutoFade AutoFadeLimit UseTkOnly
             AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages 
-            ClickFocusEntry} {
+            ClickFocusEntry LogPrivateChat} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
 	    }
@@ -7339,7 +7348,8 @@ proc ::tkjabber::connect {} {
 		-presencecommand ::tkjabber::PresCB \
 		-keepalivesecs $keepalive_seconds]
 
-        set discovery [::disco::new $jabber -command [namespace origin on_discovery]]
+        set discovery [::disco::new $jabber -command \
+                           [namespace origin on_discovery]]
 
 	# override the jabberlib version info query
 	::jlib::iq_register $jabber get jabber:iq:version \
@@ -7348,6 +7358,8 @@ proc ::tkjabber::connect {} {
 	    [namespace origin on_iq_last] 40
 	::jlib::iq_register $jabber result jabber:iq:version \
 	    [namespace origin on_iq_version_result] 40
+        ::jlib::iq_register $jabber get urn:xmpp:ping \
+            [namespace origin on_iq_ping] 40
 
         ::jlib::presence_register $jabber available \
             [namespace origin on_pres_available]
@@ -8232,9 +8244,65 @@ proc ::tkjabber::on_pres_subscribe {jlib from type args} {
     return 1;# handled
 }
 
-proc ::tkjabber::on_discovery {disco type from subiq args} {
-    ::log::log debug "on_discovery $type $from $subiq $args"
-    return 1;# handled
+proc ::tkjabber::on_discovery {disco type from child args} {
+    variable jabber
+    global tcl_platform
+    ::log::log info "on_discovery $type $from $child $args"
+    set handled 0
+    array set a [concat -id {{}} $args]
+    switch -exact -- $type {
+        info {
+            set parts {}
+            set xmlns [wrapper::getattribute $child xmlns]
+            set node [wrapper::getattribute $child node]
+            if {$node eq {}} {
+                lappend parts [wrapper::createtag identity \
+                                   -attrlist {name tkchat type pc category client}]
+                foreach proto {disco\#info disco\#items muc muc\#user} {
+                    set feature http://jabber.org/protocol/$proto
+                    lappend parts [wrapper::createtag feature -attrlist [list var $feature]]
+                }
+                foreach feature {iq message jabber:iq:version jabber:iq:time 
+                    jabber:iq:last urn:xmpp:ping} {
+                    lappend parts [wrapper::createtag feature -attrlist [list var $feature]]
+                }
+                
+                set xp [list]
+                lappend xp [wrapper::createtag field -attrlist {var FORM_TYPE type hidden} \
+                                -subtags [list [wrapper::createtag value \
+                                                    -chdata urn:xmpp:dataforms:softwareinfo]]]
+                lappend xp [wrapper::createtag field -attrlist {var software} \
+                                -subtags [list [wrapper::createtag value -chdata tkchat]]]
+                set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
+                lappend xp [wrapper::createtag field -attrlist {var software_version} \
+                                -subtags [list [wrapper::createtag value -chdata $tkchatver]]]
+                lappend xp [wrapper::createtag field -attrlist {var os} \
+                                -subtags [list [wrapper::createtag value -chdata $tcl_platform(os)]]]
+                lappend xp [wrapper::createtag field -attrlist {var os_version} \
+                                -subtags [list [wrapper::createtag value -chdata $tcl_platform(osVersion)]]]
+                
+                lappend parts [wrapper::createtag x \
+                                   -attrlist {xmlns jabber:x:data type result} -subtags $xp]
+
+            } else {
+                
+                # no items
+
+            }
+
+            set rsp [wrapper::createtag query -attrlist [list xmlns $xmlns] -subtags $parts]
+            $jabber send_iq result [list $rsp] -to $from -id $a(-id)
+
+            set handled 1
+        }
+        items {
+            # probably list our current channels - but not to non-subscribers.
+            set handled 0
+        }
+        default {
+        }
+    }
+    return $handled
 }
 
 proc tkjabber::httpCB { status message } {
@@ -8639,6 +8707,38 @@ proc ::tkjabber::query_user {user what} {
     set xmllist [wrapper::createtag query -attrlist [list xmlns $q($what)]]
     $tkjabber::jabber send_iq get [list $xmllist] -to $jid
     return
+}
+
+proc ::tkjabber::ping {jid} {
+    set xmllist [wrapper::createtag ping -attrlist [list xmlns urn:xmpp:ping]]
+    $tkjabber::jabber send_iq get [list $xmllist] -to $jid \
+        -command [namespace code [list ping_result $jid \
+                                      [clock clicks -milliseconds]]]
+}
+proc ::tkjabber::ping_result {jid sent type result} {
+    set delta [expr {[clock clicks -milliseconds] - $sent}]
+    switch -exact -- $type {
+        result {
+            puts stderr "ping '$jid' took $delta ms"
+        }
+        error {
+            puts stderr "ping '$jid' failed: \"[lindex $result 1]\""
+        }
+        default {
+            puts stderr "ping '$jid' failed: '$type $result'"
+        }
+    }
+}
+
+proc ::tkjabber::on_iq_ping {token from subiq args} {
+    global tcl_platform
+    log::log info "ping from $from"
+    tkchat::addStatus 0 "Ping from $from"
+    array set a [concat -id {{}} $args]
+    set opts [list -to $from]
+    if {$a(-id) ne {}} { lappend opts -id $a(-id) }
+    eval [linsert $opts 0 $token send_iq result {}]
+    return 1 ;# handled
 }
 
 # tkjabber::jid --
@@ -9716,7 +9816,10 @@ proc ::tkjabber::LogPrivateChat {user spkr ztime message} {
         if {![info exists PrivateChatLogs]} { array set PrivateChatLogs {} }
         if {![info exists PrivateChatLogs($user)]} {
             set dir [file join $env(HOME) .tkchat_logs]
-            if {![file isdirectory $dir]} { file mkdir $dir }
+            if {![file isdirectory $dir]} {
+                file mkdir $dir
+                catch {file attributes $dir -hidden 1}
+            }
             set PrivateChatLogs($user) [open [file join $dir $user] a+ 0600]
             fconfigure $PrivateChatLogs($user) -encoding utf-8 -buffering line
         }
