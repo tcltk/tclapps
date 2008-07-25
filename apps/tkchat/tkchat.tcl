@@ -225,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.436 2008/07/24 15:32:27 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.437 2008/07/25 17:30:52 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2051,8 +2051,9 @@ proc ::tkchat::SelectTkStyle {} {
 # We need two separate handler procs because of the different
 # ways of accessing/setting text in Entry and Text widgets.
 
-bind Entry <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
-bind Text  <Alt-x> [list ::tkchat::toggleUnicodePoint_t %W]
+bind TEntry <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
+bind Entry  <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
+bind Text   <Alt-x> [list ::tkchat::toggleUnicodePoint_t %W]
 
 proc ::tkchat::toggleUnicodePoint_t {t} {
     set c ""; set h ""; set s ""
@@ -2064,14 +2065,14 @@ proc ::tkchat::toggleUnicodePoint_t {t} {
     # and convert that to four hex bytes into $h.
 
     set s [$t get "insert -4c" insert]
-    set n [string length $s]
+    set len [string length $s]
 
-    if { $n == 0 } {
+    if { $len == 0 } {
         # If we can't do anything, just return. The keypress that triggered us
 	# will go on down the even chain, in case some other handler wants it.
         return
     }
-    if { $n < 4 || ! [string is xdigit $s] } {
+    if { $len < 4 || ! [string is xdigit $s] } {
         set h [format %0.4x [scan [string index $s end] %c]]
         $t replace "insert -1c" insert $h
     } else {
@@ -2085,23 +2086,24 @@ proc ::tkchat::toggleUnicodePoint_t {t} {
 proc ::tkchat::toggleUnicodePoint_e {e} {
     set c ""; set h ""
     set s [$e get]
-    set n [$e index insert]
-    set n1 [expr { $n - 1 }]
-    set n4 [expr { $n - 4 }]
+    set n0 [$e index  insert]
+    set n1 [expr { $n0 - 1 }]
+    set n4 [expr { $n0 - 4 }]
 
     set s [string range $s $n4 $n1]
+    set len [string length $s]
 
-    if { $n == 0 } {
+    if { $len == 0 } {
         # If we can't do anything, just return. The keypress that triggered us
 	# will go on down the even chain, in case some other handler wants it.
         return
     }
-    if { $n < 4 || ! [string is xdigit $s] } {
+    if { $len < 4 || ! [string is xdigit $s] } {
         set h [format %0.4x [scan [string index $s end] %c]]
-        $e delete $n1 $n; $e insert $n1 $h
+        $e delete $n1 $n0; $e insert $n1 $h
     } else {
         set c [format %c "0x$s"]
-        $e delete $n4 $n; $e insert $n4 $c
+        $e delete $n4 $n0; $e insert $n4 $c
     }
     # If we did a conversion, return a "break" code, ending event processing
     # for our triggering keystroke.
