@@ -225,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.437 2008/07/25 17:30:52 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.438 2008/07/30 09:51:16 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5996,6 +5996,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	AutoFade		0
 	AutoFadeLimit		80
 	AutoScroll		0
+        BridgeNames             ijchain
 	Browser			""
 	BrowserTab		0
 	ChatLogFile		""
@@ -8142,9 +8143,10 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 }
 
 proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
+    global Options
     set msg [split $msg " "]
     set opts {}
-    if { $nick eq "ijchain" } {
+    if { [lsearch -exact $Options(BridgeNames) $nick] != -1} {
 	set nick [lindex $msg 0]
 	set msg [lrange $msg 1 end]
 	if { $nick eq "***" } {
@@ -9577,12 +9579,16 @@ proc ::tkchat::CheckVersionDone {tok} {
     variable rcsid
     global Options
     set meta [set [set tok](meta)]
-    if {[set ndx [lsearch -exact $meta [base64::decode WC1MT0xDQVRa]]] != -1} {
-        set Options(tagline) "[base64::decode TE9MQ2F0IHNheXM=]\
-            \"[lindex $meta [incr ndx]]\""
+    if {[set ndx [lsearch -exact $meta X-LOLCATZ]] != -1} {
+        set Options(tagline) "LOLCat says \"[lindex $meta [incr ndx]]\""
         if {!$Options(HateLolcatz)} {
             after 10000 [list [namespace origin addStatus] 0 $Options(tagline)]
         }
+    }
+    # This permits the website to re-define the names of current bridges.
+    if {[set ndx [lsearch -exact $meta X-BridgeNames]] != -1} {
+        set bridges [lindex $meta [incr ndx]]
+        if {[llength $bridges] > 0} { set Options(BridgeNames) $bridges }
     }
     set url [string trim [http::data $tok]]
     if {[regexp {tkchat.tcl,v 1\.(\d+)} $rcsid -> current]

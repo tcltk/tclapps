@@ -1,3 +1,9 @@
+2008-07-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Retrieve online updates to the set of bridge prefixes
+	when checking the current version of tkchat.
+	* tkchat_leo.tcl: Dont require a restart to enable from options.
+
 2008-07-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl:     Reworked the askleo package as a proper tkchat

@@ -48,7 +48,7 @@ proc ::tkchat::askleo::Init {} {
     }
 
     # add statusbar icon
-    if {$statusbar && [winfo exists .status]} {
+    if {$statusbar && [winfo exists .status] && ![winfo exists .status.leo]} {
         variable ::tkchat::NS
         image create photo ::tkchat::img::askleo -data {
             R0lGODdhEAAQAOMQABcEATsBA6IuTsktHos8f84iVY9PEIJIXHBGo1pM2ucp
@@ -100,6 +100,7 @@ proc ::tkchat::askleo::OptionsHook {parent} {
         variable EditOptions
         variable statusbar $EditOptions(statusbar)
         variable enabled   $EditOptions(enabled)
+        if {$enabled} { Init }
         unset EditOptions
     }]
     bind $page <<TkchatOptionsCancel>> [namespace code {
