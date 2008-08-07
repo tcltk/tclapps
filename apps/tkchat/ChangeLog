@@ -1,3 +1,8 @@
+2008-07-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Ensure OnlineUsers has an entry for the current
+	network to avoid an error for a null network.
+
 2008-07-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Retrieve online updates to the set of bridge prefixes

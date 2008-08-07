@@ -225,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.438 2008/07/30 09:51:16 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.439 2008/08/07 11:45:04 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1713,6 +1713,9 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
     if { $action eq "nickchange" } {
 	set newnick [lindex $nick 1]
 	set nick [lindex $nick 0]
+    }
+    if {![info exists OnlineUsers($network)]} {
+        set OnlineUsers($network) [list]
     }
 
     # Call message activity hooks
@@ -9637,13 +9640,13 @@ proc ::tkchat::ShowCertificate {owner depth info} {
     set top [Dialog .certificate$uid]
     set dlg [${NS}::frame $top.f]
     wm withdraw $top
-    wm title $top "Certificate Information: $O(CN) (level $depth)"
+    wm title $top "Certificate Information: [SafeGet O CN] (level $depth)"
     set t [text $dlg.txt -wrap word -width 70 -height 28 \
                -borderwidth 0 -padx 2 -pady 2 -font FNT -tabs {140 280}]
     $t tag configure HEAD -font SYS
     $t insert end "Server Identify Verified" HEAD "\n" {} \
-        "The server $O(CN) supports secure sockets. The identity of this\
-         server has been verified by $I(O)\n" {}
+        "The server [SafeGet O CN] supports secure sockets. The identity of\
+         this server has been verified by [SafeGet I O]\n" {}
     if {$self_signed} {
         $t insert end "\nThis is a self-signed certificate\n" {}
     }
