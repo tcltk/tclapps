@@ -225,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.440 2008/08/07 12:29:34 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.441 2008/08/07 23:14:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1695,6 +1695,25 @@ proc ::tkchat::StatusbarAddWidget {bar slave pos} {
     }
 }
 
+# Update a users tooltip information from the online users array
+proc ::tkchat::SetUserTooltip {nick} {
+    variable OnlineUsers
+    if {[package provide tooltip] eq {}} { return }
+    if {![info exists OnlineUsers(Jabber-$nick,jid)]} { return }
+    set tip [string trim $OnlineUsers(Jabber-$nick,jid)]
+    if {$tip eq ""} { append tip $nick }
+    if {[info exists OnlineUsers(Jabber-$nick,version)]} {
+        append tip "\n$OnlineUsers(Jabber-$nick,version)"
+    }
+    append tip "\nrole: $OnlineUsers(Jabber-$nick,role)"
+    set status [lindex $OnlineUsers(Jabber-$nick,status) 1]
+    if {$status ne {}} {
+        append tip "\nstatus: $status"
+    }
+    set tip [string trim $tip "\n"]
+    tooltip::tooltip .pane.names -tag NICK-$nick $tip
+}
+
 # Add notification of user entering or leaving.
 # Always add these to text - just tag them so we can elide them at will
 # this way, the hide option can affect the past as well as the future
@@ -1739,6 +1758,7 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
 			[lsort -dictionary -unique $OnlineUsers($network)]
 	    }
 	}
+        after idle [namespace code [list SetUserTooltip $nick]]
 	updateOnlineNames
     }
     if { $network eq "IRC" } {
@@ -1784,6 +1804,92 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
     if { $::Options(AutoScroll) } {
 	$w see end
     }
+}
+
+proc ::tkchat::CreateMemoDialog {dlg jid} {
+    variable NS ; variable useTile
+    set dlg [Dialog $dlg]
+    wm withdraw $dlg
+    wm title $dlg "$jid - tkchat message"
+    wm transient $dlg {}
+
+    ${NS}::label $dlg.label -text "Subject:"
+    ${NS}::entry $dlg.subject
+    if {$useTile} {
+        set bodyf [${NS}::frame $dlg.bodyf -style FakeText]
+    } else {
+        set bodyf [${NS}::frame $dlg.bodyf]
+    }
+    set body [text $bodyf.body -font FNT -wrap word \
+                  -background "#[getColor MainBG]" \
+                  -foreground "#[getColor MainFG]" \
+                  -width 80 -height 12 -yscrollcommand [list $bodyf.vs set]]
+    ${NS}::scrollbar $bodyf.vs -command [list $bodyf.body yview]
+    ${NS}::button $dlg.ok -text OK -default active \
+        -command [namespace code [list SendMemoDone $dlg $jid ok]]
+    ${NS}::button $dlg.cancel -text Cancel \
+        -command [namespace code [list SendMemoDone $dlg $jid cancel]]
+    
+    if {$useTile} {
+        $body configure -relief flat -borderwidth 0 -highlightthickness 0
+    }
+
+    grid $bodyf.body -row 0 -column 0 -sticky news -padx {1 0} -pady 1
+    grid $bodyf.vs   -row 0 -column 1 -sticky news -padx {0 1} -pady 1
+    grid rowconfigure $bodyf 0 -weight 1
+    grid columnconfigure $bodyf 0 -weight 1
+    
+    grid $dlg.label $dlg.subject - -sticky ew -padx 1 -pady 1
+    grid $bodyf     -            - -sticky news -padx 1 -pady 1
+    grid x $dlg.cancel  $dlg.ok    -sticky e -padx 1 -pady 1
+    grid rowconfigure $dlg 1 -weight 1
+    grid columnconfigure $dlg 1 -weight 1
+
+    bind $dlg <Alt-s> [list focus $dlg.subject]
+    bind $dlg <Escape> [list $dlg.ok invoke]
+    wm protocol $dlg WM_DELETE_WINDOW \
+        [namespace code [list SendMemoDone $dlg $jid cancel]]
+    focus $dlg.subject
+    ::tk::PlaceWindow $dlg widget .
+    return $dlg
+}
+proc ::tkchat::SendMemo {jid {subject {}} {body {}}} {
+    set dlg .memo[string map {. _} $jid]
+    set dlg [CreateMemoDialog $dlg $jid]
+    if {$subject ne {}} { $dlg.subject insert end $subject }
+    if {$body ne {}} { $dlg.bodyf.body insert end $body }
+    wm deiconify $dlg
+}
+proc ::tkchat::DisplayMemo {jid subject body} {
+    set n 0
+    while {[winfo exists [set dlg .memo[string map {. _} $jid]$n]]} {
+        incr n
+    }
+    set dlg [CreateMemoDialog $dlg $jid]
+    $dlg.subject insert end $subject
+    $dlg.bodyf.body insert end $body
+    $dlg.ok configure -text Close \
+        -command [namespace code [list SendMemoDone $dlg $jid close]]
+    $dlg.cancel configure -text Reply \
+        -command [namespace code [list SendMemoDone $dlg $jid reply]]
+    wm deiconify $dlg
+}
+proc ::tkchat::SendMemoDone {dlg jid status} {
+    variable $dlg
+    if {$status eq "ok"} {
+        set subject [$dlg.subject get]
+        set body [$dlg.bodyf.body get 1.0 "end - 1 char"]
+        after idle [list ::tkjabber::send_memo $jid $body $subject]
+    } elseif {$status eq "reply"} {
+        set subject "Re: [$dlg.subject get]"
+        set body ""
+        foreach line [split [$dlg.bodyf.body get 1.0 "end - 1 char"] \n] {
+            append body "> $line\n"
+        }
+        after idle [namespace code [list SendMemo $jid $subject $body]]
+    }
+    unset -nocomplain $dlg
+    destroy $dlg
 }
 
 proc ::tkchat::showInfo {title str} {
@@ -2047,16 +2153,6 @@ proc ::tkchat::SelectTkStyle {} {
     }
     return $style
 }
-
-# Bind the Alt-x key for Entry and Text widgets to toggle
-# the character behind the cursor between a unicode character
-# and its code point (four hex digits).
-# We need two separate handler procs because of the different
-# ways of accessing/setting text in Entry and Text widgets.
-
-bind TEntry <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
-bind Entry  <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
-bind Text   <Alt-x> [list ::tkchat::toggleUnicodePoint_t %W]
 
 proc ::tkchat::toggleUnicodePoint_t {t} {
     set c ""; set h ""; set s ""
@@ -2680,6 +2776,16 @@ proc ::tkchat::CreateGUI {} {
     ${NS}::entry .eMsg
     .eMsg configure -foreground black -font FNT
     .ml configure -text ">>" -width 0 -command ::tkchat::showExtra
+
+    # Bind the Alt-x key for Entry and Text widgets to toggle
+    # the character behind the cursor between a unicode character
+    # and its code point (four hex digits).
+    # We need two separate handler procs because of the different
+    # ways of accessing/setting text in Entry and Text widgets.
+    
+    bind TEntry <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
+    bind Entry  <Alt-x> [list ::tkchat::toggleUnicodePoint_e %W]
+    bind Text   <Alt-x> [list ::tkchat::toggleUnicodePoint_t %W]
 
     bind .eMsg <Return>		::tkchat::userPost
     bind .eMsg <KP_Enter>	::tkchat::userPost
@@ -8087,20 +8193,15 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 		::tkchat::updateOnlineNames
 		return
 	    }
-            set msg {}
-	    if { [info exists m(-subject)] && $m(-subject) ne ""} {
-		lappend msg "Subject: $m(-subject)"
-	    }
-	    if { [info exists m(-body)] && $m(-body) ne "" } {
-		lappend msg $m(-body)
-	    }
-	    if { [llength $msg] > 0 } {
-		set msg " whispers: [join $msg \n]"
-		::tkchat::addMessage .txt "" $from $msg ACTION end 0
-                StoreMessage $from \
-                    [expr {[info exists m(-subject)] ? $m(-subject) : ""}] \
-                    [expr {[info exists m(-body)] ? $m(-body) : ""}]
-	    }
+            
+            set subject ""
+            if {[info exists m(-subject)]} { set subject $m(-subject) }
+            set body ""
+            if {[info exists m(-body)]} { set body $m(-body) }
+            if {([string length $body] + [string length $subject]) > 0} {
+                after idle [list ::tkchat::DisplayMemo $from $subject $body]
+                StoreMessage $from $subject $body
+            }
 	}
 	error {
 	    if { [info exists m(-error)] } {
@@ -8947,6 +9048,7 @@ proc ::tkchat::get_role {nick} {
 
 proc ::tkchat::OnNamePopup { nick network x y } {
     global Options
+    variable ::tkchat::OnlineUsers
 
     set m .pane.names_popup
     catch { destroy $m }
@@ -8959,6 +9061,11 @@ proc ::tkchat::OnNamePopup { nick network x y } {
                               -tojid ijchain@all.tclers.tk/ijbridge]
         }
         "Jabber" {
+            if {[info exists OnlineUsers($network-$nick,jid)]} {
+                set jid $OnlineUsers($network-$nick,jid)
+                $m add command -label "Send message" \
+                    -command [list ::tkchat::SendMemo $jid]
+            }
             $m add command \
 		-label "Private Chat" \
 		-command [list ::tkjabber::getChatWidget \
@@ -9190,8 +9297,9 @@ proc ::tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
     variable HistoryLastTimestamp
     set HaveHistory 1
     set fail 1 ; set timestamp 0
+    if {[llength $HistoryLines] < 10} { log::log debug "parsing $when" }
     if {[package vsatisfies [package provide Tcl] 8.5]} {
-        foreach format [list "%Y-%m-%dT%H:%M:%S%Z" "%Y%m%dT%H:%M:%S"] {
+        foreach format [list "%Y-%m-%dT%H:%M:%SZ" "%Y%m%dT%H:%M:%S"] {
             set fail [catch {clock scan $when -format $format -gmt 1} timestamp]
             if {!$fail} break
         }
@@ -9409,8 +9517,8 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
             if {[info exists data(version)]} { append ver " " $data(version) }
             if {[info exists data(os)]} { append ver " : $data(os)" }
             set tkchat::OnlineUsers(Jabber-$nick,version) $ver
-            tooltip::tooltip .pane.names -tag NICK-$nick $ver
             tkchat::addStatus 0 "$nick is using $ver"
+            after idle [list ::tkchat::SetUserTooltip $nick]
         }
     }
     return 1 ;# handled

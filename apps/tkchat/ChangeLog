@@ -1,5 +1,7 @@
 2008-08-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Improved normal message handling. Display in dialog,
+	added per-user context menu for posting messages/memos.
 	* tkchat.tcl: Updated error handling from MUC. Added some
 	reconnection attempts in case we connect to the server before MUC
 	is running after a server restart.
