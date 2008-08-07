@@ -225,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.439 2008/08/07 11:45:04 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.440 2008/08/07 12:29:34 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5652,20 +5652,20 @@ proc ::tkchat::Smile {} {
     }
     
     # create a slave interpreter with no commands in it.
-    interp create -safe I
-    foreach cmd [I aliases] {
-        I alias $cmd {}
+    set slave [interp create -safe]
+    foreach cmd [$slave aliases] {
+        $slave alias $cmd {}
     }
-    foreach cmd [I eval info commands] {
+    foreach cmd [$slave eval info commands] {
         switch -- $cmd {
             "set" - "if" {}
-            default { I hide $cmd }
+            default { $slave hide $cmd }
         }
     }
-    I alias SmileId ::tkchat::SmileId
+    $slave alias SmileId ::tkchat::SmileId
     set code [GET "http://tkchat.tcl.tk/emoticons/emoticons.tcl"]
-    I eval $code
-    interp delete I
+    $slave eval $code
+    interp delete $slave
 
     set m .mbar.emot.mnu
     $m delete 0 end
@@ -8422,11 +8422,14 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 	    }
 	    set baseNick $::Options(Nickname)
 	    set nickTries 0
-	    $muc enter $conference [xmlSafe $::Options(Nickname)] \
-		    -command ::tkjabber::MucEnterCB
+            if {[string length $conference] > 0} {
+                after idle [list $muc enter $conference \
+                                [xmlSafe $::Options(Nickname)] \
+                                -command ::tkjabber::MucEnterCB]
+            }
+
 	    # We are logged in. Now any of the callbacks can be called,
 	    # Likely ones are MsgCB, MucEnterCB, RosterCB for normal traffic.
-
             ::tkchat::Hook run login
 	}
 	default {
@@ -8470,6 +8473,7 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
     variable Away
     variable AwayStatus
     variable AutoAway
+    variable mucTries; if {![info exists mucTries]} { set mucTries 0 }
 
     ::log::log debug "MucEnter: type=$type, args='$args'"
     switch -- $type {
@@ -8479,28 +8483,38 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 		::tkchat::addSystem .txt "MucEnter: type=$type, args='$args'"
 		return
 	    }
+            puts stderr ">>> '[lindex $m(-error) 0]' $m(-error)"
 	    switch -- [lindex $m(-error) 0] {
-		401 {
+		401 - "not-authorized" {
 		    ::tkchat::addSystem .txt \
 			    "This conference is password protected."
 		}
-		403 {
+		403 - "forbidden" {
 		    ::tkchat::addSystem .txt \
 			    "You have been banned from this conference."
 		}
-		404 {
-		    ::tkchat::addSystem .txt "This room does not exist."
+		404 - "item-not-found" {
+                    if {$mucTries < 3} {
+                        ::tkchat::addSystem .txt "This room is unavailable.\
+                           Retrying in 30 seconds..."
+                        incr mucTries
+                        after 10000 [list $muc enter $conference \
+                                         [xmlSafe $::Options(Nickname)] \
+                                         -command ::tkjabber::MucEnterCB]
+                    } else {
+                        ::tkchat::addSystem .txt "This room does not exist."
+                    }
 		}
-		405 {
+		405 - "service-unavailable" {
 		    ::tkchat::addSystem .txt [concat \
 			    "The maximum number of users has been reached" \
 			    "for this room."]
 		}
-		407 {
+		407 - "registration-required" {
 		    ::tkchat::addSystem .txt \
 			    "You must be a member to enter this conference."
 		}
-		409 {
+		409 - "conflict" {
 		    # Nick conflict. Try again?
 		    incr nickTries
 		    ::tkchat::addSystem .txt \
@@ -8524,11 +8538,14 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 		}
 		default {
 		    ::tkchat::addSystem .txt \
-			    "MucEnter: type=$type, args='$args'"
+			    "An error occurred joining $conference.\
+                             Unfortunately '[lindex $m(-error) 0]' was not\
+                             recognised as a known error condition."
 		}
 	    }
 	}
 	available {
+            set mucTries 0
 	    #only load history for tclers chat when it is not loaded already.
 	    if {$conference eq "tcl@tach.tclers.tk" \
 		    &&  !$::tkjabber::HaveHistory } {

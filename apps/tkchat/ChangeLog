@@ -1,3 +1,9 @@
+2008-08-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Updated error handling from MUC. Added some
+	reconnection attempts in case we connect to the server before MUC
+	is running after a server restart.
+
 2008-07-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Ensure OnlineUsers has an entry for the current
