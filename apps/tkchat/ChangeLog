@@ -1,3 +1,10 @@
+2008-08-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added msgs/ directory and started to internationalize
+	the menu items and some other display text.
+	* msgs/en.msg: english
+	* msgs/de.msg: german
+
 2008-08-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Improved normal message handling. Display in dialog,
