@@ -225,7 +225,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.442 2008/08/08 12:49:40 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.443 2008/08/08 23:48:09 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1861,6 +1861,8 @@ proc ::tkchat::CreateMemoDialog {dlg jid} {
     grid rowconfigure $dlg 1 -weight 1
     grid columnconfigure $dlg 1 -weight 1
 
+    bind $body <Key-Tab> { focus [tk_focusNext %W]; break }
+    bind $body <Shift-Key-Tab> { focus [tk_focusPrev %W] ; break }
     bind $dlg <Alt-s> [list focus $dlg.subject]
     bind $dlg <Escape> [list $dlg.ok invoke]
     wm protocol $dlg WM_DELETE_WINDOW \
@@ -2356,287 +2358,249 @@ proc ::tkchat::CreateGUI {} {
     
     # Local Chat Logging Cascade Menu
     menu $m.chatLog -tearoff 0
-    $m add cascade \
-	    -label "Local Chat Logging" \
-	    -underline 0 \
-	    -menu $m.chatLog
-    $m.chatLog add radiobutton \
-	    -label Disabled \
-	    -underline 0 \
-	    -variable Options(ChatLogOff) \
-	    -value 1 \
-	    -command { ::tkchat::OpenChatLog close }
-    $m.chatLog add command \
-	    -label "To File..." \
-	    -underline 0 \
-	    -command { ::tkchat::OpenChatLog open }
-    $m.chatLog add command \
-	    -label "Load File..." \
-	    -underline 0 \
-	    -command { ::tkchat::OpenChatLog load }
+    tk::AmpMenuArgs $m add cascade -menu $m.chatLog \
+        -label [mc "&Local chat logging"]
+    tk::AmpMenuArgs $m.chatLog add radiobutton \
+        -label [mc "&Disabled"] \
+        -variable Options(ChatLogOff) \
+        -value 1 \
+        -command { ::tkchat::OpenChatLog close }
+    tk::AmpMenuArgs $m.chatLog add command \
+        -label [mc "&To file..."] \
+        -command { ::tkchat::OpenChatLog open }
+    tk::AmpMenuArgs $m.chatLog add command \
+        -label [mc "&Load file..."] \
+        -command { ::tkchat::OpenChatLog load }
 
     # Server Chat Logging Cascade Menu
     menu $m.chatServLog -tearoff 0
-    $m add cascade \
-	    -label "Server Chat Logging" \
-	    -underline 0 \
-	    -menu $m.chatServLog
-    $m.chatServLog add radiobutton \
-	    -label "Log my messages, do not log my actions (old style)" \
-	    -underline 1 \
-	    -variable Options(ServerLogging) \
-	    -value oldStyle
-    $m.chatServLog add radiobutton \
-	    -label "Log my messages and actions" \
-	    -underline 0 \
-	    -variable Options(ServerLogging) \
-	    -value all
-    $m.chatServLog add radiobutton \
-	    -label "Do not log my messages and actions" \
-	    -underline 3 \
-	    -variable Options(ServerLogging) \
-	    -value none
+    tk::AmpMenuArgs $m add cascade \
+        -label [mc "&Server chat logging"] \
+        -menu $m.chatServLog
+    tk::AmpMenuArgs $m.chatServLog add radiobutton \
+        -label [mc "L&og my messages, do not log my actions (old style)"] \
+        -variable Options(ServerLogging) \
+        -value oldStyle
+    tk::AmpMenuArgs $m.chatServLog add radiobutton \
+        -label [mc "&Log my messages and actions"] \
+        -variable Options(ServerLogging) \
+        -value all
+    tk::AmpMenuArgs $m.chatServLog add radiobutton \
+        -label [mc "Do &not log my messages and actions"] \
+        -variable Options(ServerLogging) \
+        -value none
 
     # Loading Server History Cascade Menu
     menu $m.hist -tearoff 0
-    $m add cascade \
-	    -label "Loading Server History" \
-	    -underline 15 \
-	    -menu $m.hist
-    $m.hist add radiobutton \
-	    -label "Do NOT load any history" \
-	    -underline 3 \
-	    -variable Options(HistoryLines) \
-	    -value 0
-    $m.hist add radiobutton \
-	    -label "Ask me which logs to load" \
-	    -underline 0 \
-	    -variable Options(HistoryLines) \
-	    -value -1
+    tk::AmpMenuArgs $m add cascade -menu $m.hist \
+        -label [mc "Loading server &history"]
+    tk::AmpMenuArgs $m.hist add radiobutton \
+        -label [mc "Do &NOT load any history"] \
+        -variable Options(HistoryLines) \
+        -value 0
+    tk::AmpMenuArgs $m.hist add radiobutton \
+        -label [mc "&Ask me which logs to load"] \
+        -variable Options(HistoryLines) \
+        -value -1
     foreach l { 50 100 200 500 1000 2500 10000 } {
 	$m.hist add radiobutton \
-		-label "Load at least $l lines" \
-		-variable Options(HistoryLines) \
-		-value $l
+            -label [mc "Load at least %d lines" $l]\
+            -variable Options(HistoryLines) \
+            -value $l
     }
 
     # One to One chats Cascade Menu
     menu $m.chat1to1 -tearoff 0
-    $m add cascade \
-	    -label "One to One chats" \
-	    -menu $m.chat1to1
-    $m.chat1to1 add radiobutton \
-	    -label "Keep all chat in one window" \
-	    -underline 0 \
-	    -variable Options(OneToOne) \
-	    -value inline
-    $m.chat1to1 add radiobutton \
-	    -label "Popup a new window" \
-	    -underline 0 \
-	    -variable Options(OneToOne) \
-	    -value popup
-    $m.chat1to1 add radiobutton \
-	    -label "Open in new tab" \
-	    -underline 12 \
-	    -variable Options(OneToOne) \
-	    -value tabbed
+    tk::AmpMenuArgs $m add cascade \
+        -label [mc "&One to One chats"] \
+        -menu $m.chat1to1
+    tk::AmpMenuArgs $m.chat1to1 add radiobutton \
+        -label [mc "&Keep all chat in one window"] \
+        -variable Options(OneToOne) \
+        -value inline
+    tk::AmpMenuArgs $m.chat1to1 add radiobutton \
+        -label [mc "&Popup a new window"] \
+        -variable Options(OneToOne) \
+        -value popup
+    tk::AmpMenuArgs $m.chat1to1 add radiobutton \
+        -label [mc "Open in new &tab"] \
+        -variable Options(OneToOne) \
+        -value tabbed
 
     # Auto Away Cascade Menu
     menu $m.aa -tearoff 0
-    $m add cascade \
-	    -label "Auto Away" \
-	    -underline 0 \
-	    -menu $m.aa \
-	    -state [expr {[idle::supported] ? "normal" : "disabled"}]
-    $m.aa add radiobutton \
-	    -label "Disabled" \
-	    -variable Options(AutoAway) \
-	    -value -1
+    tk::AmpMenuArgs $m add cascade \
+        -label [mc "&Auto away"] \
+        -menu $m.aa \
+        -state [expr {[idle::supported] ? "normal" : "disabled"}]
+    tk::AmpMenuArgs $m.aa add radiobutton \
+        -label [mc "&Disabled"] \
+        -variable Options(AutoAway) \
+        -value -1
     foreach minutes { 5 10 15 20 30 45 60 90 } {
 	$m.aa add radiobutton \
-		-label "After $minutes minutes" \
-		-variable Options(AutoAway) \
-		-value $minutes \
-		-command ::tkjabber::autoStatus
+            -label [mc "After %d minutes" $minutes] \
+            -variable Options(AutoAway) \
+            -value $minutes \
+            -command ::tkjabber::autoStatus
     }
 
     ## Emoticon Menu
     ##
     set m .mbar.emot
-    $m add command \
-	    -label "Show Emoticons" \
-	    -underline 0 \
-	    -command ::tkchat::ShowSmiles
-    $m add checkbutton \
-	    -label "Use Emoticons" \
-	    -underline 0 \
-	    -variable Options(Emoticons) \
-	    -onvalue 1 \
-	    -offvalue 0
-    $m add checkbutton \
-	    -label "Animate Emoticons" \
-	    -underline 0 \
-	    -variable Options(AnimEmoticons) \
-	    -onvalue 1 \
-	    -offvalue 0 \
-	    -command ::tkchat::DoAnim
-    $m add command \
-            -label "Update Emoticons" \
-            -underline 1 \
-            -command { ::tkchat::Smile }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "&Show emoticons..."] \
+        -command ::tkchat::ShowSmiles
+    tk::AmpMenuArgs $m add checkbutton \
+        -label [mc "&Use emoticons"] \
+        -variable Options(Emoticons) \
+        -onvalue 1 \
+        -offvalue 0
+    tk::AmpMenuArgs $m add checkbutton \
+        -label [mc "&Animate emoticons"] \
+        -variable Options(AnimEmoticons) \
+        -onvalue 1 \
+        -offvalue 0 \
+        -command ::tkchat::DoAnim
+    tk::AmpMenuArgs $m add command \
+        -label [mc "U&pdate emoticons"] \
+        -command { ::tkchat::Smile }
     # Insert Cascade Menu
-    menu $m.mnu -tearoff 0 -title Insert
-    $m add cascade \
-	    -label Insert \
-	    -underline 0 \
-	    -menu $m.mnu
+    menu $m.mnu -tearoff 0
+    tk::AmpMenuArgs $m add cascade -menu $m.mnu \
+        -label [mc "&Insert"]
 
     ## Visibility Menu
     ##
     set m .mbar.vis
     foreach tag $Options(ElideTags) text {
-	"Single Dot"
-	"Online/Away Status"
-	"Logon/Logoff"
-	"All System"
-	"Error"
+	"Hide &single dot messages"
+	"Hide &online/away status messages"
+	"Hide &logon/logoff messages"
+	"Hide &all system messages"
+	"Hide &error messages"
     } {
-	$m add checkbutton \
-		-label "Hide $text Messages" \
-		-underline 5 \
-		-variable Options(Visibility,$tag) \
-		-onvalue 1 \
-		-offvalue 0 \
-		-command [list ::tkchat::DoVis $tag]
+	tk::AmpMenuArgs $m add checkbutton \
+            -label [mc $text] \
+            -variable Options(Visibility,$tag) \
+            -onvalue 1 \
+            -offvalue 0 \
+            -command [list ::tkchat::DoVis $tag]
     }
-    $m add checkbutton \
-	    -label "Hide Timestamps" \
-	    -underline 5 \
-	    -variable Options(Visibility,STAMP) \
-	    -onvalue 1 \
-	    -offvalue 0 \
-	    -command ::tkchat::StampVis
+    tk::AmpMenuArgs $m add checkbutton \
+        -label [mc "Hide &timestamps"] \
+        -variable Options(Visibility,STAMP) \
+        -onvalue 1 \
+        -offvalue 0 \
+        -command ::tkchat::StampVis
 
-    $m add checkbutton \
-        -label "Hide Statusbar" \
-        -underline 11 \
+    tk::AmpMenuArgs $m add checkbutton \
+        -label [mc "Hide status&bar"] \
         -variable Options(Visibility,STATUSBAR) \
         -onvalue 0 \
         -offvalue 1 \
         -command [namespace origin ToggleStatusbar]
 
     $m add separator
-    $m add command \
-	    -label "Hide All Users" \
-	    -command { ::tkchat::NickVis 1 }
-    $m add command \
-	    -label "Show All Users" \
-	    -command { ::tkchat::NickVis 0 }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "Hide all &users"] \
+        -command { ::tkchat::NickVis 1 }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "Sho&w all users"] \
+        -command { ::tkchat::NickVis 0 }
 
     # Hide Users Cascade Menu
     menu $m.nicks -tearoff 0
-    $m add cascade \
-	    -label "Hide Users" \
-	    -menu $m.nicks
+    tk::AmpMenuArgs $m add cascade -menu $m.nicks \
+        -label [mc "&Hide users"]
     NickVisMenu
     $m add separator
-    $m add command -label "Show statusbar history" -underline 4 \
+    tk::AmpMenuArgs $m add command -label [mc "Show &statusbar history"] \
         -command [namespace origin ShowStatusHistory]
-    $m add command \
-	    -label "Show current history in new pane" \
-	    -underline 5 \
-	    -command {::tkchat::HistoryPaneToggle}
+    tk::AmpMenuArgs $m add command \
+        -label [mc "Show &current history in new pane"] \
+        -command {::tkchat::HistoryPaneToggle}
 
     ## Alert Menu
     ##
     set m .mbar.alert
     foreach { tag text } {
-	ALL	"Alert when any message received"
-	ME	"Alert when username mentioned"
-	TOPIC	"Alert when someone speaks who was quiet"
-	SUBJECT "Alert when specified subject mentioned"
+	ALL	"Alert when any &message received"
+	ME	"Alert when &username mentioned"
+	TOPIC	"Alert when s&omeone speaks who was quiet"
+	SUBJECT "Alert when &specified subject mentioned"
     } {
-	$m add checkbutton \
-		-label "$text" \
-		-variable Options(Alert,$tag) \
-		-onvalue 1 \
-		-offvalue 0 \
-		-command [list ::tkchat::setAlert $tag]
+	tk::AmpMenuArgs $m add checkbutton \
+            -label [mc $text] \
+            -variable Options(Alert,$tag) \
+            -onvalue 1 \
+            -offvalue 0 \
+            -command [list ::tkchat::setAlert $tag]
     }
     $m add separator
     foreach { tag text } {
-	SOUND	"Beep on alert"
-	RAISE	"Raise to top on alert"
+	SOUND	"&Beep on alert"
+	RAISE	"&Raise to top on alert"
     } {
-	$m add checkbutton \
-		-label $text \
-		-variable Options(Alert,$tag) \
-		-onvalue 1 \
-		-offvalue 0
+	tk::AmpMenuArgs $m add checkbutton \
+            -label [mc $text] \
+            -variable Options(Alert,$tag) \
+            -onvalue 1 \
+            -offvalue 0
     }
     $m add separator
     foreach {tag text} {
-	NORMAL	"Alert on regular posts"
-	ACTION	"Alert on whispers and \"/me\" posts"
+	NORMAL	"Alert on regular &posts"
+	ACTION	"Alert on &whispers and \"/me\" posts"
     } {
-	$m add checkbutton \
-		-label "$text" \
-		-variable Options(Alert,$tag) \
-		-onvalue 1 \
-		-offvalue 0
+	tk::AmpMenuArgs $m add checkbutton \
+            -label [mc $text] \
+            -variable Options(Alert,$tag) \
+            -onvalue 1 \
+            -offvalue 0
     }
 
     ## Debug Menu
     ##
     set m .mbar.dbg
-    $m add command \
-	    -label "Reload script" \
-	    -underline 0 \
-	    -command { ::tkchat::Debug reload }
-    $m add command \
-	    -label "Restart script" \
-	    -underline 2 \
-	    -command { ::tkchat::Debug restart }
-    $m add command \
-	    -label "Evaluate selection" \
-	    -underline 1 \
-	    -command { ::tkchat::Debug evalSel }
-    $m add command \
-	    -label "Allow remote control" \
-	    -underline 0 \
-	    -command { ::tkchat::Debug server }
-    $m add command \
-            -label "Get user versions" \
-            -underline 0 \
-            -command { after idle {::tkjabber::ParticipantVersions} }
-    $m add command \
-	    -label "Reload history" \
-	    -underline 7 \
-	    -command { ::tkchat::Debug purge }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "&Reload script"] \
+        -command { ::tkchat::Debug reload }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "Re&start script"] \
+        -command { ::tkchat::Debug restart }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "E&valuate selection"] \
+        -command { ::tkchat::Debug evalSel }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "&Allow remote control"] \
+        -command { ::tkchat::Debug server }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "&Get user versions"] \
+        -command { after idle {::tkjabber::ParticipantVersions} }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "Reload &history"] \
+        -command { ::tkchat::Debug purge }
 
     $m add separator
 
     # Error Logging Cascade Menu
     menu $m.err -tearoff 0
     menu $m.err.lvl -tearoff 0
-    $m add cascade \
-	    -label "Error Logging" \
-	    -underline 0 \
-	    -menu $m.err
-    $m.err add cascade \
-	    -label "Log Level" \
-	    -underline 0 \
-	    -menu $m.err.lvl
-    $m.err add radiobutton \
-	    -label "To Stderr" \
-	    -underline 3 \
-	    -variable Options(LogStderr) \
-	    -value 1 \
-	    -command { tkchat::OpenErrorLog stderr }
-    $m.err add command \
-	    -label "To File..." \
-	    -underline 3 \
-	    -command { tkchat::OpenErrorLog pick }
+    tk::AmpMenuArgs $m add cascade \
+        -label [mc "&Error logging"] \
+        -menu $m.err
+    tk::AmpMenuArgs $m.err add cascade \
+        -label [mc "&Log level"] \
+        -menu $m.err.lvl
+    tk::AmpMenuArgs $m.err add radiobutton \
+        -label [mc "To &stderr"] \
+        -variable Options(LogStderr) \
+        -value 1 \
+        -command { tkchat::OpenErrorLog stderr }
+    tk::AmpMenuArgs $m.err add command \
+        -label [mc "To &file..."] \
+        -command { tkchat::OpenErrorLog pick }
 
     # Error Logging:Log Level Cascade Menu
     foreach lvl [lsort -command ::log::lvCompare $::log::levels] {
@@ -2648,11 +2612,10 @@ proc ::tkchat::CreateGUI {} {
 
     $m add separator
     $m add checkbutton \
-	    -label "Console" \
-	    -underline 0 \
-	    -variable ::tkchat::_console \
-	    -command { ::tkchat::Debug console } \
-	    -state disabled
+        -label "Console" \
+        -variable ::tkchat::_console \
+        -command { ::tkchat::Debug console } \
+        -state disabled
     set ::tkchat::_console 0
     if { [llength [info commands ::tkcon]] } {
 	$m entryconfigure "Console" \
@@ -2920,15 +2883,15 @@ proc ::tkchat::CreateGUI {} {
 	}
     }
     if {$useTile} {
-	 	set Options(PaneUsersWidth) [expr { [winfo width .pane] \
-	 	   - [.pane sashpos 0]}]
-	 } else {
-	 	set Options(PaneUsersWidth) [expr { [winfo width .pane] \
-	 	   - [lindex [.pane sash coord 0] 0] }]
+        set Options(PaneUsersWidth) \
+            [expr { [winfo width .pane] - [.pane sashpos 0]}]
+    } else {
+        set Options(PaneUsersWidth) \
+            [expr { [winfo width .pane] - [lindex [.pane sash coord 0] 0] }]
     }
     bind .pane <Configure> { after idle [list ::tkchat::PaneConfigure %W %w] }
     bind .pane <Leave>     { ::tkchat::PaneLeave %W }
-
+    
     # update the pane immediately.
     PaneConfigure .pane [winfo width .pane]
 
@@ -8905,6 +8868,7 @@ proc ::tkjabber::normalized_jid {jid} {
 # JID or lookup a chatroom nick in the OnlineUsers array. Such messages
 # are held for the user if the user is not currently available.
 proc ::tkjabber::send_memo {to msg {subject Memo}} {
+    global Options
     variable myId
     variable jabber
     variable ::tkchat::OnlineUsers
@@ -8919,11 +8883,12 @@ proc ::tkjabber::send_memo {to msg {subject Memo}} {
     }
 
     set k {}
-    lappend k [list subject {} 0 $subject {}]
-    lappend k [list body {} 0 $msg {}]
-    set a [list xmlns jabber:client type normal from $myId to $to]
-    set m [list message $a 0 "" $k]
-    $jabber send $m
+    lappend k [wrapper::createtag subject -chdata $subject]
+    lappend k [wrapper::createtag nick -chdata $Options(Nickname) \
+                   -attrlist {xmlns http://jabber.org/protocol/nick}]
+    lappend k [wrapper::createtag body -chdata $msg]
+    $jabber send [wrapper::createtag message -subtags $k \
+                      -attrlist [list type normal to $to]]
     tkchat::addStatus 0 "Memo sent to $to."
 }
 
