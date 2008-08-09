@@ -108,6 +108,22 @@ if {[tk windowingsystem] eq "aqua"} {
     }
 }
 
+# 8.4 doesn't provide this - we use it for i18n on menus.
+if {[llength [info commands ::tk::AmpMenuArgs]] == 0} {
+    proc ::tk::AmpMenuArgs {widget add type args} {
+        set options {}
+        foreach {opt val} $args {
+            if {$opt eq "-label"} {
+                lassign [UnderlineAmpersand $val] newlabel under
+                lappend options -label $newlabel -underline $under
+            } else {
+                lappend options $opt $val
+            }
+        }
+        eval [linsert $options 0 $widget add $type]
+    }
+}
+
 # Override the normal logging to include a timestamp
 proc ::log::Puts {level text} {
     variable channelMap
@@ -225,7 +241,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.443 2008/08/08 23:48:09 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.444 2008/08/09 13:01:17 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \

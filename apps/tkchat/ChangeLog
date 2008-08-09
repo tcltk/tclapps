@@ -1,3 +1,7 @@
+2008-08-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Provide a version of tk::AmpMenuArgs for Tk 8.4.
+
 2008-08-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added msgs/ directory and started to internationalize
