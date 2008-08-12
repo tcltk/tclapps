@@ -51,7 +51,6 @@
     "Open in new &tab"      "Open in new &tab"
 
     "&Auto away"            "&Auto away"
-    "&Disabled"             "&Disabled"
     "After %d minutes"      "After %d minutes"
 
     "&Show emoticons..."    "&Show emoticons..."
@@ -113,13 +112,26 @@
 
     OK     "OK"
     Cancel "Cancel"
+    Yes    "Yes"
+    No     "No"
     Close  "Close"
+    Send   "Send"
     Reply  "Reply"
     Ready  "Ready"
+    Clear  "Clear"
+    Quit   "Quit"
+    Login  "Login"
+    Post   "Post"
+    Error  "Error"
 
-    "All users" "All users"
+    "All users"              "All users"
     "Disconnected from jabber server." "Disconnected from jabber server."
     "Connected to %s, sending credentials." "Connected to %s, sending credentials."
+    "Close history pane" "Close history pane"
+    "Lurk"   "Lurk"
+    "Unlurk" "Unlurk"
+    "Lurking, select Unlurk from the context menu to re-enable" \
+        "Lurking, select Unlurk from the context menu to re-enable"
 
     "Load History From Logs" "Load History From Logs"
     "Please select how far back you want to load:" \
@@ -128,4 +140,36 @@
     "Subject" "Subject"
     "%s - tkchat message" "%s - tkchat message"
     "Re: %s" "Re: %s"
+
+    "Subscribe request from %s" "Subscribe request from %s"
+    "Do you want to let %s add you to their roster?" \
+        "Do you want to let %s add you to their roster?"
+
+    "About TkChat %s" "About TkChat %s"
+    "Using Tcl/Tk %s" "Using Tcl/Tk %s"
+    "Copyright (c) %s by the following authors:" \
+        "Copyright (c) %s by the following authors:"
+    "Paste data to %s" "Paste data to %s"
+    "Eval in whiteboard" "Eval in whiteboard"
+    "Subject required" "Subject required"
+    "You must provide a subject to be displayed as the title for this paste." \
+        "You must provide a subject to be displayed as the title for this paste."
 }
+
+# Logon dialog
+::msgcat::mcset en "Use pro&xy"
+::msgcat::mcset en "&Proxy host:port"
+::msgcat::mcset en "Proxy auth &username"
+::msgcat::mcset en "Proxy auth pa&ssword"
+::msgcat::mcset en "JID | &Nick"
+::msgcat::mcset en "Chat p&assword"
+::msgcat::mcset en "&Remember chat password"
+::msgcat::mcset en "&Jabber server:port"
+::msgcat::mcset en "Jab&ber resource"
+::msgcat::mcset en "Jabber con&ference"
+::msgcat::mcset en "N&o SSL"
+::msgcat::mcset en "Jabber SSL"
+::msgcat::mcset en "STARTTLS"
+::msgcat::mcset en "Auto-&connect"
+::msgcat::mcset en "&Validate SSL certificates"
+::msgcat::mcset en "&Quit"
