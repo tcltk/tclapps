@@ -1,3 +1,9 @@
+2008-08-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: More i18n. Do the login dialog and some others
+	* msgs/en.msg:  using tk::AmpWidget which is present in 8.4 
+	* msgs/de.msg: (missing has no alt key support for ttk in <8.5)
+
 2008-08-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Provide a version of tk::AmpMenuArgs for Tk 8.4.

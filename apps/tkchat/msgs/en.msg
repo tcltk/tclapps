@@ -93,6 +93,7 @@
     "&Log level"            "&Log level"
     "To &stderr"            "To &stderr"
     "To &file..."           "To &file..."
+    "Console"               "Console"
 
     "&Quick help..."        "&Quick help..."
     "Help (&wiki)..."       "Help (&wiki)..."
@@ -145,6 +146,13 @@
     "Do you want to let %s add you to their roster?" \
         "Do you want to let %s add you to their roster?"
 
+    "%s has become available" "%s has become available"
+    "%s has left"             "%s has left"
+    "%s is now known as %s"   "%s is now known as %s"
+
+    "Tkchat confirm quit"            "Tkchat confirm quit"
+    "Are you sure you want to quit?" "Are you sure you want to quit?"
+
     "About TkChat %s" "About TkChat %s"
     "Using Tcl/Tk %s" "Using Tcl/Tk %s"
     "Copyright (c) %s by the following authors:" \
@@ -161,7 +169,7 @@
 ::msgcat::mcset en "&Proxy host:port"
 ::msgcat::mcset en "Proxy auth &username"
 ::msgcat::mcset en "Proxy auth pa&ssword"
-::msgcat::mcset en "JID | &Nick"
+::msgcat::mcset en "J&ID | Nick"
 ::msgcat::mcset en "Chat p&assword"
 ::msgcat::mcset en "&Remember chat password"
 ::msgcat::mcset en "&Jabber server:port"

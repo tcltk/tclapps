@@ -91,6 +91,7 @@
     "&Log level"            "&Log Priorit\u00e4t"
     "To &stderr"            "Nach &stderr"
     "To &file..."           "In &Datei..."
+    "Console"               "Konsole"
 
     "&Quick Help..."        "&Kurzanleitung..."
     "Help (&wiki)..."       "Hilfe (&wiki)..."
@@ -116,8 +117,11 @@
     Send    "Absenden"
     Reply   "Reply"
     Ready   "Fertig"
+    Clear   "L\u00f6schen"
     Quit    "Beenden"
     Login   "Anmelden"
+    Post    "Senden"
+    Error   "Fehler"
 
     "All users"             "Alle Benutzer"
     "Disconnected from jabber server." "Disconnected from jabber server."
@@ -134,4 +138,25 @@
     "Subscribe request from %s" "Subskriptionsanfrage von %s"
     "Do you want to let %s add you to their roster?" \
         "Do you want to let %s add you to their roster?"
+
+    "Tkchat confirm quit"            "Tkchat best\u00e4tigen beenden."
+    "Are you sure you want to quit?" "Sind Sie sicher, dass Sie beenden wollen?"
 }
+
+# Logon dialog
+::msgcat::mcset de "Use pro&xy"                  "Verwenden Sie Pro&xy-Server"
+::msgcat::mcset de "&Proxy host:port"            "&Proxy host:port"
+::msgcat::mcset de "Proxy auth &username"        "Proxy-Ben&utzername"
+::msgcat::mcset de "Proxy auth pa&ssword"        "Proxy-Pa&sswort"
+::msgcat::mcset de "J&ID | Nick"                 "J&ID | Nick"
+::msgcat::mcset de "Chat p&assword"              "Chat-P&asswort"
+::msgcat::mcset de "&Remember chat password"     "&Daran denken Chat-Passwort"
+::msgcat::mcset de "&Jabber server:port"         "&Jabber Server:Port"
+::msgcat::mcset de "Jab&ber resource"            "Ja&bber-Ressource"
+::msgcat::mcset de "Jabber con&ference"          "Jabber-Kon&ferenz"
+::msgcat::mcset de "N&o SSL"                     "&Keine SSL"
+::msgcat::mcset de "Jabber SSL"                  "Jabber SSL"
+::msgcat::mcset de "STARTTLS"                    "STARTTLS"
+::msgcat::mcset de "Auto-&connect"               "Auto-An&melden"
+::msgcat::mcset de "&Validate SSL certificates"  "&Validate SSL-Zertifikate"
+::msgcat::mcset de "&Quit"                       "B&eenden"

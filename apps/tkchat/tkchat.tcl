@@ -241,7 +241,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.444 2008/08/09 13:01:17 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.445 2008/08/13 22:16:48 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -877,7 +877,7 @@ proc ::tkchat::babelfishMenu {} {
 
 	# Add to the Help->Translate menu
 	catch {
-	    set ndx [$menu index "Translate Selection"]
+	    set ndx [$menu index [mc "Translate selection"]]
 	    $menu entryconfigure $ndx -menu $tr
 	}
 	::tkchat::babelfishInit
@@ -2628,24 +2628,24 @@ proc ::tkchat::CreateGUI {} {
 
     $m add separator
     $m add checkbutton \
-        -label "Console" \
+        -label [mc "Console"] \
         -variable ::tkchat::_console \
         -command { ::tkchat::Debug console } \
         -state disabled
     set ::tkchat::_console 0
-    if { [llength [info commands ::tkcon]] } {
-	$m entryconfigure "Console" \
-		-state normal \
-		-command {
-		    if { $::tkchat::_console } {
-			tkcon show
-		    } else {
-			tkcon hide
-		    }
-		}
+    if {[llength [info commands ::tkcon]] } {
+	$m entryconfigure [mc "Console"] \
+            -state normal \
+            -command {
+                if { $::tkchat::_console } {
+                    tkcon show
+                } else {
+                    tkcon hide
+                }
+            }
     } elseif { $::tcl_platform(platform) ne "unix" \
-	    && [llength [info commands ::console]] > 0 } {
-	$m entryconfigure "Console" -state normal
+                   && [llength [info commands ::console]] > 0 } {
+	$m entryconfigure [mc "Console"] -state normal
 	console eval {
 	    bind .console <Map> {
 		consoleinterp eval {
@@ -2659,20 +2659,20 @@ proc ::tkchat::CreateGUI {} {
 	    }
 	}
     } elseif {[llength [info commands ::console]] == 0} {
-	     ::tkchat::ConsoleInit
-		  $m entryconfigure "Console" -state normal
-		  console eval {
-	    bind .console <Map> {
-		consoleinterp eval {
-		    set ::tkchat::_console 1
-		}
-	    }
-	    bind .console <Unmap> {
-		consoleinterp eval {
-		    set ::tkchat::_console 0
-		}
-	    }
-	}
+        ::tkchat::ConsoleInit
+        $m entryconfigure [mc "Console"] -state normal
+        console eval {
+            bind .console <Map> {
+                consoleinterp eval {
+                    set ::tkchat::_console 1
+                }
+            }
+            bind .console <Unmap> {
+                consoleinterp eval {
+                    set ::tkchat::_console 0
+                }
+            }
+        }
     }
 
     ## Help Menu
@@ -2781,7 +2781,7 @@ proc ::tkchat::CreateGUI {} {
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
 
-    ${NS}::button .post -text "Post" -command [namespace code userPost]
+    ${NS}::button .post -text [mc Post] -command [namespace code userPost]
 
     if {$useTile} {
 	ttk::menubutton .mb \
@@ -2839,7 +2839,7 @@ proc ::tkchat::CreateGUI {} {
     if {$useClosebutton} {
         ::ttk::button .cbtn -padding {1 1 0 0} -style CloseButton
     } else {
-        ${NS}::button .cbtn -text "Close history pane"
+        ${NS}::button .cbtn -text [mc "Close history pane"]
     }
     .cbtn configure -command ::tkchat::HistoryPaneToggle
     ScrolledWidget text .clone 0 1 \
@@ -2983,8 +2983,8 @@ proc ::tkchat::LurkMode {state} {
         .eMsg configure -state $state -font FNT
         .eMsg delete 0 end
     } else {
-        .eMsg insert 0 "Lurking, select Unlurk\
-            from the context menu to re-enable"
+        .eMsg insert 0 [mc "Lurking, select Unlurk\
+            from the context menu to re-enable"]
         .eMsg configure -state $state -font ACT
     }
 }
@@ -2992,9 +2992,9 @@ proc ::tkchat::OnEntryPopup {w x y} {
     destroy $w.popup
     set menu [menu $w.popup -tearoff 0]
     if {[$w cget -state] eq "disabled"} {
-        $menu add command -label "Unlurk" -command {::tkchat::LurkMode normal}
+        $menu add command -label [mc "Unlurk"] -command {::tkchat::LurkMode normal}
     } else {
-        $menu add command -label "Lurk" -command {::tkchat::LurkMode disabled}
+        $menu add command -label [mc "Lurk"] -command {::tkchat::LurkMode disabled}
     }        
     tk_popup $menu $x $y
 }
@@ -3035,7 +3035,7 @@ proc ::tkchat::OnTextPopup { w x y } {
         -accelerator Ctrl-G \
         -command [list ::tkchat::GoogleSelection $w]
     $m add command \
-        -label [mc "Open paste dialog"] \
+        -label [string map {& {}} [mc "Open &paste dialog"]] \
         -accelerator Ctrl-P \
         -command [list ::tkchat::PasteDlg]
 
@@ -3436,11 +3436,11 @@ proc ::tkchat::About {} {
     set dlg [Dialog .about]
     set w [${NS}::frame $dlg.f]
     wm withdraw $dlg
-    wm title $dlg "About TkChat $rcsVersion"
+    wm title $dlg [mc "About TkChat %s" $rcsVersion]
     if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
 	catch {wm iconphoto $dlg ::tkchat::img::Tkchat}
     }
-    set ver "Using Tcl/Tk [info patchlevel]"
+    set ver [mc "Using Tcl/Tk %s" [info patchlevel]]
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
     ${NS}::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
@@ -3459,7 +3459,7 @@ proc ::tkchat::About {} {
     $w.text insert end \
 	"TkChat v$rcsVersion\n" title "$ver\n\n" {h1 center} \
 	"$rcsid\n\n" center \
-	"Copyright (c) 2001-2008 by following authors:\n\n" {}
+	[mc "Copyright (c) %s by following authors:" "2001-2008"] {} "\n\n" {}
 
     lappend txt "Bruce B Hartweg"       "<brhartweg@bigfoot.com>"
     lappend txt "Don Porter"		"<dgp@users.sourceforge.net>"
@@ -3495,16 +3495,17 @@ proc ::tkchat::Help {} {
     variable NS
     global Options
     regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
+    set title "TkChat $rcsVersion [string map {& {}} [mc Help]]"
 
     catch {destroy .qhelp}
     set w [Dialog .qhelp]
     wm withdraw $w
-    wm title $w "TkChat $rcsVersion Help"
+    wm title $w $title
     ${NS}::frame $w.f
     text $w.text -height 32 -bd 1 -width 100 -wrap word \
         -yscrollcommand [list $w.vs set]
     ${NS}::scrollbar $w.vs -command [list $w.text yview]
-    ${NS}::button $w.b -text "Dismiss" -width -12 \
+    ${NS}::button $w.b -text [mc "Close"] -width -12 \
         -command [list wm withdraw $w] -default active
     grid $w.text $w.vs -in $w.f -sticky news
     grid $w.b -        -in $w.f -sticky e
@@ -3515,7 +3516,7 @@ proc ::tkchat::Help {} {
     grid columnconfigure $w 0 -weight 1
     $w.text tag configure title -justify center -font {Courier -18 bold}
     $w.text tag configure h1 -justify left -font {Sans -12 bold}
-    $w.text insert 1.0 "TkChat v$rcsVersion Help\n" title
+    $w.text insert 1.0 $title\n title
 
     $w.text insert end "Commands\n" h1
 
@@ -4393,103 +4394,87 @@ proc ::tkchat::logonScreen {} {
 	Dialog .logon
 	wm withdraw .logon
 	wm protocol .logon WM_DELETE_WINDOW { set ::tkchat::DlgDone cancel }
-	wm title .logon "Logon to the Tcl'ers Chat"
+	wm title .logon [mc Login]
 
 	set lf [${NS}::frame .logon.frame]
-	${NS}::checkbutton .logon.prx \
-		-text "Use Proxy" \
-		-variable ::Options(UseProxy) \
-		-command ::tkjabber::TwiddlePort \
-		-underline 7
+	tk::AmpWidget ${NS}::checkbutton .logon.prx \
+            -text [mc "Use pro&xy"] \
+            -variable ::Options(UseProxy) \
+            -command ::tkjabber::TwiddlePort
         ${NS}::labelframe .logon.plf -labelwidget .logon.prx
-	${NS}::label .logon.lph -text "Proxy host:port" -underline 0
+	tk::AmpWidget ${NS}::label .logon.lph -text [mc "&Proxy host:port"]
 	${NS}::frame .logon.fpx
 	${NS}::entry .logon.eph -textvariable Options(ProxyHost)
 	${NS}::entry .logon.epp -textvariable Options(ProxyPort) -width 5
-	${NS}::label .logon.lpan -text "Proxy Auth Username" -underline 11
-	${NS}::label .logon.lpap -text "Proxy Auth Password" -underline 13
+	tk::AmpWidget ${NS}::label .logon.lpan -text [mc "Proxy auth &username"]
+	tk::AmpWidget ${NS}::label .logon.lpap -text [mc "Proxy auth pa&ssword"]
 	${NS}::entry .logon.epan -textvariable Options(ProxyUsername)
 	${NS}::entry .logon.epap -textvariable Options(ProxyPassword) -show {*}
-	${NS}::label .logon.lnm -text "JID | Nick" -underline 6
-	${NS}::label .logon.lpw -text "Chat Password" -underline 6
+	tk::AmpWidget ${NS}::label .logon.lnm -text [mc "J&ID | Nick"]
+	tk::AmpWidget ${NS}::label .logon.lpw -text [mc "Chat p&assword"]
 	${NS}::entry .logon.enm -textvariable Options(Username)
 	${NS}::entry .logon.enick -textvariable Options(Nickname)
 	${NS}::entry .logon.epw -textvariable Options(Password) -show *
-	${NS}::checkbutton .logon.rpw \
-		-text "Remember Chat Password" \
-		-variable Options(SavePW) \
-		-underline 0
+	tk::AmpWidget ${NS}::checkbutton .logon.rpw \
+            -text [mc "&Remember chat password"] \
+            -variable Options(SavePW)
 	${NS}::frame .logon.fjsrv
-	${NS}::label .logon.ljsrv -text "Jabber server:port" -underline 0
+	tk::AmpWidget ${NS}::label .logon.ljsrv -text [mc "&Jabber server:port"]
 	${NS}::entry .logon.ejsrv -textvariable Options(JabberServer)
 	${NS}::entry .logon.ejprt -textvariable Options(JabberPort) -width 5
-	${NS}::label .logon.ljres -text "Jabber resource" -underline 3
+	tk::AmpWidget ${NS}::label .logon.ljres -text [mc "Jab&ber resource"]
 	${NS}::entry .logon.ejres -textvariable Options(JabberResource)
-	${NS}::label .logon.lconf -text "Jabber conference" -underline 10
+	tk::AmpWidget ${NS}::label .logon.lconf -text [mc "Jabber con&ference"]
 	${NS}::entry .logon.econf -textvariable Options(JabberConference)
 
 	${NS}::frame .logon.sslopt -borderwidth 0
-	${NS}::radiobutton .logon.nossl \
-		-text "No SSL" \
-		-variable Options(UseJabberSSL) \
-		-value no \
-		-underline 1 \
-		-command ::tkjabber::TwiddlePort
+	tk::AmpWidget ${NS}::radiobutton .logon.nossl \
+            -text [mc "N&o SSL"] \
+            -variable Options(UseJabberSSL) \
+            -value no \
+            -command ::tkjabber::TwiddlePort
 	${NS}::radiobutton .logon.rjabberssl \
-		-text "Jabber SSL" \
-		-variable Options(UseJabberSSL) \
-		-value ssl \
-		-command ::tkjabber::TwiddlePort
+            -text [mc "Jabber SSL"] \
+            -variable Options(UseJabberSSL) \
+            -value ssl \
+            -command ::tkjabber::TwiddlePort
 	${NS}::radiobutton .logon.rstarttls \
-		-text "STARTTLS" \
-		-variable Options(UseJabberSSL) \
-		-value starttls \
-		-command ::tkjabber::TwiddlePort
-
-	${NS}::checkbutton .logon.atc \
-		-text "Auto-connect" \
-		-variable Options(AutoConnect) \
-		-underline 5
-        ${NS}::checkbutton .logon.vsc \
-        	-text "Validate SSL certificates" \
-        	-variable Options(ValidateSSLChain) \
-            	-underline 0
+            -text [mc "STARTTLS"] \
+            -variable Options(UseJabberSSL) \
+            -value starttls \
+            -command ::tkjabber::TwiddlePort
+        
+	tk::AmpWidget ${NS}::checkbutton .logon.atc \
+            -text [mc "Auto-&connect"] \
+            -variable Options(AutoConnect)
+        tk::AmpWidget ${NS}::checkbutton .logon.vsc \
+        	-text "&Validate SSL certificates" \
+        	-variable Options(ValidateSSLChain)
 	${NS}::frame  .logon.f  -border 0
-	${NS}::button .logon.ok \
-		-text "Logon" \
-		-command { set ::tkchat::DlgDone ok } \
-		-width 8 \
-		-underline 0
+	tk::AmpWidget ${NS}::button .logon.ok \
+            -text [mc "&Login"] -width 8 \
+            -command { set ::tkchat::DlgDone ok }
 	${NS}::button .logon.cn \
-		-text "Cancel" \
-		-command { set ::tkchat::DlgDone cancel } \
-		-width 8 \
-		-underline 0
-	${NS}::button .logon.qu \
-		-text "Quit" \
-		-width 8 \
-		-underline 0 \
-		-command [namespace origin quit]
+            -text [mc "Cancel"] -width 8 \
+            -command { set ::tkchat::DlgDone cancel }
+	tk::AmpWidget ${NS}::button .logon.qu \
+            -text [mc "&Quit"] -width 8 \
+            -command [namespace origin quit]
 	catch {.logon.ok configure -default active}
 	pack .logon.qu .logon.cn .logon.ok -in .logon.f -side right
 
-	bind .logon <Alt-x> {.logon.prx invoke}
-	bind .logon <Alt-l> {.logon.ok invoke}
-	bind .logon <Alt-q> {.logon.qu invoke}
-	bind .logon <Alt-c> {.logon.cn invoke}
-	bind .logon <Alt-p> {focus .logon.eph}
-	bind .logon <Alt-u> {focus .logon.epan}
-	bind .logon <Alt-s> {focus .logon.epap}
-	bind .logon <Alt-n> {focus .logon.enm}
-	bind .logon <Alt-a> {focus .logon.epw}
-	bind .logon <Alt-r> {.logon.rpw invoke}
-	bind .logon <Alt-t> {.logon.atc invoke}
-	bind .logon <Alt-e> {.logon.rjabberssl invoke}
-	bind .logon <Alt-j> {focus .logon.ejsrv}
-	bind .logon <Alt-b> {focus .logon.ejres}
-	bind .logon <Alt-o> {focus .logon.nossl}
-	bind .logon <Alt-f> {focus .logon.econf}
-        bind .logon <Alt-v> {focus .logon.vsc}
+        # enable the i18n alt key handling for this dialog
+        bind .logon <Alt-Key> [list tk::AltKeyInDialog .logon %A]
+
+	bind .logon.lph  <<AltUnderlined>> {focus .logon.eph}
+	bind .logon.lpan <<AltUnderlined>> {focus .logon.epan}
+	bind .logon.lpap <<AltUnderlined>> {focus .logon.epap}
+	bind .logon.lnm  <<AltUnderlined>> {focus .logon.enm}
+	bind .logon.lpw  <<AltUnderlined>> {focus .logon.epw}
+	bind .logon.ljsrv <<AltUnderlined>> {focus .logon.ejsrv}
+	bind .logon.ljres <<AltUnderlined>> {focus .logon.ejres}
+        bind .logon.lconf <<AltUnderlined>> {focus .logon.econf}
+	bind .logon.nossl <<AltUnderlined>> {focus .logon.nossl}
 
 	trace variable Options(UseProxy)  w [namespace origin optSet]
 	trace variable Options(SavePW)    w [namespace origin optSet]
@@ -5291,13 +5276,14 @@ proc ::tkchat::ChatLogHook { nick msg msgtype mark timestamp } {
 	if { $msgtype eq "TRAFFIC" } {
 	    switch -- $msg {
 		entered {
-		    set msg "$nick has become available"
+		    set msg [mc "%s has become available" $nick]
 		}
 		left {
-		    set msg "$nick has left"
+		    set msg [mc "%s has left" $nick]
 		}
 		nickchange {
-		    set msg "[lindex $nick 0] is now known as [lindex $nick 1]"
+		    set msg [mc "%s is now known as %s" \
+                                 [lindex $nick 0] [lindex $nick 1]]
 		}
 	    }
 	    set nick {}
@@ -5350,9 +5336,9 @@ proc ::tkchat::OpenErrorLog {opt} {
 }
 
 proc ::tkchat::quit {} {
-    set q "Are you sure you want to quit?"
+    set q [mc "Are you sure you want to quit?"]
     set a [tk_messageBox -type yesno -default yes \
-               -title "Tkchat confirm quit" \
+               -title [mc "Tkchat confirm quit"] \
                -message $q]
     if { $a eq "yes" } {
 	::tkchat::saveRC
@@ -9829,19 +9815,19 @@ proc tkchat::PasteDlg {} {
     if {![info exists paste_uid]} { set paste_uid 0 }
     set wid paste[incr paste_uid]
     set dlg [Dialog .$wid]
-    wm title $dlg "Paste data to paste.tclers.tk"
+    wm title $dlg [mc "Paste data to %s" paste.tclers.tk]
     wm transient $dlg {}
     set f [${NS}::frame $dlg.f1 -borderwidth 0]
     set f2 [${NS}::frame $f.f2 -borderwidth 0]
-    ${NS}::label $f2.lbl -text Subject
+    ${NS}::label $f2.lbl -text [mc Subject]
     set subject [${NS}::entry $f2.subject -font FNT] 
     text $f.txt -background white -font FNT -yscrollcommand [list $f.vs set]
     ${NS}::scrollbar $f.vs -command [list $f.txt yview]
     set f3 [${NS}::frame $f.f3 -borderwidth 0]
-    set send [${NS}::button $f3.send -text [msgcat::mc Send] \
+    set send [${NS}::button $f3.send -text [mc "Send"] \
                   -default active -width -12 \
                   -command [list set [namespace current]::$wid send]]
-    set cancel [${NS}::button $f3.cancel -text [msgcat::mc Cancel] \
+    set cancel [${NS}::button $f3.cancel -text [mc "Cancel"] \
                     -default normal -width -12 \
                     -command [list set [namespace current]::$wid cancel]]
 
@@ -9853,8 +9839,8 @@ proc tkchat::PasteDlg {} {
         }
     }
     set m [menu $dlg.popup -tearoff 0]
-    $m add command -label "Clear" -command [list $f.txt delete 0.0 end]
-    $m add command -label "Eval in whiteboard" \
+    $m add command -label [mc "Clear"] -command [list $f.txt delete 0.0 end]
+    $m add command -label [mc "Eval in whiteboard"] \
         -command [list [namespace origin PasteEval] $dlg]
     bind $f.txt <Button-3> [list tk_popup $m %X %Y]
     
@@ -9874,9 +9860,9 @@ proc tkchat::PasteDlg {} {
         tkwait variable [namespace current]::$wid
         if {[set [namespace current]::$wid] eq "send" \
                 && [string length [$subject get]] < 1} {
-            tk_messageBox -icon info -title "Subject required" \
-                -message "You must provide a subject to be displayed\
-                as the title for this paste."
+            tk_messageBox -icon info -title [mc "Subject required"] \
+                -message [mc "You must provide a subject to be displayed\
+                as the title for this paste."]
             continue
         }
         break
@@ -9885,12 +9871,10 @@ proc tkchat::PasteDlg {} {
         set msg [string trim [$f.txt get 1.0 {end - 1c}]]
         if {[string length $msg] > 0} {
             set k {}
-            lappend k [list subject {} 0 [$subject get] {}]
-            lappend k [list body {} 0 $msg {}]
-            set a [list xmlns jabber:client type normal \
-                       from [tkjabber::jid !resource $::tkjabber::myId] \
-                       to tcl@paste.tclers.tk]
-            set m [list message $a 0 "" $k]
+            lappend k [wrapper::createtag subject -chdata [$subject get]]
+            lappend k [wrapper::createtag body -chdata $msg]
+            set m [wrapper::createtag message -subtags $k \
+                       -attrlist [list type normal to tcl@paste.tclers.tk]]
             $::tkjabber::jabber send $m
         }
     }
@@ -9956,7 +9940,7 @@ proc ::tkjabber::setrole {nick role reason} {
         $::tkjabber::muc setrole $conference $nick $role \
             -reason $reason -command [namespace origin onAdminComplete]
     } err]} {
-        tk_messageBox -icon error -title "Error" \
+        tk_messageBox -icon error -title [mc "Error"] \
             -message "An error occurred setting the role for\
             \"$nick\".\n\n$err"
     }
@@ -9970,7 +9954,7 @@ proc ::tkjabber::setaffiliation {nick affiliation reason} {
         $::tkjabber::muc setaffiliation $conference $nick $affiliation \
             -reason $reason -command [namespace origin onAdminComplete]
     } err]} {
-        tk_messageBox -icon error -title "Error" \
+        tk_messageBox -icon error -title [mc "Error"] \
             -message "An error occurred setting the affiliation for\
             \"$nick\".\n\n$err"
     }
