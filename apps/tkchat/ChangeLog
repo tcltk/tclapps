@@ -1,3 +1,8 @@
+2008-08-15  Kevin Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl: Fixed a bug whereby the KHIM bindings were not
+	always installed in the text and entry widgets.
+	
 2008-08-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: More i18n. Do the login dialog and some others

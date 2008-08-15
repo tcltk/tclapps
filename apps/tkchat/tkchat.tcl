@@ -197,28 +197,43 @@ namespace eval ::tkchat {
 # If we're using KHIM, make all entries and texts use it.
 
 if {[package provide khim] ne {}} {
-    # Avoid trying to do this when re-sourcing the file
-    if {[llength [info command ::tk::khimWrappedEntry]] == 0} {
-        rename ::tk::entry ::tk::khimWrappedEntry
-        proc ::tk::entry {w args} {
-            eval [linsert $args 0 ::tk::khimWrappedEntry $w]
+
+    # The entry and text widgets might have been aliased into the ::tk
+    # namespace by the code above, or they might have been created as
+    # separate commands.  Look for them under both names.
+
+    foreach command {::entry ::tk::entry ::text ::tk::text ::ttk::entry} {
+
+        # Skip aliases, because we'll work with the underlying commands
+        # instead.
+
+        if {[interp alias {} $command] ne {}} {
+            continue
+        }
+
+        # Skip nonexistent commands (e.g., a Tk without Ttk)
+
+        if {[namespace which $command] eq {}} {
+            continue
+        }
+
+        # Skip commands that are already wrapped
+
+        set ns [namespace qualifiers $command]
+        set t [namespace tail $command]
+        if {[namespace which ${ns}::khimWrapped${t}] ne {}} {
+            continue
+        }
+
+        # Wrap each command with a procedure that installs the KHIM
+        # bindtag on the widget.
+
+        rename ${ns}::${t} ${ns}::khimWrapped${t}
+        proc ${ns}::${t} {w args} [string map [list @ns $ns @t $t] {
+            eval [linsert $args 0 @ns::khimWrapped@t $w]
             bindtags $w [linsert [bindtags $w] 1 KHIM]
             return $w
-        }
-        rename ::tk::text ::tk::khimWrappedText
-        proc ::tk::text {w args} {
-            eval [linsert $args 0 ::tk::khimWrappedText $w]
-            bindtags $w [linsert [bindtags $w] 1 KHIM]
-            return $w
-        }
-        if {[llength [info commands ::ttk::entry]] >= 1} {
-            rename ::ttk::entry ::ttk::khimWrappedEntry
-            proc ::ttk::entry {w args} {
-                eval [linsert $args 0 ::ttk::khimWrappedEntry $w]
-                bindtags $w [linsert [bindtags $w] 1 KHIM]
-                return $w
-            }
-        }
+        }]
     }
 }
 
@@ -241,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.445 2008/08/13 22:16:48 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.446 2008/08/15 20:45:28 kennykb Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
