@@ -256,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.446 2008/08/15 20:45:28 kennykb Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.447 2008/08/21 09:39:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5980,7 +5980,8 @@ proc ::tkchat::Init {args} {
         set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
 	http::config -useragent "Mozilla/5.0\
 	    ([string totitle $::tcl_platform(platform)]; U;\
-	    $::tcl_platform(os) $::tcl_platform(osVersion))\
+	    $::tcl_platform(os) $::tcl_platform(osVersion);\
+            [::jlib::getlang])\
             Tkchat/$tkchatver Tcl/[package provide Tcl]"
     }
     set Options(NoProxy) [list localhost 127.0.0.1]

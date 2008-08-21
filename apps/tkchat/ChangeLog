@@ -1,3 +1,8 @@
+2008-08-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* msgs/de.msg: Merged updates from Matthias Kraft.
+	* tkchat.tcl:  Include the locale in http useragent string.
+
 2008-08-15  Kevin Kenny  <kennykb@acm.org>
 
 	* tkchat.tcl: Fixed a bug whereby the KHIM bindings were not

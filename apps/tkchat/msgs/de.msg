@@ -19,7 +19,7 @@
 
     "&Display online users" "&Aktive Benutzer anzeigen"
     "&Enable whiteboard"    "&Whiteboard aktivieren"
-    "Auto &bookmark"        "Auto &bookmark"
+    "Auto &bookmark"        "A&utomatische Lesezeichen"
     "Auto-i&nit Babelfish"  "Auto-i&nit Babelfish"
 
     "&Colors..."            "&Farben..."
@@ -34,11 +34,12 @@
     "&To file..."           "&In Datei..."
     "&Load file..."         "&Datei laden..."
 
-    "&Server chat logging"  "&Server chat logging"
+    "&Server chat logging"  "Unte&rhaltung auf dem Server mitschreiben"
     "L&og my messages, do not log my actions (old style)" \
-        "L&og my messages, do not log my actions (old style)"
-    "&Log my messages and actions" "&Log my messages and actions"
-    "Do &not log my messages and actions" "Do &not log my messages and actions"
+        "&Mitschreiben meiner Nachrichten, aber nicht meiner Aktionen (alter Stil)"
+    "&Log my messages and actions" "M&itschreiben meiner Nachrichten und Aktionen"
+    "Do &not log my messages and actions" \
+	"&Weder meine Nachrichten noch meine Aktionen mitschreiben"
 
     "Loading server &history"    "&Lade alte Eintr\u00e4ge vom Server"
     "Do &NOT load any history"   "&KEINE alten Eintr\u00e4ge laden"
@@ -50,14 +51,14 @@
     "&Popup a new window"   "Erstelle neues &Fenster"
     "Open in new &tab"      "Ein neues &Unterfenster \u00f6ffnen"
 
-    "&Auto away"            "&Automatisch Abwesend"
+    "&Auto away"            "Auto&matisch Abwesend"
     "After %d minutes"      "Nach %d Minuten"
 
     "&Show emoticons..."    "Emoticons &anzeigen..."
     "&Use emoticons"        "Emoticons &benutzen"
     "&Animate emoticons"    "A&nimierte Emoticons"
     "U&pdate emoticons"     "Emoticons &erneuern"
-    "&Insert"               "Einf\u00fcgen"
+    "&Insert"               "E&inf\u00fcgen"
 
     "Hide &single dot messages"         "&Punktnachrichten verstecken"
     "Hide &online/away status messages" "&An-/Abwesend Status verstecken"
@@ -66,16 +67,21 @@
     "Hide &error messages"  "&Fehlermeldungen verstecken"
     "Hide &timestamps"      "&Zeitstempel verstecken"
     "Hide status&bar"       "&Statuszeile verstecken"
-    "Hide all &users"       "&Alle Benutzer verstecken"
-    "Sho&w all users"       "A&lle Benutzer zeigen"
+    "Hide all &users"       "All&e Benutzer verstecken"
+    "Sho&w all users"       "Alle Ben&utzer zeigen"
     "&Hide users"           "&Benutzer verstecken"
-    "Show &statusbar history" "Show &statusbar history"
-    "Show &current history in new pane" "Show &current history in new pane"
+    "Show &statusbar history" "Al&te Statuszeileneintr\u00e4ge anzeigen"
+    "Show &current history in new pane" \
+	"&Derzeitige alten Eintr\u00e4ge in neuem Unterfenster anzeigen"
 
-    "Alert when any &message received"         "Alert when any &message received"
-    "Alert when &username mentioned"           "Alert when &username mentioned"
-    "Alert when s&omeone speaks who was quiet" "Alert when s&omeone speaks who was quiet"
-    "Alert when &specified subject mentioned"  "Alert when &specified subject mentioned"
+    "Alert when any &message received" \
+	"&Alarm bei jeder empfangenen Nachricht"
+    "Alert when &username mentioned" \
+	"A&larm bei Erw\u00e4hnung des Benutzernamens"
+    "Alert when s&omeone speaks who was quiet" \
+	"Ala&rm wenn jemand spricht, der vorher schwieg"
+    "Alert when &specified subject mentioned" \
+	"Alar&m bei Erw\u00e4hnung eines bestimmten Themas"
     "&Beep on alert"                           "&Bei einem Alarm piepen"
     "&Raise to top on alert"                   "B&ei einem Alarm anzeigen"
     "Alert on regular &posts"                  "Alarm bei &normalen Nachrichten"
@@ -124,8 +130,9 @@
     Error   "Fehler"
 
     "All users"             "Alle Benutzer"
-    "Disconnected from jabber server." "Disconnected from jabber server."
-    "Connected to %s, sending credentials." "Connected to %s, sending credentials."
+    "Disconnected from jabber server." \
+	"Verbindung zum Jabber Server wurde getrennt."
+    "Connected to %s, sending credentials." "Zu %s verbunden, sende Anmeldedaten."
 
     "Load History From Logs" "Alte Log-Eintr\u00e4ge laden"
     "Please select how far back you want to load:" \
@@ -133,30 +140,32 @@
 
     "Subject" "Betreff"
     "%s - tkchat message" "%s - Tkchat Nachricht"
-    "Re: %s" "Re: %s"
+    "Re: %s" "Wg: %s"
 
     "Subscribe request from %s" "Subskriptionsanfrage von %s"
     "Do you want to let %s add you to their roster?" \
-        "Do you want to let %s add you to their roster?"
+        "Darf %s Sie in ihre/seine Liste eintragen?"
 
-    "Tkchat confirm quit"            "Tkchat best\u00e4tigen beenden."
-    "Are you sure you want to quit?" "Sind Sie sicher, dass Sie beenden wollen?"
+    "Tkchat confirm quit"            "Tkchat-Beenden best\u00e4tigen."
+    "Are you sure you want to quit?" "Wollen Sie wirklich beenden?"
 }
 
 # Logon dialog
-::msgcat::mcset de "Use pro&xy"                  "Verwenden Sie Pro&xy-Server"
-::msgcat::mcset de "&Proxy host:port"            "&Proxy host:port"
-::msgcat::mcset de "Proxy auth &username"        "Proxy-Ben&utzername"
-::msgcat::mcset de "Proxy auth pa&ssword"        "Proxy-Pa&sswort"
-::msgcat::mcset de "J&ID | Nick"                 "J&ID | Nick"
-::msgcat::mcset de "Chat p&assword"              "Chat-P&asswort"
-::msgcat::mcset de "&Remember chat password"     "&Daran denken Chat-Passwort"
-::msgcat::mcset de "&Jabber server:port"         "&Jabber Server:Port"
-::msgcat::mcset de "Jab&ber resource"            "Ja&bber-Ressource"
-::msgcat::mcset de "Jabber con&ference"          "Jabber-Kon&ferenz"
-::msgcat::mcset de "N&o SSL"                     "&Keine SSL"
-::msgcat::mcset de "Jabber SSL"                  "Jabber SSL"
-::msgcat::mcset de "STARTTLS"                    "STARTTLS"
-::msgcat::mcset de "Auto-&connect"               "Auto-An&melden"
-::msgcat::mcset de "&Validate SSL certificates"  "&Validate SSL-Zertifikate"
-::msgcat::mcset de "&Quit"                       "B&eenden"
+::msgcat::mcset de {
+    "Use pro&xy"                  "Pro&xy-Server verwenden"
+    "&Proxy host:port"            "&Proxy host:port"
+    "Proxy auth &username"        "Proxy-Ben&utzername"
+    "Proxy auth pa&ssword"        "Proxy-Pa&sswort"
+    "J&ID | Nick"                 "J&ID | Nick"
+    "Chat p&assword"              "Chat-P&asswort"
+    "&Remember chat password"     "Chat-Passwort &merken"
+    "&Jabber server:port"         "&Jabber Server:Port"
+    "Jab&ber resource"            "Ja&bber-Ressource"
+    "Jabber con&ference"          "Jabber-Kon&ferenz"
+    "N&o SSL"                     "&Kein SSL"
+    "Jabber SSL"                  "Jabbe&r SSL"
+    "STARTTLS"                    "STARTTLS"
+    "Auto-&connect"               "Auto-An&melden"
+    "&Validate SSL certificates"  "SSL-Zertifikate pr\u00fcfen"
+    "&Quit"                       "B&eenden"
+}
