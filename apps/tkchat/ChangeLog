@@ -1,3 +1,8 @@
+2008-09-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl: Revised the Babelfish web scraping to follow
+	the move of Babelfish from Altavista to Yahoo.
+	
 2008-08-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* msgs/de.msg: Merged updates from Matthias Kraft.

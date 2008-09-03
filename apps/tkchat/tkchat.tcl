@@ -256,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.447 2008/08/21 09:39:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.448 2008/09/03 22:13:46 kennykb Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -836,7 +836,7 @@ proc ::tkchat::translateSel {from to} {
 }
 
 proc ::tkchat::translate {from to txt} {
-    set url {http://babelfish.altavista.com/babelfish/tr}
+    set url {http://babelfish.yahoo.com/translate_txt}
     append op $from _ $to
     set query [http::formatQuery tt urltext urltext $txt lp $op]
     set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
@@ -846,7 +846,7 @@ proc ::tkchat::translate {from to txt} {
 
 proc ::tkchat::translateDone {tok} {
     set ::tkchat::translate [http::data $tok]
-    set r [regexp -- {<td.*?class=s><div.*?>(.*)</div>} \
+    set r [regexp -- {<div id="result"><div.*?>(.*?)</div>} \
 	    [::http::data $tok] -> text]
     if {$r} {
 	showInfo Translation [string trim $text]
@@ -856,7 +856,7 @@ proc ::tkchat::translateDone {tok} {
 }
 
 proc ::tkchat::babelfishInit {
-	{url http://babelfish.altavista.com/babelfish/} } {
+	{url http://babelfish.yahoo.com/} } {
     set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
     set tok [http::geturl $url -headers $hdrs \
         -command [list ::tkchat::fetchurldone ::tkchat::babelfishInitDone]]
