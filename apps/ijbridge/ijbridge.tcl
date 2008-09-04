@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.30 2008/06/12 23:49:31 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.31 2008/09/04 12:39:36 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -566,10 +566,14 @@ proc ::ijbridge::OnMessageBody {token type args} {
                     send -user $a(-from) $::ijbridge::rcsid
                 }
                 KICK* - kick* {
-                    log::log notice $a(-body)
+                    log::log notice "$a(-from) $a(-body)"
                     set user [lindex $a(-body) 1]
-                    xmit "KICK $::client::channel $user"
-                    send -user $a(-from) "Kicking $user."
+                    if {$user eq $::client::nick} {
+                        send -user $a(-from) "I cannot kick myself!!"
+                    } else {
+                        xmit "KICK $::client::channel $user"
+                        send -user $a(-from) "Kicking $user."
+                    }
                 }
                 STATS - stats - STATISTICS - statistics {
                     # This is not done as a bot command as it floods irc
