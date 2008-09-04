@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.31 2008/09/04 12:39:36 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.32 2008/09/04 12:41:45 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -188,14 +188,14 @@ proc ::ijbridge::DumpStats {{settimer 1}} {
 proc ::ijbridge::DumpColors {} {
     variable Options
     variable stats
+    set qmap [list "&" "&amp;" "<" "&#60;" ">" "&#62;" " " "&#20;" "{" "&#123;" "}" "&#125;"]
     if {[string length $Options(ColorsFile)] > 0} {
         set f [open $Options(ColorsFile) w]
         fconfigure $f -encoding utf-8
         puts $f "/* Tkchat user colors. Generated at\
             [clock format [clock seconds] -format {%Y-%m-%dT%T} -gmt 1] */"
         foreach key [lsort [array names stats *,r]] {
-            set name [string range $key 0 end-2]
-            set name [string map {"&" "&amp;" "<" "&\#60;" ">" "&\#62;"} $name]
+            set name [string map $qmap [string range $key 0 end-2]]
             puts $f "span.nick_$name {color:#$stats($key);}"
         }
         close $f
