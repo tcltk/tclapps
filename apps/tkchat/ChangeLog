@@ -1,3 +1,10 @@
+2008-10-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mms.tcl: Fixed error inserting into menus when non-english
+	* tkchat_mjpeg.tcl: Extended de i18n for the mms plugin
+	* tkchat_leo.tcl: 
+	* tkchat.tcl: Minor fixes for i18n
+
 2008-10-16  Reinhard Max  <max@suse.de>
 
 	* tkchat_clock.tcl: Allow using time zones in addition to numeric

@@ -12,6 +12,8 @@ if {[catch {
     return
 }
 
+package require msgcat
+
 namespace eval ::tkchat::mms {
     variable version 1.0.0
     variable streams
@@ -23,6 +25,7 @@ namespace eval ::tkchat::mms {
         }
     }
     variable gain_changing 0
+    namespace import ::msgcat::mc
 }
 
 proc ::tkchat::mms::Play {url} {
@@ -30,13 +33,13 @@ proc ::tkchat::mms::Play {url} {
                     -handler [namespace origin Stream] \
                     -command [namespace origin StreamFinished]
     } err]} then {
-        ::tkchat::addStatus 0 "error fetching \"$url\": $err"
+        ::tkchat::addStatus 0 [mc "Error fetching \"%s\": %s" $url $err]
     }
 }
 
 proc ::tkchat::mms::Stream {sock tok} {
     if {[::http::ncode $tok] >= 300} {
-        ::tkchat::addStatus 0 "Failed to open stream: [::http::code $tok]"
+        ::tkchat::addStatus 0 [mc "Failed to open stream: %s" [::http::code $tok]]
         ::http::Eof $tok
         return 0
     }
@@ -183,18 +186,17 @@ proc ::tkchat::mms::ChooseStream {} {
     set dlg [::tkchat::Dialog .choosestream]
     variable $dlg {}
     wm withdraw $dlg
-    wm title $dlg "Select stream"
+    wm title $dlg [mc "Select stream"]
     set f [${NS}::frame $dlg.f -padding 2]
 
-    ${NS}::label $f.info -text "Enter a URL to open.\
-         The title is optional and will be displayed in the\
-         \nmenu for this stream." -anchor nw
-    ${NS}::label $f.tl -anchor nw -text "Title: "
+    set msg "Enter a URL to open. The title is optional and will be displayed in the menu for this stream."
+    ${NS}::label $f.info -text [mc $msg] -anchor nw
+    ${NS}::label $f.tl -anchor nw -text "[mc "Title"]: "
     ${NS}::entry $f.te -width 24
-    ${NS}::label $f.l -anchor nw -text "Stream URL: "
+    ${NS}::label $f.l -anchor nw -text "[mc "Stream URL"]: "
     ${NS}::entry $f.e -width 24
-    ${NS}::button $f.ok -text OK -command [list set [namespace which -variable $dlg] ok]
-    ${NS}::button $f.cn -text Cancel -command [list set [namespace which -variable $dlg] cancel]
+    ${NS}::button $f.ok -text [mc OK] -command [list set [namespace which -variable $dlg] ok]
+    ${NS}::button $f.cn -text [mc Cancel] -command [list set [namespace which -variable $dlg] cancel]
     grid $f.info -   - -sticky new -pady 1
     grid $f.tl $f.te - -sticky new -pady 1
     grid $f.l $f.e - -sticky new -pady 1
@@ -230,7 +232,7 @@ proc ::tkchat::mms::ChooseStream {} {
 proc ::tkchat::mms::ChooseFile {} {
     variable updateid
     set types {{{Sound files} {.mp3 .ogg .wav}} {{All Files} {*.*}}}
-    set file [tk_getOpenFile -title "Select audio file" \
+    set file [tk_getOpenFile -title [mc "Select audio file"] \
                  -filetypes $types -defaultextension .mp3]
     if {[string length $file] > 0 && [file exists $file]} {
         Init
@@ -256,8 +258,10 @@ proc ::tkchat::mms::Update {{interval 100}} {
 proc ::tkchat::mms::FillMenu {m} {
     variable streams
     $m delete 0 end
-    $m add command -label "Open stream..." -underline 0 -command [namespace origin ChooseStream]
-    $m add command -label "Play file..." -underline 0 -command [namespace origin ChooseFile]
+    tk::AmpMenuArgs $m add command -label [mc "&Open stream..."] -underline 0 \
+        -command [namespace origin ChooseStream]
+    tk::AmpMenuArgs $m add command -label [mc "&Play file..."] -underline 0 \
+        -command [namespace origin ChooseFile]
     $m add separator
     foreach {name url} $streams {
         if {$name eq "-"} {
@@ -271,10 +275,12 @@ proc ::tkchat::mms::FillMenu {m} {
 # Inject a menu item into the tkchat menu.
 proc ::tkchat::mms::InitHook {} {
     if {[winfo exists .mbar.file]} {
-        set str "Play audio"
+        set str [mc "&Audio"]
         if {[catch {.mbar.file index $str}]} {
-            if {![catch {set ndx [.mbar.file index "Exit"]}]} {
-                .mbar.file insert [incr ndx -1] cascade -label $str \
+            if {![catch {set ndx [.mbar.file index end]}]} {
+                foreach {label charindex} [tk::UnderlineAmpersand $str] break
+                .mbar.file insert [incr ndx -1] cascade -label $label \
+                    -underline $charindex \
                     -menu [menu .mbar.file.stream -tearoff 0 \
                                -postcommand [list ::tkchat::mms::FillMenu .mbar.file.stream]]
             }

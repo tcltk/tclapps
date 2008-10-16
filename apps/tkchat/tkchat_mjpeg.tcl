@@ -323,7 +323,7 @@ proc ::tkchat::mjpeg::FillMenu {m} {
 proc ::tkchat::mjpeg::InitHook {} {
     set str "Video feeds"
     if {[catch {.mbar.file index $str}]} {
-        if {![catch {set ndx [.mbar.file index "Exit"]}]} {
+        if {![catch {set ndx [.mbar.file index end]}]} {
             .mbar.file insert [incr ndx -1] cascade -label $str \
                 -menu [menu .mbar.file.video -tearoff 0 \
                            -postcommand [list [namespace origin FillMenu] .mbar.file.video]]

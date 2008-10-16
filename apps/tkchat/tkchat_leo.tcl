@@ -12,11 +12,13 @@
 # -------------------------------------------------------------------------
 
 if {[catch {package require askleo}]} { return }
+package require msgcat
 
 namespace eval ::tkchat::askleo {
     variable version 1.0.0
     variable enabled;   if {![info exists enabled]} { set enabled 0 }
     variable statusbar; if {![info exists statusbar]} { set statusbar 0 }
+    namespace import ::msgcat::mc
 }
 
 # Show the LEO dialog even when no selection is ready.
@@ -38,10 +40,11 @@ proc ::tkchat::askleo::Init {} {
 
     # Insert menu items
     if {[winfo exists .mbar.help]} {
-        set str "Ask LEO ..."
+        set str [mc "Ask LEO ..."]
         if {[catch {.mbar.help index $str}]} {
-            if {![catch {set ndx [.mbar.help index "Translate Selection"]}]} {
-                .mbar.help insert [incr ndx] command -label $str \
+            if {![catch {set ndx [.mbar.help index end]}]} {
+                if {[incr ndx -3] < 1} {set ndx end}
+                .mbar.help insert $ndx command -label $str \
                     -command [namespace code [list Show]]
             }
         }
@@ -60,7 +63,7 @@ proc ::tkchat::askleo::Init {} {
         ${NS}::label .status.leo -image ::tkchat::img::askleo
         bind .status.leo <Button-1> [namespace code [list Show]]
         if {[llength [package provide tooltip]] > 0} {
-            tooltip::tooltip .status.leo "Translate selection using leo.org"
+            tooltip::tooltip .status.leo [mc "Translate selection using leo.org"]
         }
         ::tkchat::StatusbarAddWidget .status .status.leo 1
     }
@@ -85,10 +88,10 @@ proc ::tkchat::askleo::OptionsHook {parent} {
     array set EditOptions [list statusbar $statusbar enabled $enabled]
 
     set page [${NS}::frame $parent.askleoOptions -borderwidth 0]
-    ${NS}::checkbutton $page.en -text "Enable plugin" \
+    ${NS}::checkbutton $page.en -text [mc "Enable plugin"] \
         -variable [namespace which -variable EditOptions](enabled)
     ${NS}::labelframe $page.lf -labelwidget $page.en
-    ${NS}::checkbutton $page.lf.sb -text "Show icon in statusbar (needs restart)" \
+    ${NS}::checkbutton $page.lf.sb -text [mc "Show icon in statusbar"] \
         -variable [namespace which -variable EditOptions](statusbar)
     grid $page.lf.sb -sticky new -padx 2 -pady 2
     grid columnconfigure $page.lf 0 -weight 1

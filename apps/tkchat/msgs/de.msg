@@ -151,7 +151,7 @@
 }
 
 # Logon dialog
-::msgcat::mcset de {
+::msgcat::mcmset de {
     "Use pro&xy"                  "Pro&xy-Server verwenden"
     "&Proxy host:port"            "&Proxy host:port"
     "Proxy auth &username"        "Proxy-Ben&utzername"
@@ -163,9 +163,27 @@
     "Jab&ber resource"            "Ja&bber-Ressource"
     "Jabber con&ference"          "Jabber-Kon&ferenz"
     "N&o SSL"                     "&Kein SSL"
-    "Jabber SSL"                  "Jabbe&r SSL"
+    "Jabber SSL"                  "Jabber SSL"
     "STARTTLS"                    "STARTTLS"
     "Auto-&connect"               "Auto-An&melden"
     "&Validate SSL certificates"  "SSL-Zertifikate pr\u00fcfen"
     "&Quit"                       "B&eenden"
+}
+
+# Streaming audio plugin
+namespace eval ::tkchat::mms {
+    ::msgcat::mcmset de {
+        "&Audio"                     "&Audio"
+        "&Open stream..."            "Audio-Stream &öffnen..."
+        "&Play file..."              "Audio &abspielen..."
+        "Select stream"              "Wählen Sie Stream"
+        "Title"                      "Title"
+        "Stream URL"                 "Stream URL"
+        "Select audio file"          "Wählen Sie Audio-Datei"
+        "Failed to open stream: %s"  "Fehler beim Öffnen eines Stream: %s"
+        "Error fetching \"%s\": %s"  "Fehler beim Abrufen der Stream \"%s\": %s"
+        "Enter a URL to open. The title is optional and will be displayed in the menu for this stream."\
+            "Geben Sie eine URL zu öffnen. Der Titel ist optional und wird in das Menü für diesen Strom."
+
+    }
 }

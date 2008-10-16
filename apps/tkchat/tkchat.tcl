@@ -256,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.448 2008/09/03 22:13:46 kennykb Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.449 2008/10/16 13:44:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4463,17 +4463,17 @@ proc ::tkchat::logonScreen {} {
             -text [mc "Auto-&connect"] \
             -variable Options(AutoConnect)
         tk::AmpWidget ${NS}::checkbutton .logon.vsc \
-        	-text "&Validate SSL certificates" \
+            -text [mc "&Validate SSL certificates"] \
         	-variable Options(ValidateSSLChain)
 	${NS}::frame  .logon.f  -border 0
 	tk::AmpWidget ${NS}::button .logon.ok \
-            -text [mc "&Login"] -width 8 \
+            -text [mc "&Login"] -width -8 \
             -command { set ::tkchat::DlgDone ok }
 	${NS}::button .logon.cn \
-            -text [mc "Cancel"] -width 8 \
+            -text [mc "Cancel"] -width -8 \
             -command { set ::tkchat::DlgDone cancel }
 	tk::AmpWidget ${NS}::button .logon.qu \
-            -text [mc "&Quit"] -width 8 \
+            -text [mc "&Quit"] -width -8 \
             -command [namespace origin quit]
 	catch {.logon.ok configure -default active}
 	pack .logon.qu .logon.cn .logon.ok -in .logon.f -side right

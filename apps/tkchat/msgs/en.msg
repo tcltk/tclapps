@@ -181,3 +181,20 @@
 ::msgcat::mcset en "Auto-&connect"
 ::msgcat::mcset en "&Validate SSL certificates"
 ::msgcat::mcset en "&Quit"
+
+# Streaming audio plugin
+namespace eval ::tkchat::mms {
+    ::msgcat::mcmset en {
+        "&Audio"                     "&Audio"
+        "&Open stream..."            "&Open stream..."
+        "&Play file..."              "&Play file..."
+        "Select stream"              "Select stream"
+        "Title"                      "Title"
+        "Stream URL"                 "Stream URL"
+        "Select audio file"          "Select audio file"
+        "Failed to open stream: %s"  "Failed to open stream: %s"
+        "Error fetching \"%s\": %s"  "Error fetching \"%s\": %s"
+        "Enter a URL to open. The title is optional and will be displayed in the menu for this stream."\
+            "Enter a URL to open. The title is optional and will be displayed in the menu for this stream."
+    }
+}
