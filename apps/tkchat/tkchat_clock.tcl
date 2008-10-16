@@ -9,9 +9,9 @@ namespace eval ::tkchat::clock {
     if {![info exists Options]} {
         array set Options {
             Enabled 0
-            Offset  0
+            Timezone  :localtime
             Format  "%H:%M:%S"
-            Tooltip "Universal Time Co-ordinated (GMT)"
+            Tooltip ""
         }
     }
 }
@@ -39,8 +39,9 @@ proc ::tkchat::clock::Stop {} {
     
 proc ::tkchat::clock::Tick {interval} {
     variable Options
-    set t [expr {[clock seconds] + (3600 * $Options(Offset))}]
-    set txt [clock format $t -format $Options(Format) -gmt 1]
+    set txt [clock format [clock seconds] \
+		 -format $Options(Format) \
+		 -timezone $Options(Timezone)]
     .status.clock configure -text $txt
     variable timer [after $interval [info level 0]]
 }
@@ -69,8 +70,8 @@ proc ::tkchat::clock::OptionsHook {parent} {
     set eb [${NS}::checkbutton $f.eb -text "Enable clock" \
                 -variable [namespace current]::EditOptions(Enabled)]
     set lf [${NS}::labelframe $f.lf -labelwidget $eb]
-    ${NS}::label $lf.ltz -anchor w -text Offset
-    ${NS}::entry $lf.etz -textvariable [namespace current]::EditOptions(Offset)
+    ${NS}::label $lf.ltz -anchor w -text Timezone
+    ${NS}::entry $lf.etz -textvariable [namespace current]::EditOptions(Timezone)
     ${NS}::label $lf.lft -anchor w -text Format
     ${NS}::entry $lf.eft -textvariable [namespace current]::EditOptions(Format)
     ${NS}::label $lf.ltt -anchor w -text Tooltip

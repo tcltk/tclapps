@@ -1,3 +1,8 @@
+2008-10-16  Reinhard Max  <max@suse.de>
+
+	* tkchat_clock.tcl: Allow using time zones in addition to numeric
+	offsets from GMT and default to the machine's local time zone.
+
 2008-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tkchat.tcl: Revised the Babelfish web scraping to follow
