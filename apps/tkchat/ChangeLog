@@ -1,3 +1,10 @@
+2008-10-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mjpeg.tcl: Added a version hook to announce information from
+	* tkchat_mms.tcl:   the website version check to plugins. This lets
+	* tkchat.tcl:       us push the conference urls for audio/video
+	                    while the conference is ongoing.
+
 2008-10-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_mms.tcl: Fixed error inserting into menus when non-english

@@ -256,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.449 2008/10/16 13:44:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.450 2008/10/21 13:27:47 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1380,6 +1380,7 @@ proc ::tkchat::Insert { w str tags url mark } {
 #  preinit hooks are called after app initialization before gui creation
 #  init hooks are called after gui creation before login
 #  login hooks are called after login
+#  version hooks are called once we get the current version from the web
 #  save hook are called when saving options to file.
 #  options hooks are called to add pages to the Preferences dialog
 proc ::tkchat::Hook {do type args} {
@@ -1388,11 +1389,12 @@ proc ::tkchat::Hook {do type args} {
         preinit { set Hook [namespace current]::PreInitHooks }
         init    { set Hook [namespace current]::InitHooks }
         login   { set Hook [namespace current]::LoginHooks }
+        version { set Hook [namespace current]::VersionHooks }
         save    { set Hook [namespace current]::SaveHooks }
         options { set Hook [namespace current]::OptionsHooks }
 	default {
 	    return -code error "unknown hook type \"$type\":\
-                must be message, preinit, init, login, options or save"
+                must be message, preinit, init, login, version, options or save"
 	}
     }
     switch -exact -- $do {
@@ -9709,6 +9711,7 @@ proc ::tkchat::CheckVersionDone {tok} {
                 end NOTICE
         }
     }
+    Hook run version $meta $url
 }
 
 # -------------------------------------------------------------------------

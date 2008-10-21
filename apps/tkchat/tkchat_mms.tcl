@@ -15,7 +15,7 @@ if {[catch {
 package require msgcat
 
 namespace eval ::tkchat::mms {
-    variable version 1.0.0
+    variable version 1.1.0
     variable streams
     if {![info exists streams]} {
         set streams {
@@ -24,6 +24,7 @@ namespace eval ::tkchat::mms {
             "Classical"    "http://scfire-dll-aa02.stream.aol.com:80/stream/1006"
         }
     }
+    variable webstreams {}
     variable gain_changing 0
     namespace import ::msgcat::mc
 }
@@ -257,11 +258,22 @@ proc ::tkchat::mms::Update {{interval 100}} {
 
 proc ::tkchat::mms::FillMenu {m} {
     variable streams
+    variable webstreams
     $m delete 0 end
     tk::AmpMenuArgs $m add command -label [mc "&Open stream..."] -underline 0 \
         -command [namespace origin ChooseStream]
     tk::AmpMenuArgs $m add command -label [mc "&Play file..."] -underline 0 \
         -command [namespace origin ChooseFile]
+    if {[llength $webstreams] > 0} {
+        $m add separator
+        foreach {name url} $webstreams {
+            if {$name eq "-"} {
+                $m add separator
+            } else {
+                $m add command -label $name -command [list [namespace origin Play] $url]
+            }
+        }
+    }
     $m add separator
     foreach {name url} $streams {
         if {$name eq "-"} {
@@ -288,6 +300,24 @@ proc ::tkchat::mms::InitHook {} {
     }
 }
 
+# Process the version hook - this lets the website push additional
+# streaming channels to the user via headers (ie: for the conference).
+proc ::tkchat::mms::VersionHook {meta url} {
+    variable streams
+    variable webstreams
+    if {[set ndx [lsearch -exact $meta X-TkChat-MMS]] != -1} {
+        set data [lindex $meta [incr ndx]]
+        catch {set data [base64::decode $data]}
+        foreach pair $data {
+            foreach {title url} $pair break
+            if {[lsearch -exact $streams $url] == -1} {
+                lappend webstreams $title $url
+            }
+        }
+    }
+    return
+}
+
 proc ::tkchat::mms::Save {} {
     variable streams
     return [list namespace eval [namespace current] [list variable streams $streams]]
@@ -296,5 +326,6 @@ proc ::tkchat::mms::Save {} {
 # -------------------------------------------------------------------------
 ::tkchat::Hook add save ::tkchat::mms::Save
 ::tkchat::Hook add init ::tkchat::mms::InitHook
+::tkchat::Hook add version ::tkchat::mms::VersionHook
 package provide tkchat::mms $::tkchat::mms::version
 # -------------------------------------------------------------------------

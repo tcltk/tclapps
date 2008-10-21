@@ -15,11 +15,12 @@ if {[catch {
 }
 
 namespace eval ::tkchat::mjpeg {
-    variable version 1.0.0
+    variable version 1.1.0
     variable subsample
     if {![info exists subsample]} { set subsample 1 }
     variable retrycount
     if {![info exists retrycount]} { set retrycount 0 }
+    variable webstreams {}
     variable streams
     if {![info exists streams]} {
         # list of: title url title url ...
@@ -306,9 +307,20 @@ proc ::tkchat::mjpeg::ChooseStream {} {
 
 proc ::tkchat::mjpeg::FillMenu {m} {
     variable streams
+    variable webstreams
     $m delete 0 end
     $m add command -label "Open stream..." -underline 0 \
         -command [namespace origin ChooseStream]
+    if {[llength $webstreams] > 0} {
+        $m add separator
+        foreach {name url} $webstreams {
+            if {$name eq "-"} {
+                $m add separator
+            } else {
+                $m add command -label $name -command [list [namespace origin Open] $url $name]
+            }
+        }
+    }
     $m add separator
     foreach {name url} $streams {
         if {$name eq "-"} {
@@ -329,6 +341,24 @@ proc ::tkchat::mjpeg::InitHook {} {
                            -postcommand [list [namespace origin FillMenu] .mbar.file.video]]
         }
     }
+}
+
+# Process the version hook - this lets the website push additional
+# streaming channels to the user via headers (ie: for the conference).
+proc ::tkchat::mjpeg::VersionHook {meta url} {
+    variable streams
+    variable webstreams
+    if {[set ndx [lsearch -exact $meta X-TkChat-MJPEG]] != -1} {
+        set data [lindex $meta [incr ndx]]
+        catch {set data [base64::decode $data]}
+        foreach pair $data {
+            foreach {title url} $pair break
+            if {[lsearch -exact $streams $url] == -1} {
+                lappend webstreams $title $url
+            }
+        }
+    }
+    return
 }
 
 # Hook the tkchat save to record our new streams
@@ -405,5 +435,6 @@ proc ::tkchat::mjpeg::SnapSaveAs {img} {
 # -------------------------------------------------------------------------
 ::tkchat::Hook add init ::tkchat::mjpeg::InitHook
 ::tkchat::Hook add save ::tkchat::mjpeg::SaveHook
+::tkchat::Hook add version ::tkchat::mjpeg::VersionHook
 package provide tkchat::mjpeg $::tkchat::mjpeg::version
 # -------------------------------------------------------------------------
