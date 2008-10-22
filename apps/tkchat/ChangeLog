@@ -1,3 +1,8 @@
+2008-10-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mjpeg.tcl: Fixed a bug handling the boundary marker and
+	another that cause the feed to keep looping when it errored.
+
 2008-10-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_mjpeg.tcl: Added a version hook to announce information from

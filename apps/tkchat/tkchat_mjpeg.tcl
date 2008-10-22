@@ -15,7 +15,7 @@ if {[catch {
 }
 
 namespace eval ::tkchat::mjpeg {
-    variable version 1.1.0
+    variable version 1.1.1
     variable subsample
     if {![info exists subsample]} { set subsample 1 }
     variable retrycount
@@ -53,13 +53,15 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
         }
     }
     
+    #log::log debug "Read $tok [http::status $tok] $state '$boundary'"
     switch -- $state {
 	boundary {
             Status $dlg "Waiting for image"
             Progress $dlg $tok 100 0
             fconfigure $fd -buffering line -translation crlf
 	    gets $fd line
-	    if {[string match --$boundary* $line]} {set state mime; set hdrs {}}
+	    if {[string match "${boundary}*" $line]} {set state mime; set hdrs {}}
+	    if {[string match "--${boundary}*" $line]} {set state mime; set hdrs {}}
             return [string length $line]
 	}
 	mime {
@@ -234,7 +236,8 @@ proc ::tkchat::mjpeg::Open {url {title "Video stream"}} {
     bind $dlg <Alt-F4> [list destroy $dlg]
     wm deiconify $dlg
 
-    OpenStream $url $dlg
+    variable stop 0
+    after idle [namespace code [list OpenStream $url $dlg]]
     return
 }
 
@@ -245,15 +248,20 @@ proc ::tkchat::mjpeg::OpenStream {url dlg args} {
         variable boundary ; unset -nocomplain boundary
         variable frame ""
         variable token; if {[info exists token]} { catch {http::cleanup $token} }
-        puts stderr "Open $url (args:$args)"
+        variable stop; if {[info exists stop] && $stop} { return }
+        log::log debug "OpenStream $url (args:$args)"
         Status $dlg "Opening $url"
         http::geturl $url \
             -timeout 10000 \
-            -handler [list [namespace origin Read] $dlg] \
-            -command [list [namespace origin OpenStream] $url $dlg]
+            -handler [namespace code [list Read $dlg]]\
+            -command {puts}
     } err]} {
         ::tkchat::addStatus 0 $err end ERROR
     }
+}
+
+proc ::tkchat::mjpeg::Stop {} {
+    variable stop 1
 }
 
 proc ::tkchat::mjpeg::ChooseStream {} {
@@ -347,7 +355,7 @@ proc ::tkchat::mjpeg::InitHook {} {
 # streaming channels to the user via headers (ie: for the conference).
 proc ::tkchat::mjpeg::VersionHook {meta url} {
     variable streams
-    variable webstreams
+    variable webstreams {}
     if {[set ndx [lsearch -exact $meta X-TkChat-MJPEG]] != -1} {
         set data [lindex $meta [incr ndx]]
         catch {set data [base64::decode $data]}

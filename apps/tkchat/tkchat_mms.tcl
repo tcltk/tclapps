@@ -304,7 +304,7 @@ proc ::tkchat::mms::InitHook {} {
 # streaming channels to the user via headers (ie: for the conference).
 proc ::tkchat::mms::VersionHook {meta url} {
     variable streams
-    variable webstreams
+    variable webstreams {}
     if {[set ndx [lsearch -exact $meta X-TkChat-MMS]] != -1} {
         set data [lindex $meta [incr ndx]]
         catch {set data [base64::decode $data]}
