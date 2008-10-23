@@ -1,3 +1,8 @@
+2008-10-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mms.tcl: Added restarting and auto-restart of stopped
+	                  streaming audio and restart of files.
+
 2008-10-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_mjpeg.tcl: Fixed a bug handling the boundary marker and

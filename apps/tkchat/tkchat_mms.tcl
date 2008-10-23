@@ -15,7 +15,7 @@ if {[catch {
 package require msgcat
 
 namespace eval ::tkchat::mms {
-    variable version 1.1.0
+    variable version 1.2.0
     variable streams
     if {![info exists streams]} {
         set streams {
@@ -24,21 +24,21 @@ namespace eval ::tkchat::mms {
             "Classical"    "http://scfire-dll-aa02.stream.aol.com:80/stream/1006"
         }
     }
-    variable webstreams {}
+    variable webstreams; if {![info exists webstreams]} { set webstreams {} }
     variable gain_changing 0
     namespace import ::msgcat::mc
 }
 
 proc ::tkchat::mms::Play {url} {
     if {[catch {http::geturl $url \
-                    -handler [namespace origin Stream] \
+                    -handler [list [namespace origin Stream] $url]\
                     -command [namespace origin StreamFinished]
     } err]} then {
         ::tkchat::addStatus 0 [mc "Error fetching \"%s\": %s" $url $err]
     }
 }
 
-proc ::tkchat::mms::Stream {sock tok} {
+proc ::tkchat::mms::Stream {url sock tok} {
     if {[::http::ncode $tok] >= 300} {
         ::tkchat::addStatus 0 [mc "Failed to open stream: %s" [::http::code $tok]]
         ::http::Eof $tok
@@ -46,7 +46,7 @@ proc ::tkchat::mms::Stream {sock tok} {
     }
     if {[catch {
         fileevent $sock readable {}
-        Init
+        Init $url
         Status Buffering
         ::snack::sound snd -channel $sock -buffersize 163840
         Wait 3000
@@ -59,6 +59,13 @@ proc ::tkchat::mms::Stream {sock tok} {
 
 # called when the http request gets closed.
 proc ::tkchat::mms::StreamFinished {tok} {
+    variable now_playing
+    if {$now_playing ne ""} {
+        if {[http::ncode $tok] eq "200"} {
+            ::tkchat::addStatus 0 "restarting halted stream '$now_playing'"
+            after idle [namespace origin Restart]
+        }
+    }
     if {[catch {::http::cleanup $tok} err]} { puts stderr "StreamFinished: $err" }
 }
 
@@ -92,6 +99,7 @@ proc ::tkchat::mms::Pause {} {
 }
 
 proc ::tkchat::mms::Stop {} {
+    variable now_playing ""
     if {[catch {snd stop} err]} {
         Status $err
         ::snack::audio stop
@@ -107,9 +115,33 @@ proc ::tkchat::mms::Status {message} {
     } else {
         ::tkchat::addStatus 0 $message
     }
+    if {$message eq "Stopped"} {
+        .status.mms itemconfigure pause -image ::tkchat::mms::imgPlay \
+            -activeimage ::tkchat::mms::actPlay
+        .status.mms bind pause <Button-1> [namespace code [list Restart]]
+    }
 }
 
-proc ::tkchat::mms::Init {} {
+proc ::tkchat::mms::Restart {} {
+    variable now_playing
+    if {$now_playing ne ""} {
+        if {[string match "http:*" $now_playing]} {
+            Play $now_playing
+        } else {
+            PlayFile $now_playing
+        }
+    }
+}
+
+proc ::tkchat::mms::Init {url} {
+    variable now_playing; if {![info exists now_playing]} { set now_playing "" }
+    if {$url eq $now_playing} {
+        .status.mms bind pause <Button-1> [namespace code [list Pause]]
+        .status.mms itemconfigure pause -image ::tkchat::mms::imgPause \
+            -activeimage ::tkchat::mms::actPause
+        return
+    }
+    set now_playing $url
     if {[lsearch -exact [font names] MMS] == -1} {
         font create MMS -family {Small Fonts} -size 6 -weight normal
     }
@@ -231,18 +263,28 @@ proc ::tkchat::mms::ChooseStream {} {
 }
 
 proc ::tkchat::mms::ChooseFile {} {
-    variable updateid
     set types {{{Sound files} {.mp3 .ogg .wav}} {{All Files} {*.*}}}
     set file [tk_getOpenFile -title [mc "Select audio file"] \
                  -filetypes $types -defaultextension .mp3]
     if {[string length $file] > 0 && [file exists $file]} {
-        Init
-        Status Playing
-        ::snack::sound snd -file $file -guessproperties true
-        after idle [list snd play -blocking 0 \
-                        -command [list after cancel [namespace which -variable updateid]]]
-        after idle [list [namespace origin Update] 100]
+        PlayFile $file
     }
+}
+
+proc ::tkchat::mms::PlayFile {file} {
+    variable updateid
+    Init $file
+    Status Playing
+    ::snack::sound snd -file $file -guessproperties true
+    after idle [list snd play -blocking 0 \
+        -command [namespace origin FileCompleted]]
+    after idle [list [namespace origin Update] 100]
+}
+
+proc ::tkchat::mms::FileCompleted {} {
+    variable updateid
+    after cancel [namespace which -variable updateid]
+    Status Stopped
 }
 
 proc ::tkchat::mms::Update {{interval 100}} {
