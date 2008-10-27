@@ -256,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.450 2008/10/21 13:27:47 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.451 2008/10/27 15:59:00 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4163,8 +4163,8 @@ proc ::tkchat::checkCommand { msg } {
                 addSystem .txt $err
             }
         }
-        {^/wik(?:id)|(?:tionary)[:\s]} {
-            regexp {^/wik(?:id)|(?:tionary)[:\s](.*)} $msg -> query
+        {^/wik(?:id|tionary)[:\s]} {
+            regexp {^/wik(?:id|tionary)[:\s](.*)} $msg -> query
 	    set q [http::formatQuery search $query]
 	    gotoURL http://en.wiktionary.org/wiki/Special:Search?$q&go=Go
 	}
