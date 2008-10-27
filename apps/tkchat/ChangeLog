@@ -1,3 +1,8 @@
+2008-10-27  Elchonon Edelson <eee@users.sourceforge.net>
+
+	* tkchat.tcl: Corrected the regexp that extracts the word to
+	                  look up on Wiktionary when using "/wikid <word>"
+
 2008-10-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_mms.tcl: Added restarting and auto-restart of stopped
