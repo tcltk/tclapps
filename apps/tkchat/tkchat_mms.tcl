@@ -19,7 +19,7 @@ namespace eval ::tkchat::mms {
     variable streams
     if {![info exists streams]} {
         set streams {
-            "Trance"       "http://scfire-ntc-aa04.stream.aol.com:80/stream/1003"
+            "Trance"       "http://scfire-mtc-aa03.stream.aol.com:80/stream/1065"
             "Top 40 Hits"  "http://scfire-nyk-aa01.stream.aol.com:80/stream/1014"
             "Classical"    "http://scfire-dll-aa02.stream.aol.com:80/stream/1006"
         }

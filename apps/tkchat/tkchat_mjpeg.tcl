@@ -20,7 +20,8 @@ namespace eval ::tkchat::mjpeg {
     if {![info exists subsample]} { set subsample 1 }
     variable retrycount
     if {![info exists retrycount]} { set retrycount 0 }
-    variable webstreams {}
+    variable webstreams
+    if {![info exists webstreams]} { set webstreams {} }
     variable streams
     if {![info exists streams]} {
         # list of: title url title url ...
@@ -61,7 +62,6 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
             fconfigure $fd -buffering line -translation crlf
 	    gets $fd line
 	    if {[string match "${boundary}*" $line]} {set state mime; set hdrs {}}
-	    if {[string match "--${boundary}*" $line]} {set state mime; set hdrs {}}
             return [string length $line]
 	}
 	mime {
@@ -72,7 +72,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
 	    regexp {Content-Length: ([[:digit:]]+)} $line -> toread
 	    if {$line eq ""} {
                 variable expected $toread
-		fconfigure $fd -translation binary
+		fconfigure $fd -translation binary -buffering full
 		set state data
 	    } else {
                 if {[regexp {^([^:]+):\s*(.+)$} $line -> key value]} {
@@ -86,9 +86,11 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
 	    incr toread -[string length $data]
 	    append frame $data
             Progress $dlg $tok $expected [string length $frame]
+            #puts stderr "data [string length $frame] of $expected"
 	    if {$toread == 0} {
                 Status $dlg "Ready."
                 if {[catch {
+                    #puts stderr "ready"
                     set img [namespace current]::rawImg
                     if {[info commands $img] eq {}} {
                         image create photo $img -data $frame

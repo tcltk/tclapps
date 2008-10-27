@@ -256,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.451 2008/10/27 15:59:00 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.452 2008/10/27 20:27:46 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1032,8 +1032,8 @@ proc ::tkchat::parseStr {str} {
         while {[regexp -- {^(.*?)[Tt][Ii][Pp]\s?\#?(\d+)(.*?)$} $str -> pre id post]} {
             if {[string length $pre]} { lappend out $pre {} {} }
             set tt ""
-            if {[info exists TipIndex] && $id < [llength $TipIndex] && $id >= 0} {
-                catch {
+            catch {
+                if {[info exists TipIndex] && $id < [llength $TipIndex] && $id >= 0} {
                     array set tip [lindex $TipIndex $id]
                     set tt $tip(Title)
                 }
@@ -7070,18 +7070,9 @@ proc ::tkchat::PreferencesPage {parent} {
 	${NS}::checkbutton $gf.fade -text "When not active, fade to " \
             -underline 2 -variable ::tkchat::EditOptions(AutoFade)
         if {[info commands ::ttk::spinbox] ne {}} {
-            # FIX ME: real experimental this part...
-            proc [namespace current]::ValidateSpin {w from to} {
-                set t [$w get]
-                if {$t eq ""} { return 1 }
-                if {![string is integer $t]} { return 0 }
-                if {$t < $from} { set ::[$w cget -textvariable] $from}
-                if {$t > $to} { set ::[$w cget -textvariable] $to}
-                return 1
-            }
-            ttk::spinbox $gf.fadelimit -width 4 -validate all \
-                -validatecommand [list [namespace current]::ValidateSpin \
-                                      $gf.fadelimit 1 100] \
+            ttk::spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
+                -validate all -format %d \
+                -validatecommand {string is integer %P} \
                 -textvariable ::tkchat::EditOptions(AutoFadeLimit)
         } else {
             spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
