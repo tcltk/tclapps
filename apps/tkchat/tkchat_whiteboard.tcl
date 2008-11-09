@@ -1,7 +1,7 @@
 #
 # Safe Whiteboard
 #
-# $Id: tkchat_whiteboard.tcl,v 1.3 2007/09/18 19:39:53 patthoyts Exp $
+# $Id: tkchat_whiteboard.tcl,v 1.4 2008/11/09 16:28:09 patthoyts Exp $
 
 namespace eval ::tkchat::Whiteboard {
     variable version 1.0
@@ -17,13 +17,15 @@ proc ::tkchat::Whiteboard::Init {} {
         focus .whiteboard
 
     } else {
-        set dlg [::tkchat::Dialog .whiteboard -container 1]
+        set dlg [::tkchat::Dialog .whiteboard -container 0]
         wm title $dlg "Whiteboard"
         wm transient $dlg {}
         wm withdraw $dlg
+        frame $dlg.frame -container 1
+        pack $dlg.frame -fill both -expand 1
         set slave [::safe::interpCreate whiteboard]
-        ::safe::loadTk $slave -use $dlg
-        bind $dlg <Destroy> [list interp delete $slave]
+        ::safe::loadTk $slave -use $dlg.frame
+        bind $dlg <Destroy> [list catch [list interp delete $slave]]
         interp alias $slave ::WhiteboardClear {} [namespace origin Clear]
         interp alias $slave ::WhiteboardLine {} [namespace origin Line]
         interp alias $slave ::WhiteboardScript {} [namespace origin Script]
