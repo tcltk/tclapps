@@ -256,7 +256,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.452 2008/10/27 20:27:46 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.453 2008/11/13 00:08:45 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1912,18 +1912,28 @@ proc ::tkchat::SendMemo {jid {subject {}} {body {}}} {
     wm deiconify $dlg
 }
 proc ::tkchat::DisplayMemo {jid subject body} {
-    set n 0
-    while {[winfo exists [set dlg .memo[string map {. _} $jid]$n]]} {
-        incr n
+    global Options
+    if {$Options(ShowNormalInline)} {
+        set msg " whispers: "
+        if {[string length $subject] > 0} {
+            append msg "Subject: $subject\n"
+        }
+        append msg $body
+        addMessage .txt "" $jid $msg ACTION end 0
+    } else {
+        set n 0
+        while {[winfo exists [set dlg .memo[string map {. _} $jid]$n]]} {
+            incr n
+        }
+        set dlg [CreateMemoDialog $dlg $jid]
+        $dlg.subject insert end $subject
+        $dlg.bodyf.body insert end $body
+        $dlg.ok configure -text [mc Close] \
+            -command [namespace code [list SendMemoDone $dlg $jid close]]
+        $dlg.cancel configure -text [mc Reply] \
+            -command [namespace code [list SendMemoDone $dlg $jid reply]]
+        wm deiconify $dlg
     }
-    set dlg [CreateMemoDialog $dlg $jid]
-    $dlg.subject insert end $subject
-    $dlg.bodyf.body insert end $body
-    $dlg.ok configure -text [mc Close] \
-        -command [namespace code [list SendMemoDone $dlg $jid close]]
-    $dlg.cancel configure -text [mc Reply] \
-        -command [namespace code [list SendMemoDone $dlg $jid reply]]
-    wm deiconify $dlg
 }
 proc ::tkchat::SendMemoDone {dlg jid status} {
     variable $dlg
@@ -5405,8 +5415,8 @@ proc ::tkchat::saveRC {} {
 	JabberPort JabberResource JabberServer Khim HateLolcatz
 	LogFile LogLevel LogPrivateChat LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
-	ServerLogging Style Subjects Theme Transparency UseBabelfish 
-        UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain 
+	ServerLogging ShowNormalInline Style Subjects Theme Transparency
+        UseBabelfish UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain
         Visibility,* RSS,* StartZoomed
     }
 
@@ -6131,7 +6141,8 @@ proc ::tkchat::GetDefaultOptions {} {
 	ProxyUsername		""
 	SavePW			0
 	ServerLogging		all
-        StoreMessages           1
+	ShowNormalInline	0
+	StoreMessages           1
 	Style			any
 	Subjects                {}
 	Theme			""
@@ -6945,6 +6956,7 @@ proc ::tkchat::PreferencesPage {parent} {
     set EditOptions(StoreMessages)   $Options(StoreMessages)
     set EditOptions(ClickFocusEntry) $Options(ClickFocusEntry)
     set EditOptions(LogPrivateChat)  $Options(LogPrivateChat)
+    set EditOptions(ShowNormalInline) $Options(ShowNormalInline)
 
     set dlg [winfo toplevel $parent]
     set page [${NS}::frame $parent.preferences -borderwidth 0]
@@ -6953,6 +6965,9 @@ proc ::tkchat::PreferencesPage {parent} {
     ${NS}::checkbutton $af.store -text "Store private messages" \
         -variable ::tkchat::EditOptions(StoreMessages) \
         -underline 0 -onvalue 1 -offvalue 0
+    ${NS}::checkbutton $af.norminline -text "Show whispers inline" \
+        -variable ::tkchat::EditOptions(ShowNormalInline) \
+        -underline 2 -onvalue 1 -offvalue 0
     ${NS}::checkbutton $af.traffic -underline 1 \
         -text "Show humorous entered/left messages" -offvalue 0\
         -variable ::tkchat::EditOptions(FunkyTraffic) -onvalue 1
@@ -6966,13 +6981,17 @@ proc ::tkchat::PreferencesPage {parent} {
         -anchor ne
     ${NS}::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
     if {!$useTile} {
-        foreach w [list $af.store $af.traffic $af.catz $af.cfe $af.lpc] {
+        foreach w [list $af.store $af.norminline $af.traffic $af.catz \
+                       $af.cfe $af.lpc] {
             $w configure -anchor nw
         }
     }
     if {[llength [package provide tooltip]]>0} {
         tooltip::tooltip $af.store "Control the persistence of one-to-one\
             chats to the ~/.tkchat_msgs file."
+        tooltip::tooltip $af.norminline "Enable to show whispered messages\
+            in the main body of the chat.\nOtherwise they are displayed in a\
+            popup dialog."
         tooltip::tooltip $af.traffic "Set the style of message displayed when\
             a user enters or leaves the chat."
         tooltip::tooltip $af.aae "Set the status message used when\
@@ -6986,9 +7005,11 @@ proc ::tkchat::PreferencesPage {parent} {
     }
     
     bind $dlg <Alt-s> [list $af.store invoke]
+    bind $dlg <Alt-o> [list $af.norminline invoke]
     bind $dlg <Alt-h> [list $af.traffic invoke]
     bind $dlg <Alt-i> [list focus $af.aae]
     grid $af.store   -   -sticky ew -padx 2
+    grid $af.norminline - -sticky ew -padx 2
     grid $af.traffic -   -sticky ew -padx 2
     grid $af.catz    -   -sticky ew -padx 2
     grid $af.cfe     -   -sticky ew -padx 2
@@ -7106,7 +7127,7 @@ proc ::tkchat::PreferencesPage {parent} {
 	set Options(BrowserTab) $EditOptions(BrowserTab)
 	foreach property {Style AutoFade AutoFadeLimit UseTkOnly
             AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages 
-            ClickFocusEntry LogPrivateChat} {
+            ClickFocusEntry LogPrivateChat ShowNormalInline} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)
 	    }

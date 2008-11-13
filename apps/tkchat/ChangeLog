@@ -1,3 +1,8 @@
+2008-11-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added option to show whispered (xmpp normal)
+	messages inline in the chat as was done before 1.442
+
 2008-11-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat_whiteboard.tcl: Work around Vista problem displaying
