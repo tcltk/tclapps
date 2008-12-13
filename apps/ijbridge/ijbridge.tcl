@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.32 2008/09/04 12:41:45 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.33 2008/12/13 16:33:52 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -544,7 +544,15 @@ proc ::ijbridge::OnMessageBody {token type args} {
                          stats      display chatroom statistics\n\
                          last nick  how long since this user spoke\n\
                          whois nick get irc WHOIS information\n\
-                         kick nick  kick irc user"
+                         kick nick  remove user from the channl\n\
+                         ban nick   ban user from this channel\n\
+                         unban nick remove a ban"
+                    send -user $a(-from) \
+                        -id $Options(Conference)/$Options(JabberUser) \
+                        "NOTE: kick, ban and unban should be used rarely. Also as we only use\
+                        the irc nick the user may rejoin using a modfied nick. If this occurs,\
+                        contact one of the irc channel admins and they can assign a more stringent\
+                        ban using the users host address"
                 }
                 WHOIS* - whois* {
                     array set whois {nick "" caller "" realname "" url "" channels "" status "" host ""}
@@ -567,12 +575,49 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 }
                 KICK* - kick* {
                     log::log notice "$a(-from) $a(-body)"
-                    set user [lindex $a(-body) 1]
-                    if {$user eq $::client::nick} {
-                        send -user $a(-from) "I cannot kick myself!!"
+                    if {[regexp {(?:\S+)\s+(\S+)(?:\s+(.*))?} [string trim $a(-body)] -> user reason]} {
+                        if {$user eq $::client::nick} {
+                            send -user $a(-from) "I will not kick myself!!"
+                        } else {
+                            if {[string length $reason] < 1} {
+                                set reason "kicked by $a(-from)"
+                            }
+                            xmit "KICK $::client::channel ${user} :${reason}"
+                            send -user $a(-from) "Kicked $user."
+                        }
                     } else {
-                        xmit "KICK $::client::channel $user"
-                        send -user $a(-from) "Kicking $user."
+                        send -user $a(-from) "usage: KICK nick ?reason?"
+                    }
+                }
+                "BAN*" - "ban*" {
+                    log::log notice "$a(-from) $a(-body)"
+                    if {[regexp {(?:\S+)\s+(\S+)(?:\s+(.*))?} [string trim $a(-body)] -> user reason]} {
+                        if {$user eq $::client::nick} {
+                            send -user $a(-from) "I will not ban myself!!"
+                        } else {
+                            if {[string length $reason] < 1} {
+                                set reason "ban set by $a(-from)"
+                            }
+                            #xmit "CHANSERV AKICK $::client::channel ADD ${user}!*@* :${reason}"
+                            xmit "MODE $::client::channel +b ${user}!*@*"
+                            send -user $a(-from) "Banning $user."
+                        }
+                    } else {
+                        send -user $a(-from) "usage: BAN nick ?reason?"
+                    }
+                }
+                "UNBAN*" - "unban*" {
+                    log::log notice "$a(-from) $a(-body)"
+                    if {[regexp {(?:\S+)\s+(\S+)} [string trim $a(-body)] -> user]} {
+                        if {$user eq $::client::nick} {
+                            send -user $a(-from) "Kick, ban and unban cannot be used on myself."
+                        } else {
+                            #xmit "CHANSERV AKICK $::client::channel DEL ${user}!*@*"
+                            xmit "MODE $::client::channel -b ${user}!*@*"
+                            send -user $a(-from) "Removed ban for $user."
+                        }
+                    } else {
+                        send -user $a(-from) "usage: UNBAN nick"
                     }
                 }
                 STATS - stats - STATISTICS - statistics {
@@ -1012,8 +1057,6 @@ proc client::registerhandlers {} {
             set ::ijbridge::IrcUserList $users_tmp
             unset users_tmp
         }
-        # Ask Chanserv to op us.
-        cmd-send "PRIVMSG Chanserv :op $::client::channel $::client::nick"
     }
 
     $cn registerevent 376 {
@@ -1025,6 +1068,12 @@ proc client::registerhandlers {} {
             }
         } err]} { puts stderr $err }
     }
+
+    $cn registerevent 333 {
+        # topicinfo - a handy marker for 'we just joined a channel'
+        # Ask Chanserv to op us.
+        cmd-send "PRIVMSG Chanserv :op $::client::channel $::client::nick"
+    } 
    
     # WHOIS handling from Jabber user 
     $cn registerevent 311 {set ::client::whois(realname) [msg];set ::client::whois(address) [additional]}

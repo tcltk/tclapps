@@ -1,3 +1,8 @@
+2008-12-13  Pat Thoyts <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Added ban/unban support and move the self-op code
+	                off the end-of-names event.
+
 2008-09-04  Pat Thoyts <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Do not let jabber users make the bot kick itself.
