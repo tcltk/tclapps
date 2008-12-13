@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.33 2008/12/13 16:33:52 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.34 2008/12/13 19:50:15 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -62,9 +62,10 @@ namespace eval ::ijbridge {
 
     # Used to maintain a view of the users currently connected to IRC.
     variable IrcUserList
-    if {![info exists IrcUserList]} {
-        set IrcUserList [list]
-    }
+    if {![info exists IrcUserList]} { set IrcUserList [list] }
+    # Used to avoid announcements on presence state changes.
+    variable MucUserList
+    if {![info exists MucUserList]} { set MucUserList [list] }
 
     variable statid
     variable stats
@@ -98,6 +99,11 @@ proc ::ijbridge::connect {{server {}} {port {}}} {
                               -iqcommand       [namespace origin OnIq] \
                               -messagecommand  [namespace origin OnMessage] \
                               -presencecommand [namespace origin OnPresence]]
+        # presence handlers
+        $conn(jabber) presence_register available \
+            [namespace origin OnPresenceChange]
+        $conn(jabber) presence_register unavailable \
+            [namespace origin OnPresenceChange]
 
         # override the jabberlib version info query
         $conn(jabber) iq_register get jabber:iq:version \
@@ -337,7 +343,7 @@ proc ::ijbridge::OnClient {token cmd args} {
 #
 proc ::ijbridge::OnRoster {roster type {jid {}} args} {
     variable conn
-    log::log debug "OnRoster: $roster $type $jid $args"
+    #log::log debug "OnRoster: $roster $type $jid $args"
     switch -exact -- $type {
         presence {
         }
@@ -675,6 +681,41 @@ proc ::ijbridge::OnMessageBody {token type args} {
 #
 proc ::ijbridge::OnPresence {token type args} {
     log::log debug "prs: $token $type $args"
+}
+
+proc ::ijbridge::OnPresenceChange {token jid type args} {
+    if {[catch {eval [linsert $args 0 OnPresenceChange2 $token $jid $type]} msg]} {
+        log::log error "OnPresenceChange $msg"
+    }
+}
+
+proc ::ijbridge::OnPresenceChange2 {token jid type args} {
+    variable Options
+    variable conn
+    variable MucUserList
+
+    array set a {-from {}}
+    array set a $args
+    jlib::splitjid $a(-from) room nick
+    log::log debug [info level 0]
+    if {[jlib::jidequal $room $Options(Conference)]} {
+        log::log debug "message from $room, user $nick"
+        switch -exact -- $type {
+            available {
+                # Ignore the presence state change messages
+                if {[lsearch -exact $MucUserList $a(-from)] == -1} {
+                    xmit "PRIVMSG $::client::channel :\001ACTION $nick has joined the jabber conference\001"
+                    lappend MucUserList $a(-from)
+                }
+            }
+            unavailable {
+                xmit "PRIVMSG $::client::channel :\001ACTION $nick left the jabber conference\001"
+                if {[set ndx [lsearch -exact $MucUserList $a(-from)]] != -1} {
+                    set MucUserList [lreplace $MucUserList $ndx $ndx]
+                }
+            }
+        }
+    }
 }
 
 # ijbridge::IrcToJabber --

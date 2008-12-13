@@ -1,3 +1,8 @@
+2008-12-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Notify the irc channel as jabber users
+	                arrive and depart.
+
 2008-12-13  Pat Thoyts <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Added ban/unban support and move the self-op code
