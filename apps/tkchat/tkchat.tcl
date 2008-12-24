@@ -182,11 +182,13 @@ namespace eval ::tkchat {
     if {$useTile && [tk windowingsystem] eq "win32"} {
         # [PT]: experimental ttk styled pane closebutton.
         catch {
-            ttk::style element create close vsapi \
-                EXPLORERBAR 2 {pressed 3 active 2 {} 1}
-            ttk::style layout CloseButton {
-                CloseButton.padding -sticky news -children {
-                    Closebutton.close -sticky news
+            ttk::style theme settings xpnative {
+                ttk::style element create close vsapi \
+                    EXPLORERBAR 2 {pressed 3 active 2 {} 1}
+                ttk::style layout CloseButton {
+                    CloseButton.padding -sticky news -children {
+                        Closebutton.close -sticky news
+                    }
                 }
             }
             set useClosebutton 1
@@ -256,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.453 2008/11/13 00:08:45 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.454 2008/12/24 01:27:28 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2746,10 +2748,16 @@ proc ::tkchat::CreateGUI {} {
         # We don't have a ttk style for text widgets but we can co-opt
         # the entry border and place our text widget on top of a frame
         # with the entry border plus some padding to make it look right.
-        ttk::style layout FakeText {
-            Entry.field -sticky news -border 1 -children {
-                FakeText.padding -sticky news
+        ttk::style theme settings default {
+            ttk::style layout FakeText {
+                FakeText.field -sticky news -border 0 -children {
+                    FakeText.fill -sticky news -children {
+                        FakeText.padding -sticky news
+                    }
+                }
             }
+            ttk::style configure FakeText -padding 1 -relief sunken
+            ttk::style map FakeText -background {}
         }
         ${NS}::frame .txtframe -style FakeText
     } else {
@@ -2849,7 +2857,9 @@ proc ::tkchat::CreateGUI {} {
     .pane.names configure -width 10
     if {![catch {.txtframe cget -style} style] && $style eq "FakeText"} {
         .txt configure -relief flat -borderwidth 0 -highlightthickness 0
-        grid .txt .sbar -in .txtframe -sticky news -padx 1 -pady 1
+        grid .txt .sbar -in .txtframe -sticky news -pady 1
+        grid configure .txt -in .txtframe -padx {1 0}
+        grid configure .sbar -in .txtframe -padx {0 1}
     } else {
         grid .txt .sbar -in .txtframe -sticky news
     }
@@ -2864,7 +2874,9 @@ proc ::tkchat::CreateGUI {} {
     variable useClosebutton
     ${NS}::frame .cframe -relief groove
     if {$useClosebutton} {
-        ::ttk::button .cbtn -padding {1 1 0 0} -style CloseButton
+        if {[catch {
+            ::ttk::button .cbtn -padding {1 1 0 0} -style CloseButton
+        }]} { ${NS}::button .cbtn -text [mc "Close history pane"] }
     } else {
         ${NS}::button .cbtn -text [mc "Close history pane"]
     }

@@ -1,3 +1,7 @@
+2008-12-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Some fixes for vista look.
+
 2008-11-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added option to show whispered (xmpp normal)
