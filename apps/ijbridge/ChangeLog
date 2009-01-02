@@ -1,3 +1,8 @@
+2009-01-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* ijbridge.tcl: Break up long jabber lines into chunks to avoid
+	being truncated by IRC length restrictions.
+
 2008-12-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* ijbridge.tcl: Notify the irc channel as jabber users
