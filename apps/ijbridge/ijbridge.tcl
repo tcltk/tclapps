@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.35 2009/01/02 10:52:27 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.36 2009/01/02 11:32:28 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -538,7 +538,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                 foreach line [split $a(-body) \n] {
                     UpdateStats $nick [string length $line]
                     while {[string length $line] > 0} {
-                        set end [expr {512 - $hdrlen - 32}]
+                        set end [expr {510 - $hdrlen - 32}]
                         if {$end < [string length $line]} {
                             set end [string wordstart $line $end]
                             if {$end < [string length $line]} { incr end -1 }
