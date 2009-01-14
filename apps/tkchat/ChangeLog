@@ -1,3 +1,9 @@
+2009-01-14  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Simplify ::tkchat::GoogleSelection and fix the
+	bindings that call it. It now also works for selections in windows
+	outside of tkchat.
+
 2008-12-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Some fixes for vista look.

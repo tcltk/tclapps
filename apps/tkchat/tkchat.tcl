@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.454 2008/12/24 01:27:28 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.455 2009/01/14 14:40:32 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3072,11 +3072,11 @@ proc ::tkchat::OnTextPopup { w x y } {
     $m add command \
         -label [mc "Google selection"] \
         -accelerator Ctrl-G \
-        -command [list ::tkchat::GoogleSelection $w]
+        -command ::tkchat::GoogleSelection
     $m add command \
         -label [string map {& {}} [mc "Open &paste dialog"]] \
         -accelerator Ctrl-P \
-        -command [list ::tkchat::PasteDlg]
+        -command ::tkchat::PasteDlg
 
     if { ![winfo exists .mbar.help.tr] } {
 	$m add command -label [mc "Initialize translation"] \
@@ -6813,9 +6813,8 @@ proc ::tkchat::BookmarkClear {} {
     }
 }
 
-proc ::tkchat::GoogleSelection { w } {
-    set sel [$w tag ranges sel]
-    set t [$w get [lindex $sel 0] [lindex $sel 1]]
+proc ::tkchat::GoogleSelection { } {
+    set t [string trim [selection get]]
     gotoURL http://www.google.com/search?ie=UTF-8&oe=UTF-8&[::http::formatQuery q $t]
 }
 
