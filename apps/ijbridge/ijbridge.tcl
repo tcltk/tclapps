@@ -24,7 +24,7 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.36 2009/01/02 11:32:28 patthoyts Exp $}
+    variable rcsid {$Id: ijbridge.tcl,v 1.37 2009/01/29 20:45:44 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
     # member names given here define the settings permitted in the 
@@ -545,7 +545,7 @@ proc ::ijbridge::OnMessageBody {token type args} {
                         }
                         set msg "$irchdr [string range $line 0 $end]"
                         set line [string range $line [incr end] end]
-                        if {$emote} {append $msg \001}
+                        if {$emote} {append msg \001}
                         xmit $msg
                     }
                 }
