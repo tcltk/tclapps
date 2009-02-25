@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.455 2009/01/14 14:40:32 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.456 2009/02/25 05:10:51 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2085,7 +2085,7 @@ proc ::tkchat::nickComplete {} {
 	set partial [.tMsg get "insert-1c wordstart" "insert-1c wordend"]
     }
 
-    set matches [lsearch -all -inline -glob $nicks "$partial*"]
+    set matches [lsearch -all -inline -nocase -glob $nicks "$partial*"]
 
     switch -- [llength $matches] {
 	0 {
