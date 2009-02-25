@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.458 2009/02/25 17:04:28 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.459 2009/02/25 19:59:10 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -387,15 +387,6 @@ proc ::tkchat::Dialog {w args} {
     set dlg [eval [linsert $args 0 Toplevel $w]]
     wm transient $dlg [winfo parent $dlg]
     wm group $dlg .
-    if {[llength [info commands ::winico]] > 0} {
-        bind $dlg <Map> {after idle {
-            if {[string equal [winfo toplevel %W] "%W"]} {
-                winico setwindow %W $::tkchat::TaskbarIcon small 0
-                winico setwindow %W $::tkchat::TaskbarIcon big 0
-                bind %W <Map> {}
-            }
-        }}
-    }
     return $dlg
 }
 
@@ -2285,12 +2276,16 @@ proc ::tkchat::CreateGUI {} {
     wm title . $chatWindowTitle
     wm withdraw .
     wm protocol . WM_DELETE_WINDOW [namespace origin quit]
-    if {[file exists [set iconfile [file join $::tkchat_dir tkchat48.gif]]]} {
-	if {![catch {image create photo ::tkchat::img::Tkchat -file $iconfile}]} {
-            if {[tk windowingsystem] ne "win32" || [catch {package require Winico}]} {
-                catch {wm iconphoto . ::tkchat::img::Tkchat}
-            }
-	}
+    
+    if {[catch {
+        image create photo ::tkchat::img::Tkchat \
+            -file [file join $::tkchat_dir tkchat48.png]
+    }]} {
+        image create photo ::tkchat::img::Tkchat \
+            -file [file join $::tkchat_dir tkchat48.gif]
+    }
+    if {[info command ::tkchat::img::Tkchat] ne {}} {
+        wm iconphoto . -default ::tkchat::img::Tkchat
     }
     catch { createFonts }
 
@@ -6590,8 +6585,6 @@ proc ::tkchat::WinicoInit {} {
 		    -text [wm title .] \
 		    -callback [list [namespace origin WinicoCallback] %m %i]
 	    bind . <Destroy> [namespace origin WinicoCleanup]
-            winico setwindow . $TaskbarIcon small 0
-            winico setwindow . $TaskbarIcon big 0
 	}
     } else {
 	proc ::tkchat::WinicoUpdate {} {return}
