@@ -1,3 +1,8 @@
+2009-02-25  Joe Mistachkin  <joe@mistachkin.com>
+
+	* tkchat.tcl: Make "tkchatrc.tcl" handling work on Windows (support
+	loading of the file with or without the leading period).
+
 2009-01-14  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl: Simplify ::tkchat::GoogleSelection and fix the

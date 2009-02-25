@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.456 2009/02/25 05:10:51 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.457 2009/02/25 10:30:08 mistachkin Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -358,8 +358,10 @@ image create photo ::tkchat::img::link_disconnected -data {
 # you can also tinker with settings when the UI has been built.
 proc ::tkchat::rcPostload {} {}
 if {[info exists ::env(HOME)] \
-	&& [file readable [set rctclfile \
-		[file join $::env(HOME) .tkchatrc.tcl]]]} {
+	&& ([file readable [set rctclfile \
+		[file join $::env(HOME) .tkchatrc.tcl]]] \
+	|| [file readable [set rctclfile \
+		[file join $::env(HOME) tkchatrc.tcl]]])} {
     if { [catch { uplevel #0 source $rctclfile } err] } {
 	tk_messageBox \
 		-type ok \
