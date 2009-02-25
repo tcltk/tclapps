@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.457 2009/02/25 10:30:08 mistachkin Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.458 2009/02/25 17:04:28 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2035,7 +2035,7 @@ proc ::tkchat::displayUsers {} {
 
 proc ::tkchat::findCommonRoot { words } {
     #takes a list of words/nicks and returns the longest string
-    #that matches the beginning of all of them.
+    #that (case-insensitively) matches the beginning of all of them.
 
     set count [llength $words]
     if { $count <= 1 } {
@@ -2044,7 +2044,7 @@ proc ::tkchat::findCommonRoot { words } {
     set word [lindex $words 0]
     for { set c 0 } { $c < [string length $word] } {incr c} {
 	set partial [string range $word 0 $c]
-	if { [lsearch -not -glob $words "$partial*"] > -1 } {
+	if { [lsearch -nocase -not -glob $words "$partial*"] > -1 } {
 	    return [string range $partial 0 end-1]
 	}
     }
