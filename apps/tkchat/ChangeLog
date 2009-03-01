@@ -1,3 +1,8 @@
+2009-03-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: For tinyurl links add a tooltip that shows the
+	              redirection target url.
+
 2009-02-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Changed the tkchat icon to an SVG based image

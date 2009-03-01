@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.459 2009/02/25 19:59:10 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.460 2009/03/01 11:17:23 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1268,8 +1268,12 @@ proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}}
 	if { $url ne "" } {
 	    set urltag [concat $tags URL URL-[incr ::URLID]]
 	    $w tag bind URL-$::URLID <Button-1> [list ::tkchat::gotoURL $url]
-            if {$usett && [string length $tt] > 0} {
-                tooltip::tooltip $w -tag URL-$::URLID $tt
+            if {$usett} {
+                if {[string length $tt] > 0} {
+                    tooltip::tooltip $w -tag URL-$::URLID $tt
+                } elseif {[string match "http://tinyurl.com/*" $url]} {
+                    AddRedirectionTooltip $w URL-$::URLID $url
+                }
             }
 	} else {
 	    set urltag $tags
@@ -1294,6 +1298,24 @@ proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}}
     if { $::Options(AutoScroll) } {
 	$w see end
     }
+}
+
+# Some urls (tinyurl.com) are just forwarders. For this, lookup the location
+#and show the target in the tooltip.
+proc ::tkchat::AddRedirectionTooltip {w tag url} {
+    http::geturl $url -validate 1 \
+        -command [list [namespace origin AddRedirectionTooltipDone] $w $tag]
+}
+proc ::tkchat::AddRedirectionTooltipDone {w tag tok} {
+    if {[http::status $tok] eq "ok"} {
+        foreach {key value} [set [set tok](meta)] {
+            if {[string match location [string tolower $key]]} {
+                tooltip::tooltip $w -tag $tag $value
+                break
+            }
+        }
+    }
+    http::cleanup $tok
 }
 
 # Provide an indication of the number of messages since the window was last
