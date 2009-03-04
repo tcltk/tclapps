@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.460 2009/03/01 11:17:23 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.461 2009/03/04 00:29:37 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5869,6 +5869,8 @@ proc ::tkchat::ShowSmiles {} {
 proc ::tkchat::Init {args} {
     global Options env
     variable OnlineUsers
+
+    tk appname Tkchat
 
     # set intial defaults
     set ::URLID 0

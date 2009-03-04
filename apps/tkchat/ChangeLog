@@ -1,3 +1,7 @@
+2009-03-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: [FR 2605849] Explicitly set the application name.
+
 2009-03-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: For tinyurl links add a tooltip that shows the
