@@ -1,3 +1,7 @@
+2009-03-10  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::DoAnim): Only animate GIF images.
+
 2009-03-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: [FR 2605849] Explicitly set the application name.

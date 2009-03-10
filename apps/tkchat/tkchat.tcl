@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.461 2009/03/04 00:29:37 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.462 2009/03/10 11:30:45 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5660,6 +5660,7 @@ proc ::tkchat::ChangeFont {opt val} {
 proc ::tkchat::DoAnim {} {
     if {$::Options(AnimEmoticons)} {
 	foreach img [image names] {
+	    if {![string match "GIF*" [$img cget -format]]} continue
 	    set name [lindex [split $img :] end]
 	    catch {after cancel $::tkchat::img::id($name)}
 	    anim $img
