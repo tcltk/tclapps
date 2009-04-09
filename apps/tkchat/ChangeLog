@@ -1,3 +1,7 @@
+2009-04-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied MacOSX patch from Daniel Steffen
+
 2009-03-10  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::DoAnim): Only animate GIF images.

@@ -99,11 +99,11 @@ if {[tk windowingsystem] eq "aqua"} {
             ::ffidl::callout CPSSetProcessName {pointer-byte pointer-utf8} \
                             sint32 \
                 [::ffidl::symbol /System/Library/Frameworks/ApplicationServices.framework/Frameworks/CoreGraphics.framework/CoreGraphics CPSSetProcessName]
-              CPSSetProcessName [binary format I2 {0 2}] "TkChat"
+              CPSSetProcessName [binary format n2 {0 2}] "TkChat"
 
             # hooks to Carbon API to Show + Hide process
             ::ffidl::callout ShowHideProcess {pointer-byte int} sint32 \
-                    [::ffidl::symbol Carbon.framework/Carbon ShowHideProcess]
+                    [::ffidl::symbol /System/Library/Frameworks/Carbon.framework/Carbon ShowHideProcess]
         }
     }
 }
@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.462 2009/03/10 11:30:45 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.463 2009/04/09 00:37:47 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1134,7 +1134,7 @@ proc ::tkchat::alertCallback {w} {
 	# Only call this if the window doesn't already have focus
         if {[tk windowingsystem] eq "aqua" \
             && [llength [package provide Ffidl]] > 0} {
-            ShowHideProcess [binary format I2 {0 2}] 1
+            ShowHideProcess [binary format n2 {0 2}] 1
         }
 	wm deiconify $top
 	raise $top
@@ -2312,8 +2312,13 @@ proc ::tkchat::CreateGUI {} {
     catch { createFonts }
 
     menu .mbar
-    . configure -menu .mbar
 
+    if {[tk windowingsystem] eq "aqua"} {
+	menu .mbar.apple -tearoff 0
+	.mbar.apple add command -label "About TkChat" \
+		-command [list [namespace origin About]]
+	.mbar add cascade -label Apple -menu .mbar.apple
+    }
     menu .mbar.file  -tearoff 0
     menu .mbar.edit  -tearoff 0
     menu .mbar.emot  -tearoff 0
@@ -2322,12 +2327,27 @@ proc ::tkchat::CreateGUI {} {
     menu .mbar.dbg   -tearoff 0
     menu .mbar.help  -tearoff 0
     tk::AmpMenuArgs .mbar add cascade -label [mc "&File"] -menu .mbar.file
-    tk::AmpMenuArgs .mbar add cascade -label [mc "&Preferences"] -menu .mbar.edit
+    if {[tk windowingsystem] eq "aqua"} {
+	proc ::tk::mac::ShowPreferences args {
+	    # a hack, till someone does a proper preferences dialog for OSX
+	    .mbar.edit post 20 30
+	}
+    } else {
+	tk::AmpMenuArgs .mbar add cascade -label [mc "&Preferences"] \
+		-menu .mbar.edit
+    }
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Emoticons"] -menu .mbar.emot
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Visibility"] -menu .mbar.vis
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Alerts"] -menu .mbar.alert
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Debug"] -menu .mbar.dbg
+    if {[tk windowingsystem] eq "aqua"} {
+	if {[lsearch -exact [winfo server .] AppKit] != -1} {
+	    tk::AmpMenuArgs .mbar add cascade -label [mc "&Window"] \
+		    -menu [menu .mbar.window -tearoff 0]
+	}
+    }
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Help"] -menu .mbar.help
+    . configure -menu .mbar
 
     ## File Menu
     ##
@@ -2350,16 +2370,22 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add command \
         -label [mc "Open &paste dialog"] \
         -command ::tkchat::PasteDlg
-    $m add separator
     if {[tk windowingsystem] eq "x11"} {
+	$m add separator
 	tk::AmpMenuArgs $m add command \
 	    -label [mc "&Install application"] \
 	    -command ::tkchat::InstallXDG
-	$m add separator
     }
-    tk::AmpMenuArgs $m add command \
-        -label [mc "E&xit"] \
-        -command ::tkchat::quit
+   if {[tk windowingsystem] eq "aqua"} {
+	proc ::tk::mac::Quit args {
+	    ::tkchat::quit
+	}
+    } else {
+	$m add separator
+	tk::AmpMenuArgs $m add command \
+	    -label [mc "E&xit"] \
+	    -command ::tkchat::quit
+    }
 
     ## Preferences/Edit Menu
     ##
@@ -2739,8 +2765,10 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add command -label [mc "&View ChangeLog..."] \
         -command [list after idle [list [namespace origin gotoURL] \
                [string map {tkchat.tcl ChangeLog} $::tkchat::HEADUrl]]]
-    tk::AmpMenuArgs $m add command -label [mc "&About..."]\
-        -command [list [namespace origin About]]
+    if {[tk windowingsystem] ne "aqua"} {
+	tk::AmpMenuArgs $m add command -label [mc "&About..."]\
+	    -command [list [namespace origin About]]
+    }
 
     # a pane for the main display (chat window and users window):
     if {$useTile} {
