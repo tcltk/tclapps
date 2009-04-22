@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.463 2009/04/09 00:37:47 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.464 2009/04/22 23:15:57 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5259,9 +5259,8 @@ proc ::tkchat::applyColors { txt jid } {
     } else {
 	lappend nicks $Options(Nickname)
 	# Is it a conference/nick JID or a user/ressource one?
-	if {[regexp {([^/]+)/(.+)} $jid -> conf nick]
-	    && $conf eq $Options(JabberConference)
-	} then {
+        jlib::splitjid $jid conf nick
+	if {[jlib::jidequal $Options(JabberConference) $conf]} {
 	    lappend nicks $nick
 	}
     }
@@ -8168,17 +8167,14 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 	chat {
 	    set from $m(-from)
 	    set w .txt
-	    if { [regexp {([^/]+)/(.+)} $m(-from) -> conf from] } {
-		if { $conf eq $conference } {
-		    set w [getChatWidget $m(-from) $from]
-		} else {
-		    regexp {^([^@]+)@} $m(-from) -> from
-		    set w [getChatWidget $m(-from) $from]
-		}
-	    } else {
-		regexp {^([^@]+)@} $m(-from) -> from
-		set w [getChatWidget $m(-from) $from]
-	    }
+            jlib::splitjidex $m(-from) node domain resource
+            if {[jlib::jidequal $node@$domain $conference]} {
+                set from $resource
+                set w [getChatWidget $m(-from) $from]
+            } else {
+                set from $node
+                set w [getChatWidget $m(-from) $from]
+            }
             
             LogPrivateChat [normalized_jid $m(-from)] \
                 $from $timestamp $m(-body)
@@ -8201,8 +8197,7 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 	    }
 	}
 	groupchat {
-	    set from $m(-from)
-	    regexp {([^/]+)/(.+)} $m(-from) -> conf from
+            jlib::splitjidex $m(-from) node domain nick
 	    if { [info exists m(-subject)] && $m(-subject) ne ""} {
 		# changing topic.
 		variable ::tkchat::chatWindowTitle
@@ -8216,38 +8211,38 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 		}
 		set msg " changed the topic to: $m(-subject)"
 		if { [info exists m(-body)] } {
-		    if { $from eq $conference } {
+		    if { [jlib::jidequal $m(-from) $conference] } {
 			::tkchat::addSystem .txt $m(-body)
 		    } else {
 			append msg "\n ... $m(-body)"
 			::tkchat::addMessage \
-				.txt $color $from $msg ACTION end $timestamp
+				.txt $color $nick $msg ACTION end $timestamp
 		    }
 		} else {
 		    ::tkchat::addMessage .txt \
-			    $color $from $msg ACTION end $timestamp
+			    $color $nick $msg ACTION end $timestamp
 		}
 	    } else {
 		if { [info exists m(-body)] && $m(-body) ne ""} {
-		    parseMsg $from $m(-body) $color end $timestamp
+		    parseMsg $nick $m(-body) $color end $timestamp
 		} else {
-		    ::log::log notice "Unknown message from $from: '$args'"
+		    ::log::log notice "Unknown message from $nick: '$args'"
 		}
 	    }
 	}
 	normal {
 	    set from $m(-from)
-            set conf [jid !resource $m(-from)]
-            if {$conf eq $conference } {
-		set from [jid resource $m(-from)]
+            jlib::splitjid $m(-from) conf nick
+            if {[jlib::jidequal $conf $conference]} {
+		set from $nick
 	    }
 	    if { $from eq "ijchain" && $m(-subject) eq "IrcUserList" } {
 		foreach nick $m(-body) {
 		    set OnlineUsers(IRC-$nick,status) [list online]
 		    lappend OnlineUsers(IRC) $nick
 		}
-		set OnlineUsers(IRC) [lsort -dictionary -unique \
-			$OnlineUsers(IRC)]
+		set OnlineUsers(IRC) \
+                    [lsort -dictionary -unique $OnlineUsers(IRC)]
 		::tkchat::updateOnlineNames
 		return
 	    }
@@ -8804,7 +8799,7 @@ proc tkjabber::msgSend { msg args } {
 	set found 0
 	set type $opts(-type)
 	foreach person [$::tkjabber::muc participants $::tkjabber::conference] {
-	    regexp {([^/])/(.+)} $person -> conf nick
+            jlib::splitjid $person conf nick
 	    if { $nick eq $user } {
 		set user $person
 		set found 1
@@ -8860,12 +8855,30 @@ proc tkjabber::msgSend { msg args } {
 
 }
 
-proc ::tkjabber::get_participant_jid {user} {
+# returns true if a jid is a participant in the conference.
+proc ::tkjabber::is_participant {jid} {
+    variable muc
     variable conference
-    if {[string first @ $user] == -1} {
-        return ${conference}/$user
+    foreach participant [$muc participants $conference] {
+        if {[jlib::jidequal $jid $participant]} {
+            return 1
+        }
     }
-    return $user
+    return 0
+}
+
+# Convert a name into a jid. If the argument is a nick then it is converted
+# to the jid of the user in the conference else return as is.
+proc ::tkjabber::get_participant_jid {nick_or_jid} {
+    variable conference
+    jlib::splitjidex $nick_or_jid node domain resource
+    if {$node eq {}} {
+        set tmp $conference/$nick_or_jid
+        if {[is_participant $tmp]} {
+            return $tmp
+        }
+    }
+    return $nick_or_jid
 }
 
 proc ::tkjabber::query_user {user what} {
@@ -8945,6 +8958,7 @@ proc ::tkjabber::jid {part jid} {
 # accept a chatroom nick or a full jid and try and return
 # the users canonical jid
 proc ::tkjabber::normalized_jid {jid} {
+    global Options
     if {[string first @ $jid] == -1} {
 	if {[info exists OnlineUsers(Jabber-$jid,jid)]} {
 	    set jid $OnlineUsers(Jabber-$jid,jid)
@@ -8960,26 +8974,15 @@ proc ::tkjabber::normalized_jid {jid} {
 # are held for the user if the user is not currently available.
 proc ::tkjabber::send_memo {to msg {subject Memo}} {
     global Options
-    variable myId
     variable jabber
-    variable ::tkchat::OnlineUsers
 
-    if {[string first @ $to] == -1} {
-	if {[info exists OnlineUsers(Jabber-$to,jid)]} {
-	    set to $OnlineUsers(Jabber-$to,jid)
-	} else {
-	    tkchat::addStatus 0 "Cannot find a JID for '$to'."
-	    return
-	}
-    }
-
-    set k {}
-    lappend k [wrapper::createtag subject -chdata $subject]
-    lappend k [wrapper::createtag nick -chdata $Options(Nickname) \
+    set to [get_participant_jid $to]
+    lappend x [wrapper::createtag nick -chdata $Options(Nickname) \
                    -attrlist {xmlns http://jabber.org/protocol/nick}]
-    lappend k [wrapper::createtag body -chdata $msg]
-    $jabber send [wrapper::createtag message -subtags $k \
-                      -attrlist [list type normal to $to]]
+    lappend x [wrapper::createtag x -attrlist [list xmlns urn:tkchat:chat \
+                                                   color $Options(MyColor)]]
+    $jabber send_message $to -type normal -subject $subject -body $msg \
+        -xlist $x
     tkchat::addStatus 0 "Memo sent to $to."
 }
 
@@ -9309,7 +9312,7 @@ proc ::tkjabber::transferNick { reqfrom } {
     jlib::splitjid $reqfrom ojid ores
     jlib::splitjid [$jabber myjid] myjid myres
 
-    if { $ojid ne $myjid } {
+    if {![jlib::jidequal $ojid $myjid]} {
 	# No, it is not a request from an alter ego.
 	# Denied.
 	::log::log debug "Denied nick transfer request from $reqfrom"
@@ -9458,7 +9461,7 @@ proc ::tkjabber::cancelReconnect {} {
 proc tkjabber::SubscriptionRequest {from status} {
     variable subs_uid
     if {![info exists subs_uid]} { set subs_uid 0 }
-    set jid [jid !resource $from]
+    jlib::splitjid $from jid res
     set ttl [msgcat::mc "Subscribe request from %s" $jid]
     set msg [msgcat::mc "Do you want to let %s add you to their roster?" $jid]
     set status [string trim $status]
@@ -9484,7 +9487,7 @@ proc tkjabber::SubscriptionRequest {from status} {
     destroy $dlg
     set response [set [namespace current]::$wid]
     $tkjabber::jabber send_presence -type $response \
-	-to $jid -extras [list [get_caps]]
+	-to $from -extras [list [get_caps]]
     unset [namespace current]::$wid
     return
 }
@@ -9559,9 +9562,9 @@ proc tkjabber::on_iq_version {token from subiq args} {
 proc tkjabber::on_iq_version_result {token from xmllist args} {
     variable conference
     array set a [concat -id {{}} $args]
-    if {[jid !resource $from] eq $conference} {
+    jlib::splitjid $from conf nick
+    if {[jlib::jidequal $conf $conference]} {
         if {[llength [package provide tooltip]] > 0} {
-            set nick [jid resource $from]
             array set data {}
             foreach sub [wrapper::getchildren $xmllist] {
                 set data([wrapper::gettag $sub]) [wrapper::getcdata $sub]
@@ -9638,7 +9641,7 @@ proc ::tkjabber::getChatWidget { jid from } {
     global Options
     # Look in ChatWindows and maybe popup a new chat window
 
-    set jwr [jid !resource $jid]
+    jlib::splitjid [jlib::jidprep $jid] jwr res
     if {![info exists ChatWindows(txt.$jid)] &&
 	[info exists ChatWindows(txt.$jwr)]
     } then {

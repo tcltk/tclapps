@@ -1,3 +1,8 @@
+2009-04-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: tighten up our handling of jids by making more use
+	of the jidsplit and jidequal functions.
+
 2009-04-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Applied MacOSX patch from Daniel Steffen
