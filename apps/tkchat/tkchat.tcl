@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.464 2009/04/22 23:15:57 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.465 2009/04/23 00:54:35 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4616,6 +4616,7 @@ proc ::tkchat::logonScreen {} {
     wm withdraw .logon
     if { $DlgDone eq "ok" } {
         unset -nocomplain Options(ProxyAuth)
+        set Options(Nickname) [jlib::resourceprep $Options(Nickname)]
 
 	# connect
 	logonChat
@@ -6237,6 +6238,7 @@ proc ::tkchat::setNickname { nick } {
     global Options
     variable ::tkjabber::baseNick
 
+    set nick [jlib::resourceprep $nick]
     if { ![info exist Options(Color,NICK-$nick)] } {
 	if { [info exists Options(Color,NICK-$baseNick)] } {
 	    set Options(Color,NICK-$nick) $Options(Color,NICK-$baseNick)
@@ -8284,8 +8286,8 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 			::tkchat::addSystem .txt \
 				"$m(-from): $msg. Trying to get in again..."
 			$muc enter $::tkjabber::conference \
-				[xmlSafe $::Options(Nickname)] \
-				-command ::tkjabber::MucEnterCB
+                            $::Options(Nickname)\
+                            -command ::tkjabbjler::MucEnterCB
 		    }
 		    default {
 			::tkchat::addSystem .txt  "MsgCB (error) args='$args'"
@@ -8578,7 +8580,7 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 	    set nickTries 0
             if {[string length $conference] > 0} {
                 after idle [list $muc enter $conference \
-                                [xmlSafe $::Options(Nickname)] \
+                                $::Options(Nickname) \
                                 -command ::tkjabber::MucEnterCB]
             }
             ::tkchat::SetServerTooltip
@@ -8647,7 +8649,7 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
                            Retrying in 30 seconds..."
                         incr mucTries
                         after 10000 [list $muc enter $conference \
-                                         [xmlSafe $::Options(Nickname)] \
+                                         $::Options(Nickname) \
                                          -command ::tkjabber::MucEnterCB]
                     } else {
                         ::tkchat::addSystem .txt "This room does not exist."
@@ -8680,7 +8682,7 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
 			}
 			::tkchat::addSystem .txt \
 			    "Trying to enter using $::Options(Nickname)."
-			$muc enter $conference [xmlSafe $::Options(Nickname)] \
+			$muc enter $conference $::Options(Nickname) \
 				-command ::tkjabber::MucEnterCB
 		    }
 		}
@@ -8833,7 +8835,7 @@ proc tkjabber::msgSend { msg args } {
 	}
     }
     if { [llength $users] == 0 } {
-	set users $user
+	set users [list $user]
     }
 
     # Example usage
@@ -8851,8 +8853,6 @@ proc tkjabber::msgSend { msg args } {
     foreach user $users {
 	$jabber send_message $user -body $msg -type $type -xlist $xlist
     }
-    #-xlist [wrapper::createtag x -attrlist {xmlns http://tcl.tk/tkchat foo bar}]
-
 }
 
 # returns true if a jid is a participant in the conference.
@@ -9264,9 +9264,10 @@ proc ::tkjabber::setNick { newnick } {
     variable baseNick
     variable ::tkchat::OnlineUsers
 
+    set newnick [jlib::resourceprep $newnick]
     if { [lsearch -exact $OnlineUsers(Jabber) $newnick] > -1 } {
 	# Perhaps it is my own nick, in another window?
-	set x [$roster getx $conference/[xmlSafe $newnick] "muc#user"]
+	set x [$roster getx $conference/$newnick "muc#user"]
         set item [wrapper::getchildswithtag $x item]
 	set otherjid ""
 	if {[llength $item] > 0} {
@@ -9299,7 +9300,7 @@ proc ::tkjabber::setNick { newnick } {
     # and the setnick call...
     ::tkchat::setNickname $newnick
     set baseNick $newnick
-    $muc setnick $conference [xmlSafe $newnick]
+    $muc setnick $conference $newnick
 }
 
 proc ::tkjabber::transferNick { reqfrom } {
@@ -9336,7 +9337,7 @@ proc ::tkjabber::transferNick { reqfrom } {
 
     # Set my nick name to newnick.
     ::tkchat::setNickname $newnick
-    $muc setnick $conference [xmlSafe $newnick]
+    $muc setnick $conference $newnick
 
     # The other party does not need to be notified
     # - it should be in nickgrab mode.
@@ -10004,7 +10005,7 @@ proc ::tkjabber::LogPrivateChat {user spkr ztime message} {
     if {![info exist env(HOME)]} { return }
     if {[info exists Options(LogPrivateChat)] && $Options(LogPrivateChat)} {
         variable PrivateChatLogs
-        set user [string map {/ _ \\ _ : _ . _} $user]
+        set user [string map {/ _ \\ _ : _ . _ < _ > _} $user]
         if {![info exists PrivateChatLogs]} { array set PrivateChatLogs {} }
         if {![info exists PrivateChatLogs($user)]} {
             set dir [file join $env(HOME) .tkchat_logs]

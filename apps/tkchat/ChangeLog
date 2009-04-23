@@ -1,5 +1,7 @@
 2009-04-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+ 	* tkchat.tcl: removed misguided xml quoting from nicks and fixed a
+	bug that prevented sending to a backslashed nick.
 	* tkchat.tcl: tighten up our handling of jids by making more use
 	of the jidsplit and jidequal functions.
 
