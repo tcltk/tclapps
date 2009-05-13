@@ -47,7 +47,7 @@ catch {package require choosefont}; # font selection (optional)
 catch {package require picoirc}   ; # irc client (optional)
 catch {package require img::png}  ; # more image types (optional)
 catch {package require img::jpeg} ; # more image types (optional)
-
+ 
 package require sha1		; # tcllib
 package require jlib		; # jlib
 package require muc		; # jlib
@@ -258,7 +258,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.465 2009/04/23 00:54:35 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.466 2009/05/13 12:02:08 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1396,7 +1396,8 @@ proc ::tkchat::Insert { w str tags url mark } {
 #  message hooks are called before displaying a new message
 #  preinit hooks are called after app initialization before gui creation
 #  init hooks are called after gui creation before login
-#  login hooks are called after login
+#  login hooks are called after login to the jabber server
+#  join hooks are called after successfully joining a conference
 #  version hooks are called once we get the current version from the web
 #  save hook are called when saving options to file.
 #  options hooks are called to add pages to the Preferences dialog
@@ -1406,12 +1407,13 @@ proc ::tkchat::Hook {do type args} {
         preinit { set Hook [namespace current]::PreInitHooks }
         init    { set Hook [namespace current]::InitHooks }
         login   { set Hook [namespace current]::LoginHooks }
+        join    { set Hook [namespace current]::JoinHooks }
         version { set Hook [namespace current]::VersionHooks }
         save    { set Hook [namespace current]::SaveHooks }
         options { set Hook [namespace current]::OptionsHooks }
 	default {
 	    return -code error "unknown hook type \"$type\":\
-                must be message, preinit, init, login, version, options or save"
+                must be message, preinit, init, login, join, version, options or save"
 	}
     }
     switch -exact -- $do {
@@ -5106,6 +5108,7 @@ proc ::tkchat::MacroList {w} {
 
 proc ::tkchat::ChangeColors {} {
     global Options
+    variable NS
     variable DlgData
     variable DlgDone
     variable OnlineUsers
@@ -5128,10 +5131,10 @@ proc ::tkchat::ChangeColors {} {
     wm withdraw $t
     wm title $t "Color Settings"
 
-    label $t.l1 -text "Posting Color"
+    ${NS}::label $t.l1 -text "Posting Color"
     label $t.l2 -text "Example Text" -background white \
 	-foreground \#$DlgData(MyColor) -font ACT
-    button $t.myclr -text "Change..." -command {
+    ${NS}::button $t.myclr -text "Change..." -command {
 	set tmp [tk_chooseColor \
 		       -title "Select Your User Color" \
 		       -initialcolor \#$::tkchat::DlgData(MyColor)]
@@ -5141,13 +5144,12 @@ proc ::tkchat::ChangeColors {} {
 	}
     }
 
-    label $t.l3 -text "Display Color Overrides"
-    frame $t.f -relief sunken -bd 2 -height 300
+    ${NS}::labelframe $t.f -text "Colour overrides" -height 300
     canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
 	  -width 10 -height 300 -highlightthickness 0 -bd 0
     bind $t <Button-4> [list $t.f.cvs yview scroll -1 units]
     bind $t <Button-5> [list $t.f.cvs yview scroll  1 units]
-    scrollbar $t.f.scr -command [list $t.f.cvs yview]
+    ${NS}::scrollbar $t.f.scr -command [list $t.f.cvs yview]
     pack $t.f.cvs -side left -expand 1 -fill both
     pack $t.f.scr -side left -fill y
     set f [frame $t.f.cvs.frm]
@@ -5156,7 +5158,7 @@ proc ::tkchat::ChangeColors {} {
 	[winfo parent %W] configure -width [expr {%w+5}] -scrollregion [list 0 0 %w %h]
     }
     foreach {key str} { 1 "All\nDefault" 2 "All\nInverted" 3 "All\nCustom"} {
-	button $f.all$key -text $str -padx 0 -pady 0 -command \
+	button $f.all$key -text $str -command \
 		[string map [list %val% $key] {
 		    foreach idx [array names DlgData Color,*] {
 			set idx [string range $idx 6 end]
@@ -5186,23 +5188,17 @@ proc ::tkchat::ChangeColors {} {
 	    buildRow $f NICK-$nick $nick
 	}
     }
-    frame $t.f2
-    button $t.f2.ok \
-	    -width 8 \
-	    -text "OK" \
-	    -command { set ::tkchat::DlgDone ok }
-    button $t.f2.app \
-	    -width 8 \
-	    -text "Apply" \
-	    -command { set ::tkchat::DlgDone apply }
-    button $t.f2.can \
-	    -width 8 \
-	    -text "Cancel" \
-	    -command { set ::tkchat::DlgDone cancel}
+    ${NS}::frame $t.f2
+    ${NS}::button $t.f2.ok -text "OK" -default active\
+        -command { set ::tkchat::DlgDone ok }
+    ${NS}::button $t.f2.app -text "Apply" \
+        -command { set ::tkchat::DlgDone apply }
+    ${NS}::button $t.f2.can -text "Cancel" \
+        -command { set ::tkchat::DlgDone cancel}
     pack $t.f2.ok $t.f2.app $t.f2.can -side left -expand 1 -fill none
 
     grid $t.l1  $t.l2 $t.myclr x -padx 1 -pady 3 -sticky {}
-    grid $t.l3    -       -    - -padx 1 -pady 3 -sticky ew
+    #grid $t.l3    -       -    - -padx 1 -pady 3 -sticky ew
     grid $t.f     -       -    - -padx 1 -pady 5 -sticky news
     grid $t.f2    -       -    - -padx 1 -pady 10 -sticky news
     grid rowconfigure $t 2 -weight 1
@@ -8177,7 +8173,11 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
                 set from $node
                 set w [getChatWidget $m(-from) $from]
             }
-            
+
+            # If someone sends chatstate notifications we may
+            # get empty bodies. Ignore them.
+            if {[string length $m(-body)] == 0} { return }
+
             LogPrivateChat [normalized_jid $m(-from)] \
                 $from $timestamp $m(-body)
 	    if {$w eq ".txt"} {
@@ -8194,8 +8194,8 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
                         # caching if we can get the nick (mod the bridge)
                     }
 		}
-		::tkchat::addMessage \
-			$w $color $from $m(-body) $msgtype end $timestamp
+                ::tkchat::addMessage \
+                    $w $color $from $m(-body) $msgtype end $timestamp
 	    }
 	}
 	groupchat {
@@ -8712,6 +8712,9 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
             tkchat::addStatus 0 "Joined chat at $conference"
 	    autoStatus
             #after 500 [namespace origin ParticipantVersions]
+
+	    # We have joined the conference so run any join hooks
+            ::tkchat::Hook run join -muc $conference -nick [$muc mynick $conference]
 	}
 	default {
 	    ::tkchat::addSystem .txt "MucEnter: type=$type, args='$args'"
@@ -9051,7 +9054,7 @@ proc ::tkchat::updateOnlineNames {} {
 		xa {
 		    .pane.names image create $mark -image ::tkchat::roster::xa
 		}
-		disabled {
+		disabled - offline {
 		    .pane.names image create $mark -image ::tkchat::roster::disabled
 		}
 	    }

@@ -1,3 +1,10 @@
+2009-05-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added a muc join hook, ignore empty messages with
+	chatstate notifications in chat windows. Some themeing on the
+	colour dialog.
+	* tkchat_power.tcl: Support detection of suspend/resume.
+
 2009-04-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
  	* tkchat.tcl: removed misguided xml quoting from nicks and fixed a
