@@ -30,6 +30,7 @@ while {[file type $script] eq "link"} {
     set script [file join [file dirname $script] [file readlink $script]]
 }
 set tkchat_dir [file dirname [file normalize $script]]
+set imgdir [file join $tkchat_dir images]
 set auto_path [linsert $::auto_path 0 $tkchat_dir [file join $tkchat_dir lib]]
 
 package require Tcl 8.4		; # core Tcl
@@ -45,8 +46,13 @@ package require uri             ; # tcllib
 catch {package require tls}	  ; # tls (optional)
 catch {package require choosefont}; # font selection (optional) 
 catch {package require picoirc}   ; # irc client (optional)
-catch {package require img::png}  ; # more image types (optional)
 catch {package require img::jpeg} ; # more image types (optional)
+
+if {![package vsatisfies [package provide Tk] 8.6]} {
+    catch {package require img::png}  ; # more image types (optional)
+}
+set have_png [expr {[package vsatisfies [package provide Tk] 8.6] \
+                        || [package provide img::png] ne {}}]
  
 package require sha1		; # tcllib
 package require jlib		; # jlib
@@ -258,7 +264,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.466 2009/05/13 12:02:08 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.467 2009/05/23 08:10:16 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -335,15 +341,22 @@ image create photo ::tkchat::img::link_insecure -data {
     IABERTEAlmVZFhA9jwMBQFQUwwBYlmWBlgUYRVEYBkEMA2BZlmVZlgUAAAAA
     AAACgGWFADs=
 }
-image create photo ::tkchat::img::link_connected -data {
-    R0lGODlhEAAQAMIGAAAAADs6OoZwV9zCmf/hyP/79////////yH5BAEKAAcA
-    LAAAAAAQABAAAAM7eLrc/vAMIeIahYgx4yBEUGSVQ4EBqJUHJRQCqsbAqd3h
-    jLuTDG6uhS3AmbAYsQGRc2wwgxGoZUqtQhIAOw==
-}
-image create photo ::tkchat::img::link_disconnected -data {
-    R0lGODlhEAAQAMIGAAAAADs6OoZwV9zCmf/hyP/79////////yH5BAEKAAcA
-    LAAAAAAQABAAAANBeLrc/nAIAdkohKoh3SBEsBSYpkygSHzgdEyFkL5ySwBZ
-    Hi5gPgmS2aoH1KB2E47E9FqJNhwm1PR7VCvYrHZ7SAAAOw==
+if {$have_png} {
+    # PNG format images
+    image create photo ::tkchat::img::link_connected -file $imgdir/network-online.png
+    image create photo ::tkchat::img::link_disconnected -file $imgdir/network-offline.png
+} else {
+    # GIF format versions
+    image create photo ::tkchat::img::link_connected -data {
+        R0lGODlhEAAQAMIGAAAAADs6OoZwV9zCmf/hyP/79////////yH5BAEKAAcA
+        LAAAAAAQABAAAAM7eLrc/vAMIeIahYgx4yBEUGSVQ4EBqJUHJRQCqsbAqd3h
+        jLuTDG6uhS3AmbAYsQGRc2wwgxGoZUqtQhIAOw==
+    }
+    image create photo ::tkchat::img::link_disconnected -data {
+        R0lGODlhEAAQAMIGAAAAADs6OoZwV9zCmf/hyP/79////////yH5BAEKAAcA
+        LAAAAAAQABAAAANBeLrc/nAIAdkohKoh3SBEsBSYpkygSHzgdEyFkL5ySwBZ
+        Hi5gPgmS2aoH1KB2E47E9FqJNhwm1PR7VCvYrHZ7SAAAOw==
+    }
 }
 
 # -------------------------------------------------------------------------
@@ -1333,7 +1346,7 @@ proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
 	set title "$MessageCounter - $chatWindowTitle"
 	wm title . $title
 	wm iconname . $title
-	WinicoUpdate
+	catch {::tkchat::winico::Update}
     }
 }
 
@@ -1346,7 +1359,7 @@ proc ::tkchat::ResetMessageCounter {} {
 	set title $chatWindowTitle
 	wm title . $title
 	wm iconname . $title
-	WinicoUpdate
+	catch {::tkchat::winico::Update}
     }
 }
 
@@ -2290,7 +2303,7 @@ proc ::tkchat::toggleUnicodePoint_e {e} {
 }
 
 proc ::tkchat::CreateGUI {} {
-    global Options
+    global Options have_png
     variable chatWindowTitle
     variable useTile
     variable NS
@@ -2301,10 +2314,10 @@ proc ::tkchat::CreateGUI {} {
     wm withdraw .
     wm protocol . WM_DELETE_WINDOW [namespace origin quit]
     
-    if {[catch {
+    if {$have_png} {
         image create photo ::tkchat::img::Tkchat \
             -file [file join $::tkchat_dir tkchat48.png]
-    }]} {
+    } else {
         image create photo ::tkchat::img::Tkchat \
             -file [file join $::tkchat_dir tkchat48.gif]
     }
@@ -6091,7 +6104,6 @@ proc ::tkchat::Init {args} {
 
     Hook add message [namespace origin IncrMessageCounter]
     BookmarkInit
-    WinicoInit
 
     Hook run init
 
@@ -6614,68 +6626,6 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     destroy $dlg
     unset [namespace current]::$id
     unset UI
-}
-
-# -------------------------------------------------------------------------
-
-# Windows taskbar support.
-# At some point I want to support multiple icons for nochat/chat/alert.
-#
-proc ::tkchat::WinicoInit {} {
-    if {[tk windowingsystem] eq "win32" &&
-	![catch {package require Winico}]} {
-	variable TaskbarIcon
-	variable WinicoWmState [wm state .]
-
-	set icofile [file join [file dirname [info script]] tkchat.ico]
-	if {[file exists $icofile]} {
-	    set TaskbarIcon [winico createfrom $icofile]
-	    winico taskbar add $TaskbarIcon \
-		    -pos 0 \
-		    -text [wm title .] \
-		    -callback [list [namespace origin WinicoCallback] %m %i]
-	    bind . <Destroy> [namespace origin WinicoCleanup]
-	}
-    } else {
-	proc ::tkchat::WinicoUpdate {} {return}
-    }
-}
-
-proc ::tkchat::WinicoUpdate {} {
-    variable MessageCounter
-    variable TaskbarIcon
-
-    if {[llength [info commands winico]] < 1} { return }
-    if { $MessageCounter > 0 } {
-	winico taskbar modify $TaskbarIcon \
-		-pos 2 \
-		-text "$MessageCounter - Tcl'ers chat"
-    } else {
-	winico taskbar modify $TaskbarIcon \
-		-pos 0 \
-		-text "Tcl'ers chat"
-    }
-}
-
-proc ::tkchat::WinicoCleanup {} {
-    variable TaskbarIcon
-    winico taskbar delete $TaskbarIcon
-}
-
-proc ::tkchat::WinicoCallback {msg icn} {
-    variable WinicoWmState
-    switch -exact -- $msg {
-	WM_LBUTTONDOWN {
-	    if { [wm state .] eq "withdrawn" } {
-		wm state . $WinicoWmState
-		wm deiconify .
-		focus .eMsg
-	    } else {
-		set WinicoWmState [wm state .]
-		wm withdraw .
-	    }
-	}
-    }
 }
 
 # -------------------------------------------------------------------------
@@ -9218,38 +9168,13 @@ proc ::tkchat::ToggleRole {type nick} {
 }
 
 proc ::tkchat::createRosterImages {} {
-    image create photo ::tkchat::roster::chat -data {
-	R0lGODlhDgAKAMIAAAAAAP//gICAgP///4CAQACA/wBAgH9/fyH5BAEKAAcA
-	LAAAAAAOAAoAAAMseAesy22FKda4F0hq8dDARFSA9ymAoEIsWhSG4czL+8a0
-	a+M5YMOy3o9HSwAAOw==
-    }
-    image create photo ::tkchat::roster::online -data {
-	R0lGODlhDgAKAMIAAAAAAP//gICAgICAQACA/wBAgP///////yH5BAEKAAcA
-	LAAAAAAOAAoAAAMkeAes/itIAR+QgVZ1w9DbIozhQhBFEQLnmW5s+1axq9It
-	ekMJADs=
-    }
-    image create photo ::tkchat::roster::away -data {
-	R0lGODlhDgAKAOMAAAAAAAAA////gICAgP///4CAQACA/wBAgP//////////
-	/////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ4ECFAJQo4WCD6
-	uERIaFMnDIFIAGMpFKjIttNgp+usAYZxHLgQK8Dr+YCqnfF4yUiKvZ9lCmVO
-	JREAOw==
-    }
-    image create photo ::tkchat::roster::dnd -data {
-	R0lGODlhDgAKAOMAAAAAAP//gICAgP8AAICAQP///wCA/wBAgP//////////
-	/////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ5ECFA5aTAgsDF
-	HOCQTVwgAGGYbQFxDkVciBIg3Kg8r4ZxHKiUCNDr/YIgXvF3qUyKvoNlSlxK
-	p5IIADs=
-    }
-    image create photo ::tkchat::roster::xa -data {
-	R0lGODlhDgAKAOMAAAAAAP8AAP//gICAgP///4CAQACA/wBAgP//////////
-	/////////////////////yH5BAEKAAgALAAAAAAOAAoAAAQ4ECFAJQo4WCD6
-	uERIaFMnDIFIAGMpFKjIttNgp+usAYZxHLgQK8Dr+YCqnfF4yUiKvZ9lCmVO
-	JREAOw==
-    }
-    image create photo ::tkchat::roster::disabled -data {
-	R0lGODlhDgAKAMIGAAAAAD09PW9vb4CAQICAgP//gP///////yH5BAEKAAcA
-	LAAAAAAOAAoAAAMkeAes/qtIAh+QhVZ1y9DbQozhIghBEALnmW5s+1axq9It
-	ekMJADs=
+    global imgdir have_png
+    foreach type {chat online away dnd xa disabled} {
+        if {$have_png} {
+            image create photo ::tkchat::roster::$type -file $imgdir/roster_$type.png
+        } else {
+            image create photo ::tkchat::roster::$type -file $imgdir/z_$type.gif
+        }
     }
 }
 
