@@ -2,21 +2,35 @@
 #
 # Tk front end to the Tcl'ers chat
 #
-###########################################################
-#
-# author: Bruce B Hartweg brhartweg@bigfoot.com
-# updates: Jeff Hobbs, et al
-#
-# This program is free to use, modify, extend at will,
-# the author(s) provides no warantees, guarantees
-# or any responsibility for the use, re-use, abuse
-# that may or may not happen. If you somehow sell
-# this and make a ton of money - good for you, how
-# about sending me some?
-############################################################
+# -------------------------------------------------------------------------#
+# This program is free to use, modify, extend at will, the author(s)
+# provides no warantees, guarantees or any responsibility for the use,
+# re-use, abuse that may or may not happen. If you somehow sell this
+# and make a ton of money - good for you, how about sending me some?
+# -------------------------------------------------------------------------
+# XMPP Feature Support: 
+#   XEP-0012: Last activity
+#   XEP-0030: Service discovery
+#   XEP-0090: Entity time
+#   XEP-0090: Software version
+#   XEP-0115: Entity capabilities
+#   XEP-0199: XMPP Ping
+#   XEP-0232: Software information
+# -------------------------------------------------------------------------
 # \
       exec wish "$0" ${1+"$@"}
 
+variable Features {
+    "http://jabber.org/protocol/disco#info"
+    "http://jabber.org/protocol/disco#items"
+    "http://jabber.org/protocol/muc"
+    "http://jabber.org/protocol/muc#user"
+    iq message 
+    jabber:iq:version
+    jabber:iq:time
+    jabber:iq:last
+    urn:xmpp:ping
+}
 
 if {![info exists env(PATH)]} {
     set env(PATH) .
@@ -42,6 +56,7 @@ package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 package require base64		; # tcllib
 package require uri             ; # tcllib
+package require uuid            ; # tcllib
 
 catch {package require tls}	  ; # tls (optional)
 catch {package require choosefont}; # font selection (optional) 
@@ -264,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.468 2009/05/24 13:50:01 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.469 2009/05/24 23:21:24 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -8070,6 +8085,7 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
     variable muc
     variable topic
     variable LastMessage
+    variable Conversation
     variable ::tkchat::OnlineUsers
 
     set LastMessage [clock seconds]
@@ -8079,8 +8095,7 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
     set color ""
     set timestamp 0
 
-    array set m {-body {} -from {} -subject {}}
-    array set m $args
+    array set m [linsert $args 0 -body {} -from {} -subject {} -thread {}]
     if { [info exists m(-x)] } {
 	foreach x $m(-x) {
 	    switch [wrapper::getattribute $x xmlns] {
@@ -8141,6 +8156,10 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
             # If someone sends chatstate notifications we may
             # get empty bodies. Ignore them.
             if {[string length $m(-body)] == 0} { return }
+
+            # If this is a new conversation, create a thread
+            if {$m(-thread) eq {}} {set m(-thread) [uuid::uuid generate]}
+            set Conversation([jlib::jidmap $m(-from)],thread) $m(-thread)
 
             LogPrivateChat [normalized_jid $m(-from)] \
                 $from $timestamp $m(-body)
@@ -8213,6 +8232,10 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 		return
 	    }
             
+            # If this is a new conversation, create a thread
+            if {$m(-thread) eq {}} {set m(-thread) [uuid::uuid generate]}
+            set Conversation([jlib::jidmap $m(-from)],thread) $m(-thread)
+
             set subject ""
             if {[info exists m(-subject)]} { set subject $m(-subject) }
             set body ""
@@ -8373,9 +8396,33 @@ proc ::tkjabber::on_pres_subscribe {jlib from type args} {
     return 1;# handled
 }
 
+# Generate a XEP-0115 capabilities ver string (XEP-0115 section 5).
+proc ::tkjabber::get_caps_ver {} {
+    global Features tcl_platform
+    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
+    set S "client/pc//tkchat<"
+    foreach feature [lsort $Features] { append S $feature "<" }
+    # extended feature processing as well (order counts)
+    append S "urn:xmpp:dataforms:softwareinfo<"
+    append S "os<$tcl_platform(os)<"
+    append S "os_version<$tcl_platform(osVersion)"
+    append S "software<tkchat<software_version<$tkchatver<"
+    return [base64::encode -maxlen 0 [sha1::sha1 -bin $S]]
+}
+
+proc ::tkjabber::get_caps {} {
+    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
+    set caps [wrapper::createtag c -attrlist \
+                  [list xmlns "http://jabber.org/protocol/caps" \
+                       hash "sha-1"\
+                       node "http://tkchat.tcl.tk/caps" \
+                       ver [get_caps_ver]]]
+    return $caps
+}
+
 proc ::tkjabber::on_discovery {disco type from child args} {
     variable jabber
-    global tcl_platform
+    global Features tcl_platform
     ::log::log info "on_discovery $type $from $child $args"
     set handled 0
     array set a [concat -id {{}} $args]
@@ -8384,15 +8431,10 @@ proc ::tkjabber::on_discovery {disco type from child args} {
             set parts {}
             set xmlns [wrapper::getattribute $child xmlns]
             set node [wrapper::getattribute $child node]
-            if {$node eq {}} {
+            if {$node eq {} || $node eq "http://tkchat.tcl.tk/caps#[get_caps_ver]"} {
                 lappend parts [wrapper::createtag identity \
                                    -attrlist {name tkchat type pc category client}]
-                foreach proto {disco\#info disco\#items muc muc\#user} {
-                    set feature http://jabber.org/protocol/$proto
-                    lappend parts [wrapper::createtag feature -attrlist [list var $feature]]
-                }
-                foreach feature {iq message jabber:iq:version jabber:iq:time 
-                    jabber:iq:last urn:xmpp:ping} {
+                foreach feature $Features {
                     lappend parts [wrapper::createtag feature -attrlist [list var $feature]]
                 }
                 
@@ -8473,30 +8515,6 @@ proc tkjabber::RegisterCB {jlibName type theQuery} {
 	    tkchat::addSystem .txt "MyRegisterProc: type=$type, theQuery='$theQuery'"
 	}
     }
-}
-
-# Generate a XEP-0115 capabilities ver string (XEP-0115 section 5).
-proc ::tkjabber::get_caps_ver {} {
-    set S "client/pc<"
-    set features [list "http://jabber.org/protocol/disco#info" \
-                      "http://jabber.org/protocol/disco#items" \
-                      "http://jabber.org/protocol/muc"]
-    foreach f $features { append S $f "<" }
-    return [base64::encode -maxlen 0 [sha1::sha1 -bin $S]]
-}
-# Return a wrapper node for the caps sub-element for our client. Add to _ALL_
-# presence emissions: ie: $jlib send_presence $type -extra [list [get_caps]]
-# Until the disco#info stuff is sorted, lets return an old style caps.
-# For XEP-0115 use: node "http://tkchat.tclers.tk/#$tkchatver"
-#                    ver $tkchatver xmlns ... and _no_ ext.
-#
-proc ::tkjabber::get_caps {} {
-    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
-    set caps [wrapper::createtag c -attrlist \
-                  [list xmlns "http://jabber.org/protocol/caps" \
-                       node "http://tkchat.tclers.tk/caps" \
-                       ver $tkchatver ext {color time whiteboard}]]
-    return $caps
 }
 
 proc ::tkjabber::LoginCB { jlibname type theQuery } {
@@ -8735,11 +8753,12 @@ proc ::tkjabber::userinfo {nick} {
 }
 
 proc tkjabber::msgSend { msg args } {
+    global Options
     variable jabber
     variable roster
     variable conference
     variable Away
-    set users {}
+    variable Conversation
 
     array set opts {
 	-type normal
@@ -8791,11 +8810,12 @@ proc tkjabber::msgSend { msg args } {
 	if {!$found } {
 	    ::log::log debug "Seaching roster. '$roster' [$roster getname $user] / [$roster getrosteritem $user/tkabber]"
 
+            set res [$roster gethighestresource $user]
 	    foreach presence [$roster getpresence $user] {
 		array set pres $presence
-		if { $pres(-resource) ne {} && $pres(-type) eq "available" } {
+		if { $pres(-resource) eq $res} {
 		    ::log::log debug "Roster user: $user/$pres(-resource)"
-		    lappend users $user/$pres(-resource)
+		    append user /$pres(-resource)
 		    incr found
 		    ::tkchat::addMessage .txt "" $::Options(Username) \
 			    " whispered to $user/$pres(-resource): $msg" \
@@ -8810,25 +8830,21 @@ proc tkjabber::msgSend { msg args } {
 	    return
 	}
     }
-    if { [llength $users] == 0 } {
-	set users [list $user]
+
+    set thread ""
+    if {$type eq "chat"} {
+        set u [jlib::jidmap $user]
+        if {![info exists Conversation($u,thread)]} {
+            set Conversation($u,thread) [uuid::uuid generate]
+        }
+        set thread $Conversation($u,thread)
     }
 
-    # Example usage
-    #set x [wrapper::createtag x -attrlist {xmlns urn:tkchat:chat} \
-    #    -subtags [list [wrapper::createtag color \
-    #                        -attrlist {attr1 val1 attr2 val2} \
-    #                        -chdata $::Options(MyColor)]]]
-
-    set attrs [concat $opts(-attrs) \
-		   [list xmlns urn:tkchat:chat color $::Options(MyColor)]]
-
-    set xlist [concat [list [wrapper::createtag x -attrlist $attrs]] \
-		   $opts(-xlist)]
-    ::log::log debug "send_message $msg $xlist"
-    foreach user $users {
-	$jabber send_message $user -body $msg -type $type -xlist $xlist
-    }
+    lappend xlist [wrapper::createtag x\
+                       -attrlist [list xmlns urn:tkchat:chat color $Options(MyColor)]]
+    set margs [list -type $type -body $msg -xlist $xlist]
+    if {$thread ne ""} {lappend margs -thread $thread}
+    eval [linsert $margs 0 $jabber send_message $user]
 }
 
 # returns true if a jid is a participant in the conference.
@@ -8912,21 +8928,18 @@ proc ::tkjabber::on_iq_ping {token from subiq args} {
 #       A helper function for splitting out parts of Jabber IDs.
 #
 proc ::tkjabber::jid {part jid} {
-    #::log::log debug "jid $part '$jid'"
     set r {}
-    if {[regexp {^(?:([^@]*)@)?([^/]+)(?:/(.+))?} $jid \
-	     -> node domain resource]} {
-	switch -exact -- $part {
-	    node      { set r $node }
-	    domain    { set r $domain }
-	    resource  { set r $resource }
-	    !resource { set r ${node}@${domain} }
-	    jid       { set r $jid }
-	    default {
-		return -code error "invalid part \"$part\":\
+    jlib::splitjidex $jid node domain resource
+    switch -exact -- $part {
+        node      { set r $node }
+        domain    { set r $domain }
+        resource  { set r $resource }
+        !resource { set r ${node}@${domain} }
+        jid       { set r $jid }
+        default {
+            return -code error "invalid part \"$part\":\
 		    must be one of node, domain, resource or jid."
-	    }
-	}
+        }
     }
     return $r
 }
