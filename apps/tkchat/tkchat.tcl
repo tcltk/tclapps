@@ -264,7 +264,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.467 2009/05/23 08:10:16 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.468 2009/05/24 13:50:01 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2607,6 +2607,9 @@ proc ::tkchat::CreateGUI {} {
         -command [namespace origin ToggleStatusbar]
 
     $m add separator
+    tk::AmpMenuArgs $m add checkbutton -label [mc "Hide &roster"] \
+        -variable Options(Visibility,ROSTER) -onvalue 0 -offvalue 1\
+        -command {::tkchat::updateOnlineNames}
     tk::AmpMenuArgs $m add command \
         -label [mc "Hide all &users"] \
         -command { ::tkchat::NickVis 1 }
@@ -2899,6 +2902,7 @@ proc ::tkchat::CreateGUI {} {
         -command { ::tkchat::MsgTo "All Users" }
 
     .pane.names tag configure NICK -font NAME
+    .pane.names tag configure ROSTER -font NAME
     .pane.names tag configure TITLE -font NAME
     .pane.names tag configure SUBTITLE -font SYS
     .pane.names tag configure URL -underline 1
@@ -6003,7 +6007,7 @@ proc ::tkchat::Init {args} {
 
     # Set the 'Hardcoded' Options:
     set OnlineUsers(networks) [list Jabber WebChat IRC]
-    foreach network $OnlineUsers(networks) {
+    foreach network [linsert $OnlineUsers(networks) 0 Roster] {
 	set OnlineUsers($network) {}
 	set OnlineUsers($network,hideMenu) 0
     }
@@ -6230,6 +6234,7 @@ proc ::tkchat::GetDefaultOptions {} {
         Visibility,STATUSBAR	1
 	Visibility,SYSTEM	0
 	Visibility,TRAFFIC	0
+        Visibility,ROSTER	1
 	WhisperIndicatorColor	#ffe0e0
 	RSS,watch,http://wiki.tcl.tk/rss.xml 1
 	RSS,watch,http://paste.tclers.tk/rss.atom 1
@@ -6387,11 +6392,11 @@ proc ::tkchat::UserInfoFetchDone {jid jlib type xmllist} {
     if {[catch {
 	switch $type {
 	    result {
-		after cancel $UI(after)
+		if {[info exists UI(after)]} { after cancel $UI(after) }
 		UserInfoParse $jid $xmllist
 	    }
 	    error {
-		after cancel $UI(after)
+		if {[info exists UI(after)]} { after cancel $UI(after) }
 		set errType [lindex $xmllist 0]
 		set errMsg [lindex $xmllist 1]
 		switch $errType {
@@ -6408,7 +6413,7 @@ proc ::tkchat::UserInfoFetchDone {jid jlib type xmllist} {
 		set UI(timeout) 1
 	    }
 	    default {
-		after cancel $UI(after)
+		if {[info exists UI(after)]} { after cancel $UI(after) }
 		::log::log debug "eek, unknown type $type!"
 		# Not really a timeout, but this makes the dialog code continue
 		# and use the right if branches
@@ -6520,6 +6525,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     if {$jid == {}} {
 	set jid [::tkjabber::jid !resource $::tkjabber::myId]
     }
+    set jid [jlib::jidprep $jid]
 
     set uivar [namespace current]::ui_$jid
     variable $uivar
@@ -7476,6 +7482,8 @@ proc ::tkjabber::connect {} {
 	    [namespace origin on_iq_version_result] 40
         ::jlib::iq_register $jabber get urn:xmpp:ping \
             [namespace origin on_iq_ping] 40
+        ::jlib::iq_register $jabber result jabber:iq:roster \
+            [namespace origin on_iq_roster_result] 50
 
         ::jlib::presence_register $jabber available \
             [namespace origin on_pres_available]
@@ -7831,9 +7839,23 @@ proc ::tkjabber::PollIrcUserList {jid} {
 proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
     if {[catch [linsert $args 0 RosterCB2 $rostName $what $jid] err]} {
         set e "error handling roster update: $err"
+        variable Error $::errorInfo
         ::log::log error $e
         ::tkchat::addSystem .txt $e
     }
+}
+
+# return {} if no muc#user element or a list of {fulljid role}
+proc ::tkjabber::GetMucInfo {childs} {
+    set result {}
+    set ns "http://jabber.org/protocol/muc#user"
+    set nodes [wrapper::getnamespacefromchilds $childs x $ns]
+    foreach item [wrapper::getchildswithtag [lindex $nodes 0] item] {
+        lappend result\
+            [::wrapper::getattribute $item jid]\
+            [::wrapper::getattribute $item role]
+    }
+    return $result
 }
 
 proc ::tkjabber::RosterCB2 { rostName what {jid {}} args } {
@@ -7843,61 +7865,48 @@ proc ::tkjabber::RosterCB2 { rostName what {jid {}} args } {
     variable ignoreNextNick
     variable jabber
     variable ::tkchat::OnlineUsers
-
-    ::log::log debug "--roster-> what=$what, jid=$jid, args='$args'"
-
+    array set a [linsert $args 0 -extras {} -x {}]
+        
     switch -- $what {
 	presence {
-	    set p(-x) {}
-	    array set p $args
+            set mucinfo [GetMucInfo $a(-x)]
 	    set action ""
 	    set newnick ""
-	    set nick $p(-resource)
+	    set nick $a(-resource)
 	    # online/away/offline, etc.
 	    set status [list online]
-	    if { [info exists p(-show)] } {
-		set status [list $p(-show)]
+	    if { [info exists a(-show)] } {
+		set status [list $a(-show)]
 	    }
-	    if { [info exists p(-status)] } {
-		lappend status $p(-status)
+	    if { [info exists a(-status)] } {
+		lappend status $a(-status)
 	    }
-	    switch -- $p(-type) {
+	    switch -- $a(-type) {
 		available {
 		    set action entered
 
 		    # Get IrcUserList from ijchain
 		    if { $nick eq "ijchain" } {
                         # Begin polling the bot for irc names (slowly)
-                        PollIrcUserList $p(-from)
+                        PollIrcUserList $a(-from)
 		    }
 
 		    # Add the user's nick into a nick/jid map
-		    foreach child $p(-x) {
-			set ns [::wrapper::getattribute $child xmlns]
-			if { "http://jabber.org/protocol/muc#user" eq $ns } {
-			    set item [::wrapper::getchildswithtag $child item]
-			    if { [llength $item] > 0 } {
-				if { [info exists \
-					OnlineUsers(Jabber-$nick,jid)] } {
-				    set action availability
-				}
-				set usrjid [::wrapper::getattribute \
-					[lindex $item 0] jid]
-				set OnlineUsers(Jabber-$nick,jid) $usrjid
-				set OnlineUsers(Jabber-$nick,status) $status
-                                set OnlineUsers(Jabber-$nick,role)\
-                                    [::wrapper::getattribute [lindex $item 0] role]
-			    }
-			    break
-			}
-		    }
+                    if {[llength $mucinfo]} {
+                        if {[info exists OnlineUsers(Jabber-$nick,jid)]} {
+                            set action availability
+                        }
+                        set OnlineUsers(Jabber-$nick,jid) [lindex $mucinfo 0]
+                        set OnlineUsers(Jabber-$nick,status) $status
+                        set OnlineUsers(Jabber-$nick,role) [lindex $mucinfo 1]
+                    }
 		}
 		unavailable {
 		    set action left
 		    set status offline
 
 		    # Check for nickname change
-		    foreach child $p(-x) {
+		    foreach child $a(-x) {
 			set ns [::wrapper::getattribute $child xmlns]
 			if { "http://jabber.org/protocol/muc#user" eq $ns } {
 			    set status_elem \
@@ -7944,18 +7953,15 @@ proc ::tkjabber::RosterCB2 { rostName what {jid {}} args } {
 		set tstatus [string map {
 		    dnd "do not disturb"
 		    xa "away (idle)"
-		    chat "I want to chat"
-		    away "away"
 		} [lindex $status 0]]
-		set msg "$jid has $action ($tstatus)"
+		set msg "$jid status changed to $tstatus"
 		if { [llength $status] > 1 } {
 		    append msg ": [lindex $status 1]"
 		}
-		::tkchat::addSystem .txt $msg end AVAILABILITY
+		::tkchat::addStatus 0 $msg
+                after idle [list ::tkchat::updateOnlineNames]
 		return
 	    }
-
-	    # Much more interesting info available in array ...
 
 	    if { $action eq "nickchange" } {
 		lappend action Jabber
@@ -7978,12 +7984,20 @@ proc ::tkjabber::RosterCB2 { rostName what {jid {}} args } {
 		set ignoreNextNick ""
 	    }
 	}
+        enterroster - exitroster - set {}
 	default {
 	    ::tkchat::addSystem .txt \
 		    "--roster-> what=$what, jid=$jid, args='$args'"
 	}
     }
 }
+
+proc ::tkjabber::on_iq_roster_result {jlib type xmlns from iq args} {
+    # work around bug in the jlib code for roster iq results
+    jlib::parse_roster_get $jlib 1 {} ok $xmlns
+    return 1 ;# handled
+}
+
 
 # The jabberlib stuff...
 proc tkjabber::ClientCB {jlibName cmd args} {
@@ -8343,8 +8357,9 @@ proc tkjabber::PresCB2 {jlibName type args} {
 # On receiving presence stanzas we get called here after the roster
 # object is called
 proc ::tkjabber::on_pres_available {jlib from type args} {
-    #puts stderr "pres_available $jlib $from $type $args"
-    #array set a $args
+    log::log debug "presence available from $from"
+    #array set a [linsert $args 0 -status {}]
+    #log::log debug [array get a]
     return 0
 }
 proc ::tkjabber::on_pres_unavailable {jlib from type args} {
@@ -8353,6 +8368,7 @@ proc ::tkjabber::on_pres_unavailable {jlib from type args} {
 }
 proc ::tkjabber::on_pres_subscribe {jlib from type args} {
     array set a [linsert $args 0 -status {}]
+    log::log debug "presence subscribe from $from"
     after idle [list [namespace origin SubscriptionRequest] $from $a(-status)]
     return 1;# handled
 }
@@ -8410,7 +8426,13 @@ proc ::tkjabber::on_discovery {disco type from child args} {
         }
         items {
             # probably list our current channels - but not to non-subscribers.
-            set handled 0
+            set xmlns [wrapper::getattribute $child xmlns]
+            set ecode [wrapper::createtag feature-not-implemented \
+                           -attrlist {xmlns urn:ietf:params:xml:ns:xmpp-stanzas}]
+            set rsp [wrapper::createtag error -attrlist {type cancel code 501} \
+                         -subtags [list $ecode]]
+            $jabber send_iq error [list $rsp $child] -to $from -id $a(-id)
+            set handled 1
         }
         default {
         }
@@ -8488,8 +8510,6 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
     variable nickTries
     variable myId
 
-    ::log::log debug "LoginCB: type=$type, theQuery='$theQuery'"
-
     switch -- $type {
 	error {
 	    if { $theQuery eq "401 Unauthorized" } {
@@ -8518,9 +8538,12 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 	result {
 	    ::tkchat::addStatus 0 "Logged in."
 	    if {$myId == {}} { set myId [$jabber myjid] }
-	    set tkjabber::reconnect 1
-	    set tkjabber::connectionRetryTime [expr {int(5+rand()*5.0)}]
+	    variable reconnect 1
+	    variable connectionRetryTime [expr {int(5+rand()*5.0)}]
             $jabber send_presence -extras [list [get_caps]]
+            
+            # request roster from server
+            $jabber roster_get {}
                                                
 	    set muc [jlib::muc::new $jabber]
 	    if { $::Options(Nickname) eq "" } {
@@ -8956,6 +8979,7 @@ proc ::tkchat::updateOnlineNames {} {
     .mb.mnu add command \
         -label [mc "All users"] \
         -command [list ::tkchat::MsgTo "All Users"]
+    if {$Options(Visibility,ROSTER)} { updateRosterDisplay }
     set total 0
     foreach network $OnlineUsers(networks) {
 	set userCnt [llength $OnlineUsers($network)]
@@ -8989,21 +9013,9 @@ proc ::tkchat::updateOnlineNames {} {
 		set Options(Color,NICK-$nick) $Options(Color,MainFG)
 	    }
 	    switch -exact -- $status {
-		online {
-		    .pane.names image create $mark -image ::tkchat::roster::online
-		}
-		chat {
-		    .pane.names image create $mark -image ::tkchat::roster::chat
-		}
-		dnd {
-		    .pane.names image create $mark -image ::tkchat::roster::dnd
-		}
-		away {
-		    .pane.names image create $mark -image ::tkchat::roster::away
-		}
-		xa {
-		    .pane.names image create $mark -image ::tkchat::roster::xa
-		}
+		online - chat - dnd - away - xa {
+		    .pane.names image create $mark -image ::tkchat::roster::$status
+                }
 		disabled - offline {
 		    .pane.names image create $mark -image ::tkchat::roster::disabled
 		}
@@ -9031,6 +9043,51 @@ proc ::tkchat::updateOnlineNames {} {
     .pane.names insert 1.0 "$total Users Online\n\n" TITLE
     .pane.names yview moveto [lindex $scrollview 0]
     .pane.names configure -state disabled
+}
+
+proc ::tkchat::updateRosterDisplay {} {
+    variable OnlineUsers
+    variable ::tkjabber::jabber
+    set roster [$jabber getrostername]
+    set users [$roster getusers]
+    set wstate [.pane.names cget -state]
+    .pane.names configure -state normal
+    .pane.names mark set roster 3.0
+    .pane.names insert roster [mc "Your contacts"]\n {SUBTITLE Roster}
+    .pane.names tag bind Roster <Button-1> \
+        [namespace code [list OnNetworkToggleShow Roster]]
+    if {[llength $users] < 1} { return }
+    if {$OnlineUsers(Roster,hideMenu)} { return }
+    foreach user $users {
+        set name [$roster getname $user]
+        if {$name eq ""} {set name [tkjabber::jid node $user]}
+        set resource [$roster gethighestresource $user]
+        foreach pres [$roster getpresence $user] {
+            array set a [linsert $pres 0 -show online -type unavailable]
+            if {$resource eq $a(-resource)} {
+                if {$a(-type) eq ""} {set img online}
+                if {$a(-show) ne ""} {set img $a(-show)}
+                if {$a(-type) eq "unavailable"} {set img "disabled"}
+                .pane.names image create roster -image ::tkchat::roster::$img
+            }
+        }
+
+        set link URL-[incr ::URLID]
+        set tags [list ROSTER ROSTER-$user URL $link]
+        .pane.names insert roster $name $tags "\n" NICK
+        .pane.names tag bind $link <Button-1> \
+            [list ::tkjabber::getChatWidget $user/$resource $name]
+        if {[package provide tooltip] ne {}} {
+            set tip $user
+            if {$resource ne {}} {append tip /$resource}
+            foreach res [$roster getresources $user] {
+                append tip "\n  $res"
+            }
+            tooltip::tooltip .pane.names -tag ROSTER-$user $tip
+        }
+    }
+    .pane.names insert roster \n {}
+    .pane.names configure -state $wstate
 }
 
 proc ::tkchat::OnNetworkToggleShow { network } {
@@ -9386,37 +9443,50 @@ proc ::tkjabber::cancelReconnect {} {
     }
 }
 
-# Respond to subscriptin requests
+# Respond to subscription requests
 proc tkjabber::SubscriptionRequest {from status} {
     variable subs_uid
+    variable ::tkchat::NS
     if {![info exists subs_uid]} { set subs_uid 0 }
     jlib::splitjid $from jid res
     set ttl [msgcat::mc "Subscribe request from %s" $jid]
     set msg [msgcat::mc "Do you want to let %s add you to their roster?" $jid]
     set status [string trim $status]
-    set wid dlg[incr subs_uid]
+    set wid subscriptionreq[incr subs_uid]
     set dlg [::tkchat::Dialog .$wid]
     wm title $dlg $ttl
-    set f [frame $dlg.f -borderwidth 0]
-    set lt [label $f.lt -text "$ttl" -anchor w]
-    set ls [label $f.ls -text " \"$status\"" -anchor w]
-    set lm [label $f.lm -text "$msg" -anchor w]
-    set fb [frame $f.fb -borderwidth 0]
-    set yes [button $fb.yes -text [msgcat::mc "Yes"] -default active \
+    wm withdraw $dlg
+    set f [${NS}::frame $dlg.f -borderwidth 0]
+    set lt [${NS}::label $f.lt -text "$ttl" -anchor w]
+    set ls [${NS}::label $f.ls -text " \"$status\"" -anchor w]
+    set lm [${NS}::label $f.lm -text "$msg" -anchor w]
+    set fb [${NS}::frame $f.fb -borderwidth 0]
+    set yes [${NS}::button $fb.yes -text [msgcat::mc "Yes"] -default active \
 		 -command [list set [namespace current]::$wid subscribed]]
-    set no  [button $fb.no -text [msgcat::mc "No"] -default normal \
+    set no  [${NS}::button $fb.no -text [msgcat::mc "No"] -default normal \
 		 -command [list set [namespace current]::$wid unsubscribed]]
     bind $dlg <Return>     [list $yes invoke]
     bind $dlg <Key-Escape> [list $no  invoke]
+    wm protocol $dlg WM_DELETE_WINDOW \
+        [list set [namespace current]::$wid cancel]
     pack $no $yes -side right
     pack $lt $ls $lm $fb -side top -fill x -expand 1
     pack $f -side top -fill both -expand 1
     set [namespace current]::$wid waiting
+    tk::PlaceWindow $dlg widget .
+    wm deiconify $dlg
+    tkwait visibility $dlg
+    focus $yes
     tkwait variable [namespace current]::$wid
     destroy $dlg
     set response [set [namespace current]::$wid]
-    $tkjabber::jabber send_presence -type $response \
-	-to $from -extras [list [get_caps]]
+    if {$response ne "cancel"} {
+        $tkjabber::jabber send_presence -to $from -type $response
+        if {$response eq "subscribed"} {
+            # subscription needs to be both ways.
+            $tkjabber::jabber send_presence -to $from -type subscribe
+        }
+    }
     unset [namespace current]::$wid
     return
 }

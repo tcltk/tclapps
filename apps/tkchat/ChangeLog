@@ -1,3 +1,8 @@
+2009-05-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Improve the response to subscription requests and
+	display the roster in the user list with an option to hide this.
+
 2009-05-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Added a muc join hook, ignore empty messages with
