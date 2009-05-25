@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.469 2009/05/24 23:21:24 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.470 2009/05/25 16:02:26 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -8290,19 +8290,16 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 
 proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
     global Options
-    set msg [split $msg " "]
     set opts {}
     if { [lsearch -exact $Options(BridgeNames) $nick] != -1} {
-	set nick [lindex $msg 0]
-	set msg [lrange $msg 1 end]
+        regexp {^([^\s]+)\s(.*)} $msg -> nick msg
 	if { $nick eq "***" } {
-	    set nick [lindex $msg 0]
-	    set action [lrange $msg 1 end]
+            regexp {^([^\s]+)\s(.*)} $msg -> nick action
 	    if { $action eq "leaves" || $action eq "joins" } {
-		set action [string map { joins entered leaves left } $action]
-		lappend action IRC
-	    } elseif { [lrange $action 0 end-1] eq "is now known as" } {
-		lappend nick [lindex $action end]
+		set action [list \
+                    [string map {joins entered leaves left} $action] IRC]
+	    } elseif {[string match "is now known as*" $action]} {
+                set nick [list $nick [string range $action 16 end]]
 		set action [list nickchange IRC]
 	    } else {
 		::log::log notice "Unknown IRC command '$msg'"
@@ -8311,42 +8308,41 @@ proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
 	    ::tkchat::addTraffic .txt $nick $action $mark $timestamp
 	    return
 	} elseif { $nick eq "*" } {
-	    set nick [lindex $msg 0]
-	    set action [lrange $msg 1 end]
+            regexp {^([^\s]+)\s(.*)} $msg -> nick action
 	    if { $action eq "entered" || $action eq "left" } {
 		lappend action WebChat
 		::tkchat::addTraffic .txt $nick $action $mark $timestamp
 		return
 	    } else {
-		set msg [linsert $action 0 /me]
+		set msg "/me $action"
 	    }
 	}
     } elseif { $nick eq $::Options(JabberConference) } {
 	::tkchat::addSystem .txt $msg
 	return
     }
-    if { [lindex $msg 0] eq "/nolog" } {
-	set msg [lrange $msg 1 end]
+    if {[string match "/nolog *" $msg]} {
+	set msg [string range $msg 7 end]
 	lappend opts nolog 1
     } elseif { [uplevel 1 { info exists tkchatAttr(nolog) }] \
 	    && [uplevel 1 { set tkchatAttr(nolog) }] } {
 	lappend opts nolog 1
     }
-    if { $nick eq "" } {
-	if { [lrange $msg 1 3] eq "has become available" } {
-	    ::tkchat::addTraffic .txt [lindex $msg 0] entered $mark $timestamp
-	} elseif { [string match "has left*" [lrange $msg 1 2]] } {
-	    ::tkchat::addTraffic .txt [lindex $msg 0] left $mark $timestamp
-	} elseif { [string match "is now known as" [lrange $msg 1 4]] } {
-	    set nick [list [lindex $msg 0] [lindex $msg end]]
+    if {$nick eq ""} {
+        regexp {^([^\s]+)\s(.*)} $msg -> nick action
+	if {[string match "has become available*" $action]} {
+	    ::tkchat::addTraffic .txt $nick entered $mark $timestamp
+	} elseif {[string match "has left*" $action]} {
+	    ::tkchat::addTraffic .txt $nick left $mark $timestamp
+	} elseif {[string match "is now known as *" $action]} {
+            set nick [list $nick [string range $action 16 end]]
 	    ::tkchat::addTraffic .txt $nick nickchange $mark $timestamp
 	}
     } else {
-	if { [lindex $msg 0] eq "/me" } {
-	    set msg [join [lrange $msg 1 end]]
+	if {[string match "/me *" $msg]} {
+	    set msg [string range $msg 4 end]
 	    set msgtype ACTION
 	} else {
-	    set msg [join $msg]
 	    set msgtype NORMAL
 	}
 	::tkchat::addMessage \

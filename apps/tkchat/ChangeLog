@@ -1,5 +1,10 @@
 2009-05-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Fixed string/list confusion in the message parsing
+	that mishandled nick changes from irc.
+
+2009-05-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
 	* tkchat.tcl: Tidied up feature discovery and xep0115 caps support
 	and ensure we handle conversation threads for chat sessions.
 
