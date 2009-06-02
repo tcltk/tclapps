@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.470 2009/05/25 16:02:26 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.471 2009/06/02 11:41:30 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -821,9 +821,7 @@ proc ::tkchat::HttpServerError {token {prefix ""}} {
 proc ::tkchat::fetchurldone {cmd tok} {
     set url [set [set tok](url)]
     ::log::log info "fetchurl ($url): [::http::code $tok]"
-    if {[winfo exists .status.progress]} {
-        grid forget .status.progress
-    }
+    Progress foo 0 0
 
     switch -- [::http::status $tok] {
 	ok - OK - Ok {
@@ -1766,19 +1764,18 @@ proc ::tkchat::Progress {tok total current} {
     if {![winfo exists .status.progress]} { return }
     log::log debug "Progress $total $current"
     set w .status.progress
-    StatusbarAddWidget .status $w 1
-    if {$total == $current} {
-        if {[string equal [$w cget -mode] "determinate"]} {
-            $w stop
-        }
+    if {$current == $total} {
+        $w stop
         grid forget .status.progress
-    }
-    if {$total == 0 && [string equal [$w cget -mode] "determinate"]} {
-        $w configure -mode indeterminate
-        $w start
-    } elseif {$total != 0} {
-        $w configure -mode determinate \
-            -value [expr {int(double($current)/double($total) * 100)}]
+    } else {
+        StatusbarAddWidget .status $w 1
+        if {$total == 0} {
+            $w configure -mode indeterminate
+            $w start
+        } else {
+            $w configure -mode determinate \
+                -value [expr {int(double($current)/double($total) * 100)}]
+        }
     }
 }
 
