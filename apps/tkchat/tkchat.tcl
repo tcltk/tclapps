@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.471 2009/06/02 11:41:30 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.472 2009/07/02 21:59:29 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4108,6 +4108,7 @@ proc ::tkchat::userPost {{jid ""}} {
     global Options
 
     if {[winfo ismapped .eMsg]} {
+        if {[.eMsg cget -state] eq "disabled"} { return }
 	set str [.eMsg get]
     } else {
 	set str [.tMsg get 1.0 end]
