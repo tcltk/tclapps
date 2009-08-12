@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.472 2009/07/02 21:59:29 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.473 2009/08/12 00:51:05 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6608,7 +6608,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 
     grid configure $l $e -sticky news -padx 1 -pady 1
     grid columnconfigure $f 1 -weight 1
-    grid rowconfigure $f 8 -weight 1
+    grid rowconfigure $f 7 -weight 1
 
     set btns [${NS}::frame $dlg.buttons]
     if {!$useTile} { $dlg.buttons configure -bd 1 }
