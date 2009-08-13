@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.473 2009/08/12 00:51:05 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.474 2009/08/13 00:57:28 eee Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -5231,7 +5231,7 @@ proc ::tkchat::ChangeColors {} {
     #grid $t.l3    -       -    - -padx 1 -pady 3 -sticky ew
     grid $t.f     -       -    - -padx 1 -pady 5 -sticky news
     grid $t.f2    -       -    - -padx 1 -pady 10 -sticky news
-    grid rowconfigure $t 2 -weight 1
+    grid rowconfigure $t 1 -weight 1
     grid columnconfigure $t 3 -weight 1
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
