@@ -1,3 +1,9 @@
+2009-09-24  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::Smile): Unset IMGre before reinitializing
+	the emoticons, or it will keep growing. Only reinitialize when it
+	was explicitly asked for (i.e. not on re-logins).
+
 2009-08-12  Elchonon Edelson <eee@users.sourceforge.net>
 
 	* tkchat.tcl: Fix [Bug 2814771]. In color configuration dialog,

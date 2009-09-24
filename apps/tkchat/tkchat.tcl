@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.474 2009/08/13 00:57:28 eee Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.475 2009/09/24 10:40:31 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2581,7 +2581,7 @@ proc ::tkchat::CreateGUI {} {
         -command ::tkchat::DoAnim
     tk::AmpMenuArgs $m add command \
         -label [mc "U&pdate emoticons"] \
-        -command { ::tkchat::Smile }
+        -command { ::tkchat::Smile 1 }
     # Insert Cascade Menu
     menu $m.mnu -tearoff 0
     tk::AmpMenuArgs $m add cascade -menu $m.mnu \
@@ -5829,9 +5829,19 @@ proc ::tkchat::SmileId {name serial triggers {location {}}} {
     }
 }
 
-proc ::tkchat::Smile {} {
+proc ::tkchat::Smile {{force 0}} {
     variable IMG
-    array unset IMG; # needed for reload
+    variable IMGre
+
+    if {[info exists IMGre] && !$force} {
+        # The smileys have already been initialized and
+        # re-initialisation wasn't enforced
+        return
+    }
+
+    # needed for reload
+    array unset IMG
+    unset -nocomplain IMGre
 
     namespace eval ::tkchat::img {
         variable delay 150
