@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.475 2009/09/24 10:40:31 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.476 2009/10/15 20:52:14 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -311,7 +311,7 @@ namespace eval ::tkchat {
 	    "In a fit of schizophrenia, %user% would like to be known as %newuser%." \
 	    "%user% replaces their old hat with a new one called %newuser%." \
 	    "The Amazing %user% switches to their secret identity, mild mannered %newuser%." \
-	    "Admist a burst of smoke, %user% disappears and %newuser% materializes."
+	    "Amidst a burst of smoke, %user% disappears and %newuser% materializes."
 	    ]
 
     # Variables to control the search function.

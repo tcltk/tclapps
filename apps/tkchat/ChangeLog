@@ -1,3 +1,7 @@
+2009-10-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix typo spotted by mistachkin.
+
 2009-09-24  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::Smile): Unset IMGre before reinitializing
