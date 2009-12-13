@@ -1,3 +1,9 @@
+2009-12-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: [wm state] doesn't support zoomed on x11.
+	* tkchat.tcl: change web browser handling to look for a more
+	modern list of commands and avoid the old -remote stuff.
+
 2009-10-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fix typo spotted by mistachkin.

@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.476 2009/10/15 20:52:14 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.477 2009/12/13 01:23:58 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -413,6 +413,7 @@ proc ::tkchat::Toplevel {w args} {
 proc ::tkchat::Dialog {w args} {
     lappend args -class Dialog
     set dlg [eval [linsert $args 0 Toplevel $w]]
+    catch {wm attributes $w -type dialog}
     wm transient $dlg [winfo parent $dlg]
     wm group $dlg .
     return $dlg
@@ -1544,7 +1545,7 @@ proc ::tkchat::gotoURL {url} {
     switch -- $tcl_platform(platform) {
 	"unix" {
 	    # special case for MacOS X:
-	    if {$tcl_platform(os) == "Darwin"} {
+	    if {$tcl_platform(os) eq "Darwin"} {
 		# assume all goes well:
 		set notOK 0
 		if { $Options(Browser) ne "" } {
@@ -1560,41 +1561,42 @@ proc ::tkchat::gotoURL {url} {
 		    }
 		}
 	    } else {
-		expr {
-		    $Options(Browser) ne ""
-		    || [findExecutable mozilla		Options(Browser)]
-		    || [findExecutable mozilla-firefox	Options(Browser)]
-		    || [findExecutable mozilla-firebird	Options(Browser)]
-		    || [findExecutable konqueror	Options(Browser)]
-		    || [findExecutable netscape		Options(Browser)]
-		    || [findExecutable iexplorer	Options(Browser)]
-		    || [findExecutable lynx		Options(Browser)]
-		}
+                # List of browsers to search for if not specified.
+                set Browsers {
+                    "Use default browser" xdg-open ""
+                    "Mozilla Firefox" firefox "-new-tab"
+                    "Google Chrome" google-chrome ""
+                    "Opera" opera "-newtab"
+                    "Gnome Web Browser" gnome-www-browser "--new-tab"
+                }
+                
+                if {$Options(Browser) eq ""} {
+                    foreach {display cmd arg} $Browsers {
+                        if {[findExecutable $exe cmd]} {
+                            set Options(Browser) "$cmd $arg"
+                        }
+                    }
+                }
 
-		# lynx can also output formatted text to a variable
-		# with the -dump option, as a last resort:
-		# set formatted_text [ exec lynx -dump $url ] - PSE
-		#
-		# -remote argument might need formatting as a command
-		# 		Try that first
-		if { [catch {
-		    if {$Options(BrowserTab)} {
-			exec $Options(Browser) -remote "openURL($url,new-tab)" 2> /dev/null
-		    } else {
-		    	exec $Options(Browser) -remote openURL($url) 2> /dev/null
-		    }
-		}] } then {
-		    # Try -remote with raw URL argument
-		    if { [catch {
-			exec $Options(Browser) -remote $url 2> /dev/null
-		    }]} then {
-			# perhaps browser doesn't understand -remote flag
-			if { [catch { exec $Options(Browser) $url & } emsg] } {
-			    tk_messageBox -message \
-				    "Error displaying $url in browser\n$emsg"
-			}
-		    }
-		}
+                if {$Options(Browser) eq ""} {
+                    tk_messageBox -icon error -title "No browser defined" \
+                        -message "No web browser could be found. Please go to\
+                        the Options dialog and select a browser to use."
+                }
+
+                # permit stuff like '-remote openURL(%url,new-tab)'
+                if {[string first "%url" $Options(Browser)] != -1} {
+                    set cmd [string map [list %url [list $url]] $Options(Browser)]
+                } else {
+                    set cmd [list $Options(Browser) $url]
+                }
+                if {[catch {
+                    log::log debug "open url with '$cmd'"
+                    eval exec $cmd &
+                } err]} {
+                    tk_messageBox -icon error -title "Error opening browser" \
+                        -message "Error displaying $url in browser\n$err"
+                }
 	    }
 	}
 	"windows" {
@@ -2995,7 +2997,11 @@ proc ::tkchat::CreateGUI {} {
     }
     wm deiconify .
     if { [info exists Options(StartZoomed)] && $Options(StartZoomed) == 1 } {
-	wm state . zoomed
+        if {[tk windowingsystem] eq "x11"} {
+            wm attributes . -zoomed 1
+        } else {
+            wm state . zoomed
+        }
     }
 
     update
@@ -5470,11 +5476,20 @@ proc ::tkchat::saveRC {} {
     array set tmp [GetDefaultOptions]
 
     # Options that need to be computed at save time
-    if { [wm state .] eq "zoomed" } {
-	    set Options(StartZoomed) 1
-	    wm state . normal
+    if {[tk windowingsystem] eq "x11"} {
+        set zoomed [wm attributes . -zoomed]
     } else {
-	    set Options(StartZoomed) 0
+        set zoomed [expr {[wm state .] eq "zoomed"}]
+    }
+    if { $zoomed } {
+        set Options(StartZoomed) 1
+        wm state . normal
+        if {[tk windowingsystem] eq "x11"} {
+            wm attributes . -zoomed 0
+            update
+        }
+    } else {
+        set Options(StartZoomed) 0
     }
     set Options(Geometry) [wm geometry .]
     if {[package provide khim] ne {}} {
