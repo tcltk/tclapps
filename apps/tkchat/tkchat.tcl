@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.477 2009/12/13 01:23:58 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.478 2010/01/12 01:45:26 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1571,9 +1571,10 @@ proc ::tkchat::gotoURL {url} {
                 }
                 
                 if {$Options(Browser) eq ""} {
-                    foreach {display cmd arg} $Browsers {
+                    foreach {display exe arg} $Browsers {
                         if {[findExecutable $exe cmd]} {
                             set Options(Browser) "$cmd $arg"
+                            break
                         }
                     }
                 }
@@ -4585,7 +4586,8 @@ proc ::tkchat::logonScreen {} {
             -text [mc "&Quit"] -width -8 \
             -command [namespace origin quit]
 	catch {.logon.ok configure -default active}
-	pack .logon.qu .logon.cn .logon.ok -in .logon.f -side right
+	pack .logon.qu .logon.cn .logon.ok \
+            -in .logon.f -side right -padx 2
 
         # enable the i18n alt key handling for this dialog
         bind .logon <Alt-Key> [list tk::AltKeyInDialog .logon %A]
