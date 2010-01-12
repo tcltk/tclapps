@@ -1,5 +1,7 @@
 2010-01-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
+	* tkchat.tcl: Do not show the browser fields on the preferences
+	page for Windows as we do not use this on that platform.
 	* tkchat.tcl: Applied patch 2913790 to add an option not to get
 	queried when exiting and enable /quit when not logged in (stu)
 

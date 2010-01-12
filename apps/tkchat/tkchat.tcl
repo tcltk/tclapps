@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.479 2010/01/12 20:30:28 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.480 2010/01/12 20:46:03 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -6996,6 +6996,7 @@ proc ::tkchat::FocusOutHandler {w args} {
 
 proc ::tkchat::PreferencesPage {parent} {
     global Options
+    global tcl_platform
     variable NS
     variable useTile
 
@@ -7080,32 +7081,35 @@ proc ::tkchat::PreferencesPage {parent} {
     grid $af.aal $af.aae -sticky ew -padx 2
     grid columnconfigure $af 1 -weight 1
 
-    set bf [${NS}::labelframe $page.bf -text "Preferred browser"]
-    if {$useTile} { $bf configure -underline 10 }
+    if {$tcl_platform(platform) ne "windows"} {
+        set bf [${NS}::labelframe $page.bf -text "Preferred browser"]
+        if {$useTile} { $bf configure -underline 10 }
 
-    ${NS}::label $bf.m -anchor nw -wraplength 4i -justify left \
-	-text "Provide the command used to launch your web browser. For\
-	instance /opt/bin/mozilla or xterm -e links. The URL to\
-	be opened will be appended to the command string and for\
-	mozilla-type browsers we will call the -remote option to\
-	try to use a previously existing browser."
-    ${NS}::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
-    ${NS}::button $bf.b -text "..."  -width 4 -command {
-	if {[set file [tk_getOpenFile]] != {}} {
-	    set ::tkchat::EditOptions(Browser) $file
-	}
+        ${NS}::label $bf.m -anchor nw -wraplength 4i -justify left \
+            -text "Provide the command used to launch your web browser. For\
+	    instance /opt/bin/mozilla or xterm -e links. The URL to\
+	    be opened will be appended to the command string and for\
+	    mozilla-type browsers we will call the -remote option to\
+	    try to use a previously existing browser."
+        ${NS}::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
+        ${NS}::button $bf.b -text "..."  -width 4 -command {
+            if {[set file [tk_getOpenFile]] != {}} {
+                set ::tkchat::EditOptions(Browser) $file
+            }
+        }
+        ${NS}::checkbutton $bf.tab -underline 0 \
+            -text "Force new Tab, if possible (Unix only)" \
+            -variable ::tkchat::EditOptions(BrowserTab)
+        if {!$useTile} {$bf.tab configure -anchor nw}
+
+        bind $dlg <Alt-b> [list focus $bf.e]
+        bind $dlg <Alt-f> [list $bf.tab invoke]
+        grid $bf.m -     -sticky news -padx 2
+        grid $bf.e $bf.b -sticky ew   -padx 2
+        grid $bf.tab     -sticky ew   -padx 2 -columnspan 2
+        grid rowconfigure    $bf 0 -weight 1
+        grid columnconfigure $bf 0 -weight 1
     }
-    ${NS}::checkbutton $bf.tab -text "Force new Tab, if possible (Unix only)" \
-	-variable ::tkchat::EditOptions(BrowserTab) -underline 0
-    if {!$useTile} {$bf.tab configure -anchor nw}
-
-    bind $dlg <Alt-b> [list focus $bf.e]
-    bind $dlg <Alt-f> [list $bf.tab invoke]
-    grid $bf.m -     -sticky news -padx 2
-    grid $bf.e $bf.b -sticky ew   -padx 2
-    grid $bf.tab     -sticky ew   -padx 2 -columnspan 2
-    grid rowconfigure    $bf 0 -weight 1
-    grid columnconfigure $bf 0 -weight 1
 
     set sf [${NS}::labelframe $page.sf -text "Tk style"] ;#-padx 1 -pady 1
 
@@ -7143,8 +7147,8 @@ proc ::tkchat::PreferencesPage {parent} {
     grid $sf.m  -       -       -       -sticky news -padx 2
     grid $sf.as $sf.gtk $sf.any $sf.def -sticky ew -padx 2
     grid $sf.tkonly -   -       -       -sticky ew -padx 2
-    grid rowconfigure    $bf 0 -weight 1
-    grid columnconfigure $bf 0 -weight 1
+    grid rowconfigure    $sf 0 -weight 1
+    grid columnconfigure $sf 0 -weight 1
 
     # Gimmicks section.
     set gimmicks 0
@@ -7180,7 +7184,9 @@ proc ::tkchat::PreferencesPage {parent} {
     }
 
     grid $af - -sticky news -padx 2 -pady 2
-    grid $bf - -sticky news -padx 2 -pady 2
+    if {$tcl_platform(platform) ne "windows"} {
+        grid $bf - -sticky news -padx 2 -pady 2
+    }
     grid $sf - -sticky news -padx 2 -pady 2
     if {$gimmicks} { grid $gf - -sticky news -padx 2 -pady 2 }
 
