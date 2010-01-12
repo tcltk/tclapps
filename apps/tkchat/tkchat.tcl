@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.478 2010/01/12 01:45:26 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.479 2010/01/12 20:30:28 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4184,6 +4184,9 @@ proc ::tkchat::checkCommand { msg } {
     # check against commands that can be used while logged off
     set moreToGo 0
     switch -re -- $msg {
+        {^/quit$} {
+            ::tkchat::quit
+        }
 	{^/smiley?s?$} {
 	    ShowSmiles
 	}
@@ -4406,9 +4409,6 @@ proc ::tkchat::checkCommand { msg } {
 	    regexp {^/back\s*(.*)$} $msg -> status
 	    ::tkjabber::back $status
 	}
-        {^/quit$} {
-            ::tkchat::quit
-        }
         {^/kick\s}   -
         {^/mute\s}   -
         {^/unmute\s} -
@@ -5456,13 +5456,17 @@ proc ::tkchat::OpenErrorLog {opt} {
 }
 
 proc ::tkchat::quit {} {
-    set q [mc "Are you sure you want to quit?"]
-    set a [tk_messageBox -type yesno -default yes \
-               -title [mc "Tkchat confirm quit"] \
-               -message $q]
+    global Options
+    set a "yes"
+    if {$Options(AskBeforeQuit)} {
+        set q [mc "Are you sure you want to quit?"]
+        set a [tk_messageBox -type yesno -default yes \
+                   -title [mc "Tkchat confirm quit"] \
+                   -message $q]
+    }
     if { $a eq "yes" } {
-	::tkchat::saveRC
-	exit
+        ::tkchat::saveRC
+        exit
     }
 }
 
@@ -5509,9 +5513,9 @@ proc ::tkchat::saveRC {} {
 
     # Save these options to resource file
     set keep {
-	Alert,* AnimEmoticons AutoAway AutoAwayMsg AutoBookmark AutoConnect
-	AutoFade AutoFadeLimit Browser BrowserTab ChatLogFile 
-	ChatLogOff Color,* DisplayUsers ClickFocusEntry
+	Alert,* AnimEmoticons AskBeforeQuit AutoAway AutoAwayMsg
+	AutoBookmark AutoConnect AutoFade AutoFadeLimit Browser BrowserTab
+	ChatLogFile ChatLogOff Color,* DisplayUsers ClickFocusEntry
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
 	JabberPort JabberResource JabberServer Khim HateLolcatz
@@ -6207,6 +6211,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Alert,SOUND		0
 	Alert,TOPIC		1
 	AnimEmoticons		0
+	AskBeforeQuit		1
 	AutoAway		-1
         AutoAwayMsg		"no activity"
 	AutoBookmark		0
@@ -6998,6 +7003,7 @@ proc ::tkchat::PreferencesPage {parent} {
     set EditOptions(Browser)         $Options(Browser)
     set EditOptions(BrowserTab)      $Options(BrowserTab)
     set EditOptions(Style)           $Options(Style)
+    set EditOptions(AskBeforeQuit)   $Options(AskBeforeQuit)
     set EditOptions(AutoFade)        $Options(AutoFade)
     set EditOptions(AutoFadeLimit)   $Options(AutoFadeLimit)
     set EditOptions(Transparency)    $Options(Transparency)
@@ -7029,6 +7035,8 @@ proc ::tkchat::PreferencesPage {parent} {
         -variable ::tkchat::EditOptions(ClickFocusEntry) -onvalue 1
     ${NS}::checkbutton $af.lpc -text "Log private chat" -offvalue 0 \
         -variable ::tkchat::EditOptions(LogPrivateChat) -onvalue 1
+    ${NS}::checkbutton $af.abq -text "Ask before exiting" -offvalue 0 \
+        -variable ::tkchat::EditOptions(AskBeforeQuit) -onvalue 1
     ${NS}::label $af.aal -text "Inactive message" -underline 0 \
         -anchor ne
     ${NS}::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
@@ -7054,6 +7062,8 @@ proc ::tkchat::PreferencesPage {parent} {
             on the main chat widget."
         tooltip::tooltip $af.lpc "Enable logging of private chat conversations\
             to a per-remote-user file in ~/.tkchat_logs."
+        tooltip::tooltip $af.abq "Display a confirmation dialog before\
+            exiting to permit the user to cancel an accidental quit."
     }
     
     bind $dlg <Alt-s> [list $af.store invoke]
@@ -7066,6 +7076,7 @@ proc ::tkchat::PreferencesPage {parent} {
     grid $af.catz    -   -sticky ew -padx 2
     grid $af.cfe     -   -sticky ew -padx 2
     grid $af.lpc     -   -sticky ew -padx 2
+    grid $af.abq     -   -sticky ew -padx 2
     grid $af.aal $af.aae -sticky ew -padx 2
     grid columnconfigure $af 1 -weight 1
 
@@ -7178,7 +7189,7 @@ proc ::tkchat::PreferencesPage {parent} {
 	set Options(Browser) $EditOptions(Browser)
 	set Options(BrowserTab) $EditOptions(BrowserTab)
 	foreach property {Style AutoFade AutoFadeLimit UseTkOnly
-            AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages 
+            AskBeforeQuit AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages
             ClickFocusEntry LogPrivateChat ShowNormalInline} {
 	    if { $Options($property) ne $EditOptions($property) } {
 		set Options($property) $EditOptions($property)

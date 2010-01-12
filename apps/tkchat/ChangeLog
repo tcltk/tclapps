@@ -1,3 +1,8 @@
+2010-01-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch 2913790 to add an option not to get
+	queried when exiting and enable /quit when not logged in (stu)
+
 2010-01-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Fix buggy initialization of the browser list
