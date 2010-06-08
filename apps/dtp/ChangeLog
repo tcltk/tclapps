@@ -1,3 +1,9 @@
+2010-06-08  Andreas Kupries  <andreask@activestate.com>
+
+	* lib/dtglue/dtglue.tcl (::dtglue::cvtfiles): Updated to accept
+	* lib/app-gen-doc/gen_doc.tcl (::app-gen-doc::run): an image map
+	  for use by the new 'image' markup command of doctools.
+
 2004-05-17  Andreas Kupries  <andreas_kupries@users.sourceforge.net>
 
 	* main.tcl: Implemented [SF Tcllib RFE 744109]. I.e. now diverting

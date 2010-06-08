@@ -65,9 +65,22 @@ proc ::dtglue::cvtstring {format data {fileinfo {}}} {
 
 # ------------------------------------------------------
 
-proc ::dtglue::cvtfiles {format iomap para subst} {
+proc ::dtglue::cvtfiles {format iomap imgmap para subst} {
     Setup dt $format $para
-    foreach {sym actual} $iomap {dt map $sym $actual}
+
+    foreach {sym actual} $iomap {
+	dt map $sym $actual
+    }
+
+    foreach {fin fout} $imgmap {
+	set plist [file split $fin]
+	while {[llength $plist]} {
+	    set key   [join $plist /]
+	    set plist [lrange $plist 1 end]
+
+	    dt img $key $fin $fout
+	}
+    }
 
     #array set ns $navspec
     array set pa $para

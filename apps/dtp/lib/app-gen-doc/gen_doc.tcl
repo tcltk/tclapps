@@ -26,6 +26,12 @@ the chosed output [arg format].
 The conversion can be influenced by the options listed below.
 
 [list_begin definitions]
+
+[lst_item "[option -imgmap] [arg file]"]
+
+This option is used to set the mapping of image input files
+contained in the [arg file].
+
 [lst_item "[option -varstring] [arg varname] [arg string]"]
 
 This option is used to set format/engine specific parameters to some
@@ -80,15 +86,23 @@ proc ::app-gen-doc::help {topic} {
 # Implementation of cmdline functionality.
 
 proc ::app-gen-doc::run {argv} {
-    set errstring "wrong#args: gen-doc ?-varstring var string? ?-varfile var file? ?-subst var mark link? format iomap ?meta?"
+    set errstring "wrong#args: gen-doc ?-imgmap imapfile? ?-varstring var string? ?-varfile var file? ?-subst var mark link? format iomap ?meta?"
 
     if {[llength $argv] < 2} {tools::usage $errstring}
 
+    set imapfile ""
     set mapfile ""
     array set para {}
     set subst {}
 
     while {[string match -* [lindex $argv 0]]} {
+	if {[string equal [lindex $argv 0] -imgmap]} {
+	    if {[llength $argv] < 4} {tools::usage $errstring}
+
+	    set imapfile [lindex $argv 1]
+	    set argv     [lrange $argv 2 end]
+	    continue
+	}
 	if {[string equal [lindex $argv 0] -varstring]} {
 	    if {[llength $argv] < 5} {tools::usage $errstring}
 
@@ -130,6 +144,12 @@ proc ::app-gen-doc::run {argv} {
     set                   format  [lindex $argv 0]
     optcheck::infile [set mapfile [lindex $argv 1]] "Mapping file"
 
+    set imap {}
+    if {$imapfile != {}} {
+	optcheck::infile $imapfile "Image Mapping file"
+	set imap [tools::readmap $imapfile]
+    }
+
     set iomap {}
 
     if {[llength $argv] == 3} {
@@ -170,7 +190,7 @@ proc ::app-gen-doc::run {argv} {
 	unset __ _
     }
 
-    dtglue::cvtfiles $format $iomap [array get para] $subst
+    dtglue::cvtfiles $format $iomap $imap [array get para] $subst
     return
 }
 
