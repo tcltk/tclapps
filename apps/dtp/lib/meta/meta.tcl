@@ -31,6 +31,7 @@ proc ::meta::MP {data} {
 namespace eval ::meta {
     variable off
     foreach {k n} {
+	category  2
 	shortdesc 1
 	keywords  2
 	seealso   3
@@ -89,6 +90,8 @@ proc ::meta::2xref {data iomap} {
 	lappend res [list sa,${__(title)}($__(section)) $symfile]
 	lappend res [list ${__(title)}                  $symfile]
 	lappend res [list ${__(title)}($__(section))    $symfile]
+	lappend res [list ${__(desc)}                   $symfile]
+
 
 	if {$hasindex} {
 	    # Store an inverted file - keyword relationship

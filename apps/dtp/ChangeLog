@@ -1,3 +1,10 @@
+2010-06-11  Andreas Kupries  <andreask@activestate.com>
+
+	* lib/meta/meta.tcl (::meta::2xref): Added the page title to the
+	  list of things we can reference to in term's etc. dtplite had
+	  this for quite some time, the big brother should have it as
+	  well.
+
 2010-06-08  Andreas Kupries  <andreask@activestate.com>
 
 	* lib/dtglue/dtglue.tcl (::dtglue::cvtfiles): Updated to accept
