@@ -165,6 +165,17 @@ proc ::dtglue::getmeta {files} {
 	    # the final result.
 
 	    foreach {__ fmeta} [string trim [dt format [tools::getfile $f]]] break
+
+	    set tmp {}
+	    foreach {k v} $fmeta {
+		# Trim leading/trailing whitespace.
+		# And put everything on a single line.
+
+		regsub -all -- "\[ \t\n\]+" $v { } v
+                set v [string trim $v]
+		lappend tmp $k $v
+	    }
+	    set     fmeta $tmp
 	    lappend fmeta path $f
 
 	    append meta [list manpage $fmeta]\n

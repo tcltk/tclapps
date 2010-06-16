@@ -1,3 +1,8 @@
+2010-06-16  Andreas Kupries  <andreask@activestate.com>
+
+	* lib/dtglue/dtglue.tcl (::dtglue::getmeta): Force all data on a
+	  single line. The code processing the data later are line-based.
+
 2010-06-11  Andreas Kupries  <andreask@activestate.com>
 
 	* lib/meta/meta.tcl (::meta::2xref): Added the page title to the
