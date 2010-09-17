@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.480 2010/01/12 20:46:03 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.481 2010/09/17 10:13:51 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -4216,10 +4216,13 @@ proc ::tkchat::checkCommand { msg } {
 	{^/!} {
 	    resetSearch
 	}
-	{^/(urn:)?tip[: ]\d+} {
+	{^/(urn:)?tip\M} {
 	    if {[regexp {(?:urn:)?tip[: ](\d+)} $msg -> tip]} {
 		gotoURL http://tip.tcl.tk/$tip
-	    }
+                addStatus 0 "Opening TIP \#$tip in your browser..."
+            } else {
+                addStatus 0 "usage: /tip <tip number>"
+            }
 	}
 	{^/bug[: ]} {
 	    doBug [split $msg ": "]
@@ -4437,7 +4440,13 @@ proc ::tkchat::checkCommand { msg } {
                     "error: must be /ban nick ?reason ...?"
             }
         }
+        {^/[^/]} {
+            regexp {^\S+} $msg cmd
+            ::tkchat::addStatus 0 \
+                "no such command: \"$cmd\". Please use // to post a line starting with /."
+        }
 	default {
+            regsub {^//} $msg / msg
 	    if {![checkAlias $msg]} then {
 		# might be server command - pass it on
 		switch $Options(ServerLogging) {

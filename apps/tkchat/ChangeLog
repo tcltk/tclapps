@@ -1,3 +1,11 @@
+2010-09-17  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::checkCommand):
+	A single / at the start of a post is now rejected if it is not a
+	known command. To send a literal slash at the beginning of a post,
+	it has to be doubled.
+	Improved detection and handling of the /tip command.
+	 	
 2010-01-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
 
 	* tkchat.tcl: Do not show the browser fields on the preferences
