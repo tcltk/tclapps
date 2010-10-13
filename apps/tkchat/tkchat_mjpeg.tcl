@@ -62,6 +62,7 @@ proc ::tkchat::mjpeg::Read {dlg fd tok} {
             fconfigure $fd -buffering line -translation crlf
 	    gets $fd line
 	    if {[string match "${boundary}*" $line]} {set state mime; set hdrs {}}
+	    if {[string match "--${boundary}*" $line]} {set state mime; set hdrs {}}
             return [string length $line]
 	}
 	mime {
