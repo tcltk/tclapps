@@ -18,15 +18,18 @@
 package require Tk
 package require http
 package require htmlparse
+package require textutil
 
 namespace eval ::dict.leo.org {
 
     namespace export query askLEO askLEOforSelection
 
+    namespace import ::textutil::adjust
+
     variable dialog .leo
-    variable table ""
-    variable last  ""
-    variable Query ""
+    variable table     ""
+    variable Query     ""
+    variable lastQuery ""
     variable td
     variable tdcounter 0
     variable leoURL http://pda.leo.org
@@ -65,7 +68,7 @@ proc ::dict.leo.org::query {query} {
     ::http::config -urlencoding iso8859-15
     set query [::http::formatQuery search $query]
     ::http::config -urlencoding $enc
-    set tok [::http::geturl $leoURL -query $query]
+    set tok [::http::geturl $leoURL/?$query]
     foreach line [split [::http::data $tok] "\n"] {
 	if {[string match "*ENGLISCH*DEUTSCH*" $line]} break
     }
@@ -78,48 +81,57 @@ proc ::dict.leo.org::query {query} {
 proc ::dict.leo.org::max {a b} {expr {$a > $b ? $a : $b}}
 
 proc ::dict.leo.org::askLEOforSelection {} {
-    if {![catch {selection get} query]} {
-	askLEO $query
+    if {[catch {selection get} query]} {
+        set query ""
     }
+    askLEO $query
 }
 
 proc ::dict.leo.org::askLEO {{query {}}} {
 
     variable dialog
     variable textwidget
-    variable last
+    variable lastQuery
     variable Query
+    variable table
+
+    set w $textwidget
     set query [string trim $query]
-    if { $query ne "" } {
+
+    if {$query ne ""} {
 	set Query $query
     }
-    if { $Query ne $last } {
-        set w $textwidget
+    if {$Query ne $lastQuery} {
+        set lastQuery $Query
 	$w configure -state normal
 	$w delete 1.0 end
 	$w configure -state disabled
-	if {$Query != ""} {
-	    $w configure -cursor watch
-	    update
-	    set table [dict.leo.org::query $Query]
-	    set max 0
-	    foreach c $table {set max [max $max [string length $c]]}
-	    $w configure -state normal
-	    if {$max} {
-		set sep [string repeat = $max]
-		set table [linsert $table 0 " English" " Deutsch" $sep $sep]
-		foreach {c1 c2} $table {
-		    $w insert end [format "%-*s  %-*s\n" $max $c1 $max $c2]
-		}
-	    } else {
-		$w insert end {No matches}
-	    }
-	    $w configure -state disabled
-	    if {![winfo ismapped $dialog]} {wm deiconify $dialog} else {raise $dialog}
-	    $w configure -cursor ""
-	}
+        $w configure -cursor watch
+        update
+        set table [dict.leo.org::query $Query]
+        set max 39
+        $w configure -state normal
+        set sep [string repeat = $max]
+        if {![llength $table]} {
+            $w insert end {No matches}
+        } else {
+            set table [linsert $table 0 " English" " Deutsch" $sep $sep]
+        }
+        foreach {c1 c2} $table {
+            set a1 [split [adjust $c1 -length $max] "\n"]
+            set a2 [split [adjust $c2 -length $max] "\n"]
+            set indent ""
+            foreach l1 $a1 l2 $a2 {
+                set l1 $indent$l1
+                set l2 $indent$l2
+                $w insert end [format "%-*s  %-*s\n" $max $l1 $max $l2]
+                set indent "  "
+            }
+        }
     }
-    set last $Query
+    $w configure -state disabled
+    if {![winfo ismapped $dialog]} {wm deiconify $dialog} else {raise $dialog}
+    $w configure -cursor ""
 }
 
 proc ::dict.leo.org::init {} {
@@ -139,7 +151,8 @@ proc ::dict.leo.org::init {} {
 
     set f [${NS}::frame $dialog.main]
     ${NS}::frame  $f.top
-    ${NS}::entry  $f.top.ent -background white -textvariable [namespace current]::Query
+    ${NS}::entry  $f.top.ent -background white -font {Helvetica 12} \
+        -textvariable [namespace current]::Query
     ${NS}::button $f.top.but -text "ask LEO" -command [namespace code askLEO]
 
     grid $f.top.ent $f.top.but -sticky news
@@ -148,7 +161,7 @@ proc ::dict.leo.org::init {} {
     ${NS}::frame $f.bot
     ${NS}::scrollbar $f.bot.vs -command [list $f.bot.text yview]
     ${NS}::scrollbar $f.bot.hs -orient horizontal -command [list $f.bot.text xview]
-    set textwidget [text $f.bot.text -wrap no -font fixed -state disabled \
+    set textwidget [text $f.bot.text -wrap no -font {{Dejavu Sans Mono} -14} -state disabled \
                         -yscrollcommand [list $f.bot.vs set] \
                         -xscrollcommand [list $f.bot.hs set]]
     grid $f.bot.text $f.bot.vs -sticky news

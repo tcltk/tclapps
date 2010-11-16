@@ -1,3 +1,8 @@
+2010-11-16  Reinhard Max  <max@suse.de>
+
+	* askleo/askleo.tcl: Adjust code to the latest API changes on
+	http://pda.leo.org and improve the UI.
+
 2010-09-17  Reinhard Max  <max@suse.de>
 
 	* tkchat.tcl (::tkchat::checkCommand):
