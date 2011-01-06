@@ -1,3 +1,8 @@
+2011-01-06  Reinhard Max  <max@suse.de>
+
+	* askleo/askleo.tcl: Complete the API adjustments and add support
+	for running askleo.tcl as a standalone application.
+
 2010-11-16  Reinhard Max  <max@suse.de>
 
 	* askleo/askleo.tcl: Adjust code to the latest API changes on

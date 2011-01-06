@@ -43,14 +43,20 @@ proc ::dict.leo.org::parse {tag close options body} {
     switch -- $close$tag {
 
 	/TR - /tr {
-	    if {[info exists td(2)] && [info exists td(3)]} {
-		lappend table [string trim $td(2)] [string trim $td(3)]
+	    if {[info exists td(1)] && [info exists td(2)]} {
+		lappend table [string trim $td(1)] [string trim $td(2)]
 	    }
 	    set tdcounter 0
 	    array unset td
 	}
 
-	td - td { incr tdcounter }
+	TD - td {
+            incr tdcounter
+	    set item [htmlparse::mapEscapes $body]
+	    if {[string length $item]} {
+		append td($tdcounter) $item
+	    }
+        }
 
 	default {
 	    set item [htmlparse::mapEscapes $body]
@@ -134,7 +140,7 @@ proc ::dict.leo.org::askLEO {{query {}}} {
     $w configure -cursor ""
 }
 
-proc ::dict.leo.org::init {} {
+proc ::dict.leo.org::init {{standalone 0}} {
     variable dialog
     variable textwidget
     variable LEOlogo
@@ -145,9 +151,13 @@ proc ::dict.leo.org::init {} {
     image create photo LEOlogo -data $LEOlogo
     
     toplevel $dialog -class AskLEO
-    wm withdraw $dialog
     wm title $dialog "askLEO"
-    wm protocol $dialog WM_DELETE_WINDOW [list wm withdraw $dialog]
+    if {$standalone} {
+	wm protocol $dialog WM_DELETE_WINDOW exit
+    } else {
+	wm withdraw $dialog
+	wm protocol $dialog WM_DELETE_WINDOW [list wm withdraw $dialog]
+    }
 
     set f [${NS}::frame $dialog.main]
     ${NS}::frame  $f.top
@@ -180,7 +190,9 @@ proc ::dict.leo.org::init {} {
 
     bind $f.top.ent <Return> [list $f.top.but invoke]
     bind $f.bot.text <Button-2> [namespace code askLEOforSelection]
-    bind $dialog <Double-Button-3> [list wm withdraw $dialog]
+    if {!$standalone} {
+	bind $dialog <Double-Button-3> [list wm withdraw $dialog]
+    }
     focus $f.top.ent
 }
 
@@ -222,3 +234,10 @@ set ::dict.leo.org::LEOlogo {
 }
 
 package provide askleo 1.1
+
+if {$argv0 eq [info script]} {
+    # We're running standalone
+    package require askleo
+    ::dict.leo.org::init 1
+    wm withdraw .
+}
