@@ -1,3 +1,8 @@
+2011-03-23  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::parseStr): Render words of 10..40
+	characters as links to fossil artifact IDs on core.tcl.tk.
+	
 2011-01-06  Reinhard Max  <max@suse.de>
 
 	* askleo/askleo.tcl: Complete the API adjustments and add support

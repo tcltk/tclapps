@@ -279,7 +279,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.481 2010/09/17 10:13:51 rmax Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.482 2011/03/23 17:31:26 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1036,12 +1036,13 @@ proc ::tkchat::parseStr {str} {
     }
     set out {}
     variable TipIndex
-    # Assume any 6 or 7-digit sequence is a SF bug id and make URLs for them
     foreach {str url} $sList {
 	if {[string length $url]} {
 	    lappend out $str $url {}
 	    continue
 	}
+        # Assume any 6 or 7-digit sequence is a SF bug id and make
+        # URLs for them
 	while {[regexp -- {^(.*?)(\m[0-9]{6,7}\M)(.*?)$} \
 		    $str -> pre id post]} {
 	    if {[string length $pre]} {
@@ -1051,6 +1052,18 @@ proc ::tkchat::parseStr {str} {
 	    lappend out $id $url $url
 	    set str $post
 	}
+        # Render words of 10..40 characters as links to fossil
+        # artifact IDs on core.tcl.tk
+        while {[regexp -- {^(.*?)(\m[[:xdigit:]]{10,40}\M)(.*?)$} \
+                    $str -> pre id post]} {
+            if {[string length $pre]} {
+                lappend out $pre {} {}
+            }
+            set url "http://core.tcl.tk/redirect?name=$id"
+            lappend out $id $url $url
+            set str $post
+        }
+        # Detect the mentioning of TIPs and link to them
         while {[regexp -- {^(.*?)[Tt][Ii][Pp]\s?\#?(\d+)(.*?)$} $str -> pre id post]} {
             if {[string length $pre]} { lappend out $pre {} {} }
             set tt ""
