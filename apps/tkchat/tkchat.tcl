@@ -92,43 +92,6 @@ if { ![catch { tk inactive }] } {
     proc ::idle::supported {} {return 0}
 }
 
-# enable OSX-specific (un-hide window) alerting if available
-if {[tk windowingsystem] eq "aqua"} {
-    if {[catch {package present Ffidl 0.6}]} {
-	# look for ffidl.kit
-	if {[set ffidl [auto_execok ffidl.kit]] ne ""} {
-		source $ffidl
-	} elseif {[info exists starkit::topdir]} {
-		# look next to tkchat.kit/tkchat.vfs
-		set ffidl [file join [file dirname $starkit::topdir] ffidl.kit]
-		if {[file exists $ffidl]} {
-			source $ffidl
-		}
-	} else {
-		# look next to tkchat.tcl
-		set ffidl [file join $tkchat_dir ffidl.kit]
-		if {[file exists $ffidl]} {
-			source $ffidl
-		}
-	}
-    }
-    if {![catch {package require Ffidl 0.6}]} {
-        # Ffidl code + carbon hooks courtesy of Daniel Steffen - see
-        # http://wiki.tcl.tk/ffidl
-        catch {
-            # hooks to Carbon API to set application name
-            ::ffidl::callout CPSSetProcessName {pointer-byte pointer-utf8} \
-                            sint32 \
-                [::ffidl::symbol /System/Library/Frameworks/ApplicationServices.framework/Frameworks/CoreGraphics.framework/CoreGraphics CPSSetProcessName]
-              CPSSetProcessName [binary format n2 {0 2}] "TkChat"
-
-            # hooks to Carbon API to Show + Hide process
-            ::ffidl::callout ShowHideProcess {pointer-byte int} sint32 \
-                    [::ffidl::symbol /System/Library/Frameworks/Carbon.framework/Carbon ShowHideProcess]
-        }
-    }
-}
-
 # 8.4 doesn't provide this - we use it for i18n on menus.
 if {[llength [info commands ::tk::AmpMenuArgs]] == 0} {
     proc ::tk::AmpMenuArgs {widget add type args} {
@@ -297,7 +260,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.483 2011/05/12 21:25:58 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.484 2011/05/16 17:14:28 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1169,7 +1132,7 @@ proc ::tkchat::checkNickWidth { nick } {
 # to alert in a row and we want to batch them all together into one
 # action.
 #
-proc ::tkchat::alertWhenIdle { w } {
+proc ::tkchat::alertWhenIdle {w nick msg} {
     variable alert_pending
 
     if { ![info exists alert_pending] } {
@@ -1178,22 +1141,21 @@ proc ::tkchat::alertWhenIdle { w } {
 	    .txt mark set AddBookmark "end - 1 line linestart"
 	    BookmarkToggle auto
 	}
-	after idle [list [namespace origin alertCallback] $w]
+        set top [winfo toplevel $w]
+        set focused [expr {[llength [focus -displayof $top]] != 0}]
+        after idle [list [namespace origin Hook] run \
+                        alert $w $focused $nick $msg]
     }
 }
 
-proc ::tkchat::alertCallback {w} {
+proc ::tkchat::alertCallback {w focused nick msg} {
     global Options
     variable alert_pending
 
     set top [winfo toplevel $w]
     unset -nocomplain alert_pending
-    if {$Options(Alert,RAISE) && [llength [focus -displayof $top]]==0} {
+    if {$Options(Alert,RAISE) && !$focused} {
 	# Only call this if the window doesn't already have focus
-        if {[tk windowingsystem] eq "aqua" \
-            && [llength [package provide Ffidl]] > 0} {
-            ShowHideProcess [binary format n2 {0 2}] 1
-        }
 	wm deiconify $top
 	raise $top
     }
@@ -1243,7 +1205,7 @@ proc ::tkchat::checkAlert { w msgtype nick msg } {
 	}
     }
     if { $alert } {
-	alertWhenIdle $w
+	alertWhenIdle $w $nick $msg
     }
     set LastPost($nick) $now
     return $subjectFound
@@ -1456,6 +1418,7 @@ proc ::tkchat::Insert { w str tags url mark } {
 #  init hooks are called after gui creation before login
 #  login hooks are called after login to the jabber server
 #  join hooks are called after successfully joining a conference
+#  alert hooks are called when the user should be notified offline
 #  version hooks are called once we get the current version from the web
 #  save hook are called when saving options to file.
 #  options hooks are called to add pages to the Preferences dialog
@@ -1466,12 +1429,14 @@ proc ::tkchat::Hook {do type args} {
         init    { set Hook [namespace current]::InitHooks }
         login   { set Hook [namespace current]::LoginHooks }
         join    { set Hook [namespace current]::JoinHooks }
+        alert   { set Hook [namespace current]::AlertHooks }
         version { set Hook [namespace current]::VersionHooks }
         save    { set Hook [namespace current]::SaveHooks }
         options { set Hook [namespace current]::OptionsHooks }
 	default {
 	    return -code error "unknown hook type \"$type\":\
-                must be message, preinit, init, login, join, version, options or save"
+                must be message, preinit, init, login, join, alert,\
+                version, options or save"
 	}
     }
     switch -exact -- $do {
@@ -2816,8 +2781,14 @@ proc ::tkchat::CreateGUI {} {
     ## Help Menu
     ##
     set m .mbar.help
-    tk::AmpMenuArgs $m add command -label [mc "&Quick Help..."] \
-        -command [list [namespace origin Help]]
+    if {[tk windowingsystem] == "aqua"} {
+        proc ::tk::mac::ShowHelp {} {
+            ::tkchat::Help
+        }
+    } else {
+        tk::AmpMenuArgs $m add command -label [mc "&Quick Help..."] \
+            -command [list [namespace origin Help]]
+    }
     tk::AmpMenuArgs $m add command -label [mc "Help (&wiki)..."] \
         -command [list [namespace origin gotoURL] http://wiki.tcl.tk/tkchat]
     $m add separator
@@ -2877,7 +2848,12 @@ proc ::tkchat::CreateGUI {} {
 
     CreateTxtAndSbar
 
-    bind .txt <Button-3> [namespace code [list OnTextPopup %W %x %y]]
+    # button-3 is the scrollwheel on Aqua -- button-2 is better for this
+    if { [tk windowingsystem] eq "aqua"} {
+        bind .txt <Button-2> [namespace code [list OnTextPopup %W %x %y]]
+    } else {
+        bind .txt <Button-3> [namespace code [list OnTextPopup %W %x %y]]
+    }
     bind .txt <Button-1> [namespace code [list OnTextFocus %W]]
 
     # user display
@@ -2922,7 +2898,12 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <Key-Next>	{ .txt yview scroll  1 pages }
     bind .eMsg <Shift-Key-Up>   { .txt yview scroll -1 units }
     bind .eMsg <Shift-Key-Down> { .txt yview scroll  1 units }
-    bind .eMsg <Button-3>       [namespace code [list OnEntryPopup %W %X %Y]]
+    # button-3 is the scrollwheel on Aqua -- button-2 is better for this
+    if { [tk windowingsystem] eq "aqua"} {
+        bind .eMsg <Button-2>   [namespace code [list OnEntryPopup %W %X %Y]]
+    } else {
+        bind .eMsg <Button-3>   [namespace code [list OnEntryPopup %W %X %Y]]
+    }
 
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
@@ -3293,7 +3274,12 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
 
     set post [list ::tkchat::userPostOneToOne $parent $jid]
 
-    bind $parent.txt  <Button-3>  { ::tkchat::OnTextPopup %W %x %y }
+    # button-3 is the scrollwheel on Aqua -- button-2 is better for this
+    if { [tk windowingsystem] eq "aqua"} {
+        bind $parent.txt <Button-2> { ::tkchat::OnTextPopup %W %x %y }
+    } else {
+        bind $parent.txt <Button-3> { ::tkchat::OnTextPopup %W %x %y }
+    }
     bind $parent.eMsg <Return>	  $post
     bind $parent.eMsg <KP_Enter>  $post
     $parent.post configure -command $post
@@ -3614,7 +3600,7 @@ proc ::tkchat::About {} {
     $w.text insert end \
 	"TkChat v$rcsVersion\n" title "$ver\n\n" {h1 center} \
 	"$rcsid\n\n" center \
-	[mc "Copyright (c) %s by following authors:" "2001-2008"] {} "\n\n" {}
+	[mc "Copyright (c) %s by following authors:" "2001-2011"] {} "\n\n" {}
 
     lappend txt "Bruce B Hartweg"       "<brhartweg@bigfoot.com>"
     lappend txt "Don Porter"		"<dgp@users.sourceforge.net>"
@@ -3631,6 +3617,7 @@ proc ::tkchat::About {} {
     lappend txt "Daniel South"		"<wildcard_25@users.sourceforge.net>"
     lappend txt "Steve Landers"		"<steve@digitalsmarties.com>"
     lappend txt "Elchonon Edelson"	"<eee@users.sourceforge.net>"
+    lappend txt "Kevin Walzer"          "<kw@codebykevin.com>"
 
     insertHelpText $w.text $txt
 
@@ -5502,7 +5489,7 @@ proc ::tkchat::quit {} {
         set q [mc "Are you sure you want to quit?"]
         set a [tk_messageBox -type yesno -default yes \
                    -title [mc "Tkchat confirm quit"] \
-                   -message $q]
+                   -message $q -icon info]
     }
     if { $a eq "yes" } {
         ::tkchat::saveRC
@@ -6100,6 +6087,10 @@ proc ::tkchat::Init {args} {
     set nologin 0
     set tkonly $Options(UseTkOnly)
     while {[string match -* [set option [lindex $args 0]]]} {
+        if {[tk windowingsystem] eq "aqua" && [string match -psn* $option]} {
+            Pop args
+            continue
+        }
 	switch -exact -- $option {
 	    -nologin   { set nologin 1 }
 	    -tkonly    { set tkonly 1 }
@@ -6190,7 +6181,8 @@ proc ::tkchat::Init {args} {
 	.txt tag configure $tag -elide $Options($idx)
     }
 
-    Hook add message [namespace origin IncrMessageCounter]
+    Hook add alert [namespace origin alertCallback] 40
+    Hook add message [namespace origin IncrMessageCounter] 40
     BookmarkInit
 
     Hook run init
@@ -9124,8 +9116,13 @@ proc ::tkchat::updateOnlineNames {} {
 		.pane.names insert $mark "$nick\n" \
 			[list NICK NICK-$nick URL-[incr ::URLID]]
 	    }
-	    .pane.names tag bind URL-$::URLID <Button-3> \
+            if {[tk windowingsystem] eq "aqua"} {
+                .pane.names tag bind URL-$::URLID <Button-2> \
 		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
+            } else {
+                .pane.names tag bind URL-$::URLID <Button-3> \
+		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
+            }
 	    .pane.names tag bind URL-$::URLID <Control-Button-1> \
 		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
 	}
@@ -9750,7 +9747,8 @@ proc ::tkjabber::getChatWidget { jid from } {
     if { [info exists ChatWindows(toplevel.$jid)] } {
 	if { ![string match "$ChatWindows(toplevel.$jid)*" [focus]] } {
 	    wm title $ChatWindows(toplevel.$jid) "* $ChatWindows(title.$jid)"
-	    ::tkchat::alertWhenIdle $ChatWindows(txt.$jid)
+	    ::tkchat::alertWhenIdle $ChatWindows(txt.$jid) $from \
+                "Chat message from $from <$jid>"
 	}
     }
 
@@ -10025,8 +10023,12 @@ proc tkchat::PasteDlg {} {
     $m add command -label [mc "Clear"] -command [list $f.txt delete 0.0 end]
     $m add command -label [mc "Eval in whiteboard"] \
         -command [list [namespace origin PasteEval] $dlg]
-    bind $f.txt <Button-3> [list tk_popup $m %X %Y]
-    
+    if {[tk windowingsystem] eq "aqua"} {
+        bind $f.txt <Button-2> [list tk_popup $m %X %Y]
+    } else {
+        bind $f.txt <Button-3> [list tk_popup $m %X %Y]
+    }
+
     bind $dlg <Key-Escape> [list $cancel invoke]
     pack $f2.lbl -side left
     pack $subject -side right -fill x -expand 1
