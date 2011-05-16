@@ -260,7 +260,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.484 2011/05/16 17:14:28 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.485 2011/05/16 17:17:57 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -1137,22 +1137,22 @@ proc ::tkchat::alertWhenIdle {w nick msg} {
 
     if { ![info exists alert_pending] } {
 	set alert_pending 1
-	if { $::Options(AutoBookmark) && $w eq ".txt" && [focus] == {} } {
+        set focused [expr {[focus -displayof [winfo toplevel $w]] ne {}}]
+	if { $::Options(AutoBookmark) && $w eq ".txt" && !$focused } {
 	    .txt mark set AddBookmark "end - 1 line linestart"
 	    BookmarkToggle auto
 	}
-        set top [winfo toplevel $w]
-        set focused [expr {[llength [focus -displayof $top]] != 0}]
-        after idle [list [namespace origin Hook] run \
-                        alert $w $focused $nick $msg]
+        after idle [list [namespace origin Hook] run alert $w $nick $msg]
     }
 }
 
-proc ::tkchat::alertCallback {w focused nick msg} {
+# Stock alert hook: raise app and/or sound bell depending on options.
+proc ::tkchat::alertCallback {w nick msg} {
     global Options
     variable alert_pending
 
     set top [winfo toplevel $w]
+    set focused [expr {[focus -displayof $top] ne {}}]
     unset -nocomplain alert_pending
     if {$Options(Alert,RAISE) && !$focused} {
 	# Only call this if the window doesn't already have focus

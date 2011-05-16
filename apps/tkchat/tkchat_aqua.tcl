@@ -27,16 +27,18 @@ proc ::tkchat::aqua::InitHook {} {
     InitAlertMenu
 }
 
-proc ::tkchat::aqua::AlertHook {w raise nick msg} {
+proc ::tkchat::aqua::AlertHook {w nick msg} {
     global Options
     variable growl
     variable tkdock
     variable Resources
-    if {$raise && $growl && $Options(Alert,GROWL)} {
-        growl::message TkChat "Message from $nick" $msg
-    }
-    if {$tkdock} {
-        ::tkdock::switchIcon $Resources/tkchat_warn.icns
+    if {[focus -displayof [winfo toplevel $w]] eq {}} {
+        if {$growl && $Options(Alert,GROWL)} {
+            growl::message TkChat "Message from $nick" $msg
+        }
+        if {$tkdock} {
+            ::tkdock::switchIcon $Resources/tkchat_warn.icns
+        }
     }
 }
 
