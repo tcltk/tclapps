@@ -260,7 +260,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.485 2011/05/16 17:17:57 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.486 2011/05/17 23:27:19 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -9748,7 +9748,7 @@ proc ::tkjabber::getChatWidget { jid from } {
 	if { ![string match "$ChatWindows(toplevel.$jid)*" [focus]] } {
 	    wm title $ChatWindows(toplevel.$jid) "* $ChatWindows(title.$jid)"
 	    ::tkchat::alertWhenIdle $ChatWindows(txt.$jid) $from \
-                "Chat message from $from <$jid>"
+                "New message from $from"
 	}
     }
 
