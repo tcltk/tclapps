@@ -47,8 +47,16 @@ set tkchat_dir [file dirname [file normalize $script]]
 set imgdir [file join $tkchat_dir images]
 set auto_path [linsert $::auto_path 0 $tkchat_dir [file join $tkchat_dir lib]]
 
-package require Tcl 8.4		; # core Tcl
-package require Tk  8.4		; # core Tk
+# core Tcl use peer widget for seperate history if available
+if {[catch {package require Tcl 8.5}]} {
+    package require Tcl 8.4
+    package require Tk 8.4
+    set has_peer 0
+} else {
+    package require Tk 8.5
+    set has_peer 1
+}
+
 package require http 2		; # core Tcl
 package require msgcat		; # core Tcl
 package require textutil	; # tcllib 1.0
@@ -260,7 +268,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.486 2011/05/17 23:27:19 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.487 2011/09/29 19:03:10 andreas_kupries Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -704,6 +712,7 @@ proc ::tkchat::HistoryPaneToggle {} {
     # ... Or make the window invisible clearing it from all content
     
     variable useTile
+    global has_peer
     # remember current position in window:
     set fraction [lindex [.txt yview] 1]
     if {[winfo ismapped .cframe]} {
@@ -711,7 +720,9 @@ proc ::tkchat::HistoryPaneToggle {} {
 	.pane2 forget .cframe
 	update idletasks
 	.clone configure -state normal
-	.clone delete 1.0 end
+        if {!$has_peer} {
+            .clone delete 1.0 end
+        }
 	.mbar.vis entryconfigure "*current history*" -state normal
     } else {
 	# fill clone and display it:
@@ -720,7 +731,9 @@ proc ::tkchat::HistoryPaneToggle {} {
 	} else {
 	    .pane2 add .cframe -before .txtframe
 	}
-	::tkchat::textClone .txt .clone
+        if {!$has_peer} {
+            ::tkchat::textClone .txt .clone
+        }
 	.clone configure -state disabled
 	.mbar.vis entryconfigure "*current history*" -state disabled
     }
@@ -2963,8 +2976,8 @@ proc ::tkchat::CreateGUI {} {
     
     # text widget to view history:
     # FIX ME: be nice to have a little theme-specific tab close button here.
-    # FIX ME: this should use the text widget clone feature if available.
     variable useClosebutton
+    global has_peer
     ${NS}::frame .cframe -relief groove
     if {$useClosebutton} {
         if {[catch {
@@ -2974,7 +2987,12 @@ proc ::tkchat::CreateGUI {} {
         ${NS}::button .cbtn -text [mc "Close history pane"]
     }
     .cbtn configure -command ::tkchat::HistoryPaneToggle
-    ScrolledWidget text .clone 0 1 \
+    if {$has_peer} {
+      set widget_command {.txt peer create}
+    } else {
+      set widget_command text
+    }
+    ScrolledWidget $widget_command .clone 0 1 \
 	-wrap word -background #f0f0f0 -relief sunken -borderwidth 2 \
 	-font FNT -cursor left_ptr -height 1
     .clone tag bind URL <Enter> [list .clone configure -cursor hand2]
