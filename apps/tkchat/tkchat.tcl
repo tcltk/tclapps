@@ -268,7 +268,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.487 2011/09/29 19:03:10 andreas_kupries Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.488 2012/01/23 20:35:17 patthoyts Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -8493,7 +8493,7 @@ proc ::tkjabber::get_caps_ver {} {
     # extended feature processing as well (order counts)
     append S "urn:xmpp:dataforms:softwareinfo<"
     append S "os<$tcl_platform(os)<"
-    append S "os_version<$tcl_platform(osVersion)"
+    append S "os_version<$tcl_platform(osVersion)<"
     append S "software<tkchat<software_version<$tkchatver<"
     return [base64::encode -maxlen 0 [sha1::sha1 -bin $S]]
 }
