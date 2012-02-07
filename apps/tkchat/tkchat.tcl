@@ -268,7 +268,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.488 2012/01/23 20:35:17 patthoyts Exp $}
+    variable rcsid   {$Id: tkchat.tcl,v 1.489 2012/02/07 13:10:20 rmax Exp $}
 
     variable MSGS
     set MSGS(entered) [list \
@@ -9174,6 +9174,7 @@ proc ::tkchat::updateRosterDisplay {} {
                 if {$a(-type) eq ""} {set img online}
                 if {$a(-show) ne ""} {set img $a(-show)}
                 if {$a(-type) eq "unavailable"} {set img "disabled"}
+                if {$img eq "offline"} {set img "disabled"}
                 .pane.names image create roster -image ::tkchat::roster::$img
             }
         }
