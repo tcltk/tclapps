@@ -7,7 +7,7 @@
 # dialog for a KDE system.
 # We will drop down to DKFs font chooser if we have no other implementation.
 #
-# $Id: choose_w32.tcl,v 1.1 2006/11/10 00:51:05 patthoyts Exp $
+# $Id: choose_w32.tcl,v 1.2 2012/07/10 17:18:48 andreas_kupries Exp $
 
 namespace eval ::choosefont {
 
@@ -219,7 +219,7 @@ namespace eval ::choosefont {
             int n;
             for (n = 2; TCL_OK == r && n < fontc; ++n) {
                 enum {ATTR_BOLD, ATTR_ITALIC, ATTR_UNDERLINE, ATTR_OVERSTRIKE};
-                const char *attrStrings[] = {
+                static const char *attrStrings[] = {
                     "bold", "italic", "underline", "overstrike", NULL
                 };
                 int attrc, attr, attribute;
