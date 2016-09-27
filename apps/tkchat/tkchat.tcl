@@ -5779,12 +5779,17 @@ proc ::tkchat::ChangeFont {opt val} {
 
 proc ::tkchat::DoAnim {} {
     if {$::Options(AnimEmoticons)} {
-	foreach img [image names] {
-	    if {![string match "GIF*" [$img cget -format]]} continue
-	    set name [lindex [split $img :] end]
-	    catch {after cancel $::tkchat::img::id($name)}
-	    anim $img
-	}
+        foreach img [image names] {
+            if {[catch {set fmt [$img cget -format]}]} {
+                # PNG images don't have -format
+                continue
+            }
+            if {[string match "GIF*" $fmt]} {
+                set name [lindex [split $img :] end]
+                catch {after cancel $::tkchat::img::id($name)}
+                anim $img
+            }
+        }
     } else {
 	foreach {nm id} [array get ::tkchat::img::id] {
 	    after cancel $id
