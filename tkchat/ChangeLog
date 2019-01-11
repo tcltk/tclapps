@@ -1,0 +1,2252 @@
+2018-12-24	Steve Landers <steve@digitalsmarties.com>
+
+	* tkchat.tcl: merged macOS changes
+	* tkchat.tcl: added UnifyNicknames feature to unify Jabber, IRC and Slack user names
+
+2012-07-10  Andreas Kupries  <andreask@activestate.com>
+
+	* choosefont/choose_w32.tcl: Fixed non-static string array used in
+	  call of Tcl_GetIndexFromObj(). Memory smash waiting to
+	  happen. Thanks to Brian Griffin for alerting us all to the
+	  problem.
+
+2012-02-07  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::updateRosterDisplay): We don't have an
+	image for "offline", so use "disabled" for now.
+
+2012-01-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: [Bug 3381002]: Applied patch from to fix the
+	capabilities version string.
+
+2011-09-29  Andreas Kupries  <andreask@activestate.com>
+
+	* tkchat.tcl: [Bug 3379933]: Accepted and applied patch by Mark
+	Janssen to display history through a text peer, should peering be
+	available (Tk 8.5+)
+
+2011-03-23  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::parseStr): Render words of 10..40
+	characters as links to fossil artifact IDs on core.tcl.tk.
+
+2011-01-06  Reinhard Max  <max@suse.de>
+
+	* askleo/askleo.tcl: Complete the API adjustments and add support
+	for running askleo.tcl as a standalone application.
+
+2010-11-16  Reinhard Max  <max@suse.de>
+
+	* askleo/askleo.tcl: Adjust code to the latest API changes on
+	http://pda.leo.org and improve the UI.
+
+2010-09-17  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::checkCommand):
+	A single / at the start of a post is now rejected if it is not a
+	known command. To send a literal slash at the beginning of a post,
+	it has to be doubled.
+	Improved detection and handling of the /tip command.
+	 	
+2010-01-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Do not show the browser fields on the preferences
+	page for Windows as we do not use this on that platform.
+	* tkchat.tcl: Applied patch 2913790 to add an option not to get
+	queried when exiting and enable /quit when not logged in (stu)
+
+2010-01-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix buggy initialization of the browser list
+	when nothing specified. Problem spotted by ferrieux.
+
+2009-12-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: [wm state] doesn't support zoomed on x11.
+	* tkchat.tcl: change web browser handling to look for a more
+	modern list of commands and avoid the old -remote stuff.
+
+2009-10-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix typo spotted by mistachkin.
+
+2009-09-24  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::Smile): Unset IMGre before reinitializing
+	the emoticons, or it will keep growing. Only reinitialize when it
+	was explicitly asked for (i.e. not on re-logins).
+
+2009-08-12  Elchonon Edelson <eee@users.sourceforge.net>
+
+	* tkchat.tcl: Fix [Bug 2814771]. In color configuration dialog,
+	the wrong row was being given the weight for resize.
+
+2009-07-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Do not post when in lurk mode (handle bindings).
+
+2009-06-02  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::Progress): Improved progress bar handling.
+	This hopefully fixes the occasional spinning of the progress bar
+	when the associated action has long finished.
+
+2009-05-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed string/list confusion in the message parsing
+	that mishandled nick changes from irc.
+
+2009-05-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Tidied up feature discovery and xep0115 caps support
+	and ensure we handle conversation threads for chat sessions.
+
+2009-05-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Improve the response to subscription requests and
+	display the roster in the user list with an option to hide this.
+
+2009-05-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added a muc join hook, ignore empty messages with
+	chatstate notifications in chat windows. Some themeing on the
+	colour dialog.
+	* tkchat_power.tcl: Support detection of suspend/resume.
+
+2009-04-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+ 	* tkchat.tcl: removed misguided xml quoting from nicks and fixed a
+	bug that prevented sending to a backslashed nick.
+	* tkchat.tcl: tighten up our handling of jids by making more use
+	of the jidsplit and jidequal functions.
+
+2009-04-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied MacOSX patch from Daniel Steffen
+
+2009-03-10  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::DoAnim): Only animate GIF images.
+
+2009-03-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: [FR 2605849] Explicitly set the application name.
+
+2009-03-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: For tinyurl links add a tooltip that shows the
+	              redirection target url.
+
+2009-02-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed the tkchat icon to an SVG based image
+	* tkchat.svg:
+	* tkchat.png:
+
+2009-02-25  Joe Mistachkin  <joe@mistachkin.com>
+
+	* tkchat.tcl: Make "tkchatrc.tcl" handling work on Windows (support
+	loading of the file with or without the leading period).
+
+2009-01-14  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Simplify ::tkchat::GoogleSelection and fix the
+	bindings that call it. It now also works for selections in windows
+	outside of tkchat.
+
+2008-12-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Some fixes for vista look.
+
+2008-11-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added option to show whispered (xmpp normal)
+	messages inline in the chat as was done before 1.442
+
+2008-11-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_whiteboard.tcl: Work around Vista problem displaying
+	safe-tk toplevel windows embedded directly into another toplevel
+	by embedding in a frame instead.
+
+2008-10-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:       Catch dodgy errors from the TIP website.
+	* tkchat_mms.tcl:   Committed ammendments from the conference
+	* tkchat_mjpeg.tcl: for the streaming plugins.
+
+2008-10-27  Elchonon Edelson <eee@users.sourceforge.net>
+
+	* tkchat.tcl:       Corrected the regexp that extracts the word to
+	                    look up on Wiktionary when using "/wikid <word>"
+
+2008-10-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mms.tcl:   Added restarting and auto-restart of stopped
+	                    streaming audio and restart of files.
+
+2008-10-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mjpeg.tcl: Fixed a bug handling the boundary marker and
+	another that cause the feed to keep looping when it errored.
+
+2008-10-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mjpeg.tcl: Added a version hook to announce information from
+	* tkchat_mms.tcl:   the website version check to plugins. This lets
+	* tkchat.tcl:       us push the conference urls for audio/video
+	                    while the conference is ongoing.
+
+2008-10-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mms.tcl: Fixed error inserting into menus when non-english
+	* tkchat_mjpeg.tcl: Extended de i18n for the mms plugin
+	* tkchat_leo.tcl:
+	* tkchat.tcl: Minor fixes for i18n
+
+2008-10-16  Reinhard Max  <max@suse.de>
+
+	* tkchat_clock.tcl: Allow using time zones in addition to numeric
+	offsets from GMT and default to the machine's local time zone.
+
+2008-09-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl: Revised the Babelfish web scraping to follow
+	the move of Babelfish from Altavista to Yahoo.
+
+2008-08-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* msgs/de.msg: Merged updates from Matthias Kraft.
+	* tkchat.tcl:  Include the locale in http useragent string.
+
+2008-08-15  Kevin Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl: Fixed a bug whereby the KHIM bindings were not
+	always installed in the text and entry widgets.
+	
+2008-08-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: More i18n. Do the login dialog and some others
+	* msgs/en.msg:  using tk::AmpWidget which is present in 8.4 
+	* msgs/de.msg: (missing has no alt key support for ttk in <8.5)
+
+2008-08-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Provide a version of tk::AmpMenuArgs for Tk 8.4.
+
+2008-08-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added msgs/ directory and started to internationalize
+	the menu items and some other display text.
+	* msgs/en.msg: english
+	* msgs/de.msg: german
+
+2008-08-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Improved normal message handling. Display in dialog,
+	added per-user context menu for posting messages/memos.
+	* tkchat.tcl: Updated error handling from MUC. Added some
+	reconnection attempts in case we connect to the server before MUC
+	is running after a server restart.
+
+2008-07-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Ensure OnlineUsers has an entry for the current
+	network to avoid an error for a null network.
+
+2008-07-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Retrieve online updates to the set of bridge prefixes
+	when checking the current version of tkchat.
+	* tkchat_leo.tcl: Dont require a restart to enable from options.
+
+2008-07-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:     Reworked the askleo package as a proper tkchat
+	* tkchat_leo.tcl: plugin with options and a statusbar icon.
+	* askleo/*:       Make use of ttk widgets.
+
+2008-07-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Enable logging private chat to file (added option
+	checkbox on options dialog). Added support for sending and
+	responding to xmpp pings and fixed up the client discovery iq
+	responses so we can delare feature support.
+
+2008-06-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch from bug #1985214 from Matthias Kraft
+	 to fix bugs in the /whisper and /back commands.
+
+2008-05-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Source plugins from ~/.tkchat_plugins or from any
+	directory listed in TKCHAT_PLUGINS environment variable.
+
+2008-05-08  Elchonon Edelson  <eee@users.sourceforge.net>
+
+	* tkchat.tcl: Added bindings to .eMsg and .tMsg message entry
+	widgets to toggle what's under the cursor between being a
+	character or its unicode value.
+	* tkchat.tcl: Remember whether chat window was maximized, restore
+	that on start.
+	* tkchat.tcl: Fixed a case where the saved nickname could be lost.
+	
+2008-05-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added a Lurk/Unlurk context menu on the entry widget
+
+2008-04-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added Shift-Key-Up/Down bindings to the entry to
+	scroll the chat widget. Added an option to toggle focus mode for
+	the chat widget - either it accepts focus, or focus always goes to
+	the entry widget. Default is focus on entry widget.
+
+2008-04-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Proper quoting when cloning text widget data. We
+	must use [list]/[lappend] to serialize the data else rogue braces
+	can break the de-serialization.
+
+2008-04-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:       Applied patch #1935658 from Sergei Gavrikov to
+	* tkchat_clock.tcl: restrict the selected font to displayed text.
+
+2008-04-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix configure options when not using ttk in the
+	options dialog and added a 'i hate lolcatz' option.
+
+2008-03-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::getColor): If someone selects our
+	background colour to post with then we will invert them.
+
+2008-03-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Permit configuration of the auto-inactive status
+	message via the preferences page.
+
+2008-02-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Make the history timestamp recognition more fault
+	tolerant and read the ISO8601 format 
+	* tkchat.tcl: Added catch block around the main callback handlers
+	to try to avoid breaking the xml parser if there is an error in
+	the handler.
+
+2008-02-06  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Addded an option to leave the enter/exit messages
+	plain. Option is on the options dialog page.
+
+2008-02-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Avoid applying bad colours from the rc file too.
+
+2008-01-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added checking of colour info before recording it
+	for a user and validate colors read from the network.
+
+2008-01-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed tkchat home url's to tkchat.tcl.tk
+	Fixed some dodgy jid processing when changing nicks.
+	* tkchat.tcl: Alerts to be tied to the alerting window.
+	Added some caps as extras to the presence stanzas.
+
+2008-01-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* choosefont/critcl.tcl: Fix fallback to tcl for platforms with no
+	pre-built binary.
+	* tkchat.tcl: Fixed /font to call the choosefont dialog if available
+	Also attempting to limit nick length.
+	
+2007-12-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Broadcast presence changes to the xmpp server to
+	ensure that roster contacts and notified as well as MUC members.
+	* choosefont/critcl.tcl: critcl stuff moved to critcl2 which uses
+	8.5 compatible platform testing code.
+
+2007-12-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed erroneous handling of 404 error condition.
+	Added some extra checks for the existence of nick colours.
+
+2007-10-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Enabled status bar in the absence of ttk widgets
+
+2007-10-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mjpeg.tcl: Use asynchronous connect to avoid blocking
+	when reconnecting the stream (interrupts the audio).
+
+2007-10-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:       Display images from the VCARD if present.
+	* tkchat_mjpeg.tcl: Fix namespace of addStatus call.
+
+	* tkchat.tcl:       Reworked the hooks system to include priority
+	* tkchat_mjpeg.tcl: and added an options hook to permit plugins to
+	* tkchat_mms.tcl:   add a page to the options dialog. All plugins now
+	* tkchat_rss.tcl:   use hooks. RSS removed from the main file.
+	* tkchat_clock.tcl  Generalized the NOLA plugin into a clock demo.
+
+2007-10-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add tabs to Options dialog (with suitable non-tile
+	fallback). Add save hooks for extensions to use.
+
+2007-09-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:       Ignore groupchat messages with empty bodies 
+	* tkchat_mjpeg.tcl: (ie: coccinella whiteboard messages). Remove 
+	* tkchat_mms.tcl:   the conference special features/streams.
+
+2007-09-26  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:   Implement the login hooks.
+	* tkchat_mjpeg: Add watchdog.
+
+2007-09-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_mjpeg:    MJPEG stream handling for the Tcl conference
+	
+	* tkchat_mms.tcl:  Multimedia stream support with snack.
+	* tkchat_nola.tcl: demo plugin (New Orleans clock display)
+	* tkchat.tcl:      Extended hooks to be more useful for plugins
+	* tkchat_rss.tcl:  Use init hook to initialize.
+
+2007-09-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_rss.tcl:    Fix encoding handling 
+	* rssrdr/rssrdr.tcl: handle additiona atom fields.
+
+2007-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_whiteboard.tcl:      Support UseTkOnly flag.
+
+	* jabberlib/wrapper.tcl:      Dealt with an evil bug in the tdom/
+	* jabberlib/wrapper-tdom.tcl: expat wrapper where one invalid stream
+	* tkchat_rss.tcl:             effectively terminated all other streams
+	* rssrdr/rssrdr.tcl:          so a bad rss feed killed the jabber
+	link. Fixed the wrapper library and provide better reporting in rss.
+
+	* tkchat.tcl: Fixed bug #1796255 - emoticon insertion copied in
+	_all_ the emotes. We only need one.
+	* tkchat.tcl: Fix openURL on windows when browser is IE and added
+	support for Opera.
+
+2007-09-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat_rss.tcl: Avoid recreating the rss label if present.
+
+2007-09-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Moved the emoticon init to post login dialog as
+	http proxy configuration occurs here.
+	Some bug fixes and typos in the new whiteboard code resolved.
+
+2007-09-13  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Moved the emoticons to the web and added code for
+	downloading and caching them in .tkchatrc. Downloading new and
+	changed emoticons is automatically done at startup and can be
+	manually triggered at runtime from the Emoticons menu.
+
+	Use new-tab instead of new-page for sending URLs to the browser,
+	as it seems that new-page is undocumented and newer releases of
+	Firefox don't accept it anymore.
+	
+2007-09-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Extracted whiteboard code to a separate file
+	* tkchat_whiteboard.tcl: Whiteboard is now created as safeTk
+	windows to evade issues identified by Zarutian in event handling
+
+2007-09-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* mousewheel.tcl:  Added tip 171 mouse wheel handling suggestion
+	* tkchat.tcl:      Check the statusbar exists before using it.
+	* tkchat_rss.tcl:  Added requirement for the uri package.
+	                   Fixed Dutch message typo.
+	                   Fixed typo rss dialog (focus, not raise)
+	                   RSS active tag was excessive - just the title
+
+2007-09-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Use native scrollbars on Aqua and avoid ttk ones. 
+
+2007-09-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:          Added support for checking RSS/ATOM feeds
+	* tkchat_rss.tcl:      with understated notification in the status
+	* rssrdr/rssrdr.tcl:   bar when something new arrives.
+	* rssrdr/pkgIndex.tcl:
+
+2007-09-02  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Added fallback to IRC in the event of being unable
+	to reach the Jabber server using picoirc. Added a -irc commandline
+	option to force it for testing.
+	* picoirc/picoirc.tcl:  Embeddable IRC client package based upon
+	* picoirc/pkgIndex.tcl: the Wiki's picoirc code.
+
+2007-09-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Support for checking the validity of the SSL
+	certificate chain and for dsplaying all the certificates in the
+	chain. Requires patch to the jlibssl used by tkchat. Option on 
+	the logon screen to disable verification.
+
+2007-08-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* choosefont/Tcl/dkf_chooseFont.tcl: Applied patch from Emiliano
+	to handle grid anchor differences between 8.4 and 8.5.
+
+2007-08-26  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Patch from Steve Landers to enhance MacOSX support.
+
+2007-08-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Avoid mishandling chatstate (xep-0085) notification 
+	messages if we get them.
+
+2007-08-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Use a procedure to create all our dialogs and get
+	sensible icons and transient etc on windows. Use an MDI close
+	button if available for the history pane.
+
+2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added installation menu item to self-install into
+	Freedesktop desktops (GNOME or KDE).
+	Fixed omission in saving the UseTkOnly option.
+
+2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:     Added option to prevent the use of ttk widgets. 
+	Either start the program with -tkonly or set the checkbox on the
+	Options dialog.
+	
+	* tkchat48.gif:   Created application icon and desktop integration
+	* tkchat48.png:   file for Unix (GNOME/KDE) systems.
+	* tkchat.desktop:
+	* tkchat.tcl:     Fixed a bug when cancelling the font dialog.
+	* choosefont/choose_gtk.tcl:
+
+2007-04-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch #1633074 to add support for highlighting
+	when user specified search terms are seen in the chat. (Jos Decoster)
+
+2007-04-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* choosefont/critcl.tcl (loadlib): Fail gracefully if the binary
+	cannot be loaded and drop down to the pure-tcl version.
+	* tkchat.tcl: Poll (slowly, every 10 minutes) the IRC user list in
+	case it has gone adrift. Fixes in the bridge may mean this is no
+	longer happening.
+
+2007-04-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Handle state notification messages from clients the
+	improperly send them even though we don't ask for them.
+
+2007-03-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add administrative control from tkchat.
+	/op /deop /mute /unmute and /kick.
+	Added userlist menu items for admin control and display moderators
+	separately so they can be identified.
+	Fixed very broken registration dialog.
+	Automatic version checking from tclers.tk
+
+2007-03-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed a missing backslash in iq handler. Some
+	additional status messages and namespace qualifying. Prefer
+	panedwindow to paned widget in tile. Add aqua spacer for
+	non-tile. Show url's in status bar.
+
+2007-03-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: A number of themeing cleanups. Added a statusbar and
+	hooked in some connection status and SSL certificate dialog. Show
+	geturl progress during history loading.
+	(::tkchat::ShowCertificate): It seems some versions of tls/openssl
+	use a different delimiter for the certificate records.
+	(::tkchat::CreateGUI): Add check for the ttk::sizegrip widget and
+	replace with a frame if not available. (reported by Miguel Sofer).
+
+2007-03-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Make use of iocpsock for the XMPP link. Added
+	no-cache headers on the history requests to combat site caching of
+	history files. Fixed loading of tile 0.8.0
+
+2007-02-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Use the new Tcl compatible TIP index.
+
+2007-02-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: On linux Button-2 can use used for scrolling.
+	removed paste dialog binding (use menu instead).
+
+2007-02-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Handle hidden rc file on windows and show a message
+	if saving options fails for any reason.
+
+2007-02-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add version fetch and display via tooltip.
+
+2007-02-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Make use of tooltip package to show url links. Load
+	TIP index and provide tooltip titles for tip links.
+	(::tkchat::ChangeColors): Removed typo.
+
+2007-02-05  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (tkchat::PasteDlg): Consider both selections, PRIMARY
+	and CLIPBOARD when initializing the paste dialog.
+	Added a <Button-3> binding to the main chat window as another
+	shortcut for the paste dialog.
+	
+2007-01-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Support whois information from IRC via the bridge.
+
+2007-01-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed the googlefight command and added wikipedia
+	and wiktionary link commands (/wikid and /wikip)
+	Thanks to Joe Decoster.
+
+2006-12-06  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Fixed the code that finds the real location of the
+	script and adds it to auto_path.
+
+2006-11-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* askleo/askleo.tcl: Broke out the askLEO code into a sub package.
+	* choosefont/*: Broke out DKFs font selection into a sub package.
+	* tkchat.tcl: Support for broken out packages.
+
+2006-10-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Support for merged ttk widgets in Tk 8.5a6. Should
+	handle 8.4, 8.4+tile 0.7 and 8.5a6 now. Some widget packing bugs
+	squashed too.
+	* tkchat.tcl (::tkchat::proxyfilter): Use a proxyfilter to avoid
+	having to add headers to every http::geturl usage.
+
+2006-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix retrieving history when proxy disabled.
+
+2006-10-15  Joe Mistachkin  <joe@mistachkin.com>
+
+	* tkchat.tcl: Corrected HEADUrl.
+
+2006-09-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Added a benign SSL certificate check to warn about
+	               expired and self-signed certificates.
+
+2006-09-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (tkchat::PasteDlg): Doh! Scrollbar hooked to old
+	               invalid widget name.
+
+2006-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Make sure we only request tile 0.7 as 0.6 doesn't
+	               work with the panedwindow any more.
+
+2006-09-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:   FR 681734 - log memos to mbox file for later
+	                perusal. Some font selection mods for Xft.
+
+2006-09-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:   FR 1274322 - added a dialog for sending text to
+	                the paste.tclers.tk paste site. 
+	* tkchat.tcl (::tkchat::LoadHistoryFromIndex): Added a base frame
+	                to fix the look with tile widgets.
+
+2006-09-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:   FR 1482926 - add an /eval command to evaluate
+	                short tcl scripts.
+	* tkchat.tcl (::tkchat::ParseHistLog): Work around the logs being
+	                returned as iso8859-1 when the data is really utf-8.
+
+2006-09-05  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl - Added hooks to KHIM (Kevin's Hacky Input Method)
+	to allow easier typing of international characters.
+	
+2006-06-27 Torsten Berg  <berg@typoscriptics.de>
+
+	* tkchat.tcl: - Tile support for the pane in the main window
+	              - Internal code cleanup for consistent Tile handling
+			(variables useTile and NS)
+		      - Console support for platforms
+			other than Windows (Debug->Console)
+		      - Allow usage of new Tab in some browsers like Opera
+			(new checkbutton option in Preferences->Options)
+
+2006-06-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Allow the non-SASL jabber auth to work with STARTTLS
+	              logins. We have to capture the new stream id.
+
+2006-06-23  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addTraffic): Fixed bug in handling of nick
+	(::tkjabber::RosterCB):              changes. Reverted previous
+	(::tkchat::updateOnlineNames):       commit's workaround.
+	(::tkjabber::setNick):
+	(::tkjabber::transferNick):
+
+	* tkchat.tcl (::tkchat::CreateGUI): Only execute autoStatus proc when
+	(::tkchat::checkCommand):           autostatus enabled. Switch user to
+	(::tkjabber::LoginCB):              extended away when user is away
+	(::tkjabber::MucEnterCB):           manually and idle for an extended
+	(::tkjabber::away):                 period of time. Remember away
+	(::tkjabber::back):                 status when being logged off/on
+	(::tkjabber::autoStatus):           manually or due to a network
+	interuption.
+
+	* tkchat.tcl (::tkchat::checkCommand): Make /dnd and /busy work
+	correctly (Broken since introduction in v1.269).
+
+	* tkchat.tcl (::tkchat::BookmarkClear): Clear autoBookmarks when
+	clearing all bookmarks.
+
+	* tkchat.tcl (::tkchat::updateOnlineNames): Stop Onlinenames window
+	from scrolling to top everytime someone enters or leaves the chat.
+
+	* tkchat.tcl (::tkjabber::connect): Go back to login screen if initial
+	(::tkchat::logonChat):              connection fails.
+
+2006-05-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed bug in handling of nick changes.
+
+2006-05-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkjabber::MsgCB): More polite handling of error
+	response when sending private chat messages.
+	* tkchat.tcl (::tkjabber::RosterCB): Add a system message to a
+	chat window if the chat partner disconnects.
+
+2006-03-21  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::OnNamePopup): The hide/show user
+	functionality was wrongly placed on the "User Info" button in the
+	context menu.
+
+2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::CreateGUI): Stop excess double-click selection.
+
+	* tkchat.tcl (::tkchat::OnNamePopup): Add One2One menu item.
+
+2006-03-20  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::CreateGUI):   Left-justify titles and subtitles
+	in the Users Online list.
+
+	* tkchat.tcl (::tkchat::OnTextPopup): Use tk_popup instead of the
+	(::tkchat::OnNamePopup):              menu's popup subcommand to fix
+	unposting on X.
+
+	* tkchat.tcl: (::tkchat::Smile): New coffee emoticon.
+
+	* tkchat.tcl: (::tkchat::updateOnlineNames): Don't continue the active
+	area of clickable nick names to the end of the line.
+
+2006-03-20  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addTraffic): Add IRC and WebChat nicks to the
+	(::tkchat::nickComplete):            OnlineUser list. Rename procedure
+	(::tkchat::CreateGUI):               '::tkchat::updateJabberNames' to
+	(::tkchat::DoVis):                   '::tkchat::updateOnlineNames' as
+	(::tkchat::ChangeColors):            it now does more than just Jabber
+	(::tkchat::Init):                    names. New procedure
+	(::tkjabber::cleanup):               '::tkchat::OnNetworkToggleShow'.
+	(::tkjabber::RosterCB):
+	(::tkjabber::MsgCB):
+	(::tkjabber::parseMsg):
+	(::tkjabber::send_memo):
+	(::tkchat::updateJabberNames):
+	(::tkchat::updateOnlineNames):
+	(::tkchat::OnNetworkToggleShow):
+	(::tkchat::OnNamePopup):
+	(::tkjabber::setNick):
+	(::tkJabber::transferNick):
+
+	* tkchat.tcl (::tkchat::addTraffic): Parse user entered messages
+	(ie. for /away) for emoticons.
+
+	* tkchat.tcl (::tkchat::checkNick): Only calculate width for new nicks.
+	(::tkchat::checkNickWidth):         New procedures
+	(::tkchat::OpenChatLog):            '::tkchat::checkNickWidth' and
+	(::tkchat::Debug):                  '::tkchat::InitOffset'.
+	(::tkchat::Init):
+	(::tkchat::InitOffset):
+	(::tkchat::GetDefaultOptions):
+
+	* tkchat.tcl (::tkchat::checkNick): Add Colorization for Online Users.
+	(::tkchat::CreateGUI):
+	(::tkchat::applyColors):
+	(::tkchat::updateJabberNames):
+
+	* tkchat.tcl (::tkchat::checkNick): Keep NickList sorted, when new
+	(::tkchat::nickComplete):           nicks are added, so it doesn't need
+	(::tkchat::NickVisMenu):            to sorted in a few other places.
+	(::tkchat::ChangeColors):
+	(::tkjabber::RosterCB):
+
+	* tkchat.tcl (::tkchat::addMessage): Only call ::tkchat::checkAlert for
+	(::tkjabber::LoadHistoryLines):      non-History messages.
+
+	* tkchat.tcl (::tkchat::CreateGUI): Remove check for panedwindow. It's
+	(::tkchat::CreateNewChatWindow):    no longer needed as we require
+	(::tkchat::saveRC):                 Tk v8.4.
+
+	* tkchat.tcl (::tkchat::OnTextPopup): Menu had wrong commands for next
+	and previous bookmarks. Remove unneeded set command.
+
+	* tkchat.tcl (::tkchat::StampVis): Fix error - Don't adjust nick
+	visibility in One2One chat windows.
+
+	* tkchat.tcl (::tkchat::Init): Remove not working and unused jabber
+	(::tkchat::GetDefaultOptions): HTTP polling code.
+	(::tkjabber::connect):
+
+	* tkchat.tcl (::tkchat::updateJabberNames): Use the OnlineUsers list
+	instead of a call to the conference roster to update names from.
+	Prevents a race condition between people entering/leaving the
+	conference and the OnlineUser list being updated.
+
+	* tkchat.tcl (::tkchat::getColor): Standardize some variables.
+	(::tkchat::OnTextPopup):
+	(::tkchat::NickVisMenu):
+	(::tkjabber::RosterCB):
+	(::tkjabber::MsgCB):
+	(::tkjabber::msgSend):
+	(::tkchat::OnNameToggleVis):
+	(::tkchat::OnNamePopup):
+
+	* tkchat.tcl: Minor whitespace/style fixes.
+
+2006-03-05  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::CreateGUI): Move creation of text popup menu to
+	(::tkchat::babelfishMenu):          its own procedure
+	(::tkchat::babelfishMenuPost):      '::tkchat::OnTextPopup'. Add popup
+	(::tkchat::OnTextPopup):            menu to One to One chat. Add
+	(::tkchat::SetChatWindowBindings):  ability to 'Hide user' to menu.
+	(::tkchat::BookmarkInit):
+	(::tkchat::BookmarkToggle):
+	(::tkchat::BookmarkClear):
+	(::tkchat::GoogleSelection):
+
+	* tkchat.tcl (::tkchat::OnNamePopup): Prevent a crash if trying to hide
+	(::tkchat::OnNameToggleVis):          a user who hasn't posted any
+	messages. Modified menu to dis-allow this action.
+
+	* tkchat.tcl (::tkchat::checkNick): Don't change NickList timestamps to
+	an older time when parsing a history log.
+
+	* tkchat.tcl (::tkchat::gotoURL): Fix not saving preffered browser.
+	(::tkchat::saveRC):
+	(::tkchat::GetDefaultOptions):
+	(::tkchat::EditOptions):
+
+	* tkchat.tcl (::tkchat::CreateGUI): Make PaneConfigure an idle callback
+	so that it updates correctly when resizing window.
+
+	* tkchat.tcl: Remove unused global. Trim some unused code. Modify
+	one exit message.
+
+2006-02-27  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::saveRC): Fix not saving password.
+
+	* tkchat.tcl (::tkchat::GetDefaultOptions): Fix initializing when no rc
+	file is available.
+
+	* tkchat.tcl (::tkchat::ChangeColors): Fix changing posting color.
+
+2006-02-14  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::applyColors): Distinguish between
+	conference JIDs and normal user JIDs when trying to figure out the
+	nickname and color.
+
+	* tkchat.tcl (::tkchat::ChangeColors): Added support for mouse
+	wheels to the font dialog.
+
+2006-02-12  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::saveRC): Save original nick, not the ones with
+	_'s appended while trying to enter chat room.
+
+	* tkchat.tcl (::tkchat::Init): Ensure that color data is generated for
+	(::tkchat::setNickname):       new nicks, not just ones that have
+	(::tkjabber::cleanup):         posted messages. This fixes a crash
+	(::tkjabber::LoginCB):         when a One to One chat window is created
+	(::tkjabber::MucEnterCB):      for a new nick. Also fixes some Online
+	(::tkchat::updateJabberNames): nicks not showing up in the color change
+	(::tkjabber::setNick):         dialog. New procedure
+	(::tkjabber::transferNick):    ::tkchat::setNickname.
+
+2006-02-11  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::checkAlert): Alert for whispers and One to One
+	(::tkchat::alertWhenIdle):           chats.
+	(::tkchat::addMessage):
+	(::tkjabber::getChatWidget):
+
+	* tkchat.tcl (::tkchat::CreateGUI): Don't set unneeded color tags.
+	(::tkchat::SetChatWindowBindings):
+	(::tkchat::ChangeColors):
+	(::tkchat::applyColors):
+	(::tkchat::Init):
+
+	* tkchat.tcl (::tkjabber::MsgCB): Remove /me from messages for One to
+	(::tkchat::userPostOneToOne):     One chat.
+
+2006-02-03  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::IncrMessageCounter): Don't count traffic
+	messages.
+
+	* tkchat.tcl (::tkchat::DoVis): Prevent crash when changing a nick's
+	(::tkjabber::connect):          visibility status while not logged in.
+	(::tkjabber::cleanup):
+
+	* tkchat.tcl (::tkchat::NickVisMenu): Prevent nick from being eval'ed
+	if it contains [].
+
+	* tkchat.tcl (::tkchat::CheckCommands): Split into online and offline
+	commands.
+
+	* tkchat.tcl (::tkchat::saveRC): only save options that are different
+	(::tkchat::Init):                from defaults. Re-written so that it
+	(::tkchat::GetDefaultOptions):   builds up the options to save rather
+	than remove the one not to be saved. New procedure
+	::tkchat::GetDefaultOptions.
+
+	* tkchat.tcl (::tkchat::DoAnim): Reset animation to first frame when
+	stopped.
+
+	* tkchat.tcl (::tkchat::Init): Fix error converting some older client's
+	color list.
+
+	* tkchat.tcl (::tkchat::noisyUser): Fix error where nick has a space in
+	it.
+
+	* tkchat.tcl (::tkjabber::cleanup): Remove added underscores from nick
+	(::tkjabber::setNick):              when exiting conference.
+
+	* tkchat.tcl (::tkjabber::MsgCB): Make nick xml safe when sending
+	(::tkjabber::LoginCB):            request to jabber server.
+	(::tkjabber::MucEnterCB):         New procedure ::tkjabber::xmlSafe.
+	(::tkjabber::xmlSafe):
+	(::tkjabber::setNick):
+	(::tkjabber::transferNick):
+
+	* tkchat.tcl (::tkchat::parseStr): Fix % quoting in URLs.
+
+	* tkchat.tcl: Remove some unused globals. Trim some unused code.
+
+2006-01-19  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::anim): Fixed a bug that made animated GIFs
+	stop for one delay period when restarting the animation. Lowered
+	the delay time to make the animations a bit faster and
+	smoother. Added animated bubbles to the beer emoticon.
+
+2005-11-17  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addMessage): Change format of local log to
+	(::tkchat::IncrMessageCounter):      match jabber logs. Add ability to
+	(::tkchat::Hook):                    load local and jabber logs from
+	(::tkchat::AddTraffic):              file (new proc
+	(::tkchat::CreateGUI):               ::tkchat::LoadChatLog). Fix
+	(::tkchat::OpenChatLog):             logging so that it starts when
+	(::tkchat::LoadChatLog):             chat initializes. Add missing
+	(::tkchat::ChatLogHook):             nickchange messages.
+	(::tkchat::Init):
+	(::tkchat::parseMsg):
+
+2005-11-08  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addMessage): Consolidate duplicate code into
+	(::tkchat::addAction):               addMessage. Removed addAction.
+	Fixes multi-line /me indentation.
+
+	* tkchat.tcl (::tkchat::userPost): Move switch arm out to new procedure
+	(::tkchat::checkCommand):          checkCommand.
+
+	* tkchat.tcl (::tkchat::CreateGUI): Remove unneeded calls to
+	(::tkchat::IncrMessageCounter):     ResetMessageCounter. Make the
+	(::tkchat::WinicoCallback):         remaining one an idle callback.
+
+	* tkchat.tcl (::tkchat::noisyUser): Reduce duplicate code.
+
+2005-11-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch #1344350 by Torsten Reincke to fix
+	browser launching on MacOS X.
+
+2005-10-23  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::alertWhenIdle): Add auto bookmark at
+	alert point.
+
+	* tkchat.tcl (::tkchat::BookmarkToggle): Stop auto bookmark from
+	removing itself or a standard bookmark when it tried to set one
+	in the same place that another already existed. Fix a race
+	condition with tabs not being set (encountered while PC under
+	heavy load).
+
+	* tkchat.tcl (::tkchat::BookmarkRemoveAuto): Fix a bug that
+	caused a crash when an auto bookmark tried to remove itself
+	twice.
+
+	* tkchat.tcl: Minor whitespace/style fixes.
+
+2005-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added mouse binding suitable for Macs with only one
+	mouse button to the user names. Added facility to ignore users
+	using context menu raised from the user names list. Show user
+	visibility in the names list with a disabled icon.
+
+2005-10-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: New users were unable to setup their user
+	information. Solved by ensuring that myId is always set.
+
+2005-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed the way we use tile widgets to work with
+		      tile 0.7+ as well as tile 0.6.
+
+2005-10-16  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::CreateGUI): Add auto bookmark. This is
+	(::tkchat::IncrMessageCounter):     set when a message is
+	(::tkchat::BookmarkInit):           received while tkchat does
+	(::tkchat::BookmarkToggle):         not have focus, making it
+	(::tkchat::BookmarkRemoveAuto):     easier to find the point in
+	(::tkchat::BookmarkNext):           history that the user was
+	(::tkchat::BookmarkPrev):           last active. Can be
+	(::tkchat::BookmarkClear):          de/activated via menu.
+	(::tkjabber::MsgCB):                Delayed the resetting of
+	the message counter in the window title for 5 seconds. Fixed
+	a bug found where deleting the current bookmark and then
+	attempting to go to the next/prev caused a crash.
+
+	* tkchat.tcl:
+	Remove an unused Option, MaxLines, and associated menu.
+	Background History loading a bit more.
+	Fix singledot elide in tkchat::addAction.
+
+2005-10-01  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::AddMessage): Modify the Image RE to
+	(::tkchat::Insert):                  make it a little more
+	(::tkchat::SmileId):                 accurate finding smilies.
+	(::tkchat::Smile):
+
+	* tkchat.tcl:
+	Add new proc ::tkchat::InsertHistoryMark. Remove a few unused
+	variables. Re-order 'if' arguments in ::tkchat::autoStatus to
+	avoid unneeded procedure calls.
+
+2005-09-18  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::addMessage): Change how bookmark marks
+	(::tkchat::CreateTxtAndSbar):        are created due to bug
+	(::tkchat::StampVis):                found in Tk 8.5 (fix to Tk
+	(::tkchat::BookmarkInit):            will change old
+	(::tkchat::BookmarkToggle):          behaviour). Add
+	(::tkchat::BookmarkClear):           autoscrolling for when
+	bookmarks are added and deleted.
+
+2005-09-13  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::StampVis): Indent text when a bookmark
+	(::tkchat::BookmarkInit):          is set. Allow bookmarks to
+	(::tkchat::BookmarkAdd):           be unset individually.
+	(::tkchat::BookmarkToggle):        Enable/disable menu items as
+	(::tkchat::BookmarkNext):          required. Fix bug were
+	(::tkchat::BookmarkPrev):          bookmark could be set on
+	(::tkchat::BookmarkClear):         wrong line from menu. Rename
+	BookmarkAdd to BookmarkToggle. Change how bookmarks are added
+	and searched for in text. Only one bookmark can be added to a
+	logical line of text. BookmarkClear now does clear all
+	bookmarks.
+
+2005-09-12  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::LoadHistoryFromIndex): Stop crash when
+	history window is opened more than once.
+
+	* tkchat.tcl (::tkchat::checkNick): Show user color correctly
+	for first time post by a new user.
+
+	* tkchat.tcl (::tkchat::Help): Create new procedure to
+	(::tkchat::About):             auto-adjust tab indent based on
+	(::tkchat::insertHelpText):    the width of the first column
+	and make source help text easier to read and modify.
+
+	* tkchat.tcl (::tkjabber::parseMsg): Convert messages from
+	Conference Channel to System messages.
+
+2005-07-22  Reinhard Max  <max@tclers.tk>
+
+	* tkchat.tcl (::tkchat::addAction): Take care for empty actions.
+
+2005-07-04  Joe Mistachkin  <joe@mistachkin.com>
+
+	* tkchat.tcl (::tkchat::Help): Added myself to the about dialog
+	(command alias support).
+
+2005-06-24  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Fixed query encoding for askLEO.
+
+2005-06-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::Help): Rearranged the About dialog and
+	added a Quick Help entry.
+
+2005-06-16  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl:
+	Fix tags for action messages.
+	Cleanup members in ::tkjabber::cleanup as well.
+	Correct some potential problems where a nick has a comma in it.
+	Fix timestamp eliding and tabs in One-to-One chat.
+	Allow register screen to work again.
+	Clean up 'after' scripts when restarting.
+	Add tk8.5a3 idle detection for AutoAway (from Kevin Kenny).
+
+2005-06-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (tkjabber::cleanup): Cleanup roster too.
+
+2005-06-14  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl:
+	Fix conversion from old color list for some unusual nicks.
+	Fix changing own color.
+	Only save nicks that have extra attributes stored.
+	Fix a problem with new messages getting mixed into history when it is
+		being reloaded.
+	Add autoscroll when showing/hiding extended text entry.
+	Selecting to be alerted now activates some defaults if none set.
+	Alerts now work for the nickname currently being used as well as the
+		username.
+	Remove another old tile-ism.
+	Convert ::tkchat::msgSend calls to use ::tkjabber::msgSend.
+	Convert ::tkchat::errLog proc calls to use ::log::log.
+	Removed some orhaned procs.
+	Clean up a lot of whitespace at start and end of lines.
+
+2005-06-07  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl: Save only changed colors and invisibility settings in
+	rc file instead of all of them. Change the way color information is
+	stored to avoid a problem if someone calls themselves 'MainFG' etc.
+
+2005-05-26  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed some elide problems with regard to entry/exit,
+	online/away, system, error and singledot messages, as well as
+	timestamps and emoticons. [Bug 978962]
+	* tkchat.tcl: Removed use of tscale, missed by Patch 196561.
+
+2005-05-21  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl: Corrected two oversights from last commit. Fixed
+	multiline messages and initial history load times.
+
+2005-05-17  Daniel South  <wildcard_25@users.sourceforge.net>
+
+	* tkchat.tcl: Convert all entry and exit messages to Traffic messages
+	so they can be hidden with the 'Hide Entry/Exit Messages' menu.
+	Factor out common code for parsing live and history messages.
+	[Patch 1198196]
+	* tkchat.tcl: Automatic cleanup of nicks in the .tkchatrc file that
+	are older than 30 days. [Patch 1196567]
+	* tkchat.tcl: Remove import of tile:: namespace now that we require
+	Tile 0.5. [Patch 1196561]
+
+2005-05-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch #1196561 from Daniel South to remove
+	the Tk 8.3 compatability code now that we require Tk 8.4.
+	* tkchat.tcl: Applied patch #1196564 from Daniel South to clean up
+	a tile warning produced by recent tile.
+
+2005-05-04  Kevin Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl:  Corrected an interaction between the whiteboard
+	and TIP #132 formatting of floating point numbers (Arguably
+	a bug in the whiteboard code).
+
+2005-05-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added additional icons to show extended-away state.
+	* tkchat.tcl: Fixed support for tklib's as style package.
+
+2005-04-27  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: /msg and /chat now also work with arbitrary JIDs.
+
+2005-04-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: More fixes to the system tray icon stuff. Tested on
+	linux and windows now.
+
+2005-04-25  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Fixed the latest additions to not break execution on
+	non-Windows platforms.
+
+2005-04-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch #1187190 by Daniel South which fixes
+	updating the system tray icon when the application regains focus
+	on windows.
+	* tkchat.tcl: Applied patch #1187273 by Daniel South to fix
+	restoring a hidden app window to the pre-hidden state.
+
+2005-04-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (tkjabber::cleanup): Modified the cleanup to check
+	for the existence of the muc variable. Sometimes it has already
+	been cleaned up.
+
+2004-04-13  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: removed askleo and babelfish bindings from private chat
+	windows. The private chat window now uses nick colors too (doesn't
+	update them properly, though). Added 'help' item to the help menu.
+	Added visibility option for away/online/dnd 'availability' messages.
+	Added user idle detection in win2k+ to do auto-away/xa, configurable in
+	the preferences menu (disabled by default). This requires an additional
+	(optional) extension (idle) to be available.
+
+2005-04-12  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Removed explicit placement from geometry
+	settings. It's the windowmanager's job to place new windows.
+
+2004-04-11  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: one to one chat added; /msg now emits '-type normal';
+	/chat <nick> msg will open a chat window, as will double clicking on
+	the nick in the online users list; user info is now a right click
+	action.
+	* tkchat.tcl: fix new message notify for private chats; fix /me in
+	private chats.
+
+2005-04-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added some error checking during some server downtime.
+
+2005-03-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Bug #1156611 fixed. It seems jabberlib changed to
+	interface for the send_iq command.
+	* tkchat.tcl: Fixed a problem with the SASL authentication code.
+	* tkchat.tcl: Improved handling of roster status change messages.
+
+2005-03-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: bug #1153603 - fix error reporting on network errors.
+	* tkchat.tcl: bug #1085174 - fail more gracefully if the history
+	logs are unavailable. Make the history get use async http.
+	* tkchat.tcl: bug #1154862 - fixed varname in SendAuthOld.
+	Bug #1154619 - require tile 0.5. 0.4 can segfault on solaris.
+	Fixed display of multiple-line posts with hidden timestamps for
+	fixed Tk 8.5. Checked on 8.4 and 8.5.
+
+2005-02-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Get the babelfish code to use utf-8. This fixes
+	translation of Russian in both directions. Probably Asian
+	languages too.
+	Show SSL options as disabled when SSL unavailable.
+
+2005-02-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed encoding of the channel after starttls
+	negotiation. Also encoding of the .tkchatrc file.
+	Added a 'No SSL' option and an entry field for the conference to
+	join to the login dialog.
+	Re-enabled local chat logging (uses utf-8 encoding now).
+	Fixed jabber:iq:version reporting to report the version of tkchat
+	instead of the jabberlib version.
+
+2005-02-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added some additional roster support. Put images
+	into the online users list to indicate presence status.
+
+2005-02-07  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Cleaned up quite a lot of whitespace at the end of
+	lines. Fixed a bug calling the setNick proc via after sometimes.
+
+2005-02-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added /afk, /away and /back commands to set the
+	presence. Each can take a string to use for an additional display
+	string.
+	Added support for handling subscription requests.
+	Fixed a bug in the color handling to cope with invalid colors.
+
+2005-01-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed overly aggressive reconnection when user has
+	logged out manually. Implemented STARTTLS and SASL authentication.
+	Fixed a problem with the userinfo dialog raising an error.
+	Added a -connect option to the app to facilitate connection via an
+	alternate server (eg: tkchat -connect localhost:5222)
+
+2004-12-22  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::logonScreen): Tidied up the key navigation
+	for the login screen.
+
+2004-12-17  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Schizophrenia is supported again.
+
+2004-12-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Put some of the http error handling code back in so
+	we get a message when the history server is unavailable.
+
+2004-12-13  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Bug fixes for UserInfo.
+
+2004-12-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Support UserInfo via the Jabber vcard iq.
+
+2004-12-08  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Prevent multiple reconnect timers running at the same
+	time.
+
+2004-12-08  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::parseStr): Simplified the URL parsing
+	regexp and added support for ftp URLs. It is much more relaxed in
+	what it accepts as an URL now, and only tries hard to get the end
+	right.
+
+2004-12-08  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: /nick now asks any other egos you may have for a
+	nick transfer.
+
+2004-12-04  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Some support for sending memos. Needs more work to
+	handle offline users properly.
+
+2004-12-03  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Sort the online users list -dictionary. Call [muc
+	exit] to cleanup the roster for the chat. Fixed display of entry
+	exit messages for web and irc users, added more entry/exit
+	messages and color them.  /help now goes to
+	http://wiki.tcl.tk/tkchat
+
+2004-12-01  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added jabber resource in the connect
+	dialog. Improved the reconnect code, it now actually tries again.
+
+2004-12-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Remove the stupid /nolog prefix from the message
+	body. It's already an attribute of the message.
+	Use a 'real' uri for tkchat namespace attributes.
+	Fix use of SSL when people have it in their Options but can't find
+	the package anymore.
+
+2004-11-26  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: First attempt at making tkchat work on a PockectPC
+
+2004-11-25  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: URL re fix
+
+2004-11-24  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Removed /jest in favor of /ot/?me for /nolog shorthand.
+
+2004-11-23  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Reload/Restart should work again now.
+
+2004-11-23  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added /jest for /nolog/me; /memo catcher
+	* tkchat.tcl: Small fixes for reload script
+
+2004-11-22  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Started removing the web scraper code to complete
+	the transition to jabber and make further improvements easier.
+
+2004-11-18  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Completed color fading on nolog messages.
+
+2004-11-18  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Debugging stuff removed.
+	* tkchat.tcl: (jabber) Whiteboard is back.
+	* tkchat.tcl: Add whiteboard enable menu item
+
+2004-11-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Primitive /userinfo support for tkjabber.
+	* tkchat.tcl: Added support for SSL without proxy. Use port 5223
+	or all.tclers.tk:443. Added port hinting in the dialog.
+
+2004-11-17  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: jabber: fix ~ in URL recognition regexp.
+	* tkchat.tcl: reformat jabber MsgCB to remove redundant code.
+	* tkchat.tcl: allow sending to people not in the conference.
+
+2004-11-16  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: jabber: add ~ to the URL recognition regexp.
+
+2004-11-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Babelfish is now only initialized if the user clicks
+	on the Translate selection menu item.
+	Oops. Forgot the context menu.
+
+2004-11-15  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: jabber: logoff now works correctly; colors for ijchain
+	users; enabled keep alive for all connection types; prevent sending
+	/userinfo; prevent history from loading twice;
+
+2004-11-15  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Fixed ijchain /me actions.
+
+2004-11-15  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Fixed up ijchain messages in jabber history loading.
+
+2004-11-12  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added nicer display of ijchain messages in jabber mode.
+
+2004-11-10  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Updated the dict.leo.org translator to work with the
+	latest version of the web service, and fixed the key binding to
+	invoke it.
+	* tkchat.tcl: Changed the visual appearance of /nolog messages to
+	be faded to 60%, and in the same font (italic by default) as
+	actions.
+
+2004-11-09  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Auto reenter conference and reconnect to server.
+
+2004-11-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added bug image.
+
+2004-11-08  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Support for nick colors in jabber mode. Fixes timestamp
+	bug in MsgCB
+
+2004-11-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix to permit re-loading the script. Adjustments to
+	the show smilies dialog.
+
+	* tkchat.tcl: Remove the Jabber HTTP polling checkbox. This can
+	be uncommented if polling is ever made to work.
+
+	* tkchat.tcl: Fix for a bug in some tile installations for the
+	#1061218 patch. Should be more robust.
+
+2004-11-08  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: More work on jabber history loading, added /(no)log
+	commands and menu options to set message logging behaviour. Added
+	http(s) url RE for jabber mode.
+
+2004-11-07  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Added jabber history loading
+	* tkchat.tcl: New history format
+	* tkchat.tcl: Add NOLOG tag to add(Message|Action)
+
+2004-11-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Merged in improvements for tile and winico handling
+	from Donal Fellows. (Patch #1061218).
+	* tkchat.tcl: Added cyclops smiley.
+
+2004-10-29  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add jabber port setting and disable when not in use.
+
+2004-10-16  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Jabber. Register account popup fixed for jabberd2,
+	nickname conflict resolution added at room entry.
+
+2004-10-22  Joe English  <jenglish@users.sourceforge.net>
+
+	* tkchat.tcl: Tweaked bottom row geometry management.
+	Added PageUp / PageDown bindings to entry widget to scroll chat log.
+
+2004-10-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix for bug #1049503 - remove all writes to stdout
+	and stderr and replaced with tk_messageBox or log::log.
+	log::log debug is the way to record debugging messages.
+
+	* tkchat.tcl: Added support for connecting to jabber through http
+	proxies using tls.
+	Also update the login dialog a bit. Better themeing support.
+
+2004-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added command-line option for setting the jabber
+	server and port eg: tkchat -jabberserver jabber80.com:80
+
+2004-10-16  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: More work on Jabber
+
+2004-10-14  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Initial work to change the chat server to Jabber. Lots of
+	changes all over the place.
+
+2004-10-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Modified the startup to avoid multiple http requests
+	if we get an authentication error during the logon. This avoids
+	locking your account on a proxy server from too many failed login
+	attempts (Windows networks). We now only do one request if it fails.
+	Also changed the history loading to ensure we always load above
+	any current chat text.
+	Added a scrollbar to the smilies display dialog.
+	* tkchat.tcl: Fixed a delay in positioning the panedwindow sash on
+	startup.
+	* tkchat.tcl: Grr. Stupid typo.
+
+2004-10-12  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::Retrieve): Fixed a dumb bug introduced in
+	1.178 that broke the download. Added a line limit to the size of
+	message we attempt to display - too big a message can do funny
+	things to the messagebox.
+
+2004-09-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add user set-able value to fade too.
+	(::tkchat::addMessage): Fixed dumb bug that meant messages from
+	ircbridge with <xyz> would yield xyz as the sender.
+
+2004-09-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added another gimmick. You can select a fade
+	checkbox on the options dialog and when tkchat looses focus it
+	will fade to 50% transparency. On recieving focus again it'll
+	switch back to opaque.
+
+	* tkchat.tcl (::tkchat::Retrieve): Bug #1030051. Be more careful
+	not to overwrite the current script if we fail to get something
+	sensible from the web request.
+
+	* tkchat.tcl (::tkchat::EditOptions): Added support for toplevel
+	alpha transparency (supported in the most recent Tk on Win2k/XP).
+
+2004-09-08  Kevin Kenny  <kennykb@acm.org>
+
+	* tkchat.tcl (::tkchat::debug, ::tkchat::SetFont,
+	::tkchat::ChangeFont): Changed the code to not trample on the
+	fonts belonging to the style, but only the named fonts that tkchat
+	uses.
+
+2004-09-08  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: fixed a version problem with tile from ActiveTcl
+	8.4.6.1 somehow missing [tile::availableThemes]
+
+	* tkchat.tcl: kludged the addHelp a bit more by adding IP so the
+	server command /ip password nick is added with the system tag.
+
+2004-09-07  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (::tkchat::userPost): update tip url to use tip.tcl.tk
+
+2004-08-24  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Updated tile theme handling to permit use of
+	third-party theme packages.
+
+2004-08-16  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Adjusted checkNick so it doesn't make the nick
+	column width too wide if SomeoneHasAReallyLongNickLikeSomeIrcUsers.
+
+2004-08-13  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added a [catch] to checkPage to prevent it from
+	stop updating after a temporary DNS failure.
+
+2004-08-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix a bug with overly greedy date string matching
+	in the history parsing code.
+
+2004-06-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added support for forcing a user selected user-agent
+	string - useful for dealing with facist proxy admins. The default
+	is now more Mozilla-like.
+
+2004-06-29  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (::tkchat::parseStr): add recognition of any 6 or
+	7-digit sequence as a SF bug id, make it a URL that jumps to it.
+	(::tkchat::checkNick): correct margin initialization
+
+2004-06-23  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch from bug #977354 for cosmetic fix to
+	the About dialog. (by Joe Mistachkin).
+
+	* tkchat.tcl: Removed a number of 8.4+isms so that tkchat operates
+	with Tk8.3 again. Avoid eq and ne and use tk_windowingsystem.
+
+2004-06-04  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Added message timestamps and a visibility for them
+	option in the Visibility menu for them.
+	* ChangeLog: Fixed a few 2004 entries incorrectly set to 2003
+
+2004-05-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Updated babelfish web scraping for translate menu.
+
+2004-05-25  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (::tkchat::msgSend): convert msg to utf-8 if necessary
+
+2004-05-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed bug #955473 erroneous winico requirement
+
+2004-05-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added /wiki command for Colin (the lazybones).
+
+2004-05-13  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Cleanup the taskbar icon on application exit.
+
+2004-04-29  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Support 'tile' themeing now. There are a couple of
+	places (font and color dialogs) that have compatability
+	workarounds that might be removed in the future. Requires tile0.4+
+
+	* tkchat.tcl: Provide activity indicators by editing the title
+	when the window isn't focused and with winico support for windows.
+	* tkchat.ico: Icons for use with windows.
+
+2004-02-09  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Updated the way messages from ircbridge and ijchain
+	are handled. The new code path rewrites the messages before the
+	messages are is set to 'normal' so you can just call addAction and
+	return.
+
+2004-03-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Add ijbridge as a synonym for ijchain to trap
+	messages from the Jabber - IRC bridge and tidy them up.
+
+	* tkchat.tcl: Don't list the IRC users in the menubutton list. If
+	we ever fix it such that we can /msg to IRC then this can be
+	enabled but at the moment it's just noise.
+
+2004-03-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Removed the now redundant code using a NETSCAPE
+	environment variable. We have a dialog to set this now.
+
+2004-03-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added support for the ActiveState Tk style package
+	posted by Jeff Hobbs to tcl-core. If this can be found then we
+	will try and use it, subject to user control via the
+	Preferences->Options dialog settings.
+
+2004-03-12  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Sort the user lists, separately for IRC and chat
+	users. Put a separator between the two groups into the message
+	menu.
+
+2004-02-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Tweaks to the unix look. Added mnemonic bindings to
+	the login dialog.
+	Changed the purge menu item to 'Reload history'.
+	Changed the text selection background color.
+
+2004-02-20  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl:  Incorporated the options from the wiki gtklook page
+	with a couple of changes. This produces a somewhat more modern
+	look on X. Pretty similar to the 'Griffinized' look from the Tk
+	revitalization project.
+
+	* tkchat.tcl:  Added a Preferences->Options dialog with stuff to
+	set the preferred browser. This should help under unix.
+
+2004-02-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added Mozilla Firefox into the list of possible DDE
+	accessible browsers and cleared a problem with commas over DDE.
+
+2004-02-09  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: added a /googlefight command word.
+	Try /googlefight word1 word2.  Changed the app-tkchat package
+	regexp for Joe Mistachkin to support low version numbers.
+
+2004-02-09  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Removed the system messages that were displayed
+	when asking for onlineusers to the ircbridge
+	* tkchat.tcl: Added the local /noisy command to temporarily
+	suppress adding messages from nicks that you find
+	annoying. Whispers and emotes are not suppressed.
+
+2004-02-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Some fixes and catches in the color handling to deal
+	with tcllib bug #891024.
+	* tkchat.tcl: Added a visibility option to enable hiding actions
+	that consist of a single dot by another user.
+
+2004-02-03  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (::tkchat::Init): change default LogLevel to 'notice'
+
+2004-01-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fixed (hopefully) a bug in the online-users
+	scrollbar. I'm pretty sure its to do with the auto-remove feature.
+
+2004-01-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Quiten errors in checkDone. If an error occurs,
+	we'll move along to fetchPage for a retry.
+	* tkchat.tcl:  Added scrollbar to the online users window and made
+	this widget word wrap.
+
+2003-12-03  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied fix from dgp for bug #849829.
+
+2003-10-08  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Updated irc online users listing by asking ircbridge
+	for 'onlineusers' automatically after login.
+
+2003-09-26  Pascal Scheffers for Joe Mistachkin <joe@mistachkin.com>
+
+	* tkchat.tcl: Several bug fixes for the /alias system
+
+2003-09-25  Pascal Scheffers for Joe Mistachkin <joe@mistachkin.com>
+
+	* tkchat.tcl: Added dynamic command aliasses with /alias and
+	/unalias and help to the about dialog.
+
+2003-09-25  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added 'google this' and 'cancel' to the bookmarks
+	context menu.
+
+2003-09-25  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added loading of $HOME/.tkchatrc.tcl (if it exists)
+	to allow users change GUI settings add proc, etc. (David Zolli aka
+	kroc wants to do this for XFce)
+
+2003-09-24  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added functions and regular expressions to list the
+	users who are online on the IRC side of the chat (purely based on
+	ircbridge joins/leaves/isnowknowas messages)
+
+2003-09-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added support for placing bookmarks and cycling
+	between marks. See the context menu (Button-3).
+	* tkchat.tcl: Added a /see command to move the text window to the
+	given mark or index. eg: /see end, /see 0.0 or /see bookmark1
+
+2003-09-20  Donal K. Fellows  <dkf@users.sf.net>
+
+	* tkchat.tcl (UserInfoDialog,UserInfoParseCallback): Made code
+	robust enough to deal with semi-malicious user info.
+
+2003-09-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added a dialog for editing the user details stored
+	by the chat server.
+
+2003-09-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Namespaced pretty much everything into tkchat::*
+	Also added a color indicator for the input fields that shows you
+	are whispering (ie: background goes pink).
+
+2003-09-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Updated to support JCW's new chatter.cgi
+	script. This improves response time without flogging the bandwidth
+	of the server (we hope).
+
+2003-09-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::LoadHistoryLines): Mask off the alerts
+	during history loading.
+
+2003-09-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Speed up the appearance of history loading by doing
+	all the work in idle events. Injects the history at a HISTORY mark
+	so that the current messages are visible while the full history is
+	still loading.
+
+2003-08-25  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (::tkchat::doBug): simplify with URL that finds bug
+	id regardless of project
+
+2003-08-19  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Fix a problem with the event bindings when not
+	showing the online users pane.
+	* tkchat.tcl: Also in the saveRC function which prevented exiting.
+
+2003-08-16  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed translation code to appear in a dialog.
+	Added a context menu to access translation.
+	Support space separator in the /tip command.
+
+2003-07-31  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Changed the pane resizing so that the chat window is
+	given the new space and the users window remains constant size.
+
+2003-07-28  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added paned window support for the Online users
+	window.
+
+	* tkchat.tcl: Use tk::PlaceWindow for dialog placement (+ fix to
+	Tk this results in correct placement with multiple win32 desktops).
+
+2003-07-27  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (addMessage): Fix for the Jabber bridge nick handling.
+
+	* tkchat.tcl (gotoURL): Try to use DDE to open URLs (avoid quoting
+	problems). Also copy the URL into the CLIPBOARD selection.
+
+	* tkchat.tcl (::tkchat::userPost): Add a /google command to launch
+	google queries with the remaining text.
+
+	* tkchat.tcl (::tkchat::About): Added help text for the commands.
+
+	* tkchat.tcl (::thchat::ShowSmilies): Add {} to expr body.
+
+2003-07-17  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: correct display of URLs with & in them on Windows.
+	Make the /bug use gotoURL now. [Bug 758596] (theado)
+
+2003-07-01  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Update so /me messages from ircbridge show up
+	correctly again. Changed the old regexp so it matches at the
+	beginning only.
+
+2003-05-13  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: simplify find stuff, add support for
+	"/bug ?group? ?tracker? id" requests that print correct URL.  We
+	can't use gotoURL until exec handles &'s in args correctly.
+
+2003-04-30  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (getRecentLines): Fix for bug #729709: alerts no
+	longer working. The ActionStart regexp was being too greedy.
+	* tkchat.tcl (tkchat::userPost): Added a client command to open
+	a browser on a TIP reference as /tip:NUMBER.
+
+2003-04-04  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Fixed bug 686065. Multiline actions are now
+	handled in exactly the same way as multiline messages.
+
+2003-03-13  Pascal Scheffers  <pascal@scheffers.net>
+	* tkchat.tcl: Fixed a small bug for double-tab. Changed the look
+	of the suggested completions for double-tab. Previous completion
+	suggestions will now disappear when a new one is shown and after
+	about five seconds.
+
+2003-03-12  Pascal Scheffers  <pascal@scheffers.net>
+
+	* tkchat.tcl: Added ::tkchat::nickComplete and <Key-Tab> bindings
+	to make bash-style command-completion of the nick under the cursor.
+
+2003-03-10  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied patch 627521 from Pascal Scheffers to
+	provide a search function using /?regexp to highlight matches, /?
+	to skip to the previous match and /! to reset the search state.
+	* tkchat.tcl: Added some key bindings to the login dialog. Made
+	logging in more robust in the face of server failure.
+
+2003-03-10  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Removed the Refresh button, and narrowed the other
+	buttons to leave more room for the entry widget.
+
+2003-03-08  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Applied two patched from Pascal Scheffers - one for
+	actions from the ircbridge and another to fix the sent message
+	history.
+
+2003-03-07  Don Porter  <dgp@users.sf.net>
+
+	* tkchat.tcl: reverted to the previous revision. Last patch broken.
+
+2003-03-06  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Enable default key bindings for logon screen.
+	- Better handling of logon failure when the server is down.
+	- Indicate HTTP failure by disabling Post button and entry field
+	and showing the HTTP error in the entry field.
+
+2003-03-05  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (checkForRedirection): Handle 307 Temporary Redirect.
+
+2003-02-28  Kevin Kenny  <kennykb@users.sourceforge.net>
+
+	* tkchat.tcl: Added '-force' to a 'namespace import' call
+	so that script reloading works again.
+
+2003-02-25  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (::tkchat::Init): Fix mishandling of the http_proxy
+	environment variable and support Perl-ish url style value.
+
+2003-02-18  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Applied a fix from Donal K Fellows, that closes a
+	huge memleak in the "Users Online" window.
+
+2003-01-30  Kevin Kenny  <kennykb@users.sourceforge.net>
+
+	* apps/tkchat/tkchat.tcl: Fixed a bug in the color dialog
+	that caused a bgerror if any user's nick contained a period.
+	Added dkf's font dialog to tkchat.tcl, to keep the "Font Family"
+	menu from exceeding the screen size if many, many fonts are
+	installed.
+
+2003-01-29  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (tkchat::babelfishInit): Fixed the translation code
+	for the new babelfish URLs.
+	* tkchat.tcl (::tkchat::userPost): Fixed bug preventing the
+	/userinfo command from being recognised when manually entered.
+
+2003-01-17  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: change \w+ to [^ ]+ in ircbridge nick detection
+
+2003-01-15  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (addMessage): show ircbridge users as <$nick> in the
+	display.
+
+2002-12-09  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl (alertCallback): check for focus, not grab, in the
+	current toplevel window before doing wm deiconify/raise.
+
+2002-10-29  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (addMessage): Recognize "tick" as a clock bot name.
+
+2002-09-26  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: Added entry widget "history" (up/down arrows,
+	transient to current chat session).
+	Added the ability to hide the online users list.
+
+2002-09-26  D. Richard Hipp  <drh@hwaci.com>
+
+	* tkchat.tcl: Added the "Alerts" menu and its associated functionality.
+
+2002-08-13  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Added support for starkits (stevel).
+
+2002-08-08  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (msgSend): Typo fix.
+
+2002-07-31  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Prevent LEO window from being destroyed when being
+	closed by the window manager.
+
+2002-07-26  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::Init): Fixed handling of http_proxy
+	environment variable.
+
+2002-07-25  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl (::tkchat::Smile): Added icons for coffee (LP), food
+	(|O|), znooze (zzz), and beer (|_P)..
+
+2002-07-19  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Added bindings to the text window for scrolling with
+	cursor up/dowm keys, and mouse wheel (maybe Unix only). Also added
+	askLEO, a web scraper for English <=> German translation via
+	http://dict.leo.org.
+
+2002-05-20  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: don't add the festival hook by default - it can
+	lead to very surprising startup for those with festival installed
+	but who didn't request text-to-speech conversion.
+
+2002-04-11  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: added language translation to the help menu via
+	the babelfish website. The selection is translated and the result
+	printed as a system message in the chat window.
+
+2002-03-21  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (Debug): New debug menu item to load support for
+	remote inspection using dde or comm for use with tkinspect.
+	* tkchat.tcl (addNewLines): Re-added the history size restriction.
+
+2002-03-20  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: improved emoticon detection and simplified interface
+	for defining new smileys.
+
+2002-03-14  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added emoticon support
+
+2002-03-06  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: preserving input widget contents when switching
+	between single and multi line version. Fixed invocation of
+	multiple browsers in gotoURL on UNIX.
+
+2002-02-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: removed -timeout options for further testing. The
+	timeout handling code remains but isn't called.
+	Fixed a frink warning.
+
+2002-02-18  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: do not save value of Options(URLlogs)
+
+2002-02-15  Don Porter <dgp@users.sf.net>
+
+	* tkchat.tcl: added check for required Tk 8.3.2 or better.
+
+2002-02-14  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Try to cope with more possible HTTP errors in
+	fetchPage, msgSend and onlinePage procs. Should always schedule
+	another fetch.
+
+2002-02-01  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: correct warnings that procheck noted.
+
+2002-02-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: noise reduction from the last patch for timeout
+	cases. Also added some menu navigation underlines.
+
+2002-02-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added HTTP error checking to the history fetching
+	code and handle the redirection case where /?M=D gets appended to
+	the log file root URL.
+	Also added some timeouts to the geturl calls to help deal with
+	my rubbish HTTP proxy.
+
+2001-12-06  Bruce Hartweg  <brhartweg@bigfoot.com>
+
+	* tkchat.tcl: Move most stuff out of dialog onto menus - cleaned up
+	dialog (now just colors), a few other minor cleanups (also missed from
+	davidw checking in v25 for me was the ability to grab the history logs
+	at startup)
+
+2001-12-05  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Cleaned up things in the "Options Settings" dialog.
+
+2001-11-19  Ryan Casey <scfiead@hotmail.com>
+
+	* tkchat.tcl: Fixed bug of lines being rewritten to the chat
+	window on every refresh.
+
+2001-11-14  Reinhard Max  <max@suse.de>
+
+	* tkchat.tcl: Added "Close" button to info windows.
+	Added "Save Options" command to the file menu.
+	Changed format of config file to be better human readable/editable.
+
+2001-11-13  Ryan Casey <scfiead@hotmail.com>
+
+	* tkchat.tcl: Fixed User Info bug where windows would
+	keep popping up on every refresh.
+
+2001-11-12  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: minor changes to history handling for speed.
+	Redisable the text widget when cleaning the buffer.
+
+2001-11-09  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added a little humo(u)r to entry/exit messages.
+
+2001-11-05  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: corrected gridding in Options dialog
+
+2001-11-02  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added formatting of clock to local time, auto
+	application of user colors on startup, and removed temporary
+	work-around for accidental mini.net DNS hijack.
+
+2001-11-01  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (msgDone): fixed typo in the ncode check.
+
+2001-10-30  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added smiley detection for Windows/Mac.
+
+2001-10-26  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: Added a help dialog. Needs more help in it.
+	* tkchat.tcl: Implemented patch 474859 for script startup.
+	- Fixed bug 466011: rc file permissions to 0600.
+	- Implemented feature request 466221: optionally hiding user
+	entry/exit messages.
+	- Implemented part of feature request 466091 to remember window
+	geometry.
+
+2001-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl (updateNames): Fixed the missing All Users item for
+	the whisper option menu.
+	* tkchat.tcl: Fixed logging the chat to a file, frink checked
+
+2001-10-17  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: implemented feature request 466094 to allow
+	logging to a user specified file using tcllib log package.
+
+2001-10-15  Pat Thoyts  <patthoyts@users.sourceforge.net>
+
+	* tkchat.tcl: added Retrieve menu item (patch 47026)
+	* tkchat.tcl: implemented HTTP Redirect following (patch 47026)
+	* tkchat.tcl: applied Tcl cleanup (patch 466317)
+
+2001-10-10  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: used direct IP of mini.net to combat dns problems.
+
+2001-09-28  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: corrected minor warnings and height of info box
+	Added support for working as a scripted document (landers)
+
+2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: added options dialog, updated handling of nick
+	updates, added debug menu.  (hartweg)
+
+2001-09-27  Don Porter  <dgp@users.sourceforge.net>
+
+	* tkchat.tcl:  Fixed ability to click and follow URLs on
+	Unix.  Worked around Tcl Bug 219372.  Generalized for more
+	browser command variations.  [Bug 465768]
+
+2001-09-27  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tkchat.tcl: create add message hook for 'say'
+
+	* tkchat.tcl: Initial import of tkchat into CVS
+
+	* 26Sep2001  B. Hartweg	      Initial release to wiki
+	* 26Sep2001  J. Hobbs	      several enhancements
+	* 27Sep2001  B. Hartweg	      Add font selections
+	* 27Sep2001  B. Hartweg	      Add URL handling & minor fixes
+	* 27Sep2001  P. Thoyts	      Support for Proxy Authentication
+	* 27Sep2001  D. Porter	      Bug fix in findExecutable
