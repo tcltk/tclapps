@@ -8,13 +8,15 @@
 # re-use, abuse that may or may not happen. If you somehow sell this
 # and make a ton of money - good for you, how about sending me some?
 # -------------------------------------------------------------------------
-# XMPP Feature Support: 
+# XMPP Feature Support:
 #   XEP-0012: Last activity
 #   XEP-0030: Service discovery
-#   XEP-0090: Entity time
-#   XEP-0090: Software version
+#   XEP-0090: Legacy entity time (replaced by XEP-0202: Entity time)
+#   XEP-0091: Legacy delayed delivery
+#   XEP-0092: Software version
 #   XEP-0115: Entity capabilities
 #   XEP-0199: XMPP Ping
+#   XEP-0202: Entity time
 #   XEP-0232: Software information
 # -------------------------------------------------------------------------
 # \
@@ -25,11 +27,15 @@ variable Features {
     "http://jabber.org/protocol/disco#items"
     "http://jabber.org/protocol/muc"
     "http://jabber.org/protocol/muc#user"
-    iq message 
+    iq message
+    jabber:iq:roster
     jabber:iq:version
     jabber:iq:time
     jabber:iq:last
+    jabber:x:delay
     urn:xmpp:ping
+    urn:xmpp:time
+    urn:tkchat:chat
 }
 
 if {![info exists env(PATH)]} {
@@ -65,7 +71,9 @@ package require log		; # tcllib
 package require base64		; # tcllib
 package require uri             ; # tcllib
 package require uuid            ; # tcllib
+package require SASL            ; # tcllib
 
+catch {package require SASL::SCRAM};# tcllib (optional)
 catch {package require tls}	  ; # tls (optional)
 catch {package require choosefont}; # font selection (optional) 
 catch {package require picoirc}   ; # irc client (optional)
@@ -4647,8 +4655,8 @@ proc ::tkchat::logonScreen {} {
         bind .logon.lconf <<AltUnderlined>> {focus .logon.econf}
 	bind .logon.nossl <<AltUnderlined>> {focus .logon.nossl}
 
-	trace variable Options(UseProxy)  w [namespace origin optSet]
-	trace variable Options(SavePW)    w [namespace origin optSet]
+	trace variable Options(UseProxy)  w [list [namespace origin optSet] .logon]
+	trace variable Options(SavePW)    w [list [namespace origin optSet] .logon]
 
 	pack .logon.ejprt -in .logon.fjsrv -side right -fill y
 	pack .logon.ejsrv -in .logon.fjsrv -side right -fill both -expand 1
@@ -4690,7 +4698,7 @@ proc ::tkchat::logonScreen {} {
 	}
     }
 
-    optSet
+    optSet .logon
     catch {::tk::PlaceWindow .logon widget .}
     wm deiconify .logon
     tkwait visibility .logon
@@ -4698,7 +4706,7 @@ proc ::tkchat::logonScreen {} {
     grab .logon
     vwait ::tkchat::DlgDone
     grab release .logon
-    wm withdraw .logon
+    destroy .logon
     if { $DlgDone eq "ok" } {
         unset -nocomplain Options(ProxyAuth)
         set Options(Nickname) [jlib::resourceprep $Options(Nickname)]
@@ -4767,7 +4775,8 @@ proc ::tkchat::IRCLogonScreen {} {
     grab $dlg
     vwait [namespace which -variable $dlg]
     grab release $dlg
-    wm withdraw $dlg
+    #wm withdraw $dlg
+    destroy $dlg
 
     if {[set $dlg] eq "ok"} {
         if {$::tkchat::LoggedIn} { tkjabber::disconnect }
@@ -4776,7 +4785,7 @@ proc ::tkchat::IRCLogonScreen {} {
     }
 }
 
-proc ::tkchat::optSet {args} {
+proc ::tkchat::optSet {dlg args} {
     global Options
 
     if {$Options(UseProxy)} {
@@ -4785,12 +4794,12 @@ proc ::tkchat::optSet {args} {
 	set s disabled
     }
     foreach w {lph eph epp lpan epan lpap epap} {
-	.logon.$w configure -state $s
+	$dlg.$w configure -state $s
     }
     if {$Options(SavePW)} {
-	.logon.atc configure -state normal
+	$dlg.atc configure -state normal
     } else {
-	.logon.atc configure -state disabled
+	$dlg.atc configure -state disabled
 	set Options(AutoConnect) 0
     }
 }
@@ -7594,6 +7603,8 @@ proc ::tkjabber::connect {} {
 	    [namespace origin on_iq_version_result] 40
         ::jlib::iq_register $jabber get urn:xmpp:ping \
             [namespace origin on_iq_ping] 40
+        ::jlib::iq_register $jabber get urn:xmpp:time \
+            [namespace origin on_iq_time] 40
         ::jlib::iq_register $jabber result jabber:iq:roster \
             [namespace origin on_iq_roster_result] 50
 
@@ -7618,7 +7629,7 @@ proc ::tkjabber::connect {} {
 		    $Options(JabberServer) $Options(JabberPort)]
 	} elseif { $have_tls && $Options(UseJabberSSL) eq "ssl" } {
 	    set socket \
-		    [tls::socket -ssl2 false -ssl3 true -tls1 true \
+		    [tls::socket -ssl2 false -ssl3 false -tls1 true \
                          -cafile [get_cafile] \
                          -command [namespace origin tls_callback] \
                          $Options(JabberServer) $Options(JabberPort)]
@@ -8977,7 +8988,7 @@ proc ::tkjabber::query_user {user what} {
         return -code error "invalid query \"$what\": must be one of\
             [join [array names q] {, }]"
     }
-        
+
     set jid [get_participant_jid $user]
     set xmllist [wrapper::createtag query -attrlist [list xmlns $q($what)]]
     $tkjabber::jabber send_iq get [list $xmllist] -to $jid
@@ -9646,6 +9657,23 @@ proc tkjabber::on_iq_last {token from subiq args} {
         return 1 ;# handled
     }
     return 0 ;# report not handled
+}
+
+proc tkjabber::on_iq_time {token from subiq args} {
+    tkchat::addStatus 0 "Time (XEP-0202) query from $from"
+    set opts [list -to $from]
+    array set a [linsert $args 0 -id {}]
+    if {$a(-id) ne {}} { lappend opts -id $a(-id) }
+    set t [clock seconds]
+    set fmt "%Y-%m-%dT%H:%M:%SZ"
+    lappend subtags [wrapper::createtag tzo {} 1 \
+                         [clock format $t -format "%z" -gmt 0] {}]
+    lappend subtabs [wrapper::createtag utc {} 1 \
+                         [clock format $t -format $fmt -gmt 1] {}]
+    set xml [wrapper::createtag time -subtags $subtags \
+                 -attrlist [list xmlns urn:xmpp:time]]
+    eval [linsert $opts 0 $token send_iq result [list $xml]]
+    return 1 ;# handled
 }
 
 proc tkjabber::on_iq_version {token from subiq args} {
