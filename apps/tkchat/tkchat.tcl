@@ -43,7 +43,7 @@ if {![info exists env(PATH)]} {
 }
 
 # For development, it is very convenient to be able to drop the extra
-# packages into the CVS tree. Make sure we have the real location of 
+# packages into the CVS tree. Make sure we have the real location of
 # the script and not a link.
 set script [file normalize [info script]]
 while {[file type $script] eq "link"} {
@@ -75,7 +75,7 @@ package require SASL            ; # tcllib
 
 catch {package require SASL::SCRAM};# tcllib (optional)
 catch {package require tls}	  ; # tls (optional)
-catch {package require choosefont}; # font selection (optional) 
+catch {package require choosefont}; # font selection (optional)
 catch {package require picoirc}   ; # irc client (optional)
 catch {package require img::jpeg} ; # more image types (optional)
 
@@ -84,14 +84,14 @@ if {![package vsatisfies [package provide Tk] 8.6]} {
 }
 set have_png [expr {[package vsatisfies [package provide Tk] 8.6] \
                         || [package provide img::png] ne {}}]
- 
+
 package require sha1		; # tcllib
 package require jlib		; # jlib
 package require muc		; # jlib
-package require disco           ; # jlib 
+package require disco           ; # jlib
 
 catch {package require khim}    ; # khim (optional)
-catch {package require tooltip 1.2};# tooltips (optional)  
+catch {package require tooltip 1.2};# tooltips (optional)
 
 if { ![catch { tk inactive }] } {
     # Idle detection built into tk8.5a3
@@ -276,7 +276,7 @@ namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
     variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
-    variable rcsid   {$Id: tkchat.tcl,v 1.489 2012/02/07 13:10:20 rmax Exp $}
+    variable version 1.490
 
     variable MSGS
     set MSGS(entered) [list \
@@ -3591,10 +3591,8 @@ proc ::tkchat::ScrolledWidgetCmd {self cmd args} {
 
 proc ::tkchat::About {} {
     global Options
-    variable rcsid
+    variable version
     variable NS
-
-    regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
 
     # don't cache this window - if user reloads on the fly
     # we want to make sure it displays latest greatest info!
@@ -3603,7 +3601,7 @@ proc ::tkchat::About {} {
     set dlg [Dialog .about]
     set w [${NS}::frame $dlg.f]
     wm withdraw $dlg
-    wm title $dlg [mc "About TkChat %s" $rcsVersion]
+    wm title $dlg [mc "About TkChat %s" $version]
     if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
 	catch {wm iconphoto $dlg ::tkchat::img::Tkchat}
     }
@@ -3624,9 +3622,9 @@ proc ::tkchat::About {} {
 	#$w.text image create end -image ::tkchat::img::Tkchat -name Icon -padx 20
     }
     $w.text insert end \
-	"TkChat v$rcsVersion\n" title "$ver\n\n" {h1 center} \
-	"$rcsid\n\n" center \
-	[mc "Copyright (c) %s by following authors:" "2001-2011"] {} "\n\n" {}
+	"TkChat v$version\n" title "$ver\n\n" {h1 center} \
+	"$version\n\n" center \
+	[mc "Copyright (c) %s by following authors:" "2001-2020"] {} "\n\n" {}
 
     lappend txt "Bruce B Hartweg"       "<brhartweg@bigfoot.com>"
     lappend txt "Don Porter"		"<dgp@users.sourceforge.net>"
@@ -3659,11 +3657,10 @@ proc ::tkchat::About {} {
 }
 
 proc ::tkchat::Help {} {
-    variable rcsid
+    variable version
     variable NS
     global Options
-    regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $rcsid -> rcsVersion
-    set title "TkChat $rcsVersion [string map {& {}} [mc Help]]"
+    set title "TkChat $version [string map {& {}} [mc Help]]"
 
     catch {destroy .qhelp}
     set w [Dialog .qhelp]
@@ -6171,12 +6168,12 @@ proc ::tkchat::Init {args} {
     if {[info exists Options(UserAgent)]} {
 	http::config -useragent $Options(UserAgent)
     } else {
-        set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
+        variable version
 	http::config -useragent "Mozilla/5.0\
 	    ([string totitle $::tcl_platform(platform)]; U;\
 	    $::tcl_platform(os) $::tcl_platform(osVersion);\
             [::jlib::getlang])\
-            Tkchat/$tkchatver Tcl/[package provide Tcl]"
+            Tkchat/$version Tcl/[package provide Tcl]"
     }
     set Options(NoProxy) [list localhost 127.0.0.1]
     if {[info exists env(no_proxy)]} {
@@ -8503,19 +8500,17 @@ proc ::tkjabber::on_pres_subscribe {jlib from type args} {
 # Generate a XEP-0115 capabilities ver string (XEP-0115 section 5).
 proc ::tkjabber::get_caps_ver {} {
     global Features tcl_platform
-    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
     set S "client/pc//tkchat<"
     foreach feature [lsort $Features] { append S $feature "<" }
     # extended feature processing as well (order counts)
     append S "urn:xmpp:dataforms:softwareinfo<"
     append S "os<$tcl_platform(os)<"
     append S "os_version<$tcl_platform(osVersion)<"
-    append S "software<tkchat<software_version<$tkchatver<"
+    append S "software<tkchat<software_version<$::tkchat::version<"
     return [base64::encode -maxlen 0 [sha1::sha1 -bin $S]]
 }
 
 proc ::tkjabber::get_caps {} {
-    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
     set caps [wrapper::createtag c -attrlist \
                   [list xmlns "http://jabber.org/protocol/caps" \
                        hash "sha-1"\
@@ -8541,28 +8536,25 @@ proc ::tkjabber::on_discovery {disco type from child args} {
                 foreach feature $Features {
                     lappend parts [wrapper::createtag feature -attrlist [list var $feature]]
                 }
-                
+
                 set xp [list]
                 lappend xp [wrapper::createtag field -attrlist {var FORM_TYPE type hidden} \
                                 -subtags [list [wrapper::createtag value \
                                                     -chdata urn:xmpp:dataforms:softwareinfo]]]
                 lappend xp [wrapper::createtag field -attrlist {var software} \
                                 -subtags [list [wrapper::createtag value -chdata tkchat]]]
-                set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
                 lappend xp [wrapper::createtag field -attrlist {var software_version} \
-                                -subtags [list [wrapper::createtag value -chdata $tkchatver]]]
+                                -subtags [list [wrapper::createtag value -chdata $::tkchat::version]]]
                 lappend xp [wrapper::createtag field -attrlist {var os} \
                                 -subtags [list [wrapper::createtag value -chdata $tcl_platform(os)]]]
                 lappend xp [wrapper::createtag field -attrlist {var os_version} \
                                 -subtags [list [wrapper::createtag value -chdata $tcl_platform(osVersion)]]]
-                
+
                 lappend parts [wrapper::createtag x \
                                    -attrlist {xmlns jabber:x:data type result} -subtags $xp]
 
             } else {
-                
                 # no items
-
             }
 
             set rsp [wrapper::createtag query -attrlist [list xmlns $xmlns] -subtags $parts]
@@ -9687,12 +9679,11 @@ proc tkjabber::on_iq_version {token from subiq args} {
 	append os " $tcl_platform(osVersion)"
     }
     append os "/Tcl [info patchlevel]"
-    set tkchatver [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
     set subtags [list  \
-      [wrapper::createtag name    -chdata "Tkchat"]  \
-      [wrapper::createtag version -chdata $tkchatver]  \
+      [wrapper::createtag name    -chdata "Tkchat"] \
+      [wrapper::createtag version -chdata $::tkchat::version] \
       [wrapper::createtag os      -chdata $os] ]
-    set xmllist [wrapper::createtag query -subtags $subtags  \
+    set xmllist [wrapper::createtag query -subtags $subtags \
                      -attrlist {xmlns jabber:iq:version}]
     eval [linsert $opts 0 $token send_iq result [list $xmllist]]
     return 1 ;# handled
@@ -9901,7 +9892,7 @@ proc ::tkchat::CheckVersion {} {
 }
 
 proc ::tkchat::CheckVersionDone {tok} {
-    variable rcsid
+    variable version
     global Options
     set meta [set [set tok](meta)]
     if {[set ndx [lsearch -exact $meta X-LOLCATZ]] != -1} {
@@ -9916,7 +9907,7 @@ proc ::tkchat::CheckVersionDone {tok} {
         if {[llength $bridges] > 0} { set Options(BridgeNames) $bridges }
     }
     set url [string trim [http::data $tok]]
-    if {[regexp {tkchat.tcl,v 1\.(\d+)} $rcsid -> current]
+    if {[regexp {1\.(\d+)} $version -> current]
         && [regexp {tkchat-1\.(\d+)} $url -> latest]} {
         addStatus 0 "Latest tkchat version is $latest"
         if {$current < $latest} {
@@ -10233,7 +10224,7 @@ foreach dir $dirs {
 
 package forget app-tkchat	; # Workaround until I can convince people
 				; # that apps are not packages. :)  DGP
-package provide app-tkchat [regexp -inline -- {\d+(?:\.\d+)?} $::tkchat::rcsid]
+package provide app-tkchat $::tkchat::version
 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
