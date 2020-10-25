@@ -274,9 +274,8 @@ if {[package vsatisfies [package provide Tcl] 8.6]} {
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
-
-    variable HEADUrl {http://tcllib.cvs.sourceforge.net/*checkout*/tcllib/tclapps/apps/tkchat/tkchat.tcl?revision=HEAD}
     variable version 1.490
+    variable FossilUrl "https://core.tcl-lang.org/tclapps/"
 
     variable MSGS
     set MSGS(entered) [list \
@@ -2818,12 +2817,16 @@ proc ::tkchat::CreateGUI {} {
     $m add separator
     tk::AmpMenuArgs $m add command -label [mc "&Check version"] \
         -command [list after idle [list [namespace origin CheckVersion]]]
-    tk::AmpMenuArgs $m add command -label [mc "&View ChangeLog..."] \
+    tk::AmpMenuArgs $m add command -label [mc "&View changes..."] \
         -command [list after idle [list [namespace origin gotoURL] \
-               [string map {tkchat.tcl ChangeLog} $::tkchat::HEADUrl]]]
+                                       "${::tkchat::FossilUrl}timeline"]]
+    tk::AmpMenuArgs $m add command -label [mc "&View issues..."] \
+        -command [list after idle [list [namespace origin gotoURL] \
+                                       "${::tkchat::FossilUrl}reportlist"]]
+
     if {[tk windowingsystem] ne "aqua"} {
-	tk::AmpMenuArgs $m add command -label [mc "&About..."]\
-	    -command [list [namespace origin About]]
+        tk::AmpMenuArgs $m add command -label [mc "&About..."]\
+            -command [list [namespace origin About]]
     }
 
     # a pane for the main display (chat window and users window):
