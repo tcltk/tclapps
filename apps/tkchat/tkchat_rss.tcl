@@ -82,7 +82,7 @@ proc ::tkchat::rss::Init {} {
                     trace add variable $var write \
                         [list after 0 [namespace origin RssUpdateTip]]
                 }
-                
+
                 after idle [namespace origin CheckRSSFeeds]
             }
         }
@@ -123,7 +123,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
     } else {
         set nb [${NS}::frame $dlg.nb]
     }
-    
+
     set page 0
     foreach {url token} [array get Rss] {
         if {[rss::status $token] ne "ok"} { continue }
@@ -131,7 +131,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
         set txt [text $f.txt -borderwidth 0 -font FNT]
         set sb [${NS}::scrollbar $f.vs -command [list $txt yview]]
         $txt configure -yscrollcommand [list $sb set]
-        
+
         $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
         $txt tag bind URL <Leave> [list $txt configure -cursor {}]
         $txt tag configure TITLE -font NAME -spacing3 2
@@ -139,7 +139,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
         $txt tag configure URL -underline 1
         $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
         $txt tag bind URL <Leave> [list $txt configure -cursor {}]
-        
+
         grid $txt $sb -sticky news
         grid rowconfigure $f 0 -weight 1
         grid columnconfigure $f 0 -weight 1
@@ -151,6 +151,11 @@ proc ::tkchat::rss::ShowRssInfo {} {
             array set a $item
             if {![info exists a(title)] || [string length $a(title)] < 1} {
                 set a(title) "(no title)"
+            } else {
+                set a(title) [::htmlparse::mapEscapes $a(title)]
+            }
+            if {[info exists a(description)]} {
+                set a(description) [::htmlparse::mapEscapes $a(description)]
             }
             set tag URL-[incr RssUrlId]
             $txt insert end $a(title) [list $url URL ITEM $tag] \
@@ -160,7 +165,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
                 tooltip::tooltip $txt -tag $tag $a(link)
             }
         }
-        
+
         $txt configure -state disabled
         if {$use_notebook} {
             $nb add $f -text $title
@@ -175,13 +180,13 @@ proc ::tkchat::rss::ShowRssInfo {} {
 
         incr page
     }
-    
+
     ${NS}::button $dlg.ok -default active -text "OK" -width -12 \
         -command [list set [namespace which -variable $dlg] ok]
 
     bind $dlg <Return> [list $dlg.ok invoke]
     bind $dlg <Escape> [list $dlg.ok invoke]
-    
+
     grid $nb     -sticky news -padx {2 1} -pady 2
     grid $dlg.ok -sticky e
     grid rowconfigure $dlg 0 -weight 1
@@ -265,7 +270,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
         if {[catch {
             set last 0
             if {[info exists Options(RSS,last,$feed)]} {
-                set last $Options(RSS,last,$feed) 
+                set last $Options(RSS,last,$feed)
             }
             array set item [lindex [::rss::data $Rss($feed)] 0]
             array set hdrs [rss::channel $Rss($feed)]
@@ -280,7 +285,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
                     incr count
                 }
             }
-            append RSStip "$count new items from $hdrs(title)\n" 
+            append RSStip "$count new items from $hdrs(title)\n"
             if {$count > 0} {
                 ::tkchat::addStatus 0 "$count new items from $hdrs(title)"
                 .status.rss configure -image ::tkchat::img::feedHi
