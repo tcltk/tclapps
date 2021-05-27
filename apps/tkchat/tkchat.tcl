@@ -5568,7 +5568,7 @@ proc ::tkchat::saveRC {} {
     # Save these options to resource file
     set keep {
 	Alert,* AnimEmoticons AskBeforeQuit AutoAway AutoAwayMsg
-	AutoBookmark AutoConnect AutoFade AutoFadeLimit Browser BrowserTab
+	AutoBookmark AutoConnect AutoFade AutoFadeLimit BridgeNames Browser BrowserTab
 	ChatLogFile ChatLogOff Color,* DisplayUsers ClickFocusEntry
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
@@ -6283,7 +6283,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	AutoFade		0
 	AutoFadeLimit		80
 	AutoScroll		0
-        BridgeNames             ijchain
+	BridgeNames     { ijchain liberachain }
 	Browser			""
 	BrowserTab		0
 	ChatLogFile		""
@@ -9913,7 +9913,7 @@ proc ::tkchat::CheckVersionDone {tok} {
     # This permits the website to re-define the names of current bridges.
     if {[set ndx [lsearch -exact $meta X-BridgeNames]] != -1} {
         set bridges [lindex $meta [incr ndx]]
-        if {[llength $bridges] > 0} { set Options(BridgeNames) $bridges }
+        if {[llength $bridges] > 0} { lappend Options(BridgeNames) {*}$bridges }
     }
     set url [string trim [http::data $tok]]
     if {[regexp {tkchat.tcl,v 1\.(\d+)} $rcsid -> current]
