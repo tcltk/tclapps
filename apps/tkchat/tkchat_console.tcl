@@ -189,7 +189,23 @@ proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
         $consoleInterp eval {
             bind Console <Destroy> +Oc_RestorePuts
         }
-        
+
+        # If using a dark theme, update the console colors.
+        $consoleInterp eval {
+            set bg [.console cget -background]
+            if {$bg ne ""} {
+                lassign [winfo rgb .console $bg] r g b
+                set brightness [expr {((299 * $r) + (587 * $g) + (114 * $b)) / 256000}]
+                if {$brightness < 127} {
+                    .console configure -insertbackground [.console cget -foreground]
+                    .console tag configure stdin -foreground cyan2
+                    .console tag configure stderr -foreground orange
+                    .console tag configure proc -foreground lightgreen
+                    .console tag configure var -background darkblue
+                }
+            }
+        }            
+    
         unset consoleInterp
         $name title "[wm title .] Console"
         $name hide
