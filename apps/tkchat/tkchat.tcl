@@ -6345,7 +6345,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Visibility,TRAFFIC	0
         Visibility,ROSTER	1
 	WhisperIndicatorColor	#ffe0e0
-	RSS,watch,http://wiki.tcl.tk/rss.xml 1
+	RSS,watch,http://wiki.tcl-lang.org/rss.xml 1
 	RSS,watch,http://paste.tclers.tk/rss.atom 1
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
