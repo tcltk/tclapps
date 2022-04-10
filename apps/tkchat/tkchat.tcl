@@ -1409,10 +1409,7 @@ proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
 	wm title . $title
 	wm iconname . $title
         tk systray configure -text "$MessageCounter - $chatWindowTitle"
-        if {[tk windowingsystem] eq "aqua"} { 
-            tk systray configure -image tkchat_warn-32
-            wm iconphoto . -default icon_warn
-        }
+        wm iconbadge . $MessageCounter
     }
 }
 
@@ -1426,10 +1423,7 @@ proc ::tkchat::ResetMessageCounter {} {
 	wm title . $title
 	wm iconname . $title
         tk systray configure -image tkchat-32 -text $chatWindowTitle
-        
-        if {[tk windowingsystem] eq "aqua"} {
-            wm iconphoto . -default icon_mac
-        }
+        wm iconbadge . ""
     }
 }
 
