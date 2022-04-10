@@ -10294,7 +10294,7 @@ foreach dir $dirs {
 
 package forget app-tkchat	; # Workaround until I can convince people
 ; # that apps are not packages. :)  DGP
-package provide app-tkchat s
+package provide app-tkchat $::tkchat::version
 
 if {![info exists ::URLID]} {
     eval [linsert $argv 0 ::tkchat::Init]
