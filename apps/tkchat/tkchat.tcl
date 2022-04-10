@@ -247,8 +247,7 @@ if {[package provide khim] ne {}} {
 }
 
 # Under windows, we can use DDE to open urls
-if {$tcl_platform(platform) eq "windows"
-    && $tcl_platform(os) ne "Windows CE"} {
+if {[tk windowingsystem] eq "win32"} {
     package require dde
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
@@ -1588,13 +1587,13 @@ proc ::tkchat::gotoURL {url} {
     clipboard clear
     clipboard append $url
 
-    global tcl_platform Options
+    global ::tcl_platform Options
 
     # this code from  http://purl.org/mini/tcl/557.html
-    switch -- $tcl_platform(platform) {
+    switch -- $::tcl_platform(platform) {
 	"unix" {
 	    # special case for MacOS X:
-	    if {$tcl_platform(os) eq "Darwin"} {
+	    if {$::tcl_platform(os) eq "Darwin"} {
 		# assume all goes well:
 		set notOK 0
 		if { $Options(Browser) ne "" } {
@@ -1669,7 +1668,7 @@ proc ::tkchat::gotoURL {url} {
 	    # The windows NT shell treats '&' as a special character. Using
 	    # a '^' will escape it. See http://wiki.tcl.tk/557 for more info.
 	    if {! $handled} {
-		if { $tcl_platform(os) eq "Windows NT" } {
+		if { $::tcl_platform(os) eq "Windows NT" } {
 		    set url [string map {& ^&} $url]
 		}
 		if { [catch {
@@ -1697,7 +1696,7 @@ proc ::tkchat::gotoURL {url} {
 	}
 	default {
 	    ::log::log warning \
-		"::tkchat::gotoURL: Unknown platform '$tcl_platform(platform)'"
+		"::tkchat::gotoURL: Unknown platform '$::tcl_platform(platform)'"
 	}
     }
     . configure -cursor {}
@@ -7106,7 +7105,7 @@ proc ::tkchat::FocusOutHandler {w args} {
 
 proc ::tkchat::PreferencesPage {parent} {
     global Options
-    global tcl_platform
+    global ::tcl_platform
     variable NS
     variable useTile
 
@@ -7199,7 +7198,7 @@ proc ::tkchat::PreferencesPage {parent} {
     grid $af.aal $af.aae -sticky ew -padx 2
     grid columnconfigure $af 1 -weight 1
 
-    if {$tcl_platform(platform) ne "windows"} {
+    if {$::tcl_platform(platform) ne "windows"} {
         set bf [${NS}::labelframe $page.bf -text "Preferred browser"]
         if {$useTile} { $bf configure -underline 10 }
 
@@ -7302,7 +7301,7 @@ proc ::tkchat::PreferencesPage {parent} {
     }
 
     grid $af - -sticky news -padx 2 -pady 2
-    if {$tcl_platform(platform) ne "windows"} {
+    if {$::tcl_platform(platform) ne "windows"} {
         grid $bf - -sticky news -padx 2 -pady 2
     }
     grid $sf - -sticky news -padx 2 -pady 2
@@ -8556,14 +8555,14 @@ proc ::tkjabber::on_pres_subscribe {jlib from type args} {
 
 # Generate a XEP-0115 capabilities ver string (XEP-0115 section 5).
 proc ::tkjabber::get_caps_ver {} {
-    global Features tcl_platforms
+    global Features ::tcl_platform
     
     set S "client/pc//tkchat<"
     foreach feature [lsort $Features] { append S $feature "<" }
     # extended feature processing as well (order counts)
     append S "urn:xmpp:dataforms:softwareinfo<"
-    append S "os<$tcl_platform(os)<"
-    append S "os_version<$tcl_platform(osVersion)"
+    append S "os<$::tcl_platform(os)<"
+    append S "os_version<$::tcl_platform(osVersion)"
     append S "software<tkchat<software_version<$::tkchat::version<"
     return [base64::encode -maxlen 0 [sha1::sha1 -bin $S]]
 }
@@ -8580,7 +8579,7 @@ proc ::tkjabber::get_caps {} {
 
 proc ::tkjabber::on_discovery {disco type from child args} {
     variable jabber
-    global Features tcl_platform
+    global Features ::tcl_platform
     ::log::log info "on_discovery $type $from $child $args"
     set handled 0
     array set a [concat -id {{}} $args]
@@ -8606,9 +8605,9 @@ proc ::tkjabber::on_discovery {disco type from child args} {
                 lappend xp [wrapper::createtag field -attrlist {var software_version} \
                                 -subtags [list [wrapper::createtag value -chdata $tkchatver]]]
                 lappend xp [wrapper::createtag field -attrlist {var os} \
-                                -subtags [list [wrapper::createtag value -chdata $tcl_platform(os)]]]
+                                -subtags [list [wrapper::createtag value -chdata $::tcl_platform(os)]]]
                 lappend xp [wrapper::createtag field -attrlist {var os_version} \
-                                -subtags [list [wrapper::createtag value -chdata $tcl_platform(osVersion)]]]
+                                -subtags [list [wrapper::createtag value -chdata $::tcl_platform(osVersion)]]]
                 
                 lappend parts [wrapper::createtag x \
                                    -attrlist {xmlns jabber:x:data type result} -subtags $xp]
@@ -9071,7 +9070,7 @@ proc ::tkjabber::ping_result {jid sent type result} {
 }
 
 proc ::tkjabber::on_iq_ping {token from subiq args} {
-    global tcl_platform
+    global ::tcl_platform
     log::log info "ping from $from"
     tkchat::addStatus 0 "Ping from $from"
     array set a [concat -id {{}} $args]
@@ -9735,14 +9734,14 @@ proc tkjabber::on_iq_time {token from subiq args} {
 }
 
 proc tkjabber::on_iq_version {token from subiq args} {
-    global tcl_platform
+    global ::tcl_platform
     tkchat::addStatus 0 "Version query from $from"
     array set a [concat -id {{}} $args]
     set opts [list -to $from]
     if {$a(-id) ne {}} { lappend opts -id $a(-id) }
-    set os $tcl_platform(os)
-    if {[info exists tcl_platform(osVersion)]} {
-	append os " $tcl_platform(osVersion)"
+    set os $::tcl_platform(os)
+    if {[info exists ::tcl_platform(osVersion)]} {
+	append os " $::tcl_platform(osVersion)"
     }
     append os "/Tcl [info patchlevel]"
 
@@ -10077,7 +10076,7 @@ proc ::tkchat::ShowCertificate {owner depth info} {
 # -------------------------------------------------------------------------
 # Windows CE specific code.
 
-if { $tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} {
+if { $::tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} {
     set ::tkchat::wince_fixes 1
     # Work around for socket problem with sockets. ("select 10022")
     # Not quite there yet...
