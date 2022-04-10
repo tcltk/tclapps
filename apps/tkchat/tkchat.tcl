@@ -185,12 +185,6 @@ namespace eval ::tkchat {
 	}
     }
 
-    if {[tk windowingsystem] eq "aqua"} {
-        variable Resources
-      
-        bind all <FocusIn> {+wm iconphoto . -default icon_mac}
-
-    }
     
     if {$useTile && [tk windowingsystem] eq "win32"} {
         # [PT]: experimental ttk styled pane closebutton.
