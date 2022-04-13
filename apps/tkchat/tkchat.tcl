@@ -2869,7 +2869,7 @@ proc ::tkchat::CreateGUI {} {
                                        "${::tkchat::FossilUrl}timeline"]]
     tk::AmpMenuArgs $m add command -label [mc "&View issues..."] \
         -command [list after idle [list [namespace origin gotoURL] \
-                                       "${::tkchat::FossilUrl}reportlist"]]s
+                                       "${::tkchat::FossilUrl}reportlist"]]
     if {[tk windowingsystem] ne "aqua"} {
         tk::AmpMenuArgs $m add command -label [mc "&About..."]\
             -command [list [namespace origin About]]
