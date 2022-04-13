@@ -10122,7 +10122,7 @@ proc tkchat::PasteDlg {} {
     set send [${NS}::button $f3.send -text [mc "Send"] \
                   -default active -width -12 \
                   -command [list set [namespace current]::$wid send]]
-s    set cancel [${NS}::button $f3.cancel -text [mc "Cancel"] \
+    set cancel [${NS}::button $f3.cancel -text [mc "Cancel"] \
                     -default normal -width -12 \
                     -command [list set [namespace current]::$wid cancel]]
 
