@@ -22,12 +22,14 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=tkchatsetup
+OutputBaseFilename=TkChat_Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 SignedUninstaller=yes
 UninstallDisplayIcon="{app}\bin\tclkit.ico"  
+OutputDir="C:\Users\kevin\Desktop\innosetup"
+VersionInfoVersion={#MyAppVersion}
  
 
 [Languages]
