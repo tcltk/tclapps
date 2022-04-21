@@ -2395,6 +2395,7 @@ proc ::tkchat::CreateGUI {} {
         }
         if {[info command ::tkchat::img::Tkchat] ne {}} {
             wm iconphoto . -default ::tkchat::img::Tkchat
+            set ::tk::icons::base_icon(.) ::tkchat::img::Tkchat
         }
     }
 
@@ -3017,6 +3018,9 @@ proc ::tkchat::CreateGUI {} {
 	bind Tkchat <FocusIn>  { ::tkchat::FocusInHandler %W }
 	bind Tkchat <FocusOut> { ::tkchat::FocusOutHandler %W }
     }
+
+     # NEWROSTER
+   # source [file join $::tkchat_dir newContactList contact_list.tcl]
 
     # using explicit rows for restart
     set Options(NamesWin) .pane.names
@@ -6393,7 +6397,7 @@ proc ::tkchat::GetDefaultOptions {} {
 	Visibility,TRAFFIC	0
         Visibility,ROSTER	1
 	WhisperIndicatorColor	#ffe0e0
-	RSS,watch,http://wiki.tcl-lang.org/rss.xml 1
+	RSS,watch,https://wiki.tcl-lang.org/rss.xml 1
 	RSS,watch,http://paste.tclers.tk/rss.atom 1
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
@@ -9225,6 +9229,9 @@ proc ::tkchat::updateOnlineNames {} {
     .pane.names insert 1.0 "$total Users Online\n\n" TITLE
     .pane.names yview moveto [lindex $scrollview 0]
     .pane.names configure -state disabled
+    
+    # NEWROSTER
+    #after idle ::newRoster::updateOnlineNames
 }
 
 proc ::tkchat::updateRosterDisplay {} {
