@@ -62,7 +62,11 @@ namespace eval ::dkfFontSel {
     # Now we start in earnest
     namespace export dkf_chooseFont
 
-    variable Family Helvetica
+    if {[tk windowingsystem] eq "win32"} {
+	variable Family Arial
+    } else {
+	variable Family Helvetica
+    }
     variable Size   12
     variable Done   0
     variable Win    {}
