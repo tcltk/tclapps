@@ -72,6 +72,9 @@ package require uri             ; # tcllib
 package require uuid            ; # tcllib
 
 catch {package require tls}	  ; # tls (optional)
+catch {::http::register https 443 \
+           [list ::tls::socket -servername wiki.tcl-lang.org\
+           -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]};# register wiki for RSS over SSL
 catch {package require choosefont}; # font selection (optional) 
 catch {package require picoirc}   ; # irc client (optional)
 catch {package require img::jpeg} ; # more image types (optional)
@@ -2094,8 +2097,13 @@ proc ::tkchat::showInfo {title str} {
 }
 
 proc ::tkchat::createFonts {} {
+    if {[tk windowingsystem] eq "win32"} {
+        set family arial
+    } else {
+        set family helvetica
+    }
     if {[lsearch -exact [font names] TkDefaultFont] == -1} {
-        set basic [list -family helvetica -size -12 -weight normal -slant roman]
+        set basic [list -family $family -size -12 -weight normal -slant roman]
         eval font create FIXED $basic -family courier
     } else {
         set basic [font actual TkDefaultFont]
