@@ -41,5 +41,5 @@ Source: "C:\Users\Kevin\Desktop\tkchat\*"; DestDir: "{app}"; Flags: ignoreversio
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{group}\{#MyAppName}"; Filename: "{app}\bin\tkchat.vbs"; IconFilename: "{app}\bin\tclkit.ico"; WorkingDir: "{app}\bin"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\bin\wish87"; IconFilename: "{app}\bin\tclkit.ico"; WorkingDir: "{app}\bin"; Parameters: "AppMain.tcl"
 
