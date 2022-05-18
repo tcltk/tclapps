@@ -19,7 +19,7 @@
 # -------------------------------------------------------------------------
 # \
     exec wish "$0" ${1+"$@"}
-
+package require Tk 8.7
 
 #log background errors to console under Aqua, avoid locking up window
 if {[tk windowingsystem] == "aqua"} {
@@ -73,7 +73,7 @@ package require uuid            ; # tcllib
 
 catch {package require tls}	  ; # tls (optional)
 catch {::http::register https 443 \
-           [list ::tls::socket -servername wiki.tcl-lang.org\
+           [list ::tls::socket -servername wiki.tcl-lang.org \
            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]};# register wiki for RSS over SSL
 catch {package require choosefont}; # font selection (optional) 
 catch {package require picoirc}   ; # irc client (optional)
@@ -1410,7 +1410,7 @@ proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
 	wm title . $title
 	wm iconname . $title
         tk systray configure -text "$MessageCounter - $chatWindowTitle"
-        wm iconbadge . $MessageCounter
+        # wm iconbadge . $MessageCounter
     }
 }
 
@@ -1424,7 +1424,7 @@ proc ::tkchat::ResetMessageCounter {} {
 	wm title . $title
 	wm iconname . $title
         tk systray configure -image tkchat-32 -text $chatWindowTitle
-        wm iconbadge . ""
+        # wm iconbadge . ""
     }
 }
 
@@ -2928,12 +2928,7 @@ proc ::tkchat::CreateGUI {} {
 
     CreateTxtAndSbar
 
-    #button-3 is the scrollwheel on Aqua--button-2 is better for this
-    if { [tk windowingsystem] eq "aqua"} {
-        bind .txt <Button-2> [namespace code [list OnTextPopup %W %x %y]] 
-    } else {
-        bind .txt <Button-3> [namespace code [list OnTextPopup %W %x %y]]
-    }
+    bind .txt <Button-3> [namespace code [list OnTextPopup %W %x %y]]
     bind .txt <Button-1> [namespace code [list OnTextFocus %W]]
 
     # user display
@@ -2980,14 +2975,8 @@ proc ::tkchat::CreateGUI {} {
     bind .eMsg <Key-Next>	{ .txt yview scroll  1 pages }
     bind .eMsg <Shift-Key-Up>   { .txt yview scroll -1 units }
     bind .eMsg <Shift-Key-Down> { .txt yview scroll  1 units }
-    #button-3 is the scrollwheel on Aqua--button-2 is better for this
-    if { [tk windowingsystem] eq "aqua"} {
-        bind .eMsg <Button-2>       [namespace code [list OnEntryPopup %W %X %Y]]
-    } else {
-        bind .eMsg <Button-3>       [namespace code [list OnEntryPopup %W %X %Y]]
-    }
-
-
+    bind .eMsg <Button-3>       [namespace code [list OnEntryPopup %W %X %Y]]
+  
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
 
@@ -3032,6 +3021,10 @@ proc ::tkchat::CreateGUI {} {
 
     # using explicit rows for restart
     set Options(NamesWin) .pane.names
+
+    # load new roster implementation (and steal Options(NamesWin) :^)
+    ::newRoster::PutIntoPane
+
     .txt configure -width 10
     .pane.names configure -width 10
     if {![catch {.txtframe cget -style} style] && $style eq "FakeText"} {
@@ -3360,13 +3353,8 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
 
     set post [list ::tkchat::userPostOneToOne $parent $jid]
 
+    bind $parent.txt  <Button-3>  { ::tkchat::OnTextPopup %W %x %y }
 
-    #button-3 is the scrollwheel on Aqua--button-2 is better for this
-    if { [tk windowingsystem] eq "aqua"} {
-        bind $parent.txt  <Button-2>  { ::tkchat::OnTextPopup %W %x %y }
-    } else {
-        bind $parent.txt  <Button-3>  { ::tkchat::OnTextPopup %W %x %y }
-    }
     bind $parent.eMsg <Return>	  $post
     bind $parent.eMsg <KP_Enter>  $post
     $parent.post configure -command $post
@@ -3686,7 +3674,7 @@ proc ::tkchat::About {} {
     $w.text insert end \
 	"TkChat v$version\n" title "$ver\n\n" {h1 center} \
 	"$version\n\n" center \
-	[mc "Copyright (c) %s by following authors:" "2001-2021"] {} "\n\n" {}
+	[mc "Copyright (c) %s by following authors:" "2001-2022"] {} "\n\n" {}
 
     lappend txt "Bruce B Hartweg"       "<brhartweg@bigfoot.com>"
     lappend txt "Don Porter"		"<dgp@users.sourceforge.net>"
@@ -3704,6 +3692,7 @@ proc ::tkchat::About {} {
     lappend txt "Steve Landers"		"<steve@digitalsmarties.com>"
     lappend txt "Elchonon Edelson"	"<eee@users.sourceforge.net>"
     lappend txt "Kevin Walzer"          "<kw@codebykevin.com>"
+    lappend txt "Emiliano Gavilan"      "<emilianogavilan@gmail.com>"
 
     insertHelpText $w.text $txt
 
@@ -9220,14 +9209,8 @@ proc ::tkchat::updateOnlineNames {} {
 	    }
 
             
-            #button-3 is the scrollwheel on Aqua--button-2 is better for this
-            if { [tk windowingsystem] eq "aqua"} {
-                .pane.names tag bind URL-$::URLID <Button-2> \
-		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
-            } else {
                 .pane.names tag bind URL-$::URLID <Button-3> \
 		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
-            }
             
 	    .pane.names tag bind URL-$::URLID <Control-Button-1> \
                 [list ::tkchat::OnNamePopup $nick $network %X %Y]
@@ -9238,8 +9221,7 @@ proc ::tkchat::updateOnlineNames {} {
     .pane.names yview moveto [lindex $scrollview 0]
     .pane.names configure -state disabled
     
-    # NEWROSTER
-    #after idle ::newRoster::updateOnlineNames
+    after idle ::newRoster::updateOnlineNames
 }
 
 proc ::tkchat::updateRosterDisplay {} {
@@ -10153,13 +10135,7 @@ proc tkchat::PasteDlg {} {
     $m add command -label [mc "Eval in whiteboard"] \
         -command [list [namespace origin PasteEval] $dlg]
 
-
-    #button-3 is the scrollwheel on Aqua--button-2 is better for this
-    if { [tk windowingsystem] eq "aqua"} {
-        bind $f.txt <Button-2> [list tk_popup $m %X %Y]
-    } else {
-        bind $f.txt <Button-3> [list tk_popup $m %X %Y]
-    }
+    bind $f.txt <Button-3> [list tk_popup $m %X %Y]
     
     bind $dlg <Key-Escape> [list $cancel invoke]
     pack $f2.lbl -side left
