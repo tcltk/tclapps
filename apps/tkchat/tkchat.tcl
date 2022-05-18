@@ -1410,7 +1410,7 @@ proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
 	wm title . $title
 	wm iconname . $title
         tk systray configure -text "$MessageCounter - $chatWindowTitle"
-        # wm iconbadge . $MessageCounter
+        wm iconbadge . $MessageCounter
     }
 }
 
@@ -1424,7 +1424,7 @@ proc ::tkchat::ResetMessageCounter {} {
 	wm title . $title
 	wm iconname . $title
         tk systray configure -image tkchat-32 -text $chatWindowTitle
-        # wm iconbadge . ""
+        wm iconbadge . ""
     }
 }
 
