@@ -609,9 +609,12 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 proc ::tkchat::LoadHistory {} {
     global Options
 
+    #Babelfish was decommissioned by Yahoo in 2012
+    if 0 {
     # hook in the translation menu initialization (background function)
     if {$Options(UseBabelfish)} {
 	babelfishMenu
+    }
     }
 
     if {$Options(HistoryLines) != 0} {
@@ -2499,9 +2502,13 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add checkbutton \
         -label [mc "Auto &bookmark"] \
         -variable Options(AutoBookmark)
+
+    #Yahoo decommissioned Babelfish in 2012
+    if 0 {
     tk::AmpMenuArgs $m add checkbutton \
         -label [mc "Auto-i&nit Babelfish"] \
         -variable Options(UseBabelfish)
+    }
 
     $m add separator
 
@@ -2513,9 +2520,16 @@ proc ::tkchat::CreateGUI {} {
             -label [mc "&Font..."] \
             -command ::tkchat::ChooseFont
     }
+
+    #This no longer seems to function or be especially relevant
+    #given how many users are now connecting from Slack. Disabling
+    #but not removing.
+    if 0 {
     tk::AmpMenuArgs $m add command \
         -label [mc "&User details..."] \
         -command ::tkchat::UserInfoDialog
+    }
+    
     if {[package provide khim] ne {}} {
         tk::AmpMenuArgs $m add command \
             -label [mc "&Input method..."] \
@@ -2868,8 +2882,11 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add command -label [mc "Help (&wiki)..."] \
         -command [list [namespace origin gotoURL] http://wiki.tcl.tk/tkchat]
     $m add separator
+    #Yahoo decommissioned Babelfish in 2012
+    if 0 {
     tk::AmpMenuArgs $m add cascade -label [mc "Translate selection"] \
         -command [list [namespace origin babelfishMenu]]
+    }
     $m add separator
     tk::AmpMenuArgs $m add command -label [mc "&Check version"] \
         -command [list after idle [list [namespace origin CheckVersion]]]
@@ -3254,12 +3271,15 @@ proc ::tkchat::OnTextPopup { w x y } {
         -accelerator Ctrl-P \
         -command ::tkchat::PasteDlg
 
+    #Yahoo decommissioned Babelfish in 2012
+    if 0 {
     if { ![winfo exists .mbar.help.tr] } {
 	$m add command -label [mc "Initialize translation"] \
             -command ::tkchat::babelfishMenu
     } else {
 	.mbar.help.tr clone $m.tr
 	$m add cascade -label [mc "Translate selection"] -menu $m.tr
+    }
     }
 
     tk_popup $m [winfo pointerx $w] [winfo pointery $w]
@@ -9772,6 +9792,7 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
             set tkchat::OnlineUsers(Jabber-$nick,version) $ver
             tkchat::addStatus 0 "$nick is using $ver"
             after idle [list ::tkchat::SetUserTooltip $nick]
+            after idle [list ::newRoster::SetUserTooltip $nick]
         }
     }
     return 1 ;# handled
@@ -10274,8 +10295,12 @@ if {[info exists env(TKCHAT_PLUGINS)]} {
     set dirs [linsert $env(TKCHAT_PLUGINS) 0 $::tkchat_dir]
 }
 foreach dir $dirs {
-    foreach file [glob -nocomplain -directory $dir \
-                      tkchat_*.tcl mousewheel.tcl] {
+    set files [glob -nocomplain -directory $dir tkchat_*.tcl]
+    if {[tk windowingsystem] eq "aqua"} {
+        # mousewheel.tcl breaks Treeview scrolling on X11
+        lappend files {*}[glob -nocomplain -directory $dir mousewheel.tcl]
+    }
+    foreach file $files {
         if {[file exists $file] && [file readable $file]} {
             if {[catch {source $file} err]} {
                 ::bgerror $err
