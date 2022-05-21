@@ -2887,7 +2887,6 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add cascade -label [mc "Translate selection"] \
         -command [list [namespace origin babelfishMenu]]
     }
-    $m add separator
     tk::AmpMenuArgs $m add command -label [mc "&Check version"] \
         -command [list after idle [list [namespace origin CheckVersion]]]
     tk::AmpMenuArgs $m add command -label [mc "&View changes..."] \
