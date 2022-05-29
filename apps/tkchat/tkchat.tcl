@@ -49,6 +49,13 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
+#Must set LD_LIBRARY_PATH for startup on X11, but must unset for browser execution to work 
+if {[tk windowingsystem] eq "x11"} {
+	if {[info exists env(LD_LIBRARY_PATH)]} {
+ 	unset env(LD_LIBRARY_PATH) 
+	}
+}
+
 # For development, it is very convenient to be able to drop the extra
 # packages into the CVS tree. Make sure we have the real location of 
 # the script and not a link.
