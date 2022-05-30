@@ -1,6 +1,6 @@
 #!/bin/sh
 
-SCRIPT_DIR="$(cd "$(dirname "$1")"; pwd -P)/$(basename "$1")"
+SCRIPT_DIR=/usr/local/tkchat
 
 export LD_LIBRARY_PATH=$SCRIPT_DIR/lib/
 

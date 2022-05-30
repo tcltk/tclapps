@@ -1,0 +1,44 @@
+#!/bin/sh
+
+if ! [ $(id -u) = 0 ]; then
+ echo "This installer must be run with root privileges"
+ exit 1
+fi
+
+echo "Installing TkChat..."
+
+if [ ! -d /usr/local ] 
+	then
+	mkdir /usr/local
+	chmod -R 777 /usr/local
+fi
+
+if [ ! -d  /usr/local/bin ] 
+	then 
+	mkdir /usr/local/bin
+	chmod -R 777 /usr/local/bin
+fi
+
+
+if [ -d /usr/local/tkchat ] 
+	then
+	echo "Checking for current installation of TkChat..."
+ 	rm -rf  /usr/local/tkchat
+fi
+
+cp -rf ./tkchat /usr/local
+chmod -R 777 /usr/local/tkchat
+
+if [ -f /usr/local/bin/tkchat
+	then
+	echo "Removing existing installation of TkChat..."
+	unlink /usr/local/bin/tkchat
+fi
+
+mv /usr/local/tkchat/tkchat /usr/local/bin/tkchat
+
+chmod +777 /usr/local/bin/tkchat
+
+echo "Installation of TkChat complete."
+
+exit 0

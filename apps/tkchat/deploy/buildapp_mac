@@ -1,0 +1,46 @@
+#!/bin/sh
+
+echo "Starting build process..."
+
+if [ -a build/TkChat.zip ]
+ then
+    rm build/TkChat.zip
+fi
+
+if [ -a TkChat.app ]
+	then
+	rm -rf TkChat.app
+fi
+	
+if [ -a build/TkChat.app ]
+	then
+	rm -rf build/TkChat.app
+fi
+
+#create app bundle shell from standalone Wish app
+cp -R -f Wish.app TkChat.app
+mv TkChat.app/Contents/MacOS/Wish TkChat.app/Contents/MacOS/TkChat
+
+
+#copy additional files, resources to app bundle
+
+cp -f tkchat.icns TkChat.app/Contents/Resources/tkchat.icns
+cp -f info.plist TkChat.app/Contents/info.plist
+cp -R -f tkchat.vfs TkChat.app/Contents/Resources/Scripts
+
+echo "Making deployment build..."
+
+cp -Rf TkChat.app build/TkChat.app
+
+
+find build/TkChat.app  -name "*.a"  -exec rm -rf {} \;
+find build/TkChat.app  -name "*debug"  -exec rm -rf {} \;
+find build/TkChat.app  -name "*.sh"  -exec rm -rf {} \;
+
+xattr -cr build/TkChat.app
+
+echo "Done."
+
+
+
+ 
