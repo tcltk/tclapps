@@ -3039,9 +3039,6 @@ proc ::tkchat::CreateGUI {} {
 	bind Tkchat <FocusOut> { ::tkchat::FocusOutHandler %W }
     }
 
-     # NEWROSTER
-   # source [file join $::tkchat_dir newContactList contact_list.tcl]
-
     # using explicit rows for restart
     set Options(NamesWin) .pane.names
 
@@ -3351,6 +3348,16 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     bind $txt <Down>	 [list $txt yview scroll  1 units]
     bind $txt <Button-4> [list $txt yview scroll -1 units]
     bind $txt <Button-5> [list $txt yview scroll  1 units]
+
+    #Mousewheel scrolling has been broken by the interactions of changes
+    #in 8.7 and the specific configurations of scrolling in TkChat.
+    #This algorithm, taken from https://wiki.tcl-lang.org/page/mousewheel,
+    #makes mousewheel scrolling work again on macOS.
+
+    if {[tk windowingsystem] eq "aqua"} {   
+        bind $txt <MouseWheel> {%W yview scroll \
+                                    [expr {int(pow(%D/-120,3))}] units}
+    }
 }
 
 proc ::tkchat::onEnterURL {w x y} {
@@ -3640,6 +3647,8 @@ proc ::tkchat::ScrolledWidget {widget parent scrollx scrolly args} {
         }
         grid $parent.sy 	-column 1 -row 0 -sticky ns
         $parent.list configure -yscrollcommand [list $parent.sy set]
+
+    #    bind $parent.list <MouseWheel> [list $parent.sy set]
     }
     # Arrange them in the parent frame
     grid $parent.list  -column 0 -row 0 -sticky ewsn
@@ -10302,10 +10311,6 @@ if {[info exists env(TKCHAT_PLUGINS)]} {
 }
 foreach dir $dirs {
     set files [glob -nocomplain -directory $dir tkchat_*.tcl]
-    if {[tk windowingsystem] eq "aqua"} {
-        # mousewheel.tcl breaks Treeview scrolling on X11
-        lappend files {*}[glob -nocomplain -directory $dir mousewheel.tcl]
-    }
     foreach file $files {
         if {[file exists $file] && [file readable $file]} {
             if {[catch {source $file} err]} {
