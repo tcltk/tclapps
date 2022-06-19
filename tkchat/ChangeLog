@@ -1,3 +1,11 @@
+2022-6-18	Kevin Walzer <kw@codebykevin.com>
+
+       * tkchat.tcl - Implement new features in Tcl/Tk 8.7 (icon badge, system tray, system notifications)
+	* Cleanup and removal of obsolete components
+        * New ttk::treeview-based implementation of chat roster by Emiliano Gavilan
+
+
+
 2018-12-24	Steve Landers <steve@digitalsmarties.com>
 
 	* tkchat.tcl: merged macOS changes

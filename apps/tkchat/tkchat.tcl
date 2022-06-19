@@ -18,7 +18,7 @@
 #   XEP-0232: Software information
 # -------------------------------------------------------------------------
 # \
-    exec wish "$0" ${1+"$@"}
+exec wish "$0" ${1+"$@"}
 package require Tk 8.7
 
 #log background errors to console under Aqua, avoid locking up window
@@ -49,11 +49,12 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
-#Must set LD_LIBRARY_PATH for startup on X11, but must unset for browser execution to work 
+# Must set LD_LIBRARY_PATH for startup on X11, but must unset
+# for browser execution to work 
 if {[tk windowingsystem] eq "x11"} {
-	if {[info exists env(LD_LIBRARY_PATH)]} {
+    if {[info exists env(LD_LIBRARY_PATH)]} {
  	unset env(LD_LIBRARY_PATH) 
-	}
+    }
 }
 
 # For development, it is very convenient to be able to drop the extra

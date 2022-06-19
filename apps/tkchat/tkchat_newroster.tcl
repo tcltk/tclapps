@@ -25,29 +25,44 @@ proc ::newRoster::gui {f} {
         -style Roster.Treeview]
     ttk::scrollbar $f.sy -command [list $cl yview]
 
-    # create the Roster item, and detach it
+    # create fixed items
     $cl insert {} end -id Roster \
         -text [mc "Your contacts"] \
         -open true \
         -tags TITLE
+    $cl insert {} end -id Jabber \
+        -open true \
+        -tags TITLE
+    $cl insert Jabber end -id Moderator \
+        -open true \
+        -text [mc "Moderators"] \
+        -tags SUBTITLE
+    $cl insert Jabber end -id Participant \
+        -open true \
+        -text [mc "Participants"] \
+        -tags SUBTITLE
     $cl detach Roster
+    $cl detach Jabber
 
     pack $f.sy -side right -fill y
     pack $cl -expand 1 -fill both
 
     $cl tag configure TITLE \
         -font TkHeadingFont \
-        -background gray80
+        -background gray70
     $cl tag configure SUBTITLE \
         -font TkHeadingFont \
-        -background gray90
-    apply {{themes} {
-        foreach theme $themes {
-            ttk::style theme settings $theme {
-                ttk::style configure Roster.Treeview -indent 0
-            }
+        -background gray85
+
+    set indent    0
+    set rowheight 22
+    foreach theme [ttk::style theme names] {
+        ttk::style theme settings $theme {
+            ttk::style configure Roster.Treeview \
+                -indent $indent \
+                -rowheight $rowheight
         }
-    }} [ttk::style theme names]
+    }
 
     bind $cl <Motion> [namespace code {TrackMotion %W %x %y}]
     return $f
@@ -83,23 +98,11 @@ proc ::newRoster::updateOnlineNames {} {
             $cl detach $network
             continue
         }
-
         incr total $userCnt
         $cl move $network {} end
         if {$network eq "Jabber"} {
-            if {![$cl exists Moderator]} {
-                $cl insert $network end -id Moderator \
-                    -open true \
-                    -text [mc "Moderators"] \
-                    -tags SUBTITLE
-                $cl insert $network end -id Participant \
-                    -open true \
-                    -text [mc "Participants"] \
-                    -tags SUBTITLE
-            } else {
-                $cl delete [$cl children Moderator]
-                $cl delete [$cl children Participant]
-            }
+            $cl delete [$cl children Moderator]
+            $cl delete [$cl children Participant]
         } else {
             $cl delete [$cl children $network]
         }
@@ -112,12 +115,16 @@ proc ::newRoster::updateOnlineNames {} {
             if {$network eq "Jabber"} {
                 set role [::tkchat::get_role $nick]
                 set where [expr {
-                    $role eq "moderator" ? "Moderator" : "Participant" }]
+                    $role eq "moderator" ?
+                    "Moderator" :
+                    "Participant"
+                }]
             } else {
                 set where $network
             }
             if {[info exists Options(Visibility,NICK-$nick)] &&
-                    $Options(Visibility,NICK-$nick)} {
+                $Options(Visibility,NICK-$nick)
+            } {
                 set status disabled
             }
             if {$role eq "visitor"} {
@@ -146,7 +153,7 @@ proc ::newRoster::updateOnlineNames {} {
                     $::tkjabber::conference/$nick $nick]
                 after idle [namespace code [list SetUserTooltip $nick]]
             }
-          
+
             set script [list ::tkchat::OnNamePopup $nick $network %X %Y]
             $cl tag bind $id <Button-3> $script
             $cl tag bind $id <Control-Button-1> $script
@@ -248,4 +255,3 @@ proc ::newRoster::SetUserTooltip {nick} {
     set tip [string trim $tip "\n"]
     tooltip $cl -item [$cl tag has NICK-$nick] $tip
 }
-
