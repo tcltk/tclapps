@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>TkChat</string>
+	<key>CFBundleGetInfoString</key>
+	<string>1.500</string>
+	<key>CFBundleIconFile</key>
+	<string>tkchat</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.tcltk.tkchat</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>TkChat</string>
+		<key>CFBundleDisplayName</key>
+	<string>TkChat</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleVersion</key>
+	<string>1.500</string>
+	<key>NSHighResolutionCapable</key>
+	<string>True</string>
+		<key>OSAScriptingDefinition</key>
+		<string>Wish.sdef</string>
+		<key>NSAppleScriptEnabled</key>
+		<true/>
+		    <key>LSRequiresCarbon</key>
+		    <true/>
+		    <key>NSAppleEventsUsageDescription</key>
+	<string>Requires permission to send system notifications.</string>
+
+</dict>
+</plist>

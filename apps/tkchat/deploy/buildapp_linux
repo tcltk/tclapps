@@ -1,0 +1,22 @@
+#!/bin/sh
+
+echo "Building TkChat installer..."
+
+if [ -d tkchat_build ]
+	then
+	rm -rf tkchat_build
+fi
+
+if [ -f TkChat_Setup.bin ]
+	then 
+	rm TkChat_Setup.bin
+fi
+
+mkdir tkchat_build
+cp tkchat_install_linux tkchat_build/tkchat_install_linux
+cp -rf tkchat tkchat_build
+
+makeself ./tkchat_build ./TkChat_Setup.bin "Linux Installer for TkChat" ./tkchat_install_linux 
+
+echo "Done."
+
