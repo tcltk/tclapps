@@ -7,16 +7,16 @@ if [ -d tkchat_build ]
 	rm -rf tkchat_build
 fi
 
-if [ -f TkChat_Setup.bin ]
+if [ -f TkChat_Setup.run ]
 	then 
-	rm TkChat_Setup.bin
+	rm TkChat_Setup.run
 fi
 
 mkdir tkchat_build
 cp tkchat_install_linux tkchat_build/tkchat_install_linux
 cp -rf tkchat tkchat_build
 
-makeself ./tkchat_build ./TkChat_Setup.bin "Linux Installer for TkChat" ./tkchat_install_linux 
+makeself ./tkchat_build ./TkChat_Setup.run "Linux Installer for TkChat" ./tkchat_install_linux
 
 echo "Done."
 
