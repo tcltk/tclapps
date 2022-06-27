@@ -76,88 +76,94 @@ proc ::newRoster::updateOnlineNames {} {
     set scrollview [$cl yview]
     # Delete all URL-* tags to prevent a huge memory leak
     foreach tag [lsearch -all -inline [$cl tag names] URL-*] {
-        $cl tag delete $tag
+	$cl tag delete $tag
     }
     # clean up the tooltip info
     tooltip clear $cl*
 
     if {$Options(Visibility,ROSTER)} {
-        $cl move Roster {} end
-        updateRosterDisplay
+	$cl move Roster {} end
+	updateRosterDisplay
     } else {
-        $cl detach Roster
+	$cl detach Roster
     }
     set total 0
     foreach network $OnlineUsers(networks) {
-        if {![$cl exists $network]} {
-            $cl insert {} end -id $network -open true -tags TITLE
-        }
+	if {![$cl exists $network]} {
+	    $cl insert {} end -id $network -open true -tags TITLE
+	}
 
-        set userCnt [llength $OnlineUsers($network)]
-        if { !$userCnt } {
-            $cl detach $network
-            continue
-        }
-        incr total $userCnt
-        $cl move $network {} end
-        if {$network eq "Jabber"} {
-            $cl delete [$cl children Moderator]
-            $cl delete [$cl children Participant]
-        } else {
-            $cl delete [$cl children $network]
-        }
-        $cl item $network -text [
-            format [mc "%d %s Users"] $userCnt $network]
+	set userCnt [llength $OnlineUsers($network)]
+	if { !$userCnt } {
+	    $cl detach $network
+	    continue
+	}
+	incr total $userCnt
+	$cl move $network {} end
+	if {$network eq "Jabber"} {
+	    $cl delete [$cl children Moderator]
+	    $cl delete [$cl children Participant]
+	} else {
+	    $cl delete [$cl children $network]
+	}
+	$cl item $network -text [
+				 format [mc "%d %s Users"] $userCnt $network]
 
-        foreach nick $OnlineUsers($network) {
-            set status [lindex $OnlineUsers($network-$nick,status) 0]
-            set role participant
-            if {$network eq "Jabber"} {
-                set role [::tkchat::get_role $nick]
-                set where [expr {
-                    $role eq "moderator" ?
-                    "Moderator" :
-                    "Participant"
-                }]
-            } else {
-                set where $network
-            }
-            if {[info exists Options(Visibility,NICK-$nick)] &&
-                $Options(Visibility,NICK-$nick)
-            } {
-                set status disabled
-            }
-            if {$role eq "visitor"} {
-                set status disabled
-            }
-            if { ![info exists Options(Color,NICK-$nick)] } {
-                set Options(Color,NICK-$nick) $Options(Color,MainFG)
-            }
-            $cl tag configure NICK-$nick -foreground \
-                    #[lindex $Options(Color,NICK-$nick) 1]
-            switch -exact -- $status {
-                online - chat - dnd - away - xa {
-                    set image ::tkchat::roster::$status
-                }
-                disabled - offline {
-                    set image ::tkchat::roster::disabled
-                }
-            }
+	foreach nick $OnlineUsers($network) {
+	    set status [lindex $OnlineUsers($network-$nick,status) 0]
+	    set role participant
+	    if {$network eq "Jabber"} {
+		set role [::tkchat::get_role $nick]
+		set where [expr {
+				 $role eq "moderator" ?
+				 "Moderator" :
+				 "Participant"
+			     }]
+	    } else {
+		set where $network
+	    }
+	    if {[info exists Options(Visibility,NICK-$nick)] &&
+		$Options(Visibility,NICK-$nick)
+	    } {
+		set status disabled
+	    }
+	    if {$role eq "visitor"} {
+		set status disabled
+	    }
+	    
+	    #Custom colors do not work well on Aqua because
+	    #of Dark Mode, use defaults instead.
+	    if {[tk windowingsystem] ne "aqua"} {
+	    if { ![info exists Options(Color,NICK-$nick)] } {
+		set Options(Color,NICK-$nick) $Options(Color,MainFG)
+	    }
+	    $cl tag configure NICK-$nick -foreground \
+		#[lindex $Options(Color,NICK-$nick) 1]
+	    }
+	    
+	    switch -exact -- $status {
+		online - chat - dnd - away - xa {
+		    set image ::tkchat::roster::$status
+		}
+		disabled - offline {
+		    set image ::tkchat::roster::disabled
+		}
+	    }
 
-            set id URL-[incr ::URLID]
-            set tags [list NICK NICK-$nick URL $id $network]
-            $cl insert $where end -text $nick -tags $tags -image $image
+	    set id URL-[incr ::URLID]
+	    set tags [list NICK NICK-$nick URL $id $network]
+	    $cl insert $where end -text $nick -tags $tags -image $image
 
-            if { [info exists OnlineUsers($network-$nick,jid)] } {
-                $cl tag bind $id <Button-1> [list ::tkjabber::getChatWidget \
-                    $::tkjabber::conference/$nick $nick]
-                after idle [namespace code [list SetUserTooltip $nick]]
-            }
+	    if { [info exists OnlineUsers($network-$nick,jid)] } {
+		$cl tag bind $id <Button-1> [list ::tkjabber::getChatWidget \
+						 $::tkjabber::conference/$nick $nick]
+		after idle [namespace code [list SetUserTooltip $nick]]
+	    }
 
-            set script [list ::tkchat::OnNamePopup $nick $network %X %Y]
-            $cl tag bind $id <Button-3> $script
-            $cl tag bind $id <Control-Button-1> $script
-        }
+	    set script [list ::tkchat::OnNamePopup $nick $network %X %Y]
+	    $cl tag bind $id <Button-3> $script
+	    $cl tag bind $id <Control-Button-1> $script
+	}
     }
 
     $cl heading #0 -text [format [mc "%d Users Online"] $total]
@@ -174,49 +180,51 @@ proc ::newRoster::updateRosterDisplay {} {
     set roster [$jabber getrostername]
     set users [$roster getusers]
     if {([llength $users] == 0) || $OnlineUsers(Roster,hideMenu)} {
-        return
+	return
     }
 
     foreach user $users {
-        set name [$roster getname $user]
-        if {$name eq ""} {
-            set name [tkjabber::jid node $user]
-        }
-        set resource [$roster gethighestresource $user]
-        foreach pres [$roster getpresence $user] {
-            array set a [linsert $pres 0 -show online -type unavailable]
-            if {$resource eq $a(-resource)} {
-                if {$a(-type) eq ""} {
-                    set img online
-                }
-                if {$a(-show) ne ""} {
-                    set img $a(-show)
-                }
-                if {$a(-type) eq "unavailable"} {
-                    set img "disabled"
-                }
-                if {$img eq "offline"} {
-                    set img "disabled"
-                }
-                set image ::tkchat::roster::$img
-            }
-        }
+	set name [$roster getname $user]
+	if {$name eq ""} {
+	    set name [tkjabber::jid node $user]
+	}
+	set resource [$roster gethighestresource $user]
+	foreach pres [$roster getpresence $user] {
+	    array set a [linsert $pres 0 -show online -type unavailable]
+	    if {$resource eq $a(-resource)} {
+		if {$a(-type) eq ""} {
+		    set img online
+		}
+		if {$a(-show) ne ""} {
+		    set img $a(-show)
+		}
+		if {$a(-type) eq "unavailable"} {
+		    set img "disabled"
+		}
+		if {$img eq "offline"} {
+		    set img "disabled"
+		}
+		set image ::tkchat::roster::$img
+	    }
+	}
 
-        set id URL-[incr ::URLID]
-        set tags [list ROSTER ROSTER-$user URL $id Jabber]
-        set item [$cl insert Roster end -text $name -tags $tags -image $image]
+	set id URL-[incr ::URLID]
+	set tags [list ROSTER ROSTER-$user URL $id Jabber]
+	set item [$cl insert Roster end -text $name -tags $tags -image $image]
 
-        $cl tag bind $id <Button-1> [list ::tkjabber::getChatWidget \
-            $user/$resource $name]
+	$cl tag bind $id <Button-1> [list ::tkjabber::getChatWidget \
+					 $user/$resource $name]
 
-        set tip $user
-        if {$resource ne {}} {append tip /$resource}
-        foreach res [$roster getresources $user] {
-            append tip "\n  $res"
-        }
-        tooltip $cl -item $item $tip
+	set tip $user
+	if {$resource ne {}} {append tip /$resource}
+	foreach res [$roster getresources $user] {
+	    append tip "\n  $res"
+	}
+	tooltip $cl -item $item $tip
     }
 }
+
+
 
 proc ::newRoster::PutIntoPane {} {
     global Options
