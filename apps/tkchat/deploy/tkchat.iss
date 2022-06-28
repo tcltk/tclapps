@@ -41,5 +41,6 @@ Source: "C:\Users\Kevin\Desktop\tkchat\*"; DestDir: "{app}"; Flags: ignoreversio
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{group}\{#MyAppName}"; Filename: "{app}\bin\wish87"; IconFilename: "{app}\bin\tclkit.ico"; WorkingDir: "{app}\bin"; Parameters: "AppMain.tcl"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\bin\wish87"; IconFilename: "{app}\bin\tclkit.ico"; WorkingDir: "{app}\bin"; Parameters: "AppMain.tcl"; AppUserModelID: "{#MyAppName}"; AppUserModelToastActivatorCLSID: "F641DD35-A554-464E-AEBE-AFEFF317DB53"
+
 
