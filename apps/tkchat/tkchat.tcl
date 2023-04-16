@@ -274,28 +274,31 @@ if {$tcl_platform(platform) eq "windows"
     }
 }
 
-# There is currently a bug in the ipv6 socket handling in 8.6 where if a 
-# site has an ipv6 address and does not provide a services on that address
-# then socket -async will return an error to tcl. A synchronous socket
-# will try ipv6 and then ipv4 before returning to tcl. To work around this
-# we can force http requests to use ipv4 until a fix is enabled. We could
-# also enable an ipv6 capable tclhttpd at tclers.tk too :)
-if {[package vsatisfies [package provide Tcl] 8.6]} {
-    proc ::socket_inet4 {args} {
-        variable ::tcl::unsupported::socketAF
-        set AF [expr {[info exists socketAF] ? $socketAF : ""}]
-        set socketAF inet
-        set code [catch {uplevel 1 [linsert $args 0 ::socket]} result]
-        if {$AF eq {}} { unset socketAF } else { set socketAF $AF }
-        return -code $code $result
+#This is causing difficult-to-diagnose errors in downloading data 
+if 0 {
+    # There is currently a bug in the ipv6 socket handling in 8.6 where if a 
+    # site has an ipv6 address and does not provide a services on that address
+    # then socket -async will return an error to tcl. A synchronous socket
+    # will try ipv6 and then ipv4 before returning to tcl. To work around this
+    # we can force http requests to use ipv4 until a fix is enabled. We could
+    # also enable an ipv6 capable tclhttpd at tclers.tk too :)
+    if {[package vsatisfies [package provide Tcl] 8.6]} {
+        proc ::socket_inet4 {args} {
+            variable ::tcl::unsupported::socketAF
+            set AF [expr {[info exists socketAF] ? $socketAF : ""}]
+            set socketAF inet
+            set code [catch {uplevel 1 [linsert $args 0 ::socket]} result]
+            if {$AF eq {}} { unset socketAF } else { set socketAF $AF }
+            return -code $code $result
+        }
+        ::http::register http 80 ::socket_inet4
     }
-    ::http::register http 80 ::socket_inet4
 }
 
 namespace eval ::tkchat {
     variable chatWindowTitle "The Tcler's Chat"
 
-    variable version 1.500
+    variable version 1.510
     variable FossilUrl "https://core.tcl-lang.org/tclapps/"
 
     variable MSGS
