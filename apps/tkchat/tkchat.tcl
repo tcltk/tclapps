@@ -286,37 +286,37 @@ namespace eval ::tkchat {
     variable FossilUrl "https://core.tcl-lang.org/tclapps/"
 
     variable MSGS
-    set MSGS(entered) [list \
-                           "%user% has entered the chat!" \
-                           "Out of a cloud of smoke, %user% appears!" \
-                           "%user% saunters in." \
-                           "%user% wanders in." \
-                           "%user% checks into the chat." \
-                           "%user% is feeling chatty!" \
-                           "A limousine pulls up, and %user% steps out into the crowd of waiting paparazzi." \
-                           "%user% valt door een gat in het plafond naar binnen." \
-                           "%user% wandelt luid schreeuwend binnen." \
-                           "%user% \u8FDB\u95E8" \
-                           "%user% \u9032\u9580" \
-                          ]
-    set MSGS(left) [list \
-                        "%user% has left the chat!" \
-                        "In a cloud of smoke, %user% disappears!" \
-                        "%user% exits, stage left!" \
-                        "%user% doesn't want to talk anymore!" \
-                        "%user% looks at the clock and dashes out the door" \
-                        "%user% macht wie eine Banane..." \
-                        "Ladies and Gentlemen, %user% has left the building!" \
-                        "%user% opens a hidden trap door and escapes through it." \
-                        "%user% zakt door de vloer en is weg." \
-                        "%user% vertrekt stilletjes." \
-                       ]
-    set MSGS(nickchange) [list \
-                              "In a fit of schizophrenia, %user% would like to be known as %newuser%." \
-                              "%user% replaces their old hat with a new one called %newuser%." \
-                              "The Amazing %user% switches to their secret identity, mild mannered %newuser%." \
-                              "Amidst a burst of smoke, %user% disappears and %newuser% materializes."
-                         ]
+    set MSGS(entered) {
+        "%user% has entered the chat!"
+        "Out of a cloud of smoke, %user% appears!"
+        "%user% saunters in."
+        "%user% wanders in."
+        "%user% checks into the chat."
+        "%user% is feeling chatty!"
+        "A limousine pulls up, and %user% steps out into the crowd of waiting paparazzi."
+        "%user% valt door een gat in het plafond naar binnen."
+        "%user% wandelt luid schreeuwend binnen."
+        "%user% \u8FDB\u95E8"
+        "%user% \u9032\u9580"
+    }
+    set MSGS(left) {
+        "%user% has left the chat!"
+        "In a cloud of smoke, %user% disappears!"
+        "%user% exits, stage left!"
+        "%user% doesn't want to talk anymore!"
+        "%user% looks at the clock and dashes out the door"
+        "%user% macht wie eine Banane..."
+        "Ladies and Gentlemen, %user% has left the building!"
+        "%user% opens a hidden trap door and escapes through it."
+        "%user% zakt door de vloer en is weg."
+        "%user% vertrekt stilletjes."
+    }
+    set MSGS(nickchange) {
+        "In a fit of schizophrenia, %user% would like to be known as %newuser%."
+        "%user% replaces their old hat with a new one called %newuser%."
+        "The Amazing %user% switches to their secret identity, mild mannered %newuser%."
+        "Amidst a burst of smoke, %user% disappears and %newuser% materializes."
+    }
 
     # Variables to control the search function.
     variable searchString ""
