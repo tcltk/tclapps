@@ -83,7 +83,6 @@ catch {package require tls}	  ; # tls (optional)
 catch {::http::register https 443 \
            [list ::tls::socket -servername wiki.tcl-lang.org \
            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]};# register wiki for RSS over SSL
-catch {package require choosefont}; # font selection (optional) 
 catch {package require picoirc}   ; # irc client (optional)
 catch {package require img::jpeg} ; # more image types (optional)
 
@@ -2492,11 +2491,9 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add command \
         -label [mc "&Colors..."] \
         -command ::tkchat::ChangeColors
-    if {[llength [package provide choosefont]] != 0} {
-        tk::AmpMenuArgs $m add command \
-            -label [mc "&Font..."] \
-            -command ::tkchat::ChooseFont
-    }
+    tk::AmpMenuArgs $m add command \
+        -label [mc "&Font..."] \
+        -command ::tkchat::ChooseFont
 
     #This no longer seems to function or be especially relevant
     #given how many users are now connecting from Slack. Disabling
@@ -4297,9 +4294,7 @@ proc ::tkchat::checkCommand { msg } {
 	{^/font} {
 	    set name [string trim [string range $msg 5 end]]
             if {[string length $name] < 1} {
-                if {[llength [package provide choosefont]] != 0} {
-                    ChooseFont
-                }
+                ChooseFont
             } else {
                 catch {ChangeFont -family $name}
             }
@@ -5808,26 +5803,21 @@ proc ::tkchat::Debug {cmd args } {
 }
 
 proc ::tkchat::ChooseFont {} {
-    set font [choosefont::choosefont \
-                  -initialfont [list $::Options(Font,-family) \
-                                    $::Options(Font,-size) \
-                                    {}] \
-                  -apply ::tkchat::SetFont]
-    if {[llength $font] != 0} {
-	SetFont $font
-    }
-    return
+    tk fontchooser configure \
+        -title [mc "select a font"] \
+        -font [list $::Options(Font,-family) $::Options(Font,-size) {}] \
+        -command ::tkchat::SetFont
+    tk fontchooser show
 }
 
-proc ::tkchat::SetFont { fontString } {
-    foreach { family size } $fontString break
+proc ::tkchat::SetFont { fontSpec } {
+    lassign $fontSpec family size
     set ::Options(Font,-family) $family
-    set ::Options(Font,-size) $size
+    set ::Options(Font,-size)   $size
     foreach font {FNT ACT NOLOG NAME SYS STAMP} {
 	font configure $font -family $family -size $size
     }
     font configure FIXED -size $size
-    return
 }
 
 proc ::tkchat::ChangeFont {opt val} {
