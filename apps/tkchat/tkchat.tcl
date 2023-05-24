@@ -94,19 +94,10 @@ package require disco           ; # jlib
 catch {package require khim}    ; # khim (optional)
 catch {package require tooltip 1.2};# tooltips (optional)  
 
-if { ![catch { tk inactive }] } {
-    # Idle detection built into tk8.5a3
-    namespace eval ::idle {
-        proc ::idle::supported {} { return 1 }
-        proc ::idle::idletime {} { return [expr { [tk inactive] / 1000 }] }
+namespace eval ::idle {
+    proc idletime {} {
+        return [expr { [tk inactive] / 1000 }]
     }
-} elseif { [catch {
-    # Optional idle detection
-    package require idle
-}] } then {
-    # Not supported / available...
-    namespace eval ::idle {}
-    proc ::idle::supported {} {return 0}
 }
 
 # enable OSX-specific (un-hide window) alerting if available
@@ -2608,8 +2599,7 @@ proc ::tkchat::CreateGUI {} {
     menu $m.aa -tearoff 0
     tk::AmpMenuArgs $m add cascade \
         -label [mc "&Auto away"] \
-        -menu $m.aa \
-        -state [expr {[idle::supported] ? "normal" : "disabled"}]
+        -menu $m.aa
     tk::AmpMenuArgs $m.aa add radiobutton \
         -label [mc "&Disabled"] \
         -variable Options(AutoAway) \
@@ -9699,17 +9689,14 @@ proc ::tkjabber::back { status {show online} } {
 
 proc tkjabber::on_iq_last {token from subiq args} {
     tkchat::addStatus 0 "Time query from $from"
-    if {[idle::supported]} {
-        set opts [list -to $from]
-        array set a [concat -id {{}} $args]
-        if {$a(-id) ne {}} { lappend opts -id $a(-id) }
-        set xml [wrapper::createtag query \
-                     -attrlist [list xmlns jabber:iq:last \
-                                    seconds [idle::idletime]]]
-        eval [linsert $opts 0 $token send_iq result [list $xml]]
-        return 1 ;# handled
-    }
-    return 0 ;# report not handled
+    set opts [list -to $from]
+    array set a [concat -id {{}} $args]
+    if {$a(-id) ne {}} { lappend opts -id $a(-id) }
+    set xml [wrapper::createtag query \
+         -attrlist [list xmlns jabber:iq:last \
+            seconds [idle::idletime]]]
+    eval [linsert $opts 0 $token send_iq result [list $xml]]
+    return 1 ;# handled
 }
 
 proc tkjabber::on_iq_time {token from subiq args} {
@@ -9902,8 +9889,6 @@ proc ::tkjabber::autoStatus {} {
 	after cancel $autoStatusAfterId
 	unset autoStatusAfterId
     }
-
-    if { ![idle::supported] } return
 
     if { $Away == 0 && $::Options(AutoAway) == -1 } {
 	# Auto Away disabled in configure menu
