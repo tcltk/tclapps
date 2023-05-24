@@ -87,12 +87,6 @@ catch {package require choosefont}; # font selection (optional)
 catch {package require picoirc}   ; # irc client (optional)
 catch {package require img::jpeg} ; # more image types (optional)
 
-if {![package vsatisfies [package provide Tk] 8.6]} {
-    catch {package require img::png}  ; # more image types (optional)
-}
-set have_png [expr {[package vsatisfies [package provide Tk] 8.6] \
-                        || [package provide img::png] ne {}}]
-
 package require sha1		; # tcllib
 package require jlib		; # jlib
 package require muc		; # jlib
@@ -376,25 +370,12 @@ image create photo ::tkchat::img::link_insecure -data {
     IABERTEAlmVZFhA9jwMBQFQUwwBYlmWBlgUYRVEYBkEMA2BZlmVZlgUAAAAA
     AAACgGWFADs=
 }
-if {$have_png} {
-    # PNG format images
-    image create photo ::tkchat::img::link_connected -file $imgdir/network-online.png
-    image create photo ::tkchat::img::link_disconnected -file $imgdir/network-offline.png
-    image create photo tkchat-32 -file $imgdir/tkchat-32.png
-    image create photo tkchat_warn-32 -file $imgdir/tkchat_warn-32.png
-} else {
-    # GIF format versions
-    image create photo ::tkchat::img::link_connected -data {
-        R0lGODlhEAAQAMIGAAAAADs6OoZwV9zCmf/hyP/79////////yH5BAEKAAcA
-        LAAAAAAQABAAAAM7eLrc/vAMIeIahYgx4yBEUGSVQ4EBqJUHJRQCqsbAqd3h
-        jLuTDG6uhS3AmbAYsQGRc2wwgxGoZUqtQhIAOw==
-    }
-    image create photo ::tkchat::img::link_disconnected -data {
-        R0lGODlhEAAQAMIGAAAAADs6OoZwV9zCmf/hyP/79////////yH5BAEKAAcA
-        LAAAAAAQABAAAANBeLrc/nAIAdkohKoh3SBEsBSYpkygSHzgdEyFkL5ySwBZ
-        Hi5gPgmS2aoH1KB2E47E9FqJNhwm1PR7VCvYrHZ7SAAAOw==
-    }
-}
+
+# PNG format images
+image create photo ::tkchat::img::link_connected -file $imgdir/network-online.png
+image create photo ::tkchat::img::link_disconnected -file $imgdir/network-offline.png
+image create photo tkchat-32 -file $imgdir/tkchat-32.png
+image create photo tkchat_warn-32 -file $imgdir/tkchat_warn-32.png
 
 tk systray create -image tkchat-32 -text "The Tcler's Chat" -button1 {if { [wm state .] eq "withdrawn" } {wm deiconify .; focus .eMsg } else {wm withdraw .}} -button3 ""
 
@@ -2395,7 +2376,7 @@ proc ::tkchat::toggleUnicodePoint_e {e} {
 }
 
 proc ::tkchat::CreateGUI {} {
-    global Options have_png
+    global Options
     variable chatWindowTitle
     variable useTile
     variable NS
@@ -2408,13 +2389,8 @@ proc ::tkchat::CreateGUI {} {
 
     if {[tk windowingsystem] ne "aqua"} {
         createFonts
-        if {$have_png} {
-            image create photo ::tkchat::img::Tkchat \
-                -file [file join $::tkchat_dir tkchat48.png]
-        } else {
-            image create photo ::tkchat::img::Tkchat \
-                -file [file join $::tkchat_dir tkchat48.gif]
-        }
+        image create photo ::tkchat::img::Tkchat \
+            -file [file join $::tkchat_dir tkchat48.png]
         if {[info command ::tkchat::img::Tkchat] ne {}} {
             wm iconphoto . -default ::tkchat::img::Tkchat
             set ::tk::icons::base_icon(.) ::tkchat::img::Tkchat
@@ -9444,13 +9420,10 @@ proc ::tkchat::ToggleRole {type nick} {
 }
 
 proc ::tkchat::createRosterImages {} {
-    global imgdir have_png
+    global imgdir
     foreach type {chat online away dnd xa disabled} {
-        if {$have_png} {
-            image create photo ::tkchat::roster::$type -file $imgdir/roster_$type.png
-        } else {
-            image create photo ::tkchat::roster::$type -file $imgdir/z_$type.gif
-        }
+        image create photo ::tkchat::roster::$type \
+            -file $imgdir/roster_$type.png
     }
 }
 
