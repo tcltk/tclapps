@@ -2420,7 +2420,7 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Alerts"] -menu .mbar.alert
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Debug"] -menu .mbar.dbg
     if {[tk windowingsystem] eq "aqua"} {
-        if {[lsearch -exact [winfo server .] AppKit] != -1} {
+        if {"AppKit" in [winfo server .]} {
             tk::AmpMenuArgs .mbar add cascade -label [mc "&Window"] \
                 -menu [menu .mbar.window -tearoff 0]
         }
@@ -3898,7 +3898,7 @@ proc ::tkchat::parseString { variable_name string separators maximum } {
 	# if the character is in the separator list,
 	# then we need to add to the array...
 	#
-	if {[lsearch -exact $separator_list $character] != -1} then {
+	if {$character in $separator_list} then {
 	    if {$maximum > 0} then {
 		# we are limiting the number of "matches" to a certain amount
 		# to allow for rather flexible argument parsing for callers...
@@ -5327,7 +5327,7 @@ proc ::tkchat::ChangeColors {} {
     grid [label $f.offline -text "Offline Users"] - - -
     foreach nick $Options(NickList) {
 	set nick [lindex $nick 0]
-	if { [lsearch -exact $UserList $nick] == -1 } {
+	if { $nick ni $UserList } {
 	    buildRow $f NICK-$nick $nick
 	}
     }
@@ -7436,16 +7436,20 @@ proc ::tkchat::GtkLookStyleInit {} {
 
     set families [font families]
     set family ""
-    foreach test [list "Bitstream Vera Sans" "FreeSans"] {
-        set ndx [lsearch -exact $families $test]
-        if {$ndx == -1} {
-            set ndx [lsearch -exact $families [string tolower $test]]
+    foreach test {"Bitstream Vera Sans" "FreeSans"} {
+        if {$test in $families} {
+            set family $test
+        } else {
+            set test [string tolower $test]
+            if {$test in $families} {
+                set family $test
+            }
         }
-        if {$ndx != -1} {
-            set family [lindex $families $ndx]
+        if {$family ne ""} {
             break
         }
     }
+
     if {$family eq ""} {set family Helvetica}
     set size 12
     catch {
@@ -8461,7 +8465,7 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
     global Options
     set opts {}
-    if { [lsearch -exact $::Options(BridgeNames) $nick] != -1} {
+    if { $nick in $::Options(BridgeNames) } {
         regexp {^([^\s]+)\s(.*)} $msg -> nick msg
 	if { $nick eq "***" } {
             regexp {^([^\s]+)\s(.*)} $msg -> nick action
@@ -9421,7 +9425,7 @@ proc ::tkjabber::xmlSafe { str } {
     return [string map \
                 {& {&amp;} < {&lt;} > {&gt;} \" {&quot;} ' {&apos;}} $str]
 }
-
+#'
 proc ::tkjabber::setNick { newnick } {
     variable muc
     variable conference
@@ -9432,7 +9436,7 @@ proc ::tkjabber::setNick { newnick } {
     variable ::tkchat::OnlineUsers
 
     set newnick [jlib::resourceprep $newnick]
-    if { [lsearch -exact $OnlineUsers(Jabber) $newnick] > -1 } {
+    if { $newnick in $OnlineUsers(Jabber) } {
 	# Perhaps it is my own nick, in another window?
 	set x [$roster getx $conference/$newnick "muc#user"]
         set item [wrapper::getchildswithtag $x item]
@@ -9496,7 +9500,7 @@ proc ::tkjabber::transferNick { reqfrom } {
 	}
     }
     set newnick $::Options(Nickname)$postfix
-    if { [lsearch -exact $OnlineUsers(Jabber) $newnick] != -1 } {
+    if { $newnick in $OnlineUsers(Jabber) } {
 	::tkchat::addStatus 0 \
             "Got a nick transfer request, but $newnick is already in use."
 	return
@@ -9964,17 +9968,17 @@ proc ::tkchat::CheckVersionDone {tok} {
     variable version
     global Options
     set meta [set [set tok](meta)]
-    if {[set ndx [lsearch -exact $meta X-LOLCATZ]] != -1} {
-        set Options(tagline) "LOLCat says \"[lindex $meta [incr ndx]]\""
+    if {[dict exists $meta X-LOLCATZ]} {
+        set Options(tagline) "LOLCat says \"[dict get $meta X-LOLCATZ]\""
         if {!$Options(HateLolcatz)} {
             after 10000 [list [namespace origin addStatus] 0 $::Options(tagline)]
         }
     }
     # This permits the website to re-define the names of current bridges.
-    if {[set ndx [lsearch -exact $meta X-BridgeNames]] != -1} {
-        set bridges [lindex $meta [incr ndx]]
+    if {[dict exists $meta X-BridgeNames]} {
+        set bridges [dict get $meta X-BridgeNames]
         if {[llength $bridges] > 0} {
-            lappend Options(BridgeNames) {*} $bridges
+            lappend Options(BridgeNames) {*}$bridges
         }
     }
     set url [string trim [http::data $tok]]
