@@ -55,7 +55,9 @@ proc ::newRoster::gui {f} {
         -background gray85
 
     set indent    0
-    set rowheight 22
+    # determine the row height
+    set height [expr { int( 1.2 * [font metrics TkDefaultFont -linespace]) }]
+    set rowheight [tk::ScaleNum $height]
     foreach theme [ttk::style theme names] {
         ttk::style theme settings $theme {
             ttk::style configure Roster.Treeview \
