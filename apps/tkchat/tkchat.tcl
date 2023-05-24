@@ -2092,24 +2092,14 @@ proc ::tkchat::showInfo {title str} {
 }
 
 proc ::tkchat::createFonts {} {
-    if {[tk windowingsystem] eq "win32"} {
-        set family arial
-    } else {
-        set family helvetica
-    }
-    if {[lsearch -exact [font names] TkDefaultFont] == -1} {
-        set basic [list -family $family -size -12 -weight normal -slant roman]
-        eval font create FIXED $basic -family courier
-    } else {
-        set basic [font actual TkDefaultFont]
-        eval font create FIXED [font actual TkFixedFont]
-    } 
-    eval font create FNT   $basic
-    eval font create ACT   $basic -slant italic
-    eval font create NOLOG $basic
-    eval font create NAME  $basic -weight bold
-    eval font create SYS   $basic -weight bold -slant italic
-    eval font create STAMP $basic -weight bold
+    set basic [font actual TkDefaultFont]
+    font create FIXED {*}[font actual TkFixedFont]
+    font create FNT   {*}$basic
+    font create ACT   {*}$basic -slant italic
+    font create NOLOG {*}$basic
+    font create NAME  {*}$basic -weight bold
+    font create SYS   {*}$basic -weight bold -slant italic
+    font create STAMP {*}$basic -weight bold
 }
 
 proc ::tkchat::displayUsers {} {
