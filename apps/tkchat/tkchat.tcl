@@ -22,7 +22,7 @@ exec wish "$0" ${1+"$@"}
 package require Tk 8.7
 
 #log background errors to console under Aqua, avoid locking up window
-if {[tk windowingsystem] == "aqua"} {
+if {[tk windowingsystem] eq "aqua"} {
     
     proc bgerror {args} {
         exec syslog -s -l Error "TkChat: An error occurred: $args"
@@ -104,7 +104,7 @@ namespace eval ::idle {
 if {[tk windowingsystem] eq "aqua"} {
     proc ::tk::mac::ReopenApplication {} {
 
-        if { [wm state .] == "withdrawn"} {
+        if { [wm state .] eq "withdrawn"} {
             wm state . normal
             raise .
         } else {
@@ -1128,7 +1128,7 @@ proc ::tkchat::alertWhenIdle { w {nick ""} {msg ""}} {
 
     if { ![info exists alert_pending] } {
 	set alert_pending 1
-	if { $::Options(AutoBookmark) && $w eq ".txt" && [focus] == {} } {
+	if { $::Options(AutoBookmark) && $w eq ".txt" && [focus] eq {} } {
 	    .txt mark set AddBookmark "end - 1 line linestart"
 	    BookmarkToggle auto
 	}
@@ -1353,7 +1353,7 @@ proc ::tkchat::AddRedirectionTooltipDone {w tag tok} {
 # Provide an indication of the number of messages since the window was last
 # in focus.
 proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
-    if { [focus] == {} && $msgtype ne "TRAFFIC"} {
+    if { [focus] eq {} && $msgtype ne "TRAFFIC"} {
 	variable chatWindowTitle
 	variable MessageCounter
 
@@ -2799,7 +2799,7 @@ proc ::tkchat::CreateGUI {} {
     ##
     set m .mbar.help
 
-    if {[tk windowingsystem] == "aqua"} {
+    if {[tk windowingsystem] eq "aqua"} {
         proc ::tk::mac::ShowHelp {} {
             ::tkchat::Help
         }
@@ -6437,7 +6437,7 @@ proc tkchat::textRestore {w save} {
 	    image   {$w image create $index -name $value}
 	    text    {$w insert $index $value}
 	    mark    {
-                if {$value == "current"} {set current $index}
+                if {$value eq "current"} {set current $index}
                 $w mark set $value $index
 	    }
 	    tagon   {set tag($value) $index}
@@ -6620,7 +6620,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     variable useTile
     variable NS
 
-    if {$jid == {}} {
+    if {$jid eq {}} {
 	set jid [::tkjabber::jid !resource $::tkjabber::myId]
     }
     set jid [jlib::jidprep $jid]
@@ -8660,7 +8660,7 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 	}
 	result {
 	    ::tkchat::addStatus 0 "Logged in."
-	    if {$myId == {}} { set myId [$jabber myjid] }
+	    if {$myId eq {}} { set myId [$jabber myjid] }
 	    variable reconnect 1
 	    variable connectionRetryTime [expr {int(5+rand()*5.0)}]
             $jabber send_presence -extras [list [get_caps]]
@@ -9505,7 +9505,7 @@ proc ::tkjabber::LoadHistoryLines {} {
     }
     set HistoryLines [lrange $HistoryLines $count end]
 
-    if {$HistoryLines == {}} {
+    if {$HistoryLines eq {}} {
 	::log::log debug "History loading completed."
 	.txt configure -state normal
 	.txt delete "HISTORY + 1 char" "HISTORY + 1 line"
