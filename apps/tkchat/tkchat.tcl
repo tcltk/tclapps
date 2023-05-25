@@ -432,7 +432,7 @@ proc ::tkchat::buildProxyHeaders {} {
     set auth {}
     if { $Options(UseProxy)
          && [info exists ::Options(ProxyUsername)]
-         && $::Options(ProxyUsername) != {}
+         && $::Options(ProxyUsername) ne {}
      } then {
 	if {![info exists ::Options(ProxyAuth)]} {
 	    set ::Options(ProxyAuth) [list "Proxy-Authorization" \
@@ -1371,7 +1371,7 @@ proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
 }
 
 proc ::tkchat::ResetMessageCounter {} {
-    if { [focus] != {} } {
+    if { [focus] ne {} } {
 	variable MessageCounter
 	variable chatWindowTitle
 
@@ -1620,7 +1620,7 @@ proc ::tkchat::gotoURL {url} {
             # support this dde topic, Safari does not.
 	    set handled 0
 	    foreach app {Firefox Mozilla Netscape Opera IExplore} {
-		if {[set srv [dde services $app WWW_OpenURL]] != {}} {
+		if {[set srv [dde services $app WWW_OpenURL]] ne {}} {
                     # You cannot use the catch result to determine success here.
                     # Firefox always returns 0, Opera and IE always yield 1
 		    catch {dde execute $app WWW_OpenURL $url}
@@ -3449,7 +3449,7 @@ proc ::tkchat::NickVis { val } {
     global Options
 
     foreach nick [array names Options Visibility,NICK-*] {
-	if { $Options($nick) != $val } {
+	if { $Options($nick) ne $val } {
 	    set Options($nick) $val
 	    DoVis [string range $nick 11 end]
 	}
@@ -3883,7 +3883,7 @@ proc ::tkchat::parseString { variable_name string separators maximum } {
 	    #
 	    # otherwise, just keep appending to current string
 	    #
-	    if {$found_string != ""} then {
+	    if {$found_string ne ""} then {
 		# tack on the current character (this is not a separator)
 		append found_string $character
 	    } else {
@@ -3900,7 +3900,7 @@ proc ::tkchat::parseString { variable_name string separators maximum } {
     # don't forget last one... in case there is one...
     # (this should always happen if the string doesn't end in space...)
     #
-    if {$found_string != ""} then {
+    if {$found_string ne ""} then {
 	# add FINAL string to found array...
 	set local_array($found_index) $found_string
 	# next index in result array
@@ -4687,7 +4687,7 @@ proc ::tkchat::logonScreen {} {
 	bind .logon <Escape> [list .logon.cn invoke]
     }
 
-    set have_tls [expr {[package provide tls] != {}}]
+    set have_tls [expr {[package provide tls] ne {}}]
     if {! $have_tls} {
 	.logon.nossl invoke
 	foreach w {.logon.nossl .logon.rjabberssl .logon.rstarttls .logon.vsc} {
@@ -6209,7 +6209,7 @@ proc ::tkchat::Init {args} {
     Hook run init
 
     if {$Options(UseProxy)} {
-	if {$Options(ProxyHost) != "" && $Options(ProxyPort) != ""} {
+	if {$Options(ProxyHost) ne "" && $Options(ProxyPort) ne ""} {
             # nothing
 	} elseif {[info exists ::env(http_proxy)]} {
 	    if {[regexp {(?:http://)?([[:alnum:].-]+)(?::(\d+))?} \
@@ -6384,7 +6384,7 @@ proc ::tkchat::textSave {w} {
                 set exec [list image create $index]
                 foreach k {-align -image -name -padx -pady} {
                     set v [$w image cget $index $k]
-                    if {$v != ""} {lappend exec $k $v}
+                    if {$v ne ""} {lappend exec $k $v}
                 }
                 lappend save exec $exec {}
             }
@@ -6404,7 +6404,7 @@ proc ::tkchat::textSave {w} {
                 lappend keys -spacing3 -tabs -underline -wrap
                 foreach k $keys {
                     set v [$w tag cget $value $k]
-                    if {$v != ""} {lappend exec $k $v}
+                    if {$v ne ""} {lappend exec $k $v}
                 }
                 lappend save exec $exec {}
                 lappend save $key $value $index
@@ -6415,7 +6415,7 @@ proc ::tkchat::textSave {w} {
                 set exec [list window configure $index]
                 foreach k {-align -create -padx -pady -stretch}  {
                     set v [$w window cget $index $k]
-                    if {$v != ""} {lappend exec $k $v}
+                    if {$v ne ""} {lappend exec $k $v}
                 }
                 lappend save exec $exec {}
             }
@@ -7154,7 +7154,7 @@ proc ::tkchat::PreferencesPage {parent} {
 	    try to use a previously existing browser."
         ${NS}::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
         ${NS}::button $bf.b -text "..."  -width 4 -command {
-            if {[set file [tk_getOpenFile]] != {}} {
+            if {[set file [tk_getOpenFile]] ne {}} {
                 set ::tkchat::EditOptions(Browser) $file
             }
         }
@@ -7618,7 +7618,7 @@ proc ::tkjabber::connect {} {
 
     }
 
-    set have_tls [expr {[package provide tls] != {}}]
+    set have_tls [expr {[package provide tls] ne {}}]
     set socketCmd [info command ::socket]
     if {[llength [package provide Iocpsock]] > 0} {
         set socketCmd ::socket2 
