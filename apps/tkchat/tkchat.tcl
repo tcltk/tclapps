@@ -145,17 +145,6 @@ proc ::log::Puts {level text} {
     return
 }
 
-# Ensure that Tk widgets are available in the tk namespace. This is useful
-# if we are using Ttk widgets as sometimes we need the originals.
-#
-if {[llength [info commands ::tk::label]] < 1} {
-    foreach cmd { label entry text canvas menubutton button frame labelframe \
-                      radiobutton checkbutton scale scrollbar} {
-        rename ::$cmd ::tk::$cmd
-        interp alias {} ::$cmd {} ::tk::$cmd
-    }
-}
-
 # In Tk 8.5a6 the tile widgets have been merged into the Tk code in the
 # ttk namespace. This provides detects the presence of themed widgets
 # and provides compatability with tile 0.7
@@ -996,7 +985,7 @@ proc ::tkchat::parseStr {str} {
     set sList {}
     set HTTPRE {(?x)(https?|ftp)://
 	[[:alnum:]]+[^[:space:]]*[^[:space:].,!;&?()\[\]{}<>:'\"]+
-    }
+    };#'
     while {[regexp -nocase -- $HTTPRE $str url]} {
 	set pre ""
 	set post ""
