@@ -129,7 +129,8 @@ if {[llength [info commands ::tk::AmpMenuArgs]] == 0} {
                 lappend options $opt $val
             }
         }
-        eval [linsert $options 0 $widget add $type]
+        # eval [linsert $options 0 $widget add $type]
+        $widget add $type {*}$options
     }
 }
 
@@ -205,7 +206,8 @@ if {[package provide khim] ne {}} {
 
         rename ${ns}::${t} ${ns}::khimWrapped${t}
         proc ${ns}::${t} {w args} [string map [list @ns $ns @t $t] {
-            eval [linsert $args 0 @ns::khimWrapped@t $w]
+            # eval [linsert $args 0 @ns::khimWrapped@t $w]
+            @ns::khimWrapped@t $w {*}$args
             bindtags $w [linsert [bindtags $w] 1 KHIM]
             return $w
         }]
@@ -367,16 +369,21 @@ if {[info exists ::env(HOME)] \
 }
 
 proc ::tkchat::Toplevel {w args} {
-    eval [linsert $args 0 ::toplevel $w]
+    # eval [linsert $args 0 ::toplevel $w]
+    ::toplevel $w {*}$args]
     if {![$w cget -container]} {
-        place [::ttk::frame $w.tilebg] -x 0 -y 0 -relwidth 1 -relheight 1
+        place [::ttk::frame $w.tilebg] \
+            -x 0 -y 0 \
+            -relwidth 1 -relheight 1 \
+            -bordermode outside
     }
     return $w
 }
 
 proc ::tkchat::Dialog {w args} {
     lappend args -class Dialog
-    set dlg [eval [linsert $args 0 Toplevel $w]]
+    # set dlg [eval [linsert $args 0 Toplevel $w]]
+    set dlg [Toplevel $w {*}$args]
     catch {wm attributes $w -type dialog}
     wm transient $dlg [winfo parent $dlg]
     wm group $dlg .
@@ -1370,7 +1377,8 @@ proc ::tkchat::Hook {do type args} {
             if {![info exists $Hook]} { return }
             foreach item [set $Hook] {
                 foreach {cmd pri} $item break
-                set code [catch {eval $cmd $args} err]
+                # set code [catch {eval $cmd $args} err]
+                set code [catch {{*}$cmd {*}$args} err]
                 if {$code} {
                     ::bgerror "error running \"$type\" hook: $err"
                     break
@@ -1492,7 +1500,8 @@ proc ::tkchat::gotoURL {url} {
                 }
                 if {[catch {
                     log::log debug "open url with '$cmd'"
-                    eval exec $cmd &
+                    # eval exec $cmd &
+                    exec {*}$cmd &
                 } err]} {
                     tk_messageBox -icon error -title "Error opening browser" \
                         -message "Error displaying $url in browser\n$err"
@@ -1523,7 +1532,8 @@ proc ::tkchat::gotoURL {url} {
 		    set url [string map {& ^&} $url]
 		}
 		if { [catch {
-		    eval exec [auto_execok start] [list $url] &
+		    # eval exec [auto_execok start] [list $url] &
+		    exec {*}[auto_execok start] $url &
 		} emsg]} then {
 		    tk_messageBox -icon error -type ok -title "Failed to open url" \
                         -message "Error displaying \"$url\" in browser\n$emsg"
@@ -1682,8 +1692,10 @@ proc ::tkchat::StatusbarAddWidget {bar slave pos} {
     if {![winfo exists $bar]} { return }
     if {![winfo ismapped $slave]} {
         set slaves [lreverse [grid slaves $bar]]
-        eval [linsert $slaves 0 grid forget]
-        eval grid [linsert $slaves $pos $slave] -sticky news
+        # eval [linsert $slaves 0 grid forget]
+        grid forget {*}$slaves
+        # eval grid [linsert $slaves $pos $slave] -sticky news
+        grid {*}[linsert $slaves $pos $slave] -sticky news
     }
 }
 
@@ -2069,7 +2081,8 @@ proc ::tkchat::InstallXDG {} {
     if {[llength [set cmd [auto_execok xdg-desktop-menu]]] != 0} {
 	set tmpfile [file join /tmp tkchat.desktop]
 	file copy [file join $::tkchat_dir tkchat.desktop] $tmpfile
-	if {[catch {eval exec $cmd install --novendor $tmpfile} err]} {
+	# if {[catch {eval exec $cmd install --novendor $tmpfile} err]} {}
+	if {[catch {exec {*}$cmd install --novendor $tmpfile} err]} {
 	    tk_messageBox -icon warning -title "Installation failed" \
 		-message $err -parent .
 	    file delete $tmpfile
@@ -2092,7 +2105,8 @@ proc ::tkchat::InstallXDG {} {
     if {[llength [set cmd [auto_execok xdg-icon-resource]]] != 0} {
 	set tmpfile [file join /tmp tkchat48.png]
 	file copy [file join $::tkchat_dir tkchat48.png] $tmpfile
-	if {[catch {eval exec $cmd install --novendor --size 48 $tmpfile} err]} {
+	# if {[catch {eval exec $cmd install --novendor --size 48 $tmpfile} err]} {}
+	if {[catch {exec {*}$cmd install --novendor --size 48 $tmpfile} err]} {
 	    tk_messageBox -icon warning -title "Icon installation failed" \
 		-message $err -parent .
 	    file delete $tmpfile
@@ -2813,7 +2827,8 @@ proc ::tkchat::CreateGUI {} {
     set lower_row [list .ml .eMsg .post .mb]
     grid .pane - -sticky news -padx 1 -pady 2
     grid .btm  - -sticky news
-    eval grid $lower_row [list -in .btm -sticky ews -padx 2 -pady 2]
+    # eval grid $lower_row [list -in .btm -sticky ews -padx 2 -pady 2]
+    grid {*}$lower_row -in .btm -sticky ews -padx 2 -pady 2
     grid configure .eMsg -sticky ew
 
     grid [CreateStatusbar .status] -sticky ew
@@ -2834,7 +2849,8 @@ proc ::tkchat::CreateGUI {} {
 
     update idletasks
     if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2 } {
-        eval [linsert $Options(Pane) 0 .pane sashpos 0]
+        # eval [linsert $Options(Pane) 0 .pane sashpos 0]
+        .pane sashpos 0 {*}$Options(Pane)
     } else {
 	set w [expr { ([winfo width .pane] * 4) / 5 }]
         set coord [.pane sashpos 0]
@@ -3273,7 +3289,8 @@ proc ::tkchat::NickVisMenu {} {
 proc ::tkchat::ScrolledWidget {widget parent scrollx scrolly args} {
     ttk::frame $parent
     # Create widget attached to scrollbars, pass thru $args
-    eval $widget $parent.list $args
+    # eval $widget $parent.list $args
+    $widget $parent.list {*}$args
     # Create scrollbars attached to the listbox
     if {$scrollx} {
         ttk::scrollbar $parent.sx -orient horizontal \
@@ -4621,8 +4638,9 @@ proc ::tkchat::Find {w str args} {
     if {![info exists case]} { lappend opts -nocase }
     if {[string match {} $str]} return
     $w mark set foundmark 1.0
-    while {[string compare {} [set ix [eval $w search $opts -count numc -- \
-                                           [list $str] foundmark end]]]} {
+    # while {[string compare {} [set ix [eval $w search $opts -count numc -- \
+    #                                        [list $str] foundmark end]]]} {}
+    while {[set ix [$w search {*}$opts -count numc -- $str foundmark end]] ne {}} {
 	$w tag add found $ix ${ix}+${numc}c
 	$w mark set foundmark ${ix}+1c
     }
@@ -5399,8 +5417,10 @@ proc ::tkchat::Debug {cmd args } {
 	restart {
 	    tkjabber::disconnect
 	    saveRC
-	    eval destroy [winfo children .]
-	    eval font delete [font names]
+	    # eval destroy [winfo children .]
+	    destroy {*}[winfo children .]
+	    # eval font delete [font names]
+	    font delete {*}[font names]
 	    while { [after info] ne "" } {
                 foreach id [after info] {
 		    after cancel $id
@@ -5923,6 +5943,7 @@ proc ::tkchat::Init {args} {
 
     if {([package provide khim] ne {})
 	&& [info exists Options(Khim)]} {
+	# we use eval because Options(Khim) could be a full blown script
 	eval $Options(Khim)
     }
 
@@ -6125,7 +6146,10 @@ proc tkchat::textRestore {w save} {
     # create items, restoring their attributes:
     foreach {key value index} $save {
 	switch $key {
-	    exec    {eval $w $value}
+	    exec    {
+	        # eval $w $value
+	        $w {*}$value
+            }
 	    image   {$w image create $index -name $value}
 	    text    {$w insert $index $value}
 	    mark    {
@@ -8170,8 +8194,9 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 		if {[info exists Options(Email)]} {
 		    lappend cmd -email $::Options(Email)
 		}
-		eval [linsert $cmd 0 $jabber \
-			  register_set $::Options(Username) $::Options(Password)]
+		# eval [linsert $cmd 0 $jabber \
+		# 	  register_set $::Options(Username) $::Options(Password)]
+		$jabber register_set $::Options(Username) $::Options(Password)] {*}$cmd
 
 		tkchat::addSystem .txt "Registering username."
 		update idletasks
@@ -8472,7 +8497,8 @@ proc tkjabber::msgSend { msg args } {
                        -attrlist [list xmlns urn:tkchat:chat color $Options(MyColor)]]
     set margs [list -type $type -body $msg -xlist $xlist]
     if {$thread ne ""} {lappend margs -thread $thread}
-    eval [linsert $margs 0 $jabber send_message $user]
+    # eval [linsert $margs 0 $jabber send_message $user]
+    $jabber send_message $user {*}$margs
 }
 
 # returns true if a jid is a participant in the conference.
@@ -8547,7 +8573,8 @@ proc ::tkjabber::on_iq_ping {token from subiq args} {
     array set a [concat -id {{}} $args]
     set opts [list -to $from]
     if {$a(-id) ne {}} { lappend opts -id $a(-id) }
-    eval [linsert $opts 0 $token send_iq result {}]
+    # eval [linsert $opts 0 $token send_iq result {}]
+    $token send_iq result {} {*}$opts
     return 1 ;# handled
 }
 
@@ -9172,7 +9199,8 @@ proc tkjabber::on_iq_last {token from subiq args} {
     set xml [wrapper::createtag query \
          -attrlist [list xmlns jabber:iq:last \
             seconds [idle::idletime]]]
-    eval [linsert $opts 0 $token send_iq result [list $xml]]
+    # eval [linsert $opts 0 $token send_iq result [list $xml]]
+    $token send_iq result $xml {*}$opts
     return 1 ;# handled
 }
 
@@ -9189,7 +9217,8 @@ proc tkjabber::on_iq_time {token from subiq args} {
                          [clock format $t -format $fmt -gmt 1] {}]
     set xml [wrapper::createtag time -subtags $subtags \
                  -attrlist [list xmlns urn:xmpp:time]]
-    eval [linsert $opts 0 $token send_iq result [list $xml]]
+    # eval [linsert $opts 0 $token send_iq result [list $xml]]
+    $token send_iq result $xml {*}$opts
     return 1 ;# handled
 }
 
@@ -9211,7 +9240,8 @@ proc tkjabber::on_iq_version {token from subiq args} {
                      [wrapper::createtag os      -chdata $os] ]
     set xmllist [wrapper::createtag query -subtags $subtags  \
                      -attrlist {xmlns jabber:iq:version}]
-    eval [linsert $opts 0 $token send_iq result [list $xmllist]]
+    # eval [linsert $opts 0 $token send_iq result [list $xmllist]]
+    $token send_iq result $xmllist {*}$opts
     return 1 ;# handled
 }
 
@@ -9731,7 +9761,8 @@ package forget app-tkchat	; # Workaround until I can convince people
 package provide app-tkchat $::tkchat::version
 
 if {![info exists ::URLID]} {
-    eval [linsert $argv 0 ::tkchat::Init]
+    # eval [linsert $argv 0 ::tkchat::Init]
+    ::tkchat::Init {*}$argv
 }
 
 # Local variables:
