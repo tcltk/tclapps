@@ -29,7 +29,7 @@ fi
 cp -rf ./tkchat /usr/local
 chmod -R 777 /usr/local/tkchat
 
-if [ -f /usr/local/bin/tkchat
+if [ -f /usr/local/bin/tkchat ]
 	then
 	echo "Removing existing installation of TkChat..."
 	unlink /usr/local/bin/tkchat
