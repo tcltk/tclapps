@@ -475,8 +475,7 @@ proc ::tkchat::GetHistLogIdx {url} {
 
 proc ::tkchat::GotHistLogIdx {tok} {
     set loglist {}
-    #array set meta [set [set tok](meta)]
-    log::log debug "history meta: [set [set tok](meta)]"
+    log::log debug "history meta: [http::meta $tok]"
 
     set RE {<A HREF="([0-9\-%d]+\.tcl)">.*\s([0-9]+) bytes}
     foreach line [split [::http::data $tok] \n] {
@@ -1234,7 +1233,7 @@ proc ::tkchat::AddRedirectionTooltip {w tag url} {
 }
 proc ::tkchat::AddRedirectionTooltipDone {w tag tok} {
     if {[http::status $tok] eq "ok"} {
-        foreach {key value} [set [set tok](meta)] {
+        foreach {key value} [http::meta $tok] {
             if {[string match location [string tolower $key]]} {
                 tooltip::tooltip $w -tag $tag $value
                 break
@@ -9449,7 +9448,7 @@ proc ::tkchat::CheckVersion {} {
 proc ::tkchat::CheckVersionDone {tok} {
     variable version
     global Options
-    set meta [set [set tok](meta)]
+    set meta [http::meta $tok]
     if {[dict exists $meta X-LOLCATZ]} {
         set Options(tagline) "LOLCat says \"[dict get $meta X-LOLCATZ]\""
         if {!$Options(HateLolcatz)} {
