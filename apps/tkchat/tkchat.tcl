@@ -150,29 +150,9 @@ proc ::log::Puts {level text} {
 # and provides compatability with tile 0.7
 #
 namespace eval ::tkchat {
-    variable useTile
     variable useClosebutton 0
-    if {![info exists useTile]} {
-	variable useTile 1
-	variable NS "::ttk"
-	if {[llength [info commands ::ttk::*]] == 0} {
-            if {![catch {package require tile 0.8}]} {
-		# we're all good
-	    } elseif {![catch {package require tile 0.7}]} {
-		# tile to ttk compatability
-		interp alias {} ::ttk::style {} ::style
-		interp alias {} ::ttk::setTheme {} ::tile::setTheme
-		interp alias {} ::ttk::themes {} ::tile::availableThemes
-		interp alias {} ::ttk::LoadImages {} ::tile::LoadImages
-	    } else {
-		set useTile 0
-		set NS "::tk"
-	    }
-	}
-    }
 
-    
-    if {$useTile && [tk windowingsystem] eq "win32"} {
+    if {[tk windowingsystem] eq "win32"} {
         # [PT]: experimental ttk styled pane closebutton.
         catch {
             ttk::style theme settings xpnative {
@@ -387,9 +367,8 @@ if {[info exists ::env(HOME)] \
 }
 
 proc ::tkchat::Toplevel {w args} {
-    variable useTile
     eval [linsert $args 0 ::toplevel $w]
-    if {$useTile && ![$w cget -container]} {
+    if {![$w cget -container]} {
         place [::ttk::frame $w.tilebg] -x 0 -y 0 -relwidth 1 -relheight 1
     }
     return $w
@@ -593,7 +572,6 @@ proc ::tkchat::InsertHistoryMark {} {
 # logindex is a list of "filename sizeK filename...."
 proc ::tkchat::LoadHistoryFromIndex {logindex} {
     global Options
-    variable NS
 
     set loglist {}
     array set logsize {}
@@ -613,16 +591,16 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    wm protocol $t WM_DELETE_WINDOW {}
 	    wm title $t [mc "Load History From Logs"]
 
-            set f [${NS}::frame $t.f -borderwidth 0]
+            set f [ttk::frame $t.f -borderwidth 0]
 
-	    ${NS}::label $f.lbl \
+	    ttk::label $f.lbl \
                 -text [mc "Please select how far back you want to load:"]
 	    grid $f.lbl -sticky ew -padx 5 -pady 5 -columnspan 3
 
 	    set i 0
 	    variable HistQueryNum [llength $loglist]
 	    foreach l $loglist {
-		${NS}::radiobutton $f.rb$i \
+		ttk::radiobutton $f.rb$i \
                     -text "$l ($logsize($l))" \
                     -value $i \
                     -variable ::tkchat::HistQueryNum
@@ -630,11 +608,11 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 		incr i
 	    }
 
-	    ${NS}::radiobutton $f.rb$i \
+	    ttk::radiobutton $f.rb$i \
                 -text "None" \
                 -value $i \
                 -variable ::tkchat::HistQueryNum
-	    ${NS}::button $f.ok \
+	    ttk::button $f.ok \
                 -text Ok \
                 -width 8 \
                 -command [list destroy $t] \
@@ -693,7 +671,6 @@ proc ::tkchat::HistoryPaneToggle {} {
     #
     # ... Or make the window invisible clearing it from all content
     
-    variable useTile
     # remember current position in window:
     set fraction [lindex [.txt yview] 1]
     if {[winfo ismapped .cframe]} {
@@ -705,11 +682,7 @@ proc ::tkchat::HistoryPaneToggle {} {
 	.mbar.vis entryconfigure "*current history*" -state normal
     } else {
 	# fill clone and display it:
-	if {$useTile} {
-	    .pane2 insert 0 .cframe
-	} else {
-	    .pane2 add .cframe -before .txtframe
-	}
+	.pane2 insert 0 .cframe
 	::tkchat::textClone .txt .clone
 	.clone configure -state disabled
 	.mbar.vis entryconfigure "*current history*" -state disabled
@@ -897,18 +870,9 @@ proc ::tkchat::babelfishMenu {} {
 proc ::tkchat::MsgTo {{user "All Users"}} {
     global Options
     variable MsgToColors
-    variable useTile
-    set tile_version 0.7.8 ;#[package provide tile]
-    set do_bg 1
-
-    # There is a bug in 0.6 that messes up all this stuff.
-    if {$useTile && [package vsatisfies $tile_version 0.6] \
-	    && ![package vsatisfies $tile_version 0.7]} {
-	set do_bg 0
-    }
 
     set windows [list .eMsg .tMsg]
-    if {$do_bg && ![info exists MsgToColors]} {
+    if {![info exists MsgToColors]} {
 	foreach w $windows {
 	    catch {
 		set MsgToColors($w,normal) [$w cget -background]
@@ -923,10 +887,8 @@ proc ::tkchat::MsgTo {{user "All Users"}} {
 	set type whisper
     }
 
-    if {$do_bg} {
-	foreach w $windows {
-	    catch {$w configure -background $MsgToColors($w,$type)}
-	}
+    foreach w $windows {
+        catch {$w configure -background $MsgToColors($w,$type)}
     }
 
     set Options(MsgTo) $user
@@ -1738,19 +1700,16 @@ proc ::tkchat::SetServerTooltip2 {w jlib type xmllist} {
 }
 
 proc ::tkchat::ShowStatusHistory {} {
-    variable NS
-    variable useTile
     if {[winfo exists .statushistory]} {
         raise .statuswindow
         return
     }
     set dlg [Dialog .statushistory]
     wm withdraw $dlg
-    set f [${NS}::frame $dlg.f]
+    set f [ttk::frame $dlg.f]
     text $f.txt -yscrollcommand [list $f.vs set]
-    ${NS}::scrollbar $f.vs -command [list $f.txt yview]
-    ${NS}::button $f.ok -text OK -command [list destroy $dlg] -default active
-    if {!$useTile} {$f.ok configure -width -8}
+    ttk::scrollbar $f.vs -command [list $f.txt yview]
+    ttk::button $f.ok -text OK -command [list destroy $dlg] -default active
 
     grid $f.txt $f.vs -sticky news
     grid $f.ok  -     -sticky e
@@ -1917,32 +1876,25 @@ proc ::tkchat::addTraffic { w nick action mark timestamp } {
 }
 
 proc ::tkchat::CreateMemoDialog {dlg jid} {
-    variable NS ; variable useTile
     set dlg [Dialog $dlg]
     wm withdraw $dlg
     wm title $dlg [mc "%s - tkchat message" $jid]
     wm transient $dlg {}
 
-    ${NS}::label $dlg.label -text "[mc Subject]:"
-    ${NS}::entry $dlg.subject
-    if {$useTile} {
-        set bodyf [${NS}::frame $dlg.bodyf -style FakeText]
-    } else {
-        set bodyf [${NS}::frame $dlg.bodyf]
-    }
+    ttk::label $dlg.label -text "[mc Subject]:"
+    ttk::entry $dlg.subject
+    set bodyf [ttk::frame $dlg.bodyf -style FakeText]
     set body [text $bodyf.body -font FNT -wrap word \
                   -background "#[getColor MainBG]" \
                   -foreground "#[getColor MainFG]" \
                   -width 80 -height 12 -yscrollcommand [list $bodyf.vs set]]
-    ${NS}::scrollbar $bodyf.vs -command [list $bodyf.body yview]
-    ${NS}::button $dlg.ok -text [mc OK] -default active \
+    ttk::scrollbar $bodyf.vs -command [list $bodyf.body yview]
+    ttk::button $dlg.ok -text [mc OK] -default active \
         -command [namespace code [list SendMemoDone $dlg $jid ok]]
-    ${NS}::button $dlg.cancel -text [mc Cancel] \
+    ttk::button $dlg.cancel -text [mc Cancel] \
         -command [namespace code [list SendMemoDone $dlg $jid cancel]]
     
-    if {$useTile} {
-        $body configure -relief flat -borderwidth 0 -highlightthickness 0
-    }
+    $body configure -relief flat -borderwidth 0 -highlightthickness 0
 
     grid $bodyf.body -row 0 -column 0 -sticky news -padx {1 0} -pady 1
     grid $bodyf.vs   -row 0 -column 1 -sticky news -padx {0 1} -pady 1
@@ -2015,7 +1967,6 @@ proc ::tkchat::SendMemoDone {dlg jid status} {
 }
 
 proc ::tkchat::showInfo {title str} {
-    variable NS
     set t .infobox
     set i 0
     while {[winfo exists $t]} {
@@ -2023,7 +1974,7 @@ proc ::tkchat::showInfo {title str} {
     }
     set dlg [Dialog $t]
     wm title $t $title
-    set t [${NS}::frame $dlg.f -borderwidth 0]
+    set t [ttk::frame $dlg.f -borderwidth 0]
     pack $t -side top -fill both -expand 1
 
     set height [expr {[string length $str] / 75 + 1}]
@@ -2047,7 +1998,7 @@ proc ::tkchat::showInfo {title str} {
     }
     $t.txt insert end "\n"
     $t.txt configure -state disabled
-    ${NS}::button $t.close -text Close -command [list destroy $dlg]
+    ttk::button $t.close -text Close -command [list destroy $dlg]
     focus $t.close
     pack $t.close -side right
 }
@@ -2065,14 +2016,9 @@ proc ::tkchat::createFonts {} {
 
 proc ::tkchat::displayUsers {} {
     global Options
-    variable useTile
     if {[winfo exists .pane]} {
 	if {$Options(DisplayUsers)} {
-	    if {$useTile} {
-		catch {.pane add $Options(NamesWin)}
-	    } else {
-		.pane add $Options(NamesWin) -sticky news
-	    }
+	    catch {.pane add $Options(NamesWin)}
 	} else {
 	    .pane forget $Options(NamesWin)
 	}
@@ -2329,8 +2275,6 @@ proc ::tkchat::toggleUnicodePoint_e {e} {
 proc ::tkchat::CreateGUI {} {
     global Options
     variable chatWindowTitle
-    variable useTile
-    variable NS
 
     SelectTkStyle
 
@@ -2830,45 +2774,25 @@ proc ::tkchat::CreateGUI {} {
 
     
     # a pane for the main display (chat window and users window):
-    if {$useTile} {
-        if {[llength [info commands ::ttk::panedwindow]] != 0} {
-            ::ttk::panedwindow .pane -orient horizontal
-        } else {
-            ::ttk::paned .pane -orient horizontal
-        }
-    } else {
-	panedwindow .pane -sashpad 4 -sashrelief ridge
-    }
+    ::ttk::panedwindow .pane -orient horizontal
     # another pane dividing the chat window:
-    if {$useTile} {
-        if {[llength [info commands ::ttk::panedwindow]] != 0} {
-            ::ttk::panedwindow .pane2 -orient vertical
-        } else {
-            ::ttk::paned .pane2 -orient vertical
-        }
-    } else {
-	panedwindow .pane2 -sashpad 4 -sashrelief ridge -orient vertical
-    }
+    ::ttk::panedwindow .pane2 -orient vertical
     
-    if {$useTile} {
-        # We don't have a ttk style for text widgets but we can co-opt
-        # the entry border and place our text widget on top of a frame
-        # with the entry border plus some padding to make it look right.
-        ttk::style theme settings default {
-            ttk::style layout FakeText {
-                FakeText.field -sticky news -border 0 -children {
-                    FakeText.fill -sticky news -children {
-                        FakeText.padding -sticky news
-                    }
+    # We don't have a ttk style for text widgets but we can co-opt
+    # the entry border and place our text widget on top of a frame
+    # with the entry border plus some padding to make it look right.
+    ttk::style theme settings default {
+        ttk::style layout FakeText {
+            FakeText.field -sticky news -border 0 -children {
+                FakeText.fill -sticky news -children {
+                    FakeText.padding -sticky news
                 }
             }
-            ttk::style configure FakeText -padding 1 -relief sunken
-            ttk::style map FakeText -background {}
         }
-        ${NS}::frame .txtframe -style FakeText
-    } else {
-        ${NS}::frame .txtframe
+        ttk::style configure FakeText -padding 1 -relief sunken
+        ttk::style map FakeText -background {}
     }
+    ttk::frame .txtframe -style FakeText
 
     CreateTxtAndSbar
 
@@ -2892,9 +2816,9 @@ proc ::tkchat::CreateGUI {} {
     applyColors .txt All
 
     # bottom frame for entry
-    ${NS}::frame .btm
-    ${NS}::button .ml
-    ${NS}::entry .eMsg
+    ttk::frame .btm
+    ttk::button .ml
+    ttk::entry .eMsg
     if {[tk windowingsystem] ne "aqua"} {
         .eMsg configure -foreground black -font FNT
     }
@@ -2924,21 +2848,12 @@ proc ::tkchat::CreateGUI {} {
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ ::tkchat::nickComplete ; break }
 
-    ${NS}::button .post -text [mc Post] -command [namespace code userPost]
+    ttk::button .post -text [mc Post] -command [namespace code userPost]
 
-    if {$useTile} {
-	ttk::menubutton .mb \
-            -menu .mb.mnu \
-            -textvariable ::Options(MsgTo) \
-            -direction above
-    } else {
-	tk::menubutton .mb \
-            -indicatoron 1 \
-            -pady 4 \
-            -menu .mb.mnu \
-            -textvar ::Options(MsgTo) \
-            -direction above
-    }
+    ttk::menubutton .mb \
+        -menu .mb.mnu \
+        -textvariable ::Options(MsgTo) \
+        -direction above
     menu .mb.mnu -tearoff 0
     .mb.mnu add command \
         -label [mc "All users"] \
@@ -2968,14 +2883,10 @@ proc ::tkchat::CreateGUI {} {
 
     .txt configure -width 10
     .pane.names configure -width 10
-    if {![catch {.txtframe cget -style} style] && $style eq "FakeText"} {
-        .txt configure -relief flat -borderwidth 0 -highlightthickness 0
-        grid .txt .sbar -in .txtframe -sticky news -pady 1
-        grid configure .txt -in .txtframe -padx {1 0}
-        grid configure .sbar -in .txtframe -padx {0 1}
-    } else {
-        grid .txt .sbar -in .txtframe -sticky news
-    }
+    .txt configure -relief flat -borderwidth 0 -highlightthickness 0
+    grid .txt .sbar -in .txtframe -sticky news -pady 1
+    grid configure .txt -in .txtframe -padx {1 0}
+    grid configure .sbar -in .txtframe -padx {0 1}
     grid columnconfigure .txtframe 0 -weight 1
     grid rowconfigure .txtframe 0 -weight 1
     
@@ -2985,13 +2896,13 @@ proc ::tkchat::CreateGUI {} {
     # FIX ME: be nice to have a little theme-specific tab close button here.
     # FIX ME: this should use the text widget clone feature if available.
     variable useClosebutton
-    ${NS}::frame .cframe -relief groove
+    ttk::frame .cframe -relief groove
     if {$useClosebutton} {
         if {[catch {
             ::ttk::button .cbtn -padding {1 1 0 0} -style CloseButton
-        }]} { ${NS}::button .cbtn -text [mc "Close history pane"] }
+        }]} { ttk::button .cbtn -text [mc "Close history pane"] }
     } else {
-        ${NS}::button .cbtn -text [mc "Close history pane"]
+        ttk::button .cbtn -text [mc "Close history pane"]
     }
     .cbtn configure -command ::tkchat::HistoryPaneToggle
     ScrolledWidget text .clone 0 1 \
@@ -3003,15 +2914,8 @@ proc ::tkchat::CreateGUI {} {
     pack .cbtn -in .cframe -side top -anchor ne -padx 4 -pady 2
     
     .pane add .pane2
-    if {$useTile} {
-	.pane add $Options(NamesWin)
-    } else {
-	.pane add $Options(NamesWin) -sticky news
-    }
+    .pane add $Options(NamesWin)
     set lower_row [list .ml .eMsg .post .mb]
-    if {!$useTile && [tk windowingsystem] eq "aqua"} {
-        lappend lower_row [frame .spacer -width 16]
-    }
     grid .pane - -sticky news -padx 1 -pady 2
     grid .btm  - -sticky news
     eval grid $lower_row [list -in .btm -sticky ews -padx 2 -pady 2]
@@ -3035,28 +2939,14 @@ proc ::tkchat::CreateGUI {} {
 
     update idletasks
     if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2 } {
-	if {$useTile} {
-            eval [linsert $Options(Pane) 0 .pane sashpos 0]
-	} else {
-            eval [linsert $Options(Pane) 0 .pane sash place 0]
-	}
+        eval [linsert $Options(Pane) 0 .pane sashpos 0]
     } else {
 	set w [expr { ([winfo width .pane] * 4) / 5 }]
-	if {$useTile} {
-            set coord [.pane sashpos 0]
-            .pane sashpos 0 $w
-	} else {
-            set coord [.pane sash coord 0]
-            .pane sash place 0 $w [lindex $coord 1]
-	}
+        set coord [.pane sashpos 0]
+        .pane sashpos 0 $w
     }
-    if {$useTile} {
-        set Options(PaneUsersWidth) \
-            [expr { [winfo width .pane] - [.pane sashpos 0]}]
-    } else {
-        set Options(PaneUsersWidth) \
-            [expr { [winfo width .pane] - [lindex [.pane sash coord 0] 0] }]
-    }
+    set Options(PaneUsersWidth) \
+        [expr { [winfo width .pane] - [.pane sashpos 0]}]
     bind .pane <Configure> { after idle [list ::tkchat::PaneConfigure %W %w] }
     bind .pane <Leave>     { ::tkchat::PaneLeave %W }
     
@@ -3069,33 +2959,25 @@ proc ::tkchat::CreateGUI {} {
 }
 
 proc ::tkchat::CreateStatusbar {w} {
-    variable NS
-    variable useTile
     variable Status
 
     array set Status [list 0 [mc "Ready"] 1 "not connected" SSL "  "]
-    set st [${NS}::frame $w]
+    set st [ttk::frame $w]
     for {set pn 0} {$pn < 2} {incr pn} {
-        ${NS}::label $st.pane$pn -anchor w \
+        ttk::label $st.pane$pn -anchor w \
             -textvariable [namespace current]::Status($pn)
-        if {$useTile} {
-            ttk::separator $st.sep$pn -orient vertical
-        } else {
-            ${NS}::frame $st.sep$pn -width 2
-        }
+        ttk::separator $st.sep$pn -orient vertical
     }
     $st.pane1 configure -image ::tkchat::img::link_disconnected
-    ${NS}::label $st.ssl -anchor w -compound right \
+    ttk::label $st.ssl -anchor w -compound right \
         -image ::tkchat::img::link_insecure \
         -textvariable [namespace current]::Status(SSL)
-    if {$useTile && [llength [info commands ::ttk::sizegrip]] > 0 && [tk windowingsystem] ne "aqua"} {
+    if {[tk windowingsystem] ne "aqua"} {
         ttk::sizegrip $st.sg
     } else {
-        ${NS}::frame $st.sg -width 16
+        ttk::frame $st.sg -width 16
     }
-    if {$useTile} {
-        ttk::progressbar $st.progress
-    }
+    ttk::progressbar $st.progress
     grid $st.pane0 $st.sep0 $st.pane1 $st.sep1 $st.ssl \
         $st.sg -sticky news
     grid columnconfigure $st 0 -weight 1
@@ -3207,7 +3089,6 @@ proc ::tkchat::OnTextPopup { w x y } {
 
 proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     global Options
-    variable NS
 
     set txt $parent.txt
     set sbar $parent.sbar
@@ -3225,7 +3106,7 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
         -yscroll "::tkchat::scroll_set $sbar" \
         -state disabled
 
-    ${NS}::scrollbar $sbar -command "$txt yview"
+    ttk::scrollbar $sbar -command "$txt yview"
 
     $txt tag configure MSG -lmargin2 50
     $txt tag configure INFO -lmargin2 50
@@ -3318,37 +3199,23 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
 
 proc ::tkchat::CreateNewChatWindow { parent } {
     global Options
-    variable useTile
-    variable NS
 
-    if {$useTile} {
-        if {[llength [info commands ::ttk::panedwindow]] != 0} {
-            ::ttk::panedwindow $parent.pane -orient vertical
-        } else {
-            ::ttk::paned $parent.pane -orient vertical
-        }
-    } else {
-	panedwindow $parent.pane -sashpad 4 -sashrelief ridge
-    }
-    if {$useTile} {
-        ${NS}::frame $parent.txtframe -style FakeText
-    } else {
-        ${NS}::frame $parent.txtframe
-    }
+    ::ttk::panedwindow $parent.pane -orient vertical
+    ttk::frame $parent.txtframe -style FakeText
 
     CreateTxtAndSbar $parent
 
     # bottom frame for entry
-    ${NS}::frame $parent.btm
-    ${NS}::button $parent.ml \
+    ttk::frame $parent.btm
+    ttk::button $parent.ml \
         -text ">>" \
         -width 0 \
         -command [list ::tkchat::showExtra $parent]
-    ${NS}::entry $parent.eMsg
+    ttk::entry $parent.eMsg
     bind $parent.eMsg <Key-Prior> [list $parent.txt yview scroll -1 pages]
     bind $parent.eMsg <Key-Next>  [list $parent.txt yview scroll  1 pages]
     text $parent.tMsg -height 6 -font FNT
-    ${NS}::button $parent.post -text "Post"
+    ttk::button $parent.post -text "Post"
 
     $parent.txt configure -width 10
     if {![catch {$parent.txtframe cget -style} style] && $style eq "FakeText"} {
@@ -3358,11 +3225,7 @@ proc ::tkchat::CreateNewChatWindow { parent } {
         -in $parent.txtframe  -sticky news -padx 1 -pady 2
     grid columnconfigure $parent.txtframe 0 -weight 1
     grid rowconfigure $parent.txtframe 0 -weight 1
-    if {$useTile} {
-        $parent.pane add $parent.txtframe
-    } else {
-        $parent.pane add $parent.txtframe -sticky news
-    }
+    $parent.pane add $parent.txtframe
     grid $parent.pane -sticky news -padx 1 -pady 2
     grid $parent.btm  -sticky news
     grid $parent.ml $parent.eMsg $parent.post \
@@ -3390,11 +3253,8 @@ proc ::tkchat::CreateNewChatTab { parent title } {
 
 proc ::tkchat::SetTheme {theme} {
     global Options
-    variable useTile
     catch {
-	if {$useTile} {
-            ttk::setTheme $theme
-	}
+        ttk::setTheme $theme
 	set Options(Theme) $theme
     }
 }
@@ -3403,30 +3263,19 @@ proc ::tkchat::SetTheme {theme} {
 # proportions the same for each pane.
 proc ::tkchat::PaneConfigure {pane width} {
     global Options
-    variable useTile
     if {$Options(DisplayUsers)} {
 	if {[info exists Options(PaneUsersWidth)]} {
 	    set pos [expr {$width - $Options(PaneUsersWidth)}]
-	    if {$useTile} {
-		$pane sashpos 0 $pos
-	    } else {
-		$pane sash place 0 $pos 2
-	    }
+	    $pane sashpos 0 $pos
 	}
     }
 }
 
 proc ::tkchat::PaneLeave {pane} {
     global Options
-    variable useTile
     if {$Options(DisplayUsers)} {
-	if {$useTile} {
-	    set Options(PaneUsersWidth) \
-		[expr {[winfo width .pane] - [.pane sashpos 0]}]
-	} else {
-	    set Options(PaneUsersWidth) \
-		[expr {[winfo width .pane] - [lindex [.pane sash coord 0] 0]}]
-	}
+    set Options(PaneUsersWidth) \
+	[expr {[winfo width .pane] - [.pane sashpos 0]}]
     }
 }
 
@@ -3538,30 +3387,19 @@ proc ::tkchat::NickVisMenu {} {
 # returns: the path to the created widget (frame)
 #
 proc ::tkchat::ScrolledWidget {widget parent scrollx scrolly args} {
-    variable useTile
-    if {$useTile} {ttk::frame $parent} else {frame $parent}
+    ttk::frame $parent
     # Create widget attached to scrollbars, pass thru $args
     eval $widget $parent.list $args
     # Create scrollbars attached to the listbox
     if {$scrollx} {
-        if {$useTile} {
-            ttk::scrollbar $parent.sx -orient horizontal \
-                -command [list $parent.list xview]
-        } else {
-            scrollbar $parent.sx -orient horizontal \
-                -command [list $parent.list xview] -elementborderwidth 1
-        }
+        ttk::scrollbar $parent.sx -orient horizontal \
+            -command [list $parent.list xview]
         grid $parent.sx -column 0 -row 1 -sticky ew
         $parent.list configure -xscrollcommand [list $parent.sx set]
     }
     if {$scrolly} {
-        if {$useTile} {
-            ttk::scrollbar $parent.sy -orient vertical \
-                -command [list $parent.list yview]
-        } else {
-            scrollbar $parent.sy -orient vertical \
-                -command [list $parent.list yview] -elementborderwidth 1
-        }
+        ttk::scrollbar $parent.sy -orient vertical \
+            -command [list $parent.list yview]
         grid $parent.sy 	-column 1 -row 0 -sticky ns
         $parent.list configure -yscrollcommand [list $parent.sy set]
 
@@ -3593,7 +3431,6 @@ proc ::tkchat::ScrolledWidgetCmd {self cmd args} {
 proc ::tkchat::About {} {
     global Options
     variable version
-    variable NS
 
 
     # don't cache this window - if user reloads on the fly
@@ -3601,7 +3438,7 @@ proc ::tkchat::About {} {
     catch {destroy .about}
 
     set dlg [Dialog .about]
-    set w [${NS}::frame $dlg.f]
+    set w [ttk::frame $dlg.f]
     wm withdraw $dlg
     wm title $dlg [mc "About TkChat %s" $version]
     if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
@@ -3610,7 +3447,7 @@ proc ::tkchat::About {} {
     set ver [mc "Using Tcl/Tk %s" [info patchlevel]]
     if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
-    ${NS}::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
+    ttk::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
     ScrolledWidget text $w.text 0 1 -height 24 -width 80 \
         -borderwidth 0 -padx 2 -pady 2 -font FNT
     grid $w.text -sticky news
@@ -3661,7 +3498,6 @@ proc ::tkchat::About {} {
 
 proc ::tkchat::Help {} {
     variable rcsid
-    variable NS
     global Options
     set title "TkChat $::tkchat::version [mc Help]"
 
@@ -3669,11 +3505,11 @@ proc ::tkchat::Help {} {
     set w [Dialog .qhelp]
     wm withdraw $w
     wm title $w $title
-    ${NS}::frame $w.f
+    ttk::frame $w.f
     text $w.text -height 32 -bd 1 -width 100 -wrap word \
         -yscrollcommand [list $w.vs set]
-    ${NS}::scrollbar $w.vs -command [list $w.text yview]
-    ${NS}::button $w.b -text [mc "Close"] -width -12 \
+    ttk::scrollbar $w.vs -command [list $w.text yview]
+    ttk::button $w.b -text [mc "Close"] -width -12 \
         -command [list wm withdraw $w] -default active
     grid $w.text $w.vs -in $w.f -sticky news
     grid $w.b -        -in $w.f -sticky e
@@ -4562,7 +4398,6 @@ proc ::tkchat::showExtra {{p ""}} {
 proc ::tkchat::logonScreen {} {
     global Options
     variable DlgDone
-    variable NS
 
     if {$::tkchat::LoggedIn} { tkjabber::disconnect }
     ::tkjabber::cancelReconnect
@@ -4572,68 +4407,68 @@ proc ::tkchat::logonScreen {} {
 	wm protocol .logon WM_DELETE_WINDOW { set ::tkchat::DlgDone cancel }
 	wm title .logon [mc Login]
 
-	set lf [${NS}::frame .logon.frame]
-	tk::AmpWidget ${NS}::checkbutton .logon.prx \
+	set lf [ttk::frame .logon.frame]
+	tk::AmpWidget ttk::checkbutton .logon.prx \
             -text [mc "Use pro&xy"] \
             -variable ::Options(UseProxy) \
             -command ::tkjabber::TwiddlePort
-        ${NS}::labelframe .logon.plf -labelwidget .logon.prx
-	tk::AmpWidget ${NS}::label .logon.lph -text [mc "&Proxy host:port"]
-	${NS}::frame .logon.fpx
-	${NS}::entry .logon.eph -textvariable ::Options(ProxyHost)
-	${NS}::entry .logon.epp -textvariable ::Options(ProxyPort) -width 5
-	tk::AmpWidget ${NS}::label .logon.lpan -text [mc "Proxy auth &username"]
-	tk::AmpWidget ${NS}::label .logon.lpap -text [mc "Proxy auth pa&ssword"]
-	${NS}::entry .logon.epan -textvariable ::Options(ProxyUsername)
-	${NS}::entry .logon.epap -textvariable ::Options(ProxyPassword) -show {*}
-	tk::AmpWidget ${NS}::label .logon.lnm -text [mc "J&ID | Nick"]
-	tk::AmpWidget ${NS}::label .logon.lpw -text [mc "Chat p&assword"]
-	${NS}::entry .logon.enm -textvariable ::Options(Username)
-	${NS}::entry .logon.enick -textvariable ::Options(Nickname)
-	${NS}::entry .logon.epw -textvariable ::Options(Password) -show *
-	tk::AmpWidget ${NS}::checkbutton .logon.rpw \
+        ttk::labelframe .logon.plf -labelwidget .logon.prx
+	tk::AmpWidget ttk::label .logon.lph -text [mc "&Proxy host:port"]
+	ttk::frame .logon.fpx
+	ttk::entry .logon.eph -textvariable ::Options(ProxyHost)
+	ttk::entry .logon.epp -textvariable ::Options(ProxyPort) -width 5
+	tk::AmpWidget ttk::label .logon.lpan -text [mc "Proxy auth &username"]
+	tk::AmpWidget ttk::label .logon.lpap -text [mc "Proxy auth pa&ssword"]
+	ttk::entry .logon.epan -textvariable ::Options(ProxyUsername)
+	ttk::entry .logon.epap -textvariable ::Options(ProxyPassword) -show {*}
+	tk::AmpWidget ttk::label .logon.lnm -text [mc "J&ID | Nick"]
+	tk::AmpWidget ttk::label .logon.lpw -text [mc "Chat p&assword"]
+	ttk::entry .logon.enm -textvariable ::Options(Username)
+	ttk::entry .logon.enick -textvariable ::Options(Nickname)
+	ttk::entry .logon.epw -textvariable ::Options(Password) -show *
+	tk::AmpWidget ttk::checkbutton .logon.rpw \
             -text [mc "&Remember chat password"] \
             -variable ::Options(SavePW)
-	${NS}::frame .logon.fjsrv
-	tk::AmpWidget ${NS}::label .logon.ljsrv -text [mc "&Jabber server:port"]
-	${NS}::entry .logon.ejsrv -textvariable ::Options(JabberServer)
-	${NS}::entry .logon.ejprt -textvariable ::Options(JabberPort) -width 5
-	tk::AmpWidget ${NS}::label .logon.ljres -text [mc "Jab&ber resource"]
-	${NS}::entry .logon.ejres -textvariable ::Options(JabberResource)
-	tk::AmpWidget ${NS}::label .logon.lconf -text [mc "Jabber con&ference"]
-	${NS}::entry .logon.econf -textvariable ::Options(JabberConference)
+	ttk::frame .logon.fjsrv
+	tk::AmpWidget ttk::label .logon.ljsrv -text [mc "&Jabber server:port"]
+	ttk::entry .logon.ejsrv -textvariable ::Options(JabberServer)
+	ttk::entry .logon.ejprt -textvariable ::Options(JabberPort) -width 5
+	tk::AmpWidget ttk::label .logon.ljres -text [mc "Jab&ber resource"]
+	ttk::entry .logon.ejres -textvariable ::Options(JabberResource)
+	tk::AmpWidget ttk::label .logon.lconf -text [mc "Jabber con&ference"]
+	ttk::entry .logon.econf -textvariable ::Options(JabberConference)
 
-	${NS}::frame .logon.sslopt -borderwidth 0
-	tk::AmpWidget ${NS}::radiobutton .logon.nossl \
+	ttk::frame .logon.sslopt -borderwidth 0
+	tk::AmpWidget ttk::radiobutton .logon.nossl \
             -text [mc "N&o SSL"] \
             -variable Options(UseJabberSSL) \
             -value no \
             -command ::tkjabber::TwiddlePort
-	${NS}::radiobutton .logon.rjabberssl \
+	ttk::radiobutton .logon.rjabberssl \
             -text [mc "Jabber SSL"] \
             -variable Options(UseJabberSSL) \
             -value ssl \
             -command ::tkjabber::TwiddlePort
-	${NS}::radiobutton .logon.rstarttls \
+	ttk::radiobutton .logon.rstarttls \
             -text [mc "STARTTLS"] \
             -variable Options(UseJabberSSL) \
             -value starttls \
             -command ::tkjabber::TwiddlePort
         
-	tk::AmpWidget ${NS}::checkbutton .logon.atc \
+	tk::AmpWidget ttk::checkbutton .logon.atc \
             -text [mc "Auto-&connect"] \
             -variable Options(AutoConnect)
-        tk::AmpWidget ${NS}::checkbutton .logon.vsc \
+        tk::AmpWidget ttk::checkbutton .logon.vsc \
             -text [mc "&Validate SSL certificates"] \
             -variable Options(ValidateSSLChain)
-	${NS}::frame  .logon.f  -border 0
-	tk::AmpWidget ${NS}::button .logon.ok \
+	ttk::frame  .logon.f  -border 0
+	tk::AmpWidget ttk::button .logon.ok \
             -text [mc "&Login"] -width -8 \
             -command { set ::tkchat::DlgDone ok }
-	${NS}::button .logon.cn \
+	ttk::button .logon.cn \
             -text [mc "Cancel"] -width -8 \
             -command { set ::tkchat::DlgDone cancel }
-	tk::AmpWidget ${NS}::button .logon.qu \
+	tk::AmpWidget ttk::button .logon.qu \
             -text [mc "&Quit"] -width -8 \
             -command [namespace origin quit]
 	catch {.logon.ok configure -default active}
@@ -4715,8 +4550,6 @@ proc ::tkchat::logonScreen {} {
 
 proc ::tkchat::IRCLogonScreen {} {
     global Options
-    variable useTile
-    variable NS
     variable irc
     if {![info exists irc]} {
         array set irc {server irc.freenode.net port 6667 channel "#tcl"}
@@ -4728,20 +4561,19 @@ proc ::tkchat::IRCLogonScreen {} {
         wm withdraw $dlg
         wm title $dlg "Connect to IRC"
         
-        set f [${NS}::frame $dlg.f]
-        set g [${NS}::frame $f.g]
-        ${NS}::label $f.sl -text Server
-        ${NS}::entry $f.se -textvariable [namespace which -variable irc](server)
-        ${NS}::entry $f.sp -textvariable [namespace which -variable irc](port) -width 5
-        ${NS}::label $f.cl -text Channel
-        ${NS}::entry $f.cn -textvariable [namespace which -variable irc](channel)
-        ${NS}::label $f.nl -text Nick
-        ${NS}::entry $f.nn -textvariable [namespace which -variable ::Options](Nickname)
-        ${NS}::button $f.ok -text Login -default active \
+        set f [ttk::frame $dlg.f]
+        set g [ttk::frame $f.g]
+        ttk::label $f.sl -text Server
+        ttk::entry $f.se -textvariable [namespace which -variable irc](server)
+        ttk::entry $f.sp -textvariable [namespace which -variable irc](port) -width 5
+        ttk::label $f.cl -text Channel
+        ttk::entry $f.cn -textvariable [namespace which -variable irc](channel)
+        ttk::label $f.nl -text Nick
+        ttk::entry $f.nn -textvariable [namespace which -variable ::Options](Nickname)
+        ttk::button $f.ok -text Login -default active \
             -command [list set [namespace which -variable $dlg] "ok"]
-        ${NS}::button $f.cancel -text Cancel \
+        ttk::button $f.cancel -text Cancel \
             -command [list set [namespace which -variable $dlg] "cancel"]
-        if {!$useTile} {$f.ok configure -width -8 ; $f.cancel configure -width -8}
         
         bind $dlg <Return> [list $f.ok invoke]
         bind $dlg <Escape> [list $f.cancel invoke]
@@ -4804,7 +4636,6 @@ proc ::tkchat::registerScreen {} {
     global Options
     variable DlgDone
     variable PasswordCheck ""
-    variable NS
 
     set dlg .register
     
@@ -4815,21 +4646,21 @@ proc ::tkchat::registerScreen {} {
 	wm withdraw $dlg
 	wm title $dlg "Register for the Tcler's Chat"
         
-        set r [${NS}::frame $dlg.f]
-	${NS}::label $r.lfn -text "Full name" -underline 9
-	${NS}::label $r.lem -text "Email address" -underline 9
-	${NS}::label $r.lnm -text "Chat Username" -underline 9
-	${NS}::label $r.lpw -text "Chat Password" -underline 6
-	${NS}::label $r.lpwc -text "Confirm Password" -underline 6
-	${NS}::entry $r.efn -textvariable ::Options(Fullname)
-	${NS}::entry $r.eem -textvariable ::Options(Email)
-	${NS}::entry $r.enm -textvariable ::Options(Username)
-	${NS}::entry $r.epw -textvariable ::Options(Password) -show *
-	${NS}::entry $r.epwc -textvariable ::tkchat::PasswordCheck -show *
+        set r [ttk::frame $dlg.f]
+	ttk::label $r.lfn -text "Full name" -underline 9
+	ttk::label $r.lem -text "Email address" -underline 9
+	ttk::label $r.lnm -text "Chat Username" -underline 9
+	ttk::label $r.lpw -text "Chat Password" -underline 6
+	ttk::label $r.lpwc -text "Confirm Password" -underline 6
+	ttk::entry $r.efn -textvariable ::Options(Fullname)
+	ttk::entry $r.eem -textvariable ::Options(Email)
+	ttk::entry $r.enm -textvariable ::Options(Username)
+	ttk::entry $r.epw -textvariable ::Options(Password) -show *
+	ttk::entry $r.epwc -textvariable ::tkchat::PasswordCheck -show *
 
-	${NS}::button $r.ok -text "Ok" -width 8 -underline 0 \
+	ttk::button $r.ok -text "Ok" -width 8 -underline 0 \
             -command { set ::tkchat::DlgDone ok }
-	${NS}::button $r.cn -text "Cancel" -width 8 -underline 0 \
+	ttk::button $r.cn -text "Cancel" -width 8 -underline 0 \
             -command { set ::tkchat::DlgDone cancel }
 
 	bind $r <Alt-k> [list $r.ok invoke]
@@ -5007,24 +4838,20 @@ proc ::tkchat::buildRow { f idx disp } {
 }
 
 proc ::tkchat::SpecifySubjects {parent} {
-    variable NS
-    variable useTile
     set dlg [winfo toplevel $parent]
-    set t [${NS}::frame $parent.tkchatSubjects]
-    ${NS}::labelframe $t.pat -text Patterns
-    ${NS}::labelframe $t.new -text "New pattern"
-    if {$useTile} {
-        $t.pat configure -underline 0
-        $t.new configure -underline 0
-    }
-    ${NS}::label $t.hlp -justify left -anchor nw -text \
+    set t [ttk::frame $parent.tkchatSubjects]
+    ttk::labelframe $t.pat -text Patterns
+    ttk::labelframe $t.new -text "New pattern"
+    $t.pat configure -underline 0
+    $t.new configure -underline 0
+    ttk::label $t.hlp -justify left -anchor nw -text \
         "Specify match-text as a case-insensitive glob pattern."
     listbox $t.lst -yscrollcommand [list $t.scr set] -height 8 -selectmode extended
-    ${NS}::scrollbar $t.scr -command [list $t.lst yview]
-    ${NS}::entry $t.sub
-    ${NS}::button $t.sav -text Add -underline 0 \
+    ttk::scrollbar $t.scr -command [list $t.lst yview]
+    ttk::entry $t.sub
+    ttk::button $t.sav -text Add -underline 0 \
         -command [list [namespace origin SubjectSave] $t]
-    ${NS}::button $t.del -text Delete -underline 0 \
+    ttk::button $t.del -text Delete -underline 0 \
         -command [list [namespace origin SubjectKill] $t.lst]
 
     bind $t.sub <Return> [list $t.sav invoke]
@@ -5097,25 +4924,24 @@ proc ::tkchat::SubjectList {w} {
 }
 
 proc ::tkchat::EditMacros {parent} {
-    variable NS
-    set t [${NS}::frame $parent.tkchatMacros]
+    set t [ttk::frame $parent.tkchatMacros]
 
-    set mf [${NS}::labelframe $t.mf -text "Macros"]
+    set mf [ttk::labelframe $t.mf -text "Macros"]
     listbox $mf.lst -yscrollcommand [list $mf.scr set] -selectmode extended
-    ${NS}::scrollbar $mf.scr -command [list $t.lst yview]
-    ${NS}::button $mf.del -text Delete -command [list [namespace origin MacroKill] $mf.lst]
+    ttk::scrollbar $mf.scr -command [list $t.lst yview]
+    ttk::button $mf.del -text Delete -command [list [namespace origin MacroKill] $mf.lst]
     grid $mf.lst $mf.scr -sticky news
     grid $mf.del -       -sticky e
     grid rowconfigure $mf 0 -weight 1
     grid columnconfigure $mf 0 -weight 1
 
-    set af [${NS}::labelframe $t.af -text "Define new macros"]
-    ${NS}::label $af.lbl1 -anchor w -text "Name:"
-    ${NS}::entry $af.mac -width 10 -validate all -validatecommand {regexp -- {^\S*$} %P}
-    ${NS}::label $af.lbl2 -anchor w -text "Text:"
-    ${NS}::entry $af.txt -width 40
-    ${NS}::button $af.sav -text Save -command [list [namespace origin MacroSave] $t]
-    ${NS}::button $af.hlp -text Help -command [list [namespace origin MacroHelp] $t]
+    set af [ttk::labelframe $t.af -text "Define new macros"]
+    ttk::label $af.lbl1 -anchor w -text "Name:"
+    ttk::entry $af.mac -width 10 -validate all -validatecommand {regexp -- {^\S*$} %P}
+    ttk::label $af.lbl2 -anchor w -text "Text:"
+    ttk::entry $af.txt -width 40
+    ttk::button $af.sav -text Save -command [list [namespace origin MacroSave] $t]
+    ttk::button $af.hlp -text Help -command [list [namespace origin MacroHelp] $t]
 
     grid $af.lbl1 $af.mac - -sticky new -padx 1 -pady 1
     grid $af.lbl2 $af.txt - -sticky new -padx 1 -pady 1
@@ -5196,7 +5022,6 @@ proc ::tkchat::MacroList {w} {
 
 proc ::tkchat::ChangeColors {} {
     global Options
-    variable NS
     variable DlgData
     variable DlgDone
     variable OnlineUsers
@@ -5219,10 +5044,10 @@ proc ::tkchat::ChangeColors {} {
     wm withdraw $t
     wm title $t "Color Settings"
 
-    ${NS}::label $t.l1 -text "Posting Color"
+    ttk::label $t.l1 -text "Posting Color"
     label $t.l2 -text "Example Text" -background white \
 	-foreground \#$DlgData(MyColor) -font ACT
-    ${NS}::button $t.myclr -text "Change..." -command {
+    ttk::button $t.myclr -text "Change..." -command {
 	set tmp [tk_chooseColor \
                      -title "Select Your User Color" \
                      -initialcolor \#$::tkchat::DlgData(MyColor)]
@@ -5232,12 +5057,12 @@ proc ::tkchat::ChangeColors {} {
 	}
     }
 
-    ${NS}::labelframe $t.f -text "Colour overrides" -height 300
+    ttk::labelframe $t.f -text "Colour overrides" -height 300
     canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
         -width 10 -height 300 -highlightthickness 0 -bd 0
     bind $t <Button-4> [list $t.f.cvs yview scroll -1 units]
     bind $t <Button-5> [list $t.f.cvs yview scroll  1 units]
-    ${NS}::scrollbar $t.f.scr -command [list $t.f.cvs yview]
+    ttk::scrollbar $t.f.scr -command [list $t.f.cvs yview]
     pack $t.f.cvs -side left -expand 1 -fill both
     pack $t.f.scr -side left -fill y
     set f [frame $t.f.cvs.frm]
@@ -5276,12 +5101,12 @@ proc ::tkchat::ChangeColors {} {
 	    buildRow $f NICK-$nick $nick
 	}
     }
-    ${NS}::frame $t.f2
-    ${NS}::button $t.f2.ok -text "OK" -default active\
+    ttk::frame $t.f2
+    ttk::button $t.f2.ok -text "OK" -default active\
         -command { set ::tkchat::DlgDone ok }
-    ${NS}::button $t.f2.app -text "Apply" \
+    ttk::button $t.f2.app -text "Apply" \
         -command { set ::tkchat::DlgDone apply }
-    ${NS}::button $t.f2.can -text "Cancel" \
+    ttk::button $t.f2.can -text "Cancel" \
         -command { set ::tkchat::DlgDone cancel}
     pack $t.f2.ok $t.f2.app $t.f2.can -side left -expand 1 -fill none
 
@@ -5522,7 +5347,6 @@ proc ::tkchat::quit {} {
 
 proc ::tkchat::saveRC {} {
     global Options Images
-    variable useTile
     # Exit early if there is no home directory to save to
     if { ![info exists ::env(HOME)] } {
 	return
@@ -5552,13 +5376,9 @@ proc ::tkchat::saveRC {} {
 	set Options(Khim) [::khim::getConfig]
     }
     if { [winfo exists .pane] && $Options(DisplayUsers) } {
-	if {$useTile} {
-	    # the second list element '1' is just for compatibility
-	    # to the non-Tile version:
-	    set Options(Pane) [list [.pane sashpos 0] 1]
-	} else {
-	    set Options(Pane) [.pane sash coord 0]
-	}
+	# the second list element '1' is just for compatibility
+	# to the non-Tile version:
+	set Options(Pane) [list [.pane sashpos 0] 1]
     }
 
     # Save these options to resource file
@@ -5955,8 +5775,6 @@ proc ::tkchat::Smile {{force 0}} {
 }
 
 proc ::tkchat::ShowSmiles {} {
-    variable NS
-    
     set t .smileys
     if {[winfo exists $t]} {
 	wm deiconify $t
@@ -5970,15 +5788,15 @@ proc ::tkchat::ShowSmiles {} {
 	}
         set images [lsort -unique $images]
 	Dialog $t
-        set f [${NS}::frame $t.f]
+        set f [ttk::frame $t.f]
 	wm title $t "Available Emoticons"
 	wm withdraw $t
 	wm protocol $t WM_DELETE_WINDOW [list wm withdraw $t]
 	set txt [text $f.txt -font NAME -tabs {1.5i l 2.0i l} \
                      -height [expr {[llength $images] + 6}]]
-	set sb [${NS}::scrollbar $f.sb -command [list $txt yview]]
+	set sb [ttk::scrollbar $f.sb -command [list $txt yview]]
 	$txt configure -yscrollcommand [list $sb set]
-        set b [${NS}::button $f.ok -default active -text OK \
+        set b [ttk::button $f.ok -default active -text OK \
                    -width -8 -command [list wm withdraw $t]]
 	bind $t <Escape> [list $b invoke]
         bind $t <Return> [list $b invoke]
@@ -6153,8 +5971,7 @@ proc ::tkchat::Init {args} {
     }
 
     if {$tkonly} {
-	set ::tkchat::NS "::tk"
-	set ::tkchat::useTile 0
+	# set ::tkchat::useTile 0
     }
 
     # Set the useragent string to something a bit more standard.
@@ -6590,7 +6407,6 @@ proc ::tkchat::UserInfoAppendChild {xmllist tags child} {
 }
 
 proc ::tkchat::UserInfoPhotoDialog {parent varname} {
-    variable NS
     upvar #0 $varname UI
     if {[catch {
         set img [image create photo -data $UI(PHOTO_BINVAL)]
@@ -6601,8 +6417,8 @@ proc ::tkchat::UserInfoPhotoDialog {parent varname} {
             destroy %dlg
             image delete %img
         }]
-        ${NS}::label $dlg.photo -image $img
-        ${NS}::button $dlg.ok -text Close -width -10 -command [list destroy $dlg]
+        ttk::label $dlg.photo -image $img
+        ttk::button $dlg.ok -text Close -width -10 -command [list destroy $dlg]
         grid $dlg.photo -sticky news
         grid $dlg.ok    -sticky e
         grid rowconfigure $dlg 0 -weight 1
@@ -6617,8 +6433,6 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     variable UserInfo
     variable UserInfoBtn
     variable UserInfoWin
-    variable useTile
-    variable NS
 
     if {$jid eq {}} {
 	set jid [::tkjabber::jid !resource $::tkjabber::myId]
@@ -6664,27 +6478,21 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     set dlg [Dialog .$id]
     wm withdraw $dlg
     wm title $dlg "User info for $jid"
-    set f [${NS}::frame $dlg.f]
-    if {!$useTile} { $dlg.f configure -bd 0 }
+    set f [ttk::frame $dlg.f]
 
     # country Country city City age Age
     # photo_url "Picture URL" icq_uin "ICQ uin"
     foreach {key text} {FN "Real name" EMAIL_USERID Email URL "Homepage URL" \
 			    ADR_LOCALITY "City"  ADR_CTRY "Country" \
 			    PHOTO_EXTVAL "Photo URL" BDAY "Birthday"} {
-	set l [${NS}::label $f.l$key -text $text -anchor nw]
-	set e [${NS}::entry $f.e$key -textvariable [set uivar]($key)]
-	if {!$useTile} { $f.e$key configure -bd 1 -background white }
+	set l [ttk::label $f.l$key -text $text -anchor nw]
+	set e [ttk::entry $f.e$key -textvariable [set uivar]($key)]
 	grid configure $l $e -sticky news -padx 1 -pady 1
     }
-    set l [${NS}::label $f.lstuff -text "Anything else" -anchor nw]
-    set e [${NS}::frame $f.estuff]
+    set l [ttk::label $f.lstuff -text "Anything else" -anchor nw]
+    set e [ttk::frame $f.estuff]
     set et [text $e.text -height 6 -bd 1 -background white -font FIXED]
-    set es [${NS}::scrollbar $e.scroll -command [list $et yview]]
-    if {!$useTile} {
-	$f.estuff configure -bd 0
-	$e.scroll configure -bd 1
-    }
+    set es [ttk::scrollbar $e.scroll -command [list $et yview]]
     $et configure -yscrollcommand [list $es set]
     catch {$et insert 0.0 $UI(DESC)}
     grid configure $et $es -sticky news
@@ -6695,13 +6503,12 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     grid columnconfigure $f 1 -weight 1
     grid rowconfigure $f 7 -weight 1
 
-    set btns [${NS}::frame $dlg.buttons]
-    if {!$useTile} { $dlg.buttons configure -bd 1 }
-    ${NS}::button $btns.photo -text "Photo" -width 10 -state disabled \
+    set btns [ttk::frame $dlg.buttons]
+    ttk::button $btns.photo -text "Photo" -width 10 -state disabled \
         -command [list [namespace origin UserInfoPhotoDialog] $dlg $uivar]
-    ${NS}::button $btns.ok -text Save -width 10 -state disabled \
+    ttk::button $btns.ok -text Save -width 10 -state disabled \
 	-command [list set [namespace current]::$id 1]
-    ${NS}::button $btns.cancel -text Close -width 10 -state active \
+    ttk::button $btns.cancel -text Close -width 10 -state active \
 	-command [list set [namespace current]::$id 0]
     pack $btns.cancel $btns.ok $btns.photo -side right
 
@@ -7050,8 +6857,6 @@ proc ::tkchat::FocusOutHandler {w args} {
 proc ::tkchat::PreferencesPage {parent} {
     global Options
     global tcl_platform
-    variable NS
-    variable useTile
 
     variable EditOptions
     set EditOptions(Browser)         $Options(Browser)
@@ -7075,37 +6880,31 @@ proc ::tkchat::PreferencesPage {parent} {
     set EditOptions(ShowNormalInline) $Options(ShowNormalInline)
 
     set dlg [winfo toplevel $parent]
-    set page [${NS}::frame $parent.preferences -borderwidth 0]
+    set page [ttk::frame $parent.preferences -borderwidth 0]
 
-    set af [${NS}::labelframe $page.af -text "General"]
-    ${NS}::checkbutton $af.store -text "Store private messages" \
+    set af [ttk::labelframe $page.af -text "General"]
+    ttk::checkbutton $af.store -text "Store private messages" \
         -variable ::tkchat::EditOptions(StoreMessages) \
         -underline 0 -onvalue 1 -offvalue 0
-    ${NS}::checkbutton $af.norminline -text "Show whispers inline" \
+    ttk::checkbutton $af.norminline -text "Show whispers inline" \
         -variable ::tkchat::EditOptions(ShowNormalInline) \
         -underline 2 -onvalue 1 -offvalue 0
-    ${NS}::checkbutton $af.traffic -underline 1 \
+    ttk::checkbutton $af.traffic -underline 1 \
         -text "Show humorous entered/left messages" -offvalue 0\
         -variable ::tkchat::EditOptions(FunkyTraffic) -onvalue 1
-    ${NS}::checkbutton $af.catz -text "I hate LOLCATZ"  -offvalue 0 \
+    ttk::checkbutton $af.catz -text "I hate LOLCATZ"  -offvalue 0 \
         -variable ::tkchat::EditOptions(HateLolcatz) -onvalue 1
-    ${NS}::checkbutton $af.cfe -text "Keep focus on entry"  -offvalue 0 \
+    ttk::checkbutton $af.cfe -text "Keep focus on entry"  -offvalue 0 \
         -variable ::tkchat::EditOptions(ClickFocusEntry) -onvalue 1
-    ${NS}::checkbutton $af.lpc -text "Log private chat" -offvalue 0 \
+    ttk::checkbutton $af.lpc -text "Log private chat" -offvalue 0 \
         -variable ::tkchat::EditOptions(LogPrivateChat) -onvalue 1
-    ${NS}::checkbutton $af.abq -text "Ask before exiting" -offvalue 0 \
+    ttk::checkbutton $af.abq -text "Ask before exiting" -offvalue 0 \
         -variable ::tkchat::EditOptions(AskBeforeQuit) -onvalue 1
-    ${NS}::checkbutton $af.unn -text "Unify TkChat/IRC/Slack nicknames" -offvalue 0 \
+    ttk::checkbutton $af.unn -text "Unify TkChat/IRC/Slack nicknames" -offvalue 0 \
         -variable ::tkchat::EditOptions(UnifyNicknames) -onvalue 1
-    ${NS}::label $af.aal -text "Inactive message" -underline 0 \
+    ttk::label $af.aal -text "Inactive message" -underline 0 \
         -anchor ne
-    ${NS}::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
-    if {!$useTile} {
-        foreach w [list $af.store $af.norminline $af.traffic $af.catz \
-                       $af.cfe $af.lpc] {
-            $w configure -anchor nw
-        }
-    }
+    ttk::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
     if {[llength [package provide tooltip]]>0} {
         tooltip::tooltip $af.store "Control the persistence of one-to-one\
             chats to the ~/.tkchat_msgs file."
@@ -7143,25 +6942,24 @@ proc ::tkchat::PreferencesPage {parent} {
     grid columnconfigure $af 1 -weight 1
 
     if {$tcl_platform(platform) ne "windows"} {
-        set bf [${NS}::labelframe $page.bf -text "Preferred browser"]
-        if {$useTile} { $bf configure -underline 10 }
+        set bf [ttk::labelframe $page.bf -text "Preferred browser"]
+        $bf configure -underline 10
 
-        ${NS}::label $bf.m -anchor nw -wraplength 4i -justify left \
+        ttk::label $bf.m -anchor nw -wraplength 4i -justify left \
             -text "Provide the command used to launch your web browser. For\
 	    instance /opt/bin/mozilla or xterm -e links. The URL to\
 	    be opened will be appended to the command string and for\
 	    mozilla-type browsers we will call the -remote option to\
 	    try to use a previously existing browser."
-        ${NS}::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
-        ${NS}::button $bf.b -text "..."  -width 4 -command {
+        ttk::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
+        ttk::button $bf.b -text "..."  -width 4 -command {
             if {[set file [tk_getOpenFile]] ne {}} {
                 set ::tkchat::EditOptions(Browser) $file
             }
         }
-        ${NS}::checkbutton $bf.tab -underline 0 \
+        ttk::checkbutton $bf.tab -underline 0 \
             -text "Force new Tab, if possible (Unix only)" \
             -variable ::tkchat::EditOptions(BrowserTab)
-        if {!$useTile} {$bf.tab configure -anchor nw}
 
         bind $dlg <Alt-b> [list focus $bf.e]
         bind $dlg <Alt-f> [list $bf.tab invoke]
@@ -7172,27 +6970,22 @@ proc ::tkchat::PreferencesPage {parent} {
         grid columnconfigure $bf 0 -weight 1
     }
 
-    set sf [${NS}::labelframe $page.sf -text "Tk style"] ;#-padx 1 -pady 1
+    set sf [ttk::labelframe $page.sf -text "Tk style"] ;#-padx 1 -pady 1
 
-    ${NS}::label $sf.m -anchor nw -wraplength 4i -justify left \
+    ttk::label $sf.m -anchor nw -wraplength 4i -justify left \
 	-text "The Tk style selection available here will apply when you \
 	   next restart tkchat."
-    ${NS}::radiobutton $sf.as -text "ActiveState" -underline 0 \
+    ttk::radiobutton $sf.as -text "ActiveState" -underline 0 \
 	-variable ::tkchat::EditOptions(Style) -value as_style
-    if {!$useTile} { $sf.as configure -anchor nw }
-    ${NS}::radiobutton $sf.gtk -text "GTK look" -underline 0 \
+    ttk::radiobutton $sf.gtk -text "GTK look" -underline 0 \
 	-variable ::tkchat::EditOptions(Style) -value gtklook
-    if {!$useTile} { $sf.gtk configure -anchor nw }
-    ${NS}::radiobutton $sf.any -text "Any" -underline 1 \
+    ttk::radiobutton $sf.any -text "Any" -underline 1 \
 	-variable ::tkchat::EditOptions(Style) -value any
-    if {!$useTile} { $sf.any configure -anchor nw }
-    ${NS}::radiobutton $sf.def -text "Tk default" -underline 0 \
+    ttk::radiobutton $sf.def -text "Tk default" -underline 0 \
 	-variable ::tkchat::EditOptions(Style) -value tk
-    if {!$useTile} { $sf.def configure -anchor nw }
-    ${NS}::checkbutton $sf.tkonly -text "Use only Tk widgets" \
+    ttk::checkbutton $sf.tkonly -text "Use only Tk widgets" \
 	-variable ::tkchat::EditOptions(UseTkOnly) -onvalue 1 -offvalue 0 \
 	-underline 12
-    if {!$useTile} { $sf.tkonly configure -anchor nw }
 
     if {[catch {package require style::as}]
 	&& [catch {package require as::style}]} {
@@ -7213,10 +7006,10 @@ proc ::tkchat::PreferencesPage {parent} {
 
     # Gimmicks section.
     set gimmicks 0
-    set gf [${NS}::labelframe $page.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
+    set gf [ttk::labelframe $page.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
     if {[lsearch [wm attributes .] -alpha] != -1} {
 	set gimmicks 1
-	${NS}::checkbutton $gf.fade -text "When not active, fade to " \
+	ttk::checkbutton $gf.fade -text "When not active, fade to " \
             -underline 2 -variable ::tkchat::EditOptions(AutoFade)
         if {[info commands ::ttk::spinbox] ne {}} {
             ttk::spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
@@ -7227,10 +7020,10 @@ proc ::tkchat::PreferencesPage {parent} {
             spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
                 -textvariable ::tkchat::EditOptions(AutoFadeLimit)
         }
-	${NS}::label $gf.pct -text "%"
-	${NS}::label $gf.alabel -text Transparency -underline 1 \
+	ttk::label $gf.pct -text "%"
+	ttk::label $gf.alabel -text Transparency -underline 1 \
             -anchor ne
-	${NS}::scale $gf.alpha -from 1 -to 100 -orient horizontal
+	ttk::scale $gf.alpha -from 1 -to 100 -orient horizontal
 	$gf.alpha set $EditOptions(Transparency)
 	#[expr {int([wm attributes . -alpha] * 100)}]
 	$gf.alpha configure -command [namespace origin SetAlpha]
@@ -7277,8 +7070,6 @@ proc ::tkchat::PreferencesPage {parent} {
 
 proc ::tkchat::EditOptions {} {
     global Options
-    variable NS
-    variable useTile
 
     if {[winfo exists .options]} {destroy .options}
     set dlg [Dialog .options]
@@ -7286,12 +7077,7 @@ proc ::tkchat::EditOptions {} {
     wm withdraw $dlg
     wm title $dlg "Tkchat Options"
 
-    set use_notebook [expr {$useTile && [llength [info commands ${NS}::notebook]]>0}]
-    if {$use_notebook} {
-        set nb [${NS}::notebook $dlg.nb]
-    } else {
-        set nb [${NS}::frame $dlg.nb]
-    }
+    set nb [ttk::notebook $dlg.nb]
 
     Hook add options [namespace origin PreferencesPage] 10
     Hook add options [namespace origin SpecifySubjects] 20
@@ -7301,27 +7087,13 @@ proc ::tkchat::EditOptions {} {
     set col 0
     foreach pair $pages {
         foreach {title page} $pair break
-        if {$use_notebook} {
-            $nb add $page -text $title
-        } else {
-            set butn [${NS}::button $nb.b_[string map [list "." "X"] $page] \
-                          -text $title -command [list raise $page]]
-            grid $butn -row 0 -column [incr col] -sticky w
-            grid $page -row 1 -column 0 -sticky news -columnspan 100
-        }
+        $nb add $page -text $title
     }
     
-    if {!$use_notebook} {
-        grid columnconfigure $nb 0 -weight 1
-        grid rowconfigure    $nb 1 -weight 1
-        raise [lindex [lindex $pages 0] 1]
-    }
-
-    set b_ok [${NS}::button $dlg.ok -text OK -underline 0 -default active \
+    set b_ok [ttk::button $dlg.ok -text OK -underline 0 -default active \
                   -command [list [namespace origin EditOptionsClose] $dlg ok $pages]]
-    set b_cn [${NS}::button $dlg.cancel -text Cancel -underline 0 \
+    set b_cn [ttk::button $dlg.cancel -text Cancel -underline 0 \
                   -command [list [namespace origin EditOptionsClose] $dlg cancel $pages]]
-    if {!$useTile} {$b_ok configure -width -10; $b_cn configure -width -10}
 
     grid $nb   -     -sticky news -padx 2 -pady 2
     grid $b_ok $b_cn -sticky se
@@ -9567,7 +9339,6 @@ proc ::tkjabber::cancelReconnect {} {
 # Respond to subscription requests
 proc tkjabber::SubscriptionRequest {from status} {
     variable subs_uid
-    variable ::tkchat::NS
     if {![info exists subs_uid]} { set subs_uid 0 }
     jlib::splitjid $from jid res
     set ttl [msgcat::mc "Subscribe request from %s" $jid]
@@ -9577,14 +9348,14 @@ proc tkjabber::SubscriptionRequest {from status} {
     set dlg [::tkchat::Dialog .$wid]
     wm title $dlg $ttl
     wm withdraw $dlg
-    set f [${NS}::frame $dlg.f -borderwidth 0]
-    set lt [${NS}::label $f.lt -text "$ttl" -anchor w]
-    set ls [${NS}::label $f.ls -text " \"$status\"" -anchor w]
-    set lm [${NS}::label $f.lm -text "$msg" -anchor w]
-    set fb [${NS}::frame $f.fb -borderwidth 0]
-    set yes [${NS}::button $fb.yes -text [msgcat::mc "Yes"] -default active \
+    set f [ttk::frame $dlg.f -borderwidth 0]
+    set lt [ttk::label $f.lt -text "$ttl" -anchor w]
+    set ls [ttk::label $f.ls -text " \"$status\"" -anchor w]
+    set lm [ttk::label $f.lm -text "$msg" -anchor w]
+    set fb [ttk::frame $f.fb -borderwidth 0]
+    set yes [ttk::button $fb.yes -text [msgcat::mc "Yes"] -default active \
 		 -command [list set [namespace current]::$wid subscribed]]
-    set no  [${NS}::button $fb.no -text [msgcat::mc "No"] -default normal \
+    set no  [ttk::button $fb.no -text [msgcat::mc "No"] -default normal \
 		 -command [list set [namespace current]::$wid unsubscribed]]
     bind $dlg <Return>     [list $yes invoke]
     bind $dlg <Key-Escape> [list $no  invoke]
@@ -9934,7 +9705,6 @@ proc ::tkchat::SafeGet {arrayName key} {
     return ""
 }
 proc ::tkchat::ShowCertificate {owner depth info} {
-    variable NS
     variable .certificate
     variable ::tkjabber::CertChain
     array set C $info
@@ -9957,7 +9727,7 @@ proc ::tkchat::ShowCertificate {owner depth info} {
         return
     }
     set top [Dialog .certificate$uid]
-    set dlg [${NS}::frame $top.f]
+    set dlg [ttk::frame $top.f]
     wm withdraw $top
     wm title $top "Certificate Information: [SafeGet O CN] (level $depth)"
     set t [text $dlg.txt -wrap word -width 70 -height 28 \
@@ -9990,8 +9760,8 @@ proc ::tkchat::ShowCertificate {owner depth info} {
     $t insert end "SHA1 Fingerprint\t[SafeGet C sha1_hash]\n"
     $t insert end "MD5 Fingerprint\t[SafeGet C md5_hash]\n"
     $t configure -state disabled
-    ${NS}::button $dlg.ok -text OK -width -10 -command [list destroy $top] -default active
-    ${NS}::button $dlg.is -text Issuer -width -10 -state disabled
+    ttk::button $dlg.ok -text OK -width -10 -command [list destroy $top] -default active
+    ttk::button $dlg.is -text Issuer -width -10 -state disabled
     if {!$self_signed && $depth < ([llength $CertChain] - 1)} {
         set next [incr depth]
         set issuer [lindex $CertChain [expr {[llength $CertChain] - $next - 1}]]
@@ -10022,23 +9792,22 @@ proc tkchat::PasteEval {dlg} {
 
 proc tkchat::PasteDlg {} {
     variable paste_uid
-    variable NS
     if {![info exists paste_uid]} { set paste_uid 0 }
     set wid paste[incr paste_uid]
     set dlg [Dialog .$wid]
     wm title $dlg [mc "Paste data to %s" paste.tclers.tk]
     wm transient $dlg {}
-    set f [${NS}::frame $dlg.f1 -borderwidth 0]
-    set f2 [${NS}::frame $f.f2 -borderwidth 0]
-    ${NS}::label $f2.lbl -text [mc Subject]
-    set subject [${NS}::entry $f2.subject -font FNT] 
+    set f [ttk::frame $dlg.f1 -borderwidth 0]
+    set f2 [ttk::frame $f.f2 -borderwidth 0]
+    ttk::label $f2.lbl -text [mc Subject]
+    set subject [ttk::entry $f2.subject -font FNT] 
     text $f.txt -background white -font FNT -yscrollcommand [list $f.vs set]
-    ${NS}::scrollbar $f.vs -command [list $f.txt yview]
-    set f3 [${NS}::frame $f.f3 -borderwidth 0]
-    set send [${NS}::button $f3.send -text [mc "Send"] \
+    ttk::scrollbar $f.vs -command [list $f.txt yview]
+    set f3 [ttk::frame $f.f3 -borderwidth 0]
+    set send [ttk::button $f3.send -text [mc "Send"] \
                   -default active -width -12 \
                   -command [list set [namespace current]::$wid send]]
-    set cancel [${NS}::button $f3.cancel -text [mc "Cancel"] \
+    set cancel [ttk::button $f3.cancel -text [mc "Cancel"] \
                     -default normal -width -12 \
                     -command [list set [namespace current]::$wid cancel]]
 

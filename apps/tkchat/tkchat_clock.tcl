@@ -17,11 +17,10 @@ namespace eval ::tkchat::clock {
 }
 
 proc ::tkchat::clock::Init {} {
-    variable ::tkchat::NS
     variable Options
     if {$Options(Enabled)} {
         if {[winfo exists .status] && ![winfo exists .status.clock]} {
-            ${NS}::label .status.clock
+            ttk::label .status.clock
             ::tkchat::StatusbarAddWidget .status .status.clock 1
             if {[package provide tooltip] ne {}} {
                 tooltip::tooltip .status.clock $Options(Tooltip)
@@ -63,19 +62,18 @@ proc ::tkchat::clock::ClockEnable {widgets varname key op} {
 }
 
 proc ::tkchat::clock::OptionsHook {parent} {
-    variable ::tkchat::NS
     variable EditOptions; variable Options
     array set EditOptions [array get Options]
-    set f [${NS}::frame $parent.clock]
-    set eb [${NS}::checkbutton $f.eb -text "Enable clock" \
+    set f [ttk::frame $parent.clock]
+    set eb [ttk::checkbutton $f.eb -text "Enable clock" \
                 -variable [namespace current]::EditOptions(Enabled)]
-    set lf [${NS}::labelframe $f.lf -labelwidget $eb]
-    ${NS}::label $lf.ltz -anchor w -text Timezone
-    ${NS}::entry $lf.etz -textvariable [namespace current]::EditOptions(Timezone)
-    ${NS}::label $lf.lft -anchor w -text Format
-    ${NS}::entry $lf.eft -textvariable [namespace current]::EditOptions(Format)
-    ${NS}::label $lf.ltt -anchor w -text Tooltip
-    ${NS}::entry $lf.ett -textvariable [namespace current]::EditOptions(Tooltip)
+    set lf [ttk::labelframe $f.lf -labelwidget $eb]
+    ttk::label $lf.ltz -anchor w -text Timezone
+    ttk::entry $lf.etz -textvariable [namespace current]::EditOptions(Timezone)
+    ttk::label $lf.lft -anchor w -text Format
+    ttk::entry $lf.eft -textvariable [namespace current]::EditOptions(Format)
+    ttk::label $lf.ltt -anchor w -text Tooltip
+    ttk::entry $lf.ett -textvariable [namespace current]::EditOptions(Tooltip)
     trace variable [namespace current]::EditOptions(Enabled) w \
         [list [namespace origin ClockEnable] [list $lf.etz $lf.eft $lf.ett]]
     grid $lf.ltz $lf.etz -sticky news -padx 1 -pady 1

@@ -73,8 +73,7 @@ proc ::tkchat::rss::Init {} {
 
             # At this time, the only interface is via the statusbar
             if {[winfo exists .status] && ![winfo exists .status.rss]} {
-                variable ::tkchat::NS
-                ${NS}::label .status.rss -image ::tkchat::img::feedLo
+                ttk::label .status.rss -image ::tkchat::img::feedLo
                 bind .status.rss <Button-1> \
                     [list [namespace origin ShowRssInfo]]
                 if {[llength [package provide tooltip]] > 0} {
@@ -97,7 +96,6 @@ proc ::tkchat::rss::RssUpdateTip {varname op} {
 }
 
 proc ::tkchat::rss::ShowRssInfo {} {
-    variable ::tkchat::NS
     variable Rss
     variable RssUrlId ; if {![info exists RssUrlId]} {set RssUrlId 0}
     if {[winfo exists .status.rss]} {
@@ -117,19 +115,19 @@ proc ::tkchat::rss::ShowRssInfo {} {
     wm title $dlg "RSS Feeds"
     wm transient $dlg .
 
-    set use_notebook [llength [info commands ${NS}::notebook]]
+    set use_notebook [llength [info commands ttk::notebook]]
     if {$use_notebook} {
-        set nb [${NS}::notebook $dlg.nb]
+        set nb [ttk::notebook $dlg.nb]
     } else {
-        set nb [${NS}::frame $dlg.nb]
+        set nb [ttk::frame $dlg.nb]
     }
     
     set page 0
     foreach {url token} [array get Rss] {
         if {[rss::status $token] ne "ok"} { continue }
-        set f [${NS}::frame $nb.page$page]
+        set f [ttk::frame $nb.page$page]
         set txt [text $f.txt -borderwidth 0 -font FNT]
-        set sb [${NS}::scrollbar $f.vs -command [list $txt yview]]
+        set sb [ttk::scrollbar $f.vs -command [list $txt yview]]
         $txt configure -yscrollcommand [list $sb set]
         
         $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
@@ -165,7 +163,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
         if {$use_notebook} {
             $nb add $f -text $title
         } else {
-            ${NS}::button $nb.b$page -text $title\
+            ttk::button $nb.b$page -text $title\
                 -command [list raise $f]
             grid $nb.b$page -row 0 -column $page -sticky w
             grid $f  -row 1 -column 0 -sticky news -columnspan 100
@@ -176,7 +174,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
         incr page
     }
     
-    ${NS}::button $dlg.ok -default active -text "OK" -width -12 \
+    ttk::button $dlg.ok -default active -text "OK" -width -12 \
         -command [list set [namespace which -variable $dlg] ok]
 
     bind $dlg <Return> [list $dlg.ok invoke]
@@ -298,11 +296,10 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
 
 proc ::tkchat::rss::OptionsHook {parent} {
     global Options
-    variable ::tkchat::NS ; variable ::tkchat::useTile
     variable EditOptions
     array set EditOptions [array get Options RSS,watch,*]
 
-    set page [${NS}::frame $parent.rssOptions -borderwidth 0]
+    set page [ttk::frame $parent.rssOptions -borderwidth 0]
     set n 0
     foreach feed [array names EditOptions RSS,watch,*] {
         set url [lindex [split $feed ,] 2]
@@ -313,10 +310,9 @@ proc ::tkchat::rss::OptionsHook {parent} {
                 set text $Options(RSS,title,$url)
             }
         }
-        ${NS}::checkbutton [set w $page.wf[incr n]] \
+        ttk::checkbutton [set w $page.wf[incr n]] \
             -text $text -underline 0 \
             -variable [namespace current]::EditOptions($feed)
-        if {!$useTile} {$w configure -anchor nw}
         grid $w -sticky new -padx 2 -pady 2
     }
     grid columnconfigure $page 0 -weight 1
