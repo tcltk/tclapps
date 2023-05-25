@@ -759,10 +759,6 @@ proc ::tkchat::HttpServerError {token {prefix ""}} {
     tk_messageBox -message $msg
 }
 
-# -------------------------------------------------------------------------
-# Translate the selection using Babelfish.
-# -------------------------------------------------------------------------
-
 proc ::tkchat::fetchurldone {cmd tok} {
     set url [set [set tok](url)]
     ::log::log info "fetchurl ($url): [::http::code $tok]"
@@ -792,77 +788,6 @@ proc ::tkchat::fetchurldone {cmd tok} {
 	}
     }
     ::http::cleanup $tok
-}
-
-proc ::tkchat::translateSel {from to} {
-    if {![catch {selection get} msg]} {
-	::log::log debug "translate: $from $to \"$msg\""
-	translate $from $to $msg
-    }
-}
-
-proc ::tkchat::translate {from to txt} {
-    set url {http://babelfish.yahoo.com/translate_txt}
-    append op $from _ $to
-    set query [http::formatQuery tt urltext urltext $txt lp $op]
-    set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
-    set tok [http::geturl $url -query $query -headers $hdrs \
-                 -command [list ::tkchat::fetchurldone ::tkchat::translateDone]]
-}
-
-proc ::tkchat::translateDone {tok} {
-    set ::tkchat::translate [http::data $tok]
-    set r [regexp -- {<div id="result"><div.*?>(.*?)</div>} \
-               [::http::data $tok] -> text]
-    if {$r} {
-	showInfo Translation [string trim $text]
-    } else {
-	::log::log info "Translation returned no matching data."
-    }
-}
-
-proc ::tkchat::babelfishInit {
-                              {url http://babelfish.yahoo.com/} } {
-    set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
-    set tok [http::geturl $url -headers $hdrs \
-                 -command [list ::tkchat::fetchurldone ::tkchat::babelfishInitDone]]
-}
-
-proc ::tkchat::babelfishInitDone {tok} {
-    ::log::log debug "Babelfish init done."
-    set ::tkchat::babelfish [http::data $tok]
-    if { [regexp -- {<select name="lp"[^>]*?>(.*?)</select>} \
-              [::http::data $tok] -> r] } {
-	.mbar.help.tr delete 0 end
-	set lst [split [string trim $r] \n]
-	foreach option $lst {
-	    regexp -- {<option value="(.*?)"[^>]*>(.*?)</option>} \
-                $option -> value label
-	    set value [split $value _]
-	    .mbar.help.tr add command \
-                -label $label \
-                -command [concat [namespace current]::translateSel $value]
-	    variable babelfishinit
-	    set babelfishinit 1
-	}
-    } else {
-	::log::log debug "babelfish received no data"
-    }
-}
-
-proc ::tkchat::babelfishMenu {} {
-    set menu .mbar.help
-    if {![winfo exists ${menu}.tr]} {
-	::log::log debug "Initializing babelfish translation"
-	set tr [menu ${menu}.tr -tearoff 0]
-
-	# Add to the Help->Translate menu
-	catch {
-	    set ndx [$menu index [mc "Translate selection"]]
-	    $menu entryconfigure $ndx -menu $tr
-	}
-	::tkchat::babelfishInit
-    }
 }
 
 # -------------------------------------------------------------------------
@@ -2729,11 +2654,6 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add command -label [mc "Help (&wiki)..."] \
         -command [list [namespace origin gotoURL] http://wiki.tcl.tk/tkchat]
     $m add separator
-    #Yahoo decommissioned Babelfish in 2012
-    if 0 {
-    tk::AmpMenuArgs $m add cascade -label [mc "Translate selection"] \
-        -command [list [namespace origin babelfishMenu]]
-    }
     tk::AmpMenuArgs $m add command -label [mc "&Check version"] \
         -command [list after idle [list [namespace origin CheckVersion]]]
     tk::AmpMenuArgs $m add command -label [mc "&View changes..."] \
@@ -3047,17 +2967,6 @@ proc ::tkchat::OnTextPopup { w x y } {
         -label [string map {& {}} [mc "Open &paste dialog"]] \
         -accelerator Ctrl-P \
         -command ::tkchat::PasteDlg
-
-    #Yahoo decommissioned Babelfish in 2012
-    if 0 {
-    if { ![winfo exists .mbar.help.tr] } {
-	$m add command -label [mc "Initialize translation"] \
-            -command ::tkchat::babelfishMenu
-    } else {
-	.mbar.help.tr clone $m.tr
-	$m add cascade -label [mc "Translate selection"] -menu $m.tr
-    }
-    }
 
     tk_popup $m [winfo pointerx $w] [winfo pointery $w]
 }
