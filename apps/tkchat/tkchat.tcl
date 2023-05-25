@@ -433,15 +433,6 @@ proc ::tkchat::Pop {varname {nth 0}} {
     return $r
 }
 
-if {[llength [info commands ::lreverse]] == 0} {
-    proc ::lreverse {list} {
-        set res {}
-        set i [llength $list]
-        while {$i > 0} {lappend res [lindex $list [incr i -1]]}
-        set res
-    }
-}
-
 # If Proxy Authentication was specified then each HTTP request
 # must have an authentication header. This procedure supports
 # proxys accepting Basic authentication by builing the header
