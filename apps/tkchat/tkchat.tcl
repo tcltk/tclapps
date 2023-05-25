@@ -75,7 +75,6 @@ package require msgcat		; # core Tcl
 package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
-package require base64		; # tcllib
 package require uri             ; # tcllib
 package require uuid            ; # tcllib
 
@@ -417,14 +416,13 @@ proc ::tkchat::buildProxyHeaders {} {
     global Options
     set auth {}
     if { $Options(UseProxy)
-         && [info exists ::Options(ProxyUsername)]
-         && $::Options(ProxyUsername) ne {}
+         && [info exists Options(ProxyUsername)]
+         && $Options(ProxyUsername) ne {}
      } then {
-	if {![info exists ::Options(ProxyAuth)]} {
-	    set ::Options(ProxyAuth) [list "Proxy-Authorization" \
-                                        [concat "Basic" \
-                                             [::base64::encode \
-                                                  $::Options(ProxyUsername):$Options(ProxyPassword)]]]
+	if {![info exists Options(ProxyAuth)]} {
+	    set Options(ProxyAuth) [list "Proxy-Authorization"]
+	    lappend Options(ProxyAuth) [list "Basic" \
+                [binary encode base64 $Options(ProxyUsername):$Options(ProxyPassword)]]
 	}
 	set auth $Options(ProxyAuth)
     }
@@ -5582,7 +5580,7 @@ proc ::tkchat::SmileId {name serial triggers {location {}}} {
         # silently fail if we can't get the image data
         if {$data eq ""} return
         # the newlines make .tkchatrc look nicer
-        set Images($name,data) \n[base64::encode $data]\n
+        set Images($name,data) \n[binary encode base64 $data]\n
         set Images($name,serial) $serial
     }
 
@@ -8058,7 +8056,7 @@ proc ::tkjabber::get_caps_ver {} {
     append S "os<$::tcl_platform(os)<"
     append S "os_version<$::tcl_platform(osVersion)"
     append S "software<tkchat<software_version<$::tkchat::version<"
-    return [base64::encode -maxlen 0 [sha1::sha1 -bin $S]]
+    return [binary encode base64 [sha1::sha1 -bin $S]]
 }
 
 proc ::tkjabber::get_caps {} {
