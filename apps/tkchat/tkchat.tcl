@@ -244,8 +244,7 @@ if {[package provide khim] ne {}} {
 }
 
 # Under windows, we can use DDE to open urls
-if {$tcl_platform(platform) eq "windows"
-    && $tcl_platform(os) ne "Windows CE"} {
+if {$tcl_platform(platform) eq "windows"} {
     package require dde
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
@@ -3058,12 +3057,8 @@ proc ::tkchat::CreateGUI {} {
     grid rowconfigure	 . 0 -weight 1
     grid columnconfigure . 0 -weight 1
     grid columnconfigure .btm 1 -weight 1
-    
-    if { $::tcl_platform(os) eq "Windows CE" } {
-	wm geometry . 240x300+0+0
-    } else {
-	wm geometry . $Options(Geometry)
-    }
+
+    wm geometry . $Options(Geometry)
     wm deiconify .
     if { [info exists Options(StartZoomed)] && $Options(StartZoomed) == 1 } {
         if {[tk windowingsystem] eq "x11"} {
@@ -6136,10 +6131,6 @@ proc ::tkchat::Init {args} {
     # Compatability issues...
     if { [string is integer $Options(UseJabberSSL)] } {
 	set Options(UseJabberSSL) [lindex {no ssl} $::Options(UseJabberSSL)]
-    }
-    if { $::tcl_platform(os) eq "Windows CE" } {
-	# Disable history loading on wince
-	set Options(HistoryLines) 0
     }
 
     # Set the 'Hardcoded' ::Options:
@@ -10055,24 +10046,6 @@ proc ::tkchat::ShowCertificate {owner depth info} {
     grid columnconfigure $top 0 -weight 1
     ::tk::PlaceWindow $top widget $owner
     wm deiconify $top
-}
-
-# -------------------------------------------------------------------------
-# Windows CE specific code.
-
-if { $::tcl_platform(os) eq "Windows CE" && ![info exists ::tkchat::wince_fixes]} {
-    set ::tkchat::wince_fixes 1
-    # Work around for socket problem with sockets. ("select 10022")
-    # Not quite there yet...
-    proc tkchat::WinCE_Accept {channel peer port} {
-	::log::log debug "WinCE work around accepted connection $channel $peer $port"
-    }
-    if { [catch {
-	socket -server ::tkchat::WinCE_Accept 12345
-	set ::tkchat::wince_clientchan [socket 127.0.0.1 12345]
-    }] } {
-	::log::log debug "Error during WinCE fix init: $::errorInfo"
-    }
 }
 
 # -------------------------------------------------------------------------
