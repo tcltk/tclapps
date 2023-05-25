@@ -2194,29 +2194,6 @@ proc ::tkchat::InstallXDG {} {
            desktop menu group."
 }
 
-# Pick an enhanced Tk style.
-proc ::tkchat::SelectTkStyle {} {
-    global Options
-    set style {}
-    if { $Options(Style) eq "any" || [string match "as*" $Options(Style)] } {
-	if { ![catch { package require as::style }] } {
-	    as::style::init
-	    set style as
-	} elseif { ![catch { package require style::as }] } {
-	    style::as::init
-	    set style as
-	}
-    }
-    if { $style eq {}
-         && ($Options(Style) eq "any"
-             || [string match "g*" $::Options(Style)])
-         && [tk windowingsystem] eq "x11" } {
-	::tkchat::GtkLookStyleInit
-        set style gtk
-    }
-    return $style
-}
-
 proc ::tkchat::toggleUnicodePoint_t {t} {
     set c ""; set h ""; set s ""
 
@@ -2275,8 +2252,6 @@ proc ::tkchat::toggleUnicodePoint_e {e} {
 proc ::tkchat::CreateGUI {} {
     global Options
     variable chatWindowTitle
-
-    SelectTkStyle
 
     wm title . $chatWindowTitle
     wm withdraw .
@@ -5391,8 +5366,8 @@ proc ::tkchat::saveRC {} {
 	JabberPort JabberResource JabberServer Khim HateLolcatz
 	LogFile LogLevel LogPrivateChat LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
-	ServerLogging ShowNormalInline Style Subjects Theme Transparency UnifyNicknames
-        UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain
+	ServerLogging ShowNormalInline Subjects Theme Transparency UnifyNicknames
+        UseJabberSSL UseProxy Username ValidateSSLChain
         Visibility,* RSS,* StartZoomed
     }
 
@@ -5925,7 +5900,6 @@ proc ::tkchat::Init {args} {
 
     # Process command line args
     set nologin 0
-    set tkonly $Options(UseTkOnly)
     while {[string match -* [set option [lindex $args 0]]]} {
 	if {[tk windowingsystem] eq "aqua" && [string match "-psn*" $option]} {
 	    Pop args
@@ -5933,8 +5907,6 @@ proc ::tkchat::Init {args} {
 	}
 	switch -exact -- $option {
 	    -nologin   { set nologin 1 }
-	    -tkonly    { set tkonly 1 }
-	    -style     { set Options(Style) [Pop args 1] }
 	    -theme     { set Options(Theme) [Pop args 1] }
 	    -loglevel  { set Options(LogLevel) [Pop args 1] }
 	    -useragent { set Options(UserAgent) [Pop args 1] }
@@ -5962,16 +5934,12 @@ proc ::tkchat::Init {args} {
 	    -- { Pop args ; break }
 	    default {
 		return -code error "bad option \"$option\":\
-		    must be one of -nologin, -tkonly, -style, -theme,\
+		    must be one of -nologin, -theme,\
 		    -loglevel, -useragent, -debug, -nick, -conference,\
                     -connect, -jabberserver, -irc or --."
 	    }
 	}
 	Pop args
-    }
-
-    if {$tkonly} {
-	# set ::tkchat::useTile 0
     }
 
     # Set the useragent string to something a bit more standard.
@@ -6132,14 +6100,12 @@ proc ::tkchat::GetDefaultOptions {} {
 	ServerLogging		all
 	ShowNormalInline	0
 	StoreMessages           1
-	Style			any
 	Subjects                {}
 	Theme			""
 	Transparency		100
 	UnifyNicknames		1
 	UseJabberSSL		no
 	UseProxy		0
-	UseTkOnly		0
 	Username		""
 	ValidateSSLChain	1
 	Visibility,AVAILABILITY	0
@@ -6861,7 +6827,6 @@ proc ::tkchat::PreferencesPage {parent} {
     variable EditOptions
     set EditOptions(Browser)         $Options(Browser)
     set EditOptions(BrowserTab)      $Options(BrowserTab)
-    set EditOptions(Style)           $Options(Style)
     set EditOptions(AskBeforeQuit)   $Options(AskBeforeQuit)
     if {![info exists Options(UnifyNicknames)]} {
 	set Options(UnifyNicknames) 1
@@ -6870,7 +6835,6 @@ proc ::tkchat::PreferencesPage {parent} {
     set EditOptions(AutoFade)        $Options(AutoFade)
     set EditOptions(AutoFadeLimit)   $Options(AutoFadeLimit)
     set EditOptions(Transparency)    $Options(Transparency)
-    set EditOptions(UseTkOnly)       $Options(UseTkOnly)
     set EditOptions(AutoAwayMsg)     $Options(AutoAwayMsg)
     set EditOptions(HateLolcatz)     $Options(HateLolcatz)
     set EditOptions(FunkyTraffic)    $Options(FunkyTraffic)
@@ -6970,40 +6934,6 @@ proc ::tkchat::PreferencesPage {parent} {
         grid columnconfigure $bf 0 -weight 1
     }
 
-    set sf [ttk::labelframe $page.sf -text "Tk style"] ;#-padx 1 -pady 1
-
-    ttk::label $sf.m -anchor nw -wraplength 4i -justify left \
-	-text "The Tk style selection available here will apply when you \
-	   next restart tkchat."
-    ttk::radiobutton $sf.as -text "ActiveState" -underline 0 \
-	-variable ::tkchat::EditOptions(Style) -value as_style
-    ttk::radiobutton $sf.gtk -text "GTK look" -underline 0 \
-	-variable ::tkchat::EditOptions(Style) -value gtklook
-    ttk::radiobutton $sf.any -text "Any" -underline 1 \
-	-variable ::tkchat::EditOptions(Style) -value any
-    ttk::radiobutton $sf.def -text "Tk default" -underline 0 \
-	-variable ::tkchat::EditOptions(Style) -value tk
-    ttk::checkbutton $sf.tkonly -text "Use only Tk widgets" \
-	-variable ::tkchat::EditOptions(UseTkOnly) -onvalue 1 -offvalue 0 \
-	-underline 12
-
-    if {[catch {package require style::as}]
-	&& [catch {package require as::style}]} {
-	$sf.as configure -state disabled
-    }
-
-    bind $dlg <Alt-a> [list $sf.as invoke]
-    bind $dlg <Alt-g> [list $sf.gtk invoke]
-    bind $dlg <Alt-n> [list $sf.any invoke]
-    bind $dlg <Alt-t> [list $sf.def invoke]
-    bind $dlg <Alt-w> [list $sf.tkonly invoke]
-
-    grid $sf.m  -       -       -       -sticky news -padx 2
-    grid $sf.as $sf.gtk $sf.any $sf.def -sticky ew -padx 2
-    grid $sf.tkonly -   -       -       -sticky ew -padx 2
-    grid rowconfigure    $sf 0 -weight 1
-    grid columnconfigure $sf 0 -weight 1
-
     # Gimmicks section.
     set gimmicks 0
     set gf [ttk::labelframe $page.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
@@ -7041,14 +6971,13 @@ proc ::tkchat::PreferencesPage {parent} {
     if {$::tcl_platform(platform) ne "windows"} {
         grid $bf - -sticky news -padx 2 -pady 2
     }
-    grid $sf - -sticky news -padx 2 -pady 2
     if {$gimmicks} { grid $gf - -sticky news -padx 2 -pady 2 }
 
     bind $page <<TkchatOptionsAccept>> [namespace code {
         global Options ; variable EditOptions
 	set Options(Browser) $EditOptions(Browser)
 	set Options(BrowserTab) $EditOptions(BrowserTab)
-	foreach property {Style AutoFade AutoFadeLimit UseTkOnly UnifyNicknames
+	foreach property {AutoFade AutoFadeLimit UnifyNicknames
             AskBeforeQuit AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages
             ClickFocusEntry LogPrivateChat ShowNormalInline} {
 	    if { $Options($property) ne $EditOptions($property) } {
@@ -7126,93 +7055,6 @@ proc ::tkchat::EditOptionsClose {dlg type pages} {
         }
     }
     variable _editoptions $type
-}
-
-# -------------------------------------------------------------------------
-
-# Try and adjust the Tk style.
-# If we can find the ActiveState look&feel package then lets use that
-# otherwise we have something that was modified from the Gtklook page
-# of the wiki: http://mini.net/tcl/gtklook
-#
-proc ::tkchat::GtkLookStyleInit {} {
-    set defaultColor #dcdad5
-    set activeFG     #ffffff
-    set activeBG     #4a6984
-    set troughColor  #bdb6ad
-
-    set families [font families]
-    set family ""
-    foreach test {"Bitstream Vera Sans" "FreeSans"} {
-        if {$test in $families} {
-            set family $test
-        } else {
-            set test [string tolower $test]
-            if {$test in $families} {
-                set family $test
-            }
-        }
-        if {$family ne ""} {
-            break
-        }
-    }
-
-    if {$family eq ""} {set family Helvetica}
-    set size 12
-    catch {
-        if {[string equal [tk::pkgconfig get fontsystem] "xft"]} {
-            incr size -4
-        }
-    }
-    font create GtkLookFont \
-	-family $family -size $size -weight normal
-    font create GtkLookDialogFont \
-	-family $family -size [incr size 4] -weight bold -slant italic
-
-    option add *background $defaultColor widgetDefault
-    option add *borderWidth 1 widgetDefault
-    option add *highlightThickness 0 widgetDefault
-    option add *troughColor $troughColor widgetDefault
-    option add *activeBorderWidth 1 widgetDefault
-    option add *selectBorderWidth 1 widgetDefault
-    option add *font GtkLookFont widgetDefault
-
-    option add *Button.highlightThickness 1 widgetDefault
-    option add *Checkbutton.highlightThickness 1 widgetDefault
-    option add *Radiobutton.highlightThickness 1 widgetDefault
-
-    option add *Listbox.background white widgetDefault
-    option add *Listbox.selectBorderWidth 0 widgetDefault
-    option add *Listbox.selectForeground $activeFG widgetDefault
-    option add *Listbox.selectBackground $activeBG widgetDefault
-
-    option add *Entry.background white
-    option add *Entry.foreground black
-    option add *Entry.selectBorderWidth 0
-    option add *Entry.selectForeground $activeFG
-    option add *Entry.selectBackground $activeBG
-
-    option add *Text.background white
-    option add *Text.selectBorderWidth 0
-    option add *Text.selectForeground $activeFG
-    option add *Text.selectBackground $troughColor
-
-    option add *Menu.activeBackground $activeBG
-    option add *Menu.activeForeground $activeFG
-    option add *Menu.activeBorderWidth 0
-    option add *Menu.highlightThickness 1
-    option add *Menu.borderWidth 2
-
-    option add *Menubutton.activeBackground $activeBG
-    option add *Menubutton.activeForeground $activeFG
-    option add *Menubutton.activeBorderWidth 0
-    option add *Menubutton.highlightThickness 0
-    option add *Menubutton.borderWidth 0
-
-    option add *Labelframe.borderWidth 2
-    option add *Frame.borderWidth 2
-
-    option add *Dialog.msg.font GtkLookDialogFont
 }
 
 # Reconfigure tkchat to use IRC
