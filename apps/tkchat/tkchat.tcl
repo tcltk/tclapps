@@ -581,14 +581,6 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
 proc ::tkchat::LoadHistory {} {
     global Options
 
-    #Babelfish was decommissioned by Yahoo in 2012
-    if 0 {
-    # hook in the translation menu initialization (background function)
-    if {$Options(UseBabelfish)} {
-	babelfishMenu
-    }
-    }
-
     if {$Options(HistoryLines) != 0} {
 	set url "$Options(JabberLogs)/?pattern=*.tcl"
 	GetHistLogIdx $url
@@ -2459,13 +2451,6 @@ proc ::tkchat::CreateGUI {} {
     tk::AmpMenuArgs $m add checkbutton \
         -label [mc "Auto &bookmark"] \
         -variable Options(AutoBookmark)
-
-    #Yahoo decommissioned Babelfish in 2012
-    if 0 {
-    tk::AmpMenuArgs $m add checkbutton \
-        -label [mc "Auto-i&nit Babelfish"] \
-        -variable Options(UseBabelfish)
-    }
 
     $m add separator
 
@@ -5598,7 +5583,7 @@ proc ::tkchat::saveRC {} {
 	LogFile LogLevel LogPrivateChat LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
 	ServerLogging ShowNormalInline Style Subjects Theme Transparency UnifyNicknames
-        UseBabelfish UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain
+        UseJabberSSL UseProxy Username UseTkOnly ValidateSSLChain
         Visibility,* RSS,* StartZoomed
     }
 
@@ -6346,7 +6331,6 @@ proc ::tkchat::GetDefaultOptions {} {
 	Theme			""
 	Transparency		100
 	UnifyNicknames		1
-	UseBabelfish		0
 	UseJabberSSL		no
 	UseProxy		0
 	UseTkOnly		0
