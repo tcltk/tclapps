@@ -9197,7 +9197,7 @@ proc tkjabber::on_iq_last {token from subiq args} {
          -attrlist [list xmlns jabber:iq:last \
             seconds [idle::idletime]]]
     # eval [linsert $opts 0 $token send_iq result [list $xml]]
-    $token send_iq result $xml {*}$opts
+    $token send_iq result [list $xml] {*}$opts
     return 1 ;# handled
 }
 
@@ -9215,7 +9215,7 @@ proc tkjabber::on_iq_time {token from subiq args} {
     set xml [wrapper::createtag time -subtags $subtags \
                  -attrlist [list xmlns urn:xmpp:time]]
     # eval [linsert $opts 0 $token send_iq result [list $xml]]
-    $token send_iq result $xml {*}$opts
+    $token send_iq result [list $xml] {*}$opts
     return 1 ;# handled
 }
 
@@ -9238,7 +9238,7 @@ proc tkjabber::on_iq_version {token from subiq args} {
     set xmllist [wrapper::createtag query -subtags $subtags  \
                      -attrlist {xmlns jabber:iq:version}]
     # eval [linsert $opts 0 $token send_iq result [list $xmllist]]
-    $token send_iq result $xmllist {*}$opts
+    $token send_iq result [list $xmllist] {*}$opts
     return 1 ;# handled
 }
 
