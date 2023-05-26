@@ -167,6 +167,28 @@ namespace eval ::tkchat {
             set useClosebutton 1
         }
     }
+
+    # We don't have a ttk style for text widgets but we can co-opt
+    # the entry border and place our text widget on top of a frame
+    # with the entry border plus some padding to make it look right.
+    ttk::style theme settings default {
+        ttk::style layout FakeText {
+            FakeText.field -sticky news -border 0 -children {
+                FakeText.fill -sticky news -children {
+                    FakeText.padding -sticky news
+                }
+            }
+        }
+        ttk::style configure FakeText -padding 1 -relief sunken
+        ttk::style map FakeText -background {}
+    }
+    option add *Text.relief                     flat
+    option add *Text.borderWidth                0
+    option add *Text.highlightThickness         0
+    option add *Listbox.relief                  flat
+    option add *Listbox.borderWidth             0
+    option add *Listbox.highlightThickness      0
+
 }
 
 # If we're using KHIM, make all entries and texts use it.
@@ -350,9 +372,9 @@ if {[info exists ::env(HOME)] \
 
 proc ::tkchat::Toplevel {w args} {
     # eval [linsert $args 0 ::toplevel $w]
-    ::toplevel $w {*}$args]
+    toplevel $w {*}$args]
     if {![$w cget -container]} {
-        place [::ttk::frame $w.tilebg] \
+        place [ttk::frame $w.tilebg] \
             -x 0 -y 0 \
             -relwidth 1 -relheight 1 \
             -bordermode outside
@@ -1808,14 +1830,13 @@ proc ::tkchat::CreateMemoDialog {dlg jid} {
     set body [text $bodyf.body -font FNT -wrap word \
                   -background "#[getColor MainBG]" \
                   -foreground "#[getColor MainFG]" \
-                  -width 80 -height 12 -yscrollcommand [list $bodyf.vs set]]
+                  -width 80 -height 12 \
+                  -yscrollcommand [list $bodyf.vs set]]
     ttk::scrollbar $bodyf.vs -command [list $bodyf.body yview]
     ttk::button $dlg.ok -text [mc OK] -default active \
         -command [namespace code [list SendMemoDone $dlg $jid ok]]
     ttk::button $dlg.cancel -text [mc Cancel] \
         -command [namespace code [list SendMemoDone $dlg $jid cancel]]
-    
-    $body configure -relief flat -borderwidth 0 -highlightthickness 0
 
     grid $bodyf.body -row 0 -column 0 -sticky news -padx {1 0} -pady 1
     grid $bodyf.vs   -row 0 -column 1 -sticky news -padx {0 1} -pady 1
@@ -2667,24 +2688,10 @@ proc ::tkchat::CreateGUI {} {
 
     
     # a pane for the main display (chat window and users window):
-    ::ttk::panedwindow .pane -orient horizontal
+    ttk::panedwindow .pane -orient horizontal
     # another pane dividing the chat window:
-    ::ttk::panedwindow .pane2 -orient vertical
+    ttk::panedwindow .pane2 -orient vertical
     
-    # We don't have a ttk style for text widgets but we can co-opt
-    # the entry border and place our text widget on top of a frame
-    # with the entry border plus some padding to make it look right.
-    ttk::style theme settings default {
-        ttk::style layout FakeText {
-            FakeText.field -sticky news -border 0 -children {
-                FakeText.fill -sticky news -children {
-                    FakeText.padding -sticky news
-                }
-            }
-        }
-        ttk::style configure FakeText -padding 1 -relief sunken
-        ttk::style map FakeText -background {}
-    }
     ttk::frame .txtframe -style FakeText
 
     CreateTxtAndSbar
@@ -2776,7 +2783,6 @@ proc ::tkchat::CreateGUI {} {
 
     .txt configure -width 10
     .pane.names configure -width 10
-    .txt configure -relief flat -borderwidth 0 -highlightthickness 0
     grid .txt .sbar -in .txtframe -sticky news -pady 1
     grid configure .txt -in .txtframe -padx {1 0}
     grid configure .sbar -in .txtframe -padx {0 1}
@@ -2792,7 +2798,7 @@ proc ::tkchat::CreateGUI {} {
     ttk::frame .cframe -relief groove
     if {$useClosebutton} {
         if {[catch {
-            ::ttk::button .cbtn -padding {1 1 0 0} -style CloseButton
+            ttk::button .cbtn -padding {1 1 0 0} -style CloseButton
         }]} { ttk::button .cbtn -text [mc "Close history pane"] }
     } else {
         ttk::button .cbtn -text [mc "Close history pane"]
@@ -2981,8 +2987,6 @@ proc ::tkchat::CreateTxtAndSbar { {parent ""} } {
     text $txt \
         -background "#[getColor MainBG]" \
         -foreground "#[getColor MainFG]" \
-        -relief sunken \
-        -borderwidth 2 \
         -width 8 \
         -height 1 \
         -font FNT \
@@ -3085,7 +3089,7 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
 proc ::tkchat::CreateNewChatWindow { parent } {
     global Options
 
-    ::ttk::panedwindow $parent.pane -orient vertical
+    ttk::panedwindow $parent.pane -orient vertical
     ttk::frame $parent.txtframe -style FakeText
 
     CreateTxtAndSbar $parent
@@ -3103,9 +3107,6 @@ proc ::tkchat::CreateNewChatWindow { parent } {
     ttk::button $parent.post -text "Post"
 
     $parent.txt configure -width 10
-    if {![catch {$parent.txtframe cget -style} style] && $style eq "FakeText"} {
-        $parent.txt configure -relief flat -borderwidth 0 -highlightthickness 0
-    }
     grid $parent.txt $parent.sbar \
         -in $parent.txtframe  -sticky news -padx 1 -pady 2
     grid columnconfigure $parent.txtframe 0 -weight 1
@@ -3339,7 +3340,7 @@ proc ::tkchat::About {} {
     if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
     ttk::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
     ScrolledWidget text $w.text 0 1 -height 24 -width 80 \
-        -borderwidth 0 -padx 2 -pady 2 -font FNT
+        -padx 2 -pady 2 -font FNT
     grid $w.text -sticky news
     grid $w.b -sticky se
     grid rowconfigure $w 0 -weight 1
@@ -6886,7 +6887,7 @@ proc ::tkchat::PreferencesPage {parent} {
 	set gimmicks 1
 	ttk::checkbutton $gf.fade -text "When not active, fade to " \
             -underline 2 -variable ::tkchat::EditOptions(AutoFade)
-        if {[info commands ::ttk::spinbox] ne {}} {
+        if {[info commands ttk::spinbox] ne {}} {
             ttk::spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
                 -validate all -format %d \
                 -validatecommand {string is integer %P} \
@@ -9535,7 +9536,7 @@ proc ::tkchat::ShowCertificate {owner depth info} {
     wm withdraw $top
     wm title $top "Certificate Information: [SafeGet O CN] (level $depth)"
     set t [text $dlg.txt -wrap word -width 70 -height 28 \
-               -borderwidth 0 -padx 2 -pady 2 -font FNT -tabs {140 280}]
+               -padx 2 -pady 2 -font FNT -tabs {140 280}]
     $t tag configure HEAD -font SYS
     $t insert end "Server Identify Verified" HEAD "\n" {} \
         "The server [SafeGet O CN] supports secure sockets. The identity of\
