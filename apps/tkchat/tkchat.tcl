@@ -9247,17 +9247,17 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
     array set a [concat -id {{}} $args]
     jlib::splitjid $from conf nick
     if {[jlib::jidequal $conf $conference]} {
+        array set data {}
+        foreach sub [wrapper::getchildren $xmllist] {
+            set data([wrapper::gettag $sub]) [wrapper::getcdata $sub]
+        }
+        set ver ""
+        if {[info exists data(name)]} { append ver $data(name) }
+        if {[info exists data(version)]} { append ver " " $data(version) }
+        if {[info exists data(os)]} { append ver " : $data(os)" }
+        set tkchat::OnlineUsers(Jabber-$nick,version) $ver
+        tkchat::addStatus 0 "$nick is using $ver"
         if {[llength [package provide tooltip]] > 0} {
-            array set data {}
-            foreach sub [wrapper::getchildren $xmllist] {
-                set data([wrapper::gettag $sub]) [wrapper::getcdata $sub]
-            }
-            set ver ""
-            if {[info exists data(name)]} { append ver $data(name) }
-            if {[info exists data(version)]} { append ver " " $data(version) }
-            if {[info exists data(os)]} { append ver " : $data(os)" }
-            set tkchat::OnlineUsers(Jabber-$nick,version) $ver
-            tkchat::addStatus 0 "$nick is using $ver"
             after idle [list ::tkchat::SetUserTooltip $nick]
             after idle [list ::newRoster::SetUserTooltip $nick]
         }
