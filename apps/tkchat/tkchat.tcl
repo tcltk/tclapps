@@ -173,26 +173,7 @@ namespace eval ::tkchat {
 
 if {[package provide khim] ne {}} {
 
-    # The entry and text widgets might have been aliased into the ::tk
-    # namespace by the code above, or they might have been created as
-    # separate commands.  Look for them under both names.
-
     foreach command {::entry ::tk::entry ::text ::tk::text ::ttk::entry} {
-
-        # Skip aliases, because we'll work with the underlying commands
-        # instead.
-
-        if {[interp alias {} $command] ne {}} {
-            continue
-        }
-
-        # Skip nonexistent commands (e.g., a Tk without Ttk)
-
-        if {[namespace which $command] eq {}} {
-            continue
-        }
-
-        # Skip commands that are already wrapped
 
         set ns [namespace qualifiers $command]
         set t [namespace tail $command]
