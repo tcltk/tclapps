@@ -66,6 +66,19 @@ proc ::newRoster::gui {f} {
         }
     }
 
+    # New themes can be added at runtime.
+    # Adjust the indent and row height accordingly upon selection.
+    # This will cause a visual glitch the first time the theme is selected
+    bind $cl <<ThemeChanged>> [list apply {{indent rowheight} {
+        if {[ttk::style configure Roster.Treeview -indent] != $indent ||
+            [ttk::style configure Roster.Treeview -rowheight] != $rowheight
+        } then {
+            after idle [list ttk::style configure Roster.Treeview \
+                    -indent $indent \
+                    -rowheight $rowheight]
+        }
+    }} $indent $rowheight]
+
     bind $cl <Motion> [namespace code {TrackMotion %W %x %y}]
     return $f
 }
