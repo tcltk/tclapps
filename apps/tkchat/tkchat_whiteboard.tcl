@@ -29,19 +29,11 @@ proc ::tkchat::Whiteboard::Init {} {
         interp alias $slave ::WhiteboardClear {} [namespace origin Clear]
         interp alias $slave ::WhiteboardLine {} [namespace origin Line]
         interp alias $slave ::WhiteboardScript {} [namespace origin Script]
-        whiteboard eval [list set tkonly $Options(UseTkOnly)]
         whiteboard eval {
-            if {[llength [info commands ::ttk::entry]] > 0 && !$tkonly} {
-                ttk::frame .wb
-                ttk::entry .wb.e -textvariable wbentry
-                ttk::button .wb.bclear -text Clear -command WhiteboardClear
-                ttk::label .wb.status -anchor w
-            } else {
-                frame .wb
-                entry .wb.e -background white -textvariable wbentry
-                button .wb.bclear -text Clear -command WhiteboardClear
-                label .wb.status -anchor w
-            }
+            ttk::frame .wb
+            ttk::entry .wb.e -textvariable wbentry
+            ttk::button .wb.bclear -text Clear -command WhiteboardClear
+            ttk::label .wb.status -anchor w
             canvas .wb.c -background white -width 350 -height 300
             bind .wb.c <Button-1> {
                 set id [%W create line %x %y %x %y]

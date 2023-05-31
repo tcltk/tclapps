@@ -10,6 +10,12 @@ if {[catch {package require rssrdr}]} { return }
 
 namespace eval ::tkchat::rss {
     variable version 1.0.0
+
+    if {[info commands ::tooltip::tooltip] ne {}} {
+        namespace import ::tooltip::tooltip
+    } else {
+        proc tooltip {args} {}
+    }
 }
 
 proc ::tkchat::rss::Init {} {
@@ -76,11 +82,10 @@ proc ::tkchat::rss::Init {} {
                 ttk::label .status.rss -image ::tkchat::img::feedLo
                 bind .status.rss <Button-1> \
                     [list [namespace origin ShowRssInfo]]
-                if {[llength [package provide tooltip]] > 0} {
-                    set var [namespace which -variable RSStip]
-                    trace add variable $var write \
-                        [list after 0 [namespace origin RssUpdateTip]]
-                }
+
+                set var [namespace which -variable RSStip]
+                trace add variable $var write \
+                    [list after 0 [namespace origin RssUpdateTip]]
                 
                 after idle [namespace origin CheckRSSFeeds]
             }
@@ -90,9 +95,7 @@ proc ::tkchat::rss::Init {} {
 
 proc ::tkchat::rss::RssUpdateTip {varname op} {
     variable RSStip
-    if {[package provide tooltip] ne {}} {
-        tooltip::tooltip .status.rss [string trim $RSStip \n]
-    }
+    tooltip .status.rss [string trim $RSStip \n]
 }
 
 proc ::tkchat::rss::ShowRssInfo {} {
@@ -154,9 +157,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
             $txt insert end $a(title) [list $url URL ITEM $tag] \
                 "\n$a(description)\n\n" [list $url ITEM]
             $txt tag bind $tag <Button-1> [list ::tkchat::gotoURL $a(link)]
-            if {[llength [package provide tooltip]] > 0} {
-                tooltip::tooltip $txt -tag $tag $a(link)
-            }
+            tooltip $txt -tag $tag $a(link)
         }
         
         $txt configure -state disabled

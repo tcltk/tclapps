@@ -7,10 +7,10 @@ package require Tk
 namespace eval ::newRoster {
     variable cl
 
-    if {[catch {package require tooltip 1.5}]} {
-        proc tooltip args {}
-    } else {
+    if {[info commands ::tooltip::tooltip] ne {}} {
         namespace import ::tooltip::tooltip
+    } else {
+        proc tooltip {args} {}
     }
 }
 
@@ -68,7 +68,7 @@ proc ::newRoster::gui {f} {
 
     # New themes can be added at runtime.
     # Adjust the indent and row height accordingly upon selection.
-    # This will cause a visual glitch the first time the theme is selected
+    # This will cause a visual glitch the first time the theme is selected.
     bind $cl <<ThemeChanged>> [list apply {{indent rowheight} {
         if {[ttk::style configure Roster.Treeview -indent] != $indent ||
             [ttk::style configure Roster.Treeview -rowheight] != $rowheight
@@ -121,8 +121,8 @@ proc ::newRoster::updateOnlineNames {} {
 	} else {
 	    $cl delete [$cl children $network]
 	}
-	$cl item $network -text [
-				 format [mc "%d %s Users"] $userCnt $network]
+	$cl item $network \
+	    -text [format [mc "%d %s Users"] $userCnt $network]
 
 	foreach nick $OnlineUsers($network) {
 	    set status [lindex $OnlineUsers($network-$nick,status) 0]
@@ -155,7 +155,7 @@ proc ::newRoster::updateOnlineNames {} {
 	    $cl tag configure NICK-$nick -foreground \
 		#[lindex $Options(Color,NICK-$nick) 1]
 	    }
-	    
+
 	    switch -exact -- $status {
 		online - chat - dnd - away - xa {
 		    set image ::tkchat::roster::$status
@@ -238,8 +238,6 @@ proc ::newRoster::updateRosterDisplay {} {
 	tooltip $cl -item $item $tip
     }
 }
-
-
 
 proc ::newRoster::PutIntoPane {} {
     global Options

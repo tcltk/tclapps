@@ -91,7 +91,7 @@ package require muc		; # jlib
 package require disco           ; # jlib 
 
 catch {package require khim}    ; # khim (optional)
-catch {package require tooltip 1.2};# tooltips (optional)  
+catch {package require tooltip 1.5};# tooltips (optional)
 
 namespace eval ::idle {
     proc idletime {} {
@@ -189,6 +189,14 @@ namespace eval ::tkchat {
     option add *Listbox.borderWidth             0
     option add *Listbox.highlightThickness      0
 
+    # import the tooltip command if available
+    # otherwise, define a "tooltip" noop so that we don't have to
+    # check for its presence
+    if {[info commands ::tooltip::tooltip] ne {}} {
+        namespace import ::tooltip::tooltip
+    } else {
+        proc tooltip {args} {}
+    }
 }
 
 # If we're using KHIM, make all entries and texts use it.
@@ -1191,17 +1199,15 @@ proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}}
     if { $subjectFound } {
 	lappend tags SUBJ
     }
-    set usett [llength [package provide tooltip]]
+#    set usett [llength [package provide tooltip]]
     foreach { str url tt } [parseStr $msg] {
 	if { $url ne "" } {
 	    set urltag [concat $tags URL URL-[incr ::URLID]]
 	    $w tag bind URL-$::URLID <Button-1> [list ::tkchat::gotoURL $url]
-            if {$usett} {
-                if {[string length $tt] > 0} {
-                    tooltip::tooltip $w -tag URL-$::URLID $tt
-                } elseif {[string match "http://tinyurl.com/*" $url]} {
-                    AddRedirectionTooltip $w URL-$::URLID $url
-                }
+            if {[string length $tt] > 0} {
+                tooltip $w -tag URL-$::URLID $tt
+            } elseif {[string match "http://tinyurl.com/*" $url]} {
+                AddRedirectionTooltip $w URL-$::URLID $url
             }
 	} else {
 	    set urltag $tags
@@ -1238,7 +1244,7 @@ proc ::tkchat::AddRedirectionTooltipDone {w tag tok} {
     if {[http::status $tok] eq "ok"} {
         foreach {key value} [http::meta $tok] {
             if {[string match location [string tolower $key]]} {
-                tooltip::tooltip $w -tag $tag $value
+                tooltip $w -tag $tag $value
                 break
             }
         }
@@ -1598,19 +1604,15 @@ proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
         if {$pane == 1} {
             if {[string equal $msg "connected"]} {
                 .status.pane1 configure -image ::tkchat::img::link_connected
-                if {[package provide tooltip] ne {}} {
-                    catch {
-                        set tip [fconfigure $::tkjabber::socket -peername]
-                        set tip [lindex $tip 0]:[lindex $tip 2]
-                        set tip "Connected to $tip"
-                        tooltip::tooltip .status.pane1 $tip
-                    }
+                catch {
+                    set tip [fconfigure $::tkjabber::socket -peername]
+                    set tip [lindex $tip 0]:[lindex $tip 2]
+                    set tip "Connected to $tip"
+                    tooltip .status.pane1 $tip
                 }
             } else {
                 .status.pane1 configure -image ::tkchat::img::link_disconnected
-                if {[package provide tooltip] ne {}} {
-                    tooltip::tooltip .status.pane1 ""
-                }
+                tooltip .status.pane1 ""
             }
         }
     } else {
@@ -1627,7 +1629,6 @@ proc ::tkchat::SetServerTooltip {} {
                     -command [namespace code [list SetServerTooltip2 $w]]]
 }
 proc ::tkchat::SetServerTooltip2 {w jlib type xmllist} {
-    if {[package provide tooltip] eq {}} { return }
     if {$type ne "result"} { return }
     if {[catch {
         set tip [fconfigure $::tkjabber::socket -peername]
@@ -1636,7 +1637,7 @@ proc ::tkchat::SetServerTooltip2 {w jlib type xmllist} {
         append tip \n [wrapper::getcdata [wrapper::getchilddeep $xmllist name]] \
             " " [wrapper::getcdata [wrapper::getchilddeep $xmllist version]] \
             " on " [wrapper::getcdata [wrapper::getchilddeep $xmllist os]]
-        tooltip::tooltip $w $tip
+        tooltip $w $tip
     } err]} { log::log error $err }
 }
 
@@ -1708,7 +1709,6 @@ proc ::tkchat::StatusbarAddWidget {bar slave pos} {
 # Update a users tooltip information from the online users array
 proc ::tkchat::SetUserTooltip {nick} {
     variable OnlineUsers
-    if {[package provide tooltip] eq {}} { return }
     if {![info exists OnlineUsers(Jabber-$nick,jid)]} { return }
     set tip [string trim $OnlineUsers(Jabber-$nick,jid)]
     if {$tip eq ""} { append tip $nick }
@@ -1721,7 +1721,7 @@ proc ::tkchat::SetUserTooltip {nick} {
         append tip "\nstatus: $status"
     }
     set tip [string trim $tip "\n"]
-    tooltip::tooltip .pane.names -tag NICK-$nick $tip
+    tooltip .pane.names -tag NICK-$nick $tip
 }
 
 # Add notification of user entering or leaving.
@@ -6815,26 +6815,25 @@ proc ::tkchat::PreferencesPage {parent} {
     ttk::label $af.aal -text "Inactive message" -underline 0 \
         -anchor ne
     ttk::entry $af.aae -textvariable ::tkchat::EditOptions(AutoAwayMsg)
-    if {[llength [package provide tooltip]]>0} {
-        tooltip::tooltip $af.store "Control the persistence of one-to-one\
-            chats to the ~/.tkchat_msgs file."
-        tooltip::tooltip $af.norminline "Enable to show whispered messages\
-            in the main body of the chat.\nOtherwise they are displayed in a\
-            popup dialog."
-        tooltip::tooltip $af.traffic "Set the style of message displayed when\
-            a user enters or leaves the chat."
-        tooltip::tooltip $af.aae "Set the status message used when\
-            you are automatically made inactive."
-        tooltip::tooltip $af.catz "Toggle display of a LOLCATZ message in\
-            the statusbar after checking the current version."
-        tooltip::tooltip $af.cfe "Unset this option to permit setting focus\
-            on the main chat widget."
-        tooltip::tooltip $af.lpc "Enable logging of private chat conversations\
-            to a per-remote-user file in ~/.tkchat_logs."
-        tooltip::tooltip $af.abq "Display a confirmation dialog before\
-            exiting to permit the user to cancel an accidental quit."
-        tooltip::tooltip $af.unn "Removes IRC/Slack chars and colors nick"
-    }
+
+    tooltip $af.store "Control the persistence of one-to-one\
+        chats to the ~/.tkchat_msgs file."
+    tooltip $af.norminline "Enable to show whispered messages\
+        in the main body of the chat.\nOtherwise they are displayed in a\
+        popup dialog."
+    tooltip $af.traffic "Set the style of message displayed when\
+        a user enters or leaves the chat."
+    tooltip $af.aae "Set the status message used when\
+        you are automatically made inactive."
+    tooltip $af.catz "Toggle display of a LOLCATZ message in\
+        the statusbar after checking the current version."
+    tooltip $af.cfe "Unset this option to permit setting focus\
+        on the main chat widget."
+    tooltip $af.lpc "Enable logging of private chat conversations\
+        to a per-remote-user file in ~/.tkchat_logs."
+    tooltip $af.abq "Display a confirmation dialog before\
+        exiting to permit the user to cancel an accidental quit."
+    tooltip $af.unn "Removes IRC/Slack chars and colors nick"
     
     bind $dlg <Alt-s> [list $af.store invoke]
     bind $dlg <Alt-o> [list $af.norminline invoke]
@@ -7069,6 +7068,12 @@ proc ::tkchat::PicoIrcCallback {context state args} {
 
 namespace eval tkjabber {
     namespace import ::msgcat::mc
+    if {[info commands ::tooltip::tooltip] ne {}} {
+        namespace import ::tooltip::tooltip
+    } else {
+        proc tooltip {args} {}
+    }
+
     proc Variable {args} {
 	if {[llength $args] % 2} {
 	    variable [lindex $args end]
@@ -7464,12 +7469,9 @@ proc tkjabber::CheckCertificate {} {
             }
             if {[winfo exists .status.ssl]} {
                 .status.ssl configure -image ::tkchat::img::link_secure
-                if {[info exists I(O)] 
-                    && [llength [package provide tooltip]] > 0} {
+                if {[info exists I(O)]} {
                     set tip "Authenticated by $I(O)"
-                    if {[package provide tooltip] ne {}} {
-                        tooltip::tooltip .status.ssl $tip
-                    }
+                    tooltip .status.ssl $tip
                     bind .status.ssl <Button-1> \
                         [list tkchat::ShowCertificate . 0 [array get cert]]
                 }
@@ -8771,14 +8773,13 @@ proc ::tkchat::updateRosterDisplay {} {
         .pane.names insert roster $name $tags "\n" NICK
         .pane.names tag bind $link <Button-1> \
             [list ::tkjabber::getChatWidget $user/$resource $name]
-        if {[package provide tooltip] ne {}} {
-            set tip $user
-            if {$resource ne {}} {append tip /$resource}
-            foreach res [$roster getresources $user] {
-                append tip "\n  $res"
-            }
-            tooltip::tooltip .pane.names -tag ROSTER-$user $tip
+
+        set tip $user
+        if {$resource ne {}} {append tip /$resource}
+        foreach res [$roster getresources $user] {
+            append tip "\n  $res"
         }
+        tooltip .pane.names -tag ROSTER-$user $tip
     }
     .pane.names insert roster \n {}
     .pane.names configure -state $wstate
@@ -9283,10 +9284,9 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
         if {[info exists data(os)]} { append ver " : $data(os)" }
         set tkchat::OnlineUsers(Jabber-$nick,version) $ver
         tkchat::addStatus 0 "$nick is using $ver"
-        if {[llength [package provide tooltip]] > 0} {
-            after idle [list ::tkchat::SetUserTooltip $nick]
-            after idle [list ::newRoster::SetUserTooltip $nick]
-        }
+
+        after idle [list ::tkchat::SetUserTooltip $nick]
+        after idle [list ::newRoster::SetUserTooltip $nick]
     }
     return 1 ;# handled
 }

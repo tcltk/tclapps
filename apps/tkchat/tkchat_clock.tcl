@@ -14,6 +14,12 @@ namespace eval ::tkchat::clock {
             Tooltip ""
         }
     }
+
+    if {[info commands ::tooltip::tooltip] ne {}} {
+        namespace import ::tooltip::tooltip
+    } else {
+        proc tooltip {args} {}
+    }
 }
 
 proc ::tkchat::clock::Init {} {
@@ -22,9 +28,7 @@ proc ::tkchat::clock::Init {} {
         if {[winfo exists .status] && ![winfo exists .status.clock]} {
             ttk::label .status.clock
             ::tkchat::StatusbarAddWidget .status .status.clock 1
-            if {[package provide tooltip] ne {}} {
-                tooltip::tooltip .status.clock $Options(Tooltip)
-            }
+            tooltip .status.clock $Options(Tooltip)
             variable timer [after idle [list [namespace origin Tick] 1000]]
         }
     }
