@@ -118,12 +118,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
     wm title $dlg "RSS Feeds"
     wm transient $dlg .
 
-    set use_notebook [llength [info commands ttk::notebook]]
-    if {$use_notebook} {
-        set nb [ttk::notebook $dlg.nb]
-    } else {
-        set nb [ttk::frame $dlg.nb]
-    }
+    set nb [ttk::notebook $dlg.nb]
     
     set page 0
     foreach {url token} [array get Rss] {
@@ -161,16 +156,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
         }
         
         $txt configure -state disabled
-        if {$use_notebook} {
-            $nb add $f -text $title
-        } else {
-            ttk::button $nb.b$page -text $title\
-                -command [list raise $f]
-            grid $nb.b$page -row 0 -column $page -sticky w
-            grid $f  -row 1 -column 0 -sticky news -columnspan 100
-            grid columnconfigure $nb 0 -weight 1
-            grid rowconfigure $nb 1 -weight 1
-        }
+        $nb add $f -text $title
 
         incr page
     }
@@ -186,7 +172,6 @@ proc ::tkchat::rss::ShowRssInfo {} {
     grid rowconfigure $dlg 0 -weight 1
     grid columnconfigure $dlg 0 -weight 1
 
-    if {!$use_notebook} {catch {$nb.b0 invoke}}
     wm deiconify $dlg
     focus $dlg.ok
     catch {tk::PlaceWindow $dlg widget .}
