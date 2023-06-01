@@ -11,11 +11,7 @@ if {[catch {package require rssrdr}]} { return }
 namespace eval ::tkchat::rss {
     variable version 1.0.0
 
-    if {[info commands ::tooltip::tooltip] ne {}} {
-        namespace import ::tooltip::tooltip
-    } else {
-        proc tooltip {args} {}
-    }
+    namespace import ::tooltip::tooltip
 }
 
 proc ::tkchat::rss::Init {} {

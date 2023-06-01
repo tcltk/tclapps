@@ -7,11 +7,7 @@ package require Tk
 namespace eval ::newRoster {
     variable cl
 
-    if {[info commands ::tooltip::tooltip] ne {}} {
-        namespace import ::tooltip::tooltip
-    } else {
-        proc tooltip {args} {}
-    }
+    namespace import ::tooltip::tooltip
 }
 
 proc ::newRoster::gui {f} {

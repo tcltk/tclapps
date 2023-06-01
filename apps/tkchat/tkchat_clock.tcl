@@ -15,11 +15,7 @@ namespace eval ::tkchat::clock {
         }
     }
 
-    if {[info commands ::tooltip::tooltip] ne {}} {
-        namespace import ::tooltip::tooltip
-    } else {
-        proc tooltip {args} {}
-    }
+    namespace import ::tooltip::tooltip
 }
 
 proc ::tkchat::clock::Init {} {

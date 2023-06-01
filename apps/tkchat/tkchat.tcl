@@ -91,7 +91,12 @@ package require muc		; # jlib
 package require disco           ; # jlib 
 
 catch {package require khim}    ; # khim (optional)
-catch {package require tooltip 1.5};# tooltips (optional)
+if {[catch {package require tooltip 1.5}]} {# tooltips (optional)
+    namespace eval tooltip {
+        namespace export tooltip
+        proc tooltip {args} {}
+    }
+}
 
 namespace eval ::idle {
     proc idletime {} {
@@ -189,14 +194,6 @@ namespace eval ::tkchat {
     option add *Listbox.borderWidth             0
     option add *Listbox.highlightThickness      0
 
-    # import the tooltip command if available
-    # otherwise, define a "tooltip" noop so that we don't have to
-    # check for its presence
-    if {[info commands ::tooltip::tooltip] ne {}} {
-        namespace import ::tooltip::tooltip
-    } else {
-        proc tooltip {args} {}
-    }
 }
 
 # If we're using KHIM, make all entries and texts use it.
@@ -260,6 +257,7 @@ if 0 {
 }
 
 namespace eval ::tkchat {
+
     variable chatWindowTitle "The Tcler's Chat"
 
     variable version 1.510
@@ -316,6 +314,7 @@ namespace eval ::tkchat {
     variable MessageCounter 0
 
     namespace import ::msgcat::mc
+    namespace import ::tooltip::tooltip
 }
 
 image create photo ::tkchat::img::link_secure -data {
@@ -7063,11 +7062,7 @@ proc ::tkchat::PicoIrcCallback {context state args} {
 
 namespace eval tkjabber {
     namespace import ::msgcat::mc
-    if {[info commands ::tooltip::tooltip] ne {}} {
-        namespace import ::tooltip::tooltip
-    } else {
-        proc tooltip {args} {}
-    }
+    namespace import ::tooltip::tooltip
 
     proc Variable {args} {
 	if {[llength $args] % 2} {
