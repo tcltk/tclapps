@@ -528,7 +528,7 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
                 # At the moment, the logs are stored in utf-8 format on the 
                 # server but get issued as iso-8859-1 due to an error in the 
                 # tclhttpd configuration.
-                if {[string equal iso8859-1 [set [set tok](charset)]]} {
+                if {[dict get [http::responseInfo $tok] charset] eq "iso8859-1"} {
                     $I eval [encoding convertfrom utf-8 [http::data $tok]]
                 } else {
                     $I eval [http::data $tok]
