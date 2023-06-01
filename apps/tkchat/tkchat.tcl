@@ -7064,53 +7064,41 @@ namespace eval tkjabber {
     namespace import ::msgcat::mc
     namespace import ::tooltip::tooltip
 
-    proc Variable {args} {
-	if {[llength $args] % 2} {
-	    variable [lindex $args end]
-	    set args [lrange $args 0 end-1]
-	}
-	foreach {var val} $args {
-	    variable $var
-	    if {![info exists $var]} {
-		set $var $val
-	    }
-	}
-    }
-    Variable jabber ; if {![info exists jabber]} {set jabber ""}
-    Variable topic
-    Variable muc
-    Variable nickTries 0 ;# The number of times I tried to solve a nick conflict
-    Variable baseNick "" ;# used when trying to solve a nick conflict.
-    Variable grabNick "" ;# grab this nick when it becomes available.
-    Variable CertChain {} ;# TLS certificate chain
+    variable jabber ; if {![info exists jabber]} {set jabber ""}
+    variable topic
+    variable muc
+    variable nickTries 0 ;# The number of times I tried to solve a nick conflict
+    variable baseNick "" ;# used when trying to solve a nick conflict.
+    variable grabNick "" ;# grab this nick when it becomes available.
+    variable CertChain {} ;# TLS certificate chain
 
-    Variable ignoreNextNick ""
+    variable ignoreNextNick ""
     # If the next entry is by this nick, don't display it (for nick changes.)
 
-    Variable roster ""
-    Variable discovery ""
-    Variable socket ""
-    Variable conn
-    Variable myId ""
-    Variable RunRegistration 0
-    Variable reconnect 0 ;# set to 1 after a succesful connect.
+    variable roster ""
+    variable discovery ""
+    variable socket ""
+    variable conn
+    variable myId ""
+    variable RunRegistration 0
+    variable reconnect 0 ;# set to 1 after a succesful connect.
     # retrytime in seconds, distributed so not everyone tries at the same time.
-    Variable connectionRetryTime [expr {int(5+rand()*5.0)}]
-    Variable reconnectTimer {}
-    Variable reconnectAttempts 0
+    variable connectionRetryTime [expr {int(5+rand()*5.0)}]
+    variable reconnectTimer {}
+    variable reconnectAttempts 0
 
-    Variable HistoryLines {}
-    Variable HaveHistory 0
-    Variable LastMessage 0 ;# used for reconnects when asking for conference history.
+    variable HistoryLines {}
+    variable HaveHistory 0
+    variable LastMessage 0 ;# used for reconnects when asking for conference history.
 
-    Variable conference
+    variable conference
 
-    Variable muc_jid_map ;# array with conference-id to user-jid map.
-    Variable users ;#
-    Variable user_alias
-    Variable Away 0
-    Variable AutoAway 0
-    Variable AwayStatus ""
+    variable muc_jid_map ;# array with conference-id to user-jid map.
+    variable users ;#
+    variable user_alias
+    variable Away 0
+    variable AutoAway 0
+    variable AwayStatus ""
 
     # To provide a map between parents widgets and chats
     variable ChatWindows; if {![info exists ChatWindows]} {array set ChatWindows {counter 0}}
