@@ -6887,7 +6887,7 @@ proc ::tkchat::PreferencesPage {parent} {
 	ttk::checkbutton $gf.fade -text "When not active, fade to " \
             -underline 2 -variable ::tkchat::EditOptions(AutoFade)
         ttk::spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
-            -validate all -format %d \
+            -validate all -format %.0f \
             -validatecommand {string is integer %P} \
             -textvariable ::tkchat::EditOptions(AutoFadeLimit)
 	ttk::label $gf.pct -text "%"
