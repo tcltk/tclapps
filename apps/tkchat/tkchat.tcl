@@ -2770,7 +2770,7 @@ proc ::tkchat::CreateGUI {} {
     bind .pane.names <Double-Button-1> break
     bind . <FocusIn> \
 	[list after 500 [list after idle ::tkchat::ResetMessageCounter]]
-    if { [lsearch [wm attributes .] -alpha] != -1 } {
+    if {[dict exists [wm attributes .] -alpha]} {
 	bind Tkchat <FocusIn>  { ::tkchat::FocusInHandler %W }
 	bind Tkchat <FocusOut> { ::tkchat::FocusOutHandler %W }
     }
@@ -6713,7 +6713,7 @@ proc ::tkchat::nickIsNoisy { nick } {
 proc ::tkchat::SetAlpha {n} {
     #global Options
 
-    if {[lsearch [wm attributes .] -alpha] != -1} {
+    if {[dict exists [wm attributes .] -alpha]} {
 	if {$n < 1} {set n 1}
 	if {$n > 100} {set n 100}
 	set Options(Transparency) $n
@@ -6882,7 +6882,7 @@ proc ::tkchat::PreferencesPage {parent} {
     # Gimmicks section.
     set gimmicks 0
     set gf [ttk::labelframe $page.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
-    if {[lsearch [wm attributes .] -alpha] != -1} {
+    if {[dict exists [wm attributes .] -alpha]} {
 	set gimmicks 1
 	ttk::checkbutton $gf.fade -text "When not active, fade to " \
             -underline 2 -variable ::tkchat::EditOptions(AutoFade)
