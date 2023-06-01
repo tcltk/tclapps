@@ -1199,7 +1199,7 @@ proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}}
     if { $subjectFound } {
 	lappend tags SUBJ
     }
-#    set usett [llength [package provide tooltip]]
+
     foreach { str url tt } [parseStr $msg] {
 	if { $url ne "" } {
 	    set urltag [concat $tags URL URL-[incr ::URLID]]
