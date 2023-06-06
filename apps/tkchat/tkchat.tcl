@@ -1907,43 +1907,6 @@ proc ::tkchat::SendMemoDone {dlg jid status} {
     destroy $dlg
 }
 
-proc ::tkchat::showInfo {title str} {
-    set t .infobox
-    set i 0
-    while {[winfo exists $t]} {
-	set t .infobox[incr i]
-    }
-    set dlg [Dialog $t]
-    wm title $t $title
-    set t [ttk::frame $dlg.f -borderwidth 0]
-    pack $t -side top -fill both -expand 1
-
-    set height [expr {[string length $str] / 75 + 1}]
-    if {[set lines [regexp -all -- "\n" $str]] > $height} {
-	set height $lines
-    }
-    text $t.txt -cursor left_ptr -wrap word -height $height -font NAME
-    pack $t.txt -expand 1 -fill both
-    bind $t.txt <Button-1> { focus %W }
-    $t.txt tag configure URL -underline 1
-    $t.txt tag bind URL <Enter> [list $t.txt configure -cursor hand2]
-    $t.txt tag bind URL <Leave> [list $t.txt configure -cursor left_ptr]
-    foreach {str url tt} [parseStr $str] {
-	if { $url eq "" } {
-	    $t.txt insert end "$str " INFO
-	} else {
-	    $t.txt insert end "$str " [list INFO URL URL-[incr ::URLID]]
-	    $t.txt tag bind URL-$::URLID <Button-1> \
-                [list ::tkchat::gotoURL $url]
-	}
-    }
-    $t.txt insert end "\n"
-    $t.txt configure -state disabled
-    ttk::button $t.close -text Close -command [list destroy $dlg]
-    focus $t.close
-    pack $t.close -side right
-}
-
 proc ::tkchat::createFonts {} {
     set basic [font actual TkDefaultFont]
     font create FIXED {*}[font actual TkFixedFont]
