@@ -6,7 +6,7 @@
 # $Id: tkchat_rss.tcl,v 1.11 2007/10/11 22:53:45 patthoyts Exp $
 # -------------------------------------------------------------------------
 
-if {[catch {package require rssrdr}]} { return }
+if {[catch {package require rssrdr_oo}]} { return }
 
 namespace eval ::tkchat::rss {
     variable version 1.0.0
@@ -18,7 +18,9 @@ proc ::tkchat::rss::Init {} {
     global Options
     global tkchat_dir
     variable RSStip {}
-    if {![catch {package require rssrdr}]} {
+    variable Rss    {}
+
+    if {![catch {package require rssrdr_oo}]} {
         if {[llength [array names Options RSS,watch,*]] > 0} {
 
             # One time status bar init
@@ -96,7 +98,10 @@ proc ::tkchat::rss::RssUpdateTip {varname op} {
 
 proc ::tkchat::rss::ShowRssInfo {} {
     variable Rss
-    variable RssUrlId ; if {![info exists RssUrlId]} {set RssUrlId 0}
+    variable RssUrlId
+    if {![info exists RssUrlId]} {
+        set RssUrlId 0
+    }
     if {[winfo exists .status.rss]} {
         .status.rss configure -image ::tkchat::img::feedLo
     }
@@ -115,54 +120,60 @@ proc ::tkchat::rss::ShowRssInfo {} {
     wm transient $dlg .
 
     set nb [ttk::notebook $dlg.nb]
-    
+
+    tooltip::clear $dlg.nb*
+
     set page 0
-    foreach {url token} [array get Rss] {
-        if {[rss::status $token] ne "ok"} { continue }
-        set f [ttk::frame $nb.page$page]
-        set txt [text $f.txt -borderwidth 0 -font FNT]
-        set sb [ttk::scrollbar $f.vs -command [list $txt yview]]
-        $txt configure -yscrollcommand [list $sb set]
-        
-        $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
-        $txt tag bind URL <Leave> [list $txt configure -cursor {}]
-        $txt tag configure TITLE -font NAME -spacing3 2
-        $txt tag configure ITEM -lmargin1 6
-        $txt tag configure URL -underline 1
-        $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
-        $txt tag bind URL <Leave> [list $txt configure -cursor {}]
-        
-        grid $txt $sb -sticky news
-        grid rowconfigure $f 0 -weight 1
-        grid columnconfigure $f 0 -weight 1
-
-        array set channel [rss::channel $token]
-        set title $url
-        if {[info exists channel(title)]} { set title $channel(title) }
-        foreach item [rss::data $token] {
-            array set a $item
-            if {![info exists a(title)] || [string length $a(title)] < 1} {
-                set a(title) "(no title)"
-            }
-            set tag URL-[incr RssUrlId]
-            $txt insert end $a(title) [list $url URL ITEM $tag] \
-                "\n$a(description)\n\n" [list $url ITEM]
-            $txt tag bind $tag <Button-1> [list ::tkchat::gotoURL $a(link)]
-            tooltip $txt -tag $tag $a(link)
+    dict for {url parser} $Rss {
+        if {[$parser status] ne "ok"} {
+            continue
         }
-        
-        $txt configure -state disabled
-        $nb add $f -text $title
+        set f [ttk::frame $nb.page[incr page]]
 
-        incr page
+        set tv [ttk::treeview $f.tv]
+        set sb [ttk::scrollbar $f.vs -command [list $tv yview]]
+        $tv configure \
+            -yscrollcommand [list $sb set] \
+            -columns [list date title description link] \
+            -show headings \
+            -selectmode none
+        $tv heading date        -text [mc "Date"]
+        $tv heading title       -text [mc "Title"]
+        $tv heading description -text [mc "Description"]
+        $tv heading link        -text [mc "Link"]
+
+        pack $sb -side right -fill y
+        pack $tv -side right -fill both -expand 1
+
+        set channel [$parser channel]
+        set title $url
+        if {[dict exists $channel title]} {
+            set title [dict get $channel title]
+        }
+        foreach item [$parser data] {
+            set da [lrange [clock format [dict get $item mtime]] 0 3]
+            set li [dict get $item link]
+            set de [dict get $item description]
+            set ti [expr {
+                [dict exists $item title] ?
+                [dict get $item title] :
+                "(no title)"}]
+            set tag  URL-[incr RssUrlId]
+            set tags [list $url URL ITEM $tag]
+            $tv insert {} end -values [list $da $ti $de $li] -tags $tags
+            $tv tag bind $tag <Button-1> [list ::tkchat::gotoURL $li]
+            tooltip $tv -item [$tv tag has $tag] $li
+        }
+
+        $nb add $f -text $title
     }
-    
+
     ttk::button $dlg.ok -default active -text "OK" -width -12 \
         -command [list set [namespace which -variable $dlg] ok]
 
     bind $dlg <Return> [list $dlg.ok invoke]
     bind $dlg <Escape> [list $dlg.ok invoke]
-    
+
     grid $nb     -sticky news -padx {2 1} -pady 2
     grid $dlg.ok -sticky e
     grid rowconfigure $dlg 0 -weight 1
@@ -205,7 +216,7 @@ proc ::tkchat::rss::CheckRSSFeeds {} {
 }
 
 proc ::tkchat::rss::CheckRSS {url} {
-    if {[package provide rssrdr] ne {}} {
+    if {[package provide rssrdr_oo] ne {}} {
         if {[catch {
             set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
             ::http::geturl $url -headers $hdrs -timeout 1000000 \
@@ -228,41 +239,46 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
     variable Rss
     variable RSStip
     set count 0
-    set feed [set [set tok](url)]
-    if {![info exists Rss($feed)]} { set Rss($feed) [::rss::create] }
+    set feed [dict get [http::responseInfo $tok] url]
+    if {![dict exists $Rss $feed]} {
+        dict set Rss $feed [set parser [::rss::Rss new]]
+    } else {
+        set parser [dict get $Rss $feed]
+    }
 
     # As rss is transmitted as application/* the http package doesn't handle
-    # the encoding for us and we must do it here. Default for xml files is utf-8
+    # the encoding for us and we must do it here.
+    # Default for xml files is utf-8.
     set encodings [string tolower [encoding names]]
-    set encoding [string tolower [set [set tok](charset)]]
-    set idx [lsearch -exact $encodings $encoding]
-    set enc utf-8
-    if {$idx >= 0} { set enc [lindex $encodings $idx] }
+    set encoding [string tolower [dict get [http::responseInfo $tok] charset]]
+    if {$encoding in $encodings} {
+        set enc $encoding
+    } else {
+        set enc utf-8
+    }
 
     set data [encoding convertfrom $enc [http::data $tok]]
-    ::rss::parse $Rss($feed) $data
-    if {[::rss::status $Rss($feed)] eq "ok"} {
+    $parser parse $data
+    if {[$parser status] eq "ok"} {
         if {[catch {
             set last 0
             if {[info exists Options(RSS,last,$feed)]} {
-                set last $Options(RSS,last,$feed) 
+                set last $Options(RSS,last,$feed)
             }
-            array set item [lindex [::rss::data $Rss($feed)] 0]
-            array set hdrs [rss::channel $Rss($feed)]
-            set Options(RSS,last,$feed) $item(mtime)
-            set Options(RSS,title,$feed) $hdrs(title)
+            set item [lindex [$parser data] 0]
+            set title [dict get [$parser channel] title]
+            set Options(RSS,last,$feed) [dict get $item mtime]
+            set Options(RSS,title,$feed) $title
             if {$Options(RSS,last,$feed) > $last} {
-                foreach rss [::rss::data $Rss($feed)] {
-                    unset -nocomplain item
-                    array set item $rss
-                    set t $item(mtime)
+                foreach rss [$parser data] {
+                    set t [dict get $rss mtime]
                     if {$t <= $last} { break }
                     incr count
                 }
             }
-            append RSStip "$count new items from $hdrs(title)\n" 
+            append RSStip "$count new items from $title\n" 
             if {$count > 0} {
-                ::tkchat::addStatus 0 "$count new items from $hdrs(title)"
+                ::tkchat::addStatus 0 "$count new items from $title"
                 .status.rss configure -image ::tkchat::img::feedHi
             }
         } err]} then {
@@ -270,7 +286,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
         }
     } else {
         ::tkchat::addStatus 0 "Failed to parse RSS data from $feed:\
-            [rss::error $Rss($feed)]" end ERROR
+            [$parser error]" end ERROR
     }
 
     return

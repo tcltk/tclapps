@@ -95,6 +95,7 @@ if {[catch {package require tooltip 1.5}]} {# tooltips (optional)
     namespace eval tooltip {
         namespace export tooltip
         proc tooltip {args} {}
+        proc clear {args} {}
     }
 }
 
@@ -4275,12 +4276,12 @@ proc ::tkchat::logonScreen {} {
 	tk::AmpWidget ttk::label .logon.lpan -text [mc "Proxy auth &username"]
 	tk::AmpWidget ttk::label .logon.lpap -text [mc "Proxy auth pa&ssword"]
 	ttk::entry .logon.epan -textvariable Options(ProxyUsername)
-	ttk::entry .logon.epap -textvariable Options(ProxyPassword) -show {*}
+	ttk::entry .logon.epap -textvariable Options(ProxyPassword) -show \u2022
 	tk::AmpWidget ttk::label .logon.lnm -text [mc "J&ID | Nick"]
 	tk::AmpWidget ttk::label .logon.lpw -text [mc "Chat p&assword"]
 	ttk::entry .logon.enm -textvariable Options(Username)
 	ttk::entry .logon.enick -textvariable Options(Nickname)
-	ttk::entry .logon.epw -textvariable Options(Password) -show *
+	ttk::entry .logon.epw -textvariable Options(Password) -show \u2022
 	tk::AmpWidget ttk::checkbutton .logon.rpw \
             -text [mc "&Remember chat password"] \
             -variable Options(SavePW)
@@ -4511,8 +4512,8 @@ proc ::tkchat::registerScreen {} {
 	ttk::entry $r.efn -textvariable Options(Fullname)
 	ttk::entry $r.eem -textvariable Options(Email)
 	ttk::entry $r.enm -textvariable Options(Username)
-	ttk::entry $r.epw -textvariable Options(Password) -show *
-	ttk::entry $r.epwc -textvariable ::tkchat::PasswordCheck -show *
+	ttk::entry $r.epw -textvariable Options(Password) -show \u2022
+	ttk::entry $r.epwc -textvariable ::tkchat::PasswordCheck -show \u2022
 
 	ttk::button $r.ok -text "Ok" -width 8 -underline 0 \
             -command { set ::tkchat::DlgDone ok }
@@ -8033,8 +8034,10 @@ proc ::tkjabber::get_caps {} {
 }
 
 proc ::tkjabber::on_discovery {disco type from child args} {
-    variable jabber
     global Features ::tcl_platform
+    variable jabber
+    variable ::tkchat::version
+
     ::log::log info "on_discovery $type $from $child $args"
     set handled 0
     array set a [concat -id {{}} $args]
@@ -8058,7 +8061,7 @@ proc ::tkjabber::on_discovery {disco type from child args} {
                                 -subtags [list [wrapper::createtag value -chdata tkchat]]]
                 
                 lappend xp [wrapper::createtag field -attrlist {var software_version} \
-                                -subtags [list [wrapper::createtag value -chdata $tkchatver]]]
+                                -subtags [list [wrapper::createtag value -chdata $version]]]
                 lappend xp [wrapper::createtag field -attrlist {var os} \
                                 -subtags [list [wrapper::createtag value -chdata $::tcl_platform(os)]]]
                 lappend xp [wrapper::createtag field -attrlist {var os_version} \
