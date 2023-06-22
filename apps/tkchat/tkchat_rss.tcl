@@ -80,11 +80,13 @@ proc ::tkchat::rss::Init {} {
                 ttk::label .status.rss -image ::tkchat::img::feedLo
                 bind .status.rss <Button-1> \
                     [list [namespace origin ShowRssInfo]]
+                bind .status.rss <Button-3> \
+                    [list [namespace origin ShowRssInfo2]]
 
                 set var [namespace which -variable RSStip]
                 trace add variable $var write \
                     [list after 0 [namespace origin RssUpdateTip]]
-                
+
                 after idle [namespace origin CheckRSSFeeds]
             }
         }
@@ -97,6 +99,87 @@ proc ::tkchat::rss::RssUpdateTip {varname op} {
 }
 
 proc ::tkchat::rss::ShowRssInfo {} {
+    variable Rss
+    variable RssUrlId ; if {![info exists RssUrlId]} {set RssUrlId 0}
+    if {[winfo exists .status.rss]} {
+        .status.rss configure -image ::tkchat::img::feedLo
+    }
+    set dlg .rssinfo
+    variable $dlg
+
+    if {[winfo exists $dlg]} {
+        wm deiconify $dlg
+        focus -force $dlg.ok
+        return
+    }
+
+    set dlg [::tkchat::Dialog $dlg]
+    wm withdraw $dlg
+    wm title $dlg "RSS Feeds"
+    wm transient $dlg .
+
+    set nb [ttk::notebook $dlg.nb]
+    
+    set page 0
+    foreach {url token} $Rss {
+        if {[$token status] ne "ok"} { continue }
+        set f [ttk::frame $nb.page$page]
+        set txt [text $f.txt -borderwidth 0 -font FNT]
+        set sb [ttk::scrollbar $f.vs -command [list $txt yview]]
+        $txt configure -yscrollcommand [list $sb set]
+        
+        $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
+        $txt tag bind URL <Leave> [list $txt configure -cursor {}]
+        $txt tag configure TITLE -font NAME -spacing3 2
+        $txt tag configure ITEM -lmargin1 6
+        $txt tag configure URL -underline 1
+        $txt tag bind URL <Enter> [list $txt configure -cursor hand2]
+        $txt tag bind URL <Leave> [list $txt configure -cursor {}]
+        
+        grid $txt $sb -sticky news
+        grid rowconfigure $f 0 -weight 1
+        grid columnconfigure $f 0 -weight 1
+
+        array set channel [$token channel]
+        set title $url
+        if {[info exists channel(title)]} { set title $channel(title) }
+        foreach item [$token data] {
+            array set a $item
+            if {![info exists a(title)] || [string length $a(title)] < 1} {
+                set a(title) "(no title)"
+            }
+            set tag URL-[incr RssUrlId]
+            $txt insert end $a(title) [list $url URL ITEM $tag] \
+                "\n$a(description)\n\n" [list $url ITEM]
+            $txt tag bind $tag <Button-1> [list ::tkchat::gotoURL $a(link)]
+            tooltip $txt -tag $tag $a(link)
+        }
+        
+        $txt configure -state disabled
+        $nb add $f -text $title
+
+        incr page
+    }
+    
+    ttk::button $dlg.ok -default active -text "OK" -width -12 \
+        -command [list set [namespace which -variable $dlg] ok]
+
+    bind $dlg <Return> [list $dlg.ok invoke]
+    bind $dlg <Escape> [list $dlg.ok invoke]
+    
+    grid $nb     -sticky news -padx {2 1} -pady 2
+    grid $dlg.ok -sticky e
+    grid rowconfigure $dlg 0 -weight 1
+    grid columnconfigure $dlg 0 -weight 1
+
+    wm deiconify $dlg
+    focus $dlg.ok
+    catch {tk::PlaceWindow $dlg widget .}
+    tkwait variable [namespace which -variable $dlg]
+    destroy $dlg
+}
+
+proc ::tkchat::rss::ShowRssInfo2 {} {
     variable Rss
     variable RssUrlId
     if {![info exists RssUrlId]} {
@@ -121,7 +204,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
 
     set nb [ttk::notebook $dlg.nb]
 
-    tooltip::clear $dlg.nb*
+    tooltip clear $dlg.nb*
 
     set page 0
     dict for {url parser} $Rss {
@@ -130,42 +213,79 @@ proc ::tkchat::rss::ShowRssInfo {} {
         }
         set f [ttk::frame $nb.page[incr page]]
 
+        set colspec {
+            title       {"Title"        0 w 250}
+            date        {"Date"         0 e 100}
+        }
+#           description {"Description"  0 w 260}
+#           link        {"Link"         0 w 300}
         set tv [ttk::treeview $f.tv]
-        set sb [ttk::scrollbar $f.vs -command [list $tv yview]]
+        ttk::scrollbar $f.sy1 -command [list $tv yview]
+        ttk::scrollbar $f.sx1 -orient horizontal -command [list $tv xview]
         $tv configure \
-            -yscrollcommand [list $sb set] \
-            -columns [list date title description link] \
+            -yscrollcommand [list $f.sy1 set] \
+            -xscrollcommand [list $f.sx1 set] \
+            -columns [dict keys $colspec] \
             -show headings \
-            -selectmode none
-        $tv heading date        -text [mc "Date"]
-        $tv heading title       -text [mc "Title"]
-        $tv heading description -text [mc "Description"]
-        $tv heading link        -text [mc "Link"]
+            -selectmode browse
+        dict for {col spec} $colspec {
+            lassign $spec t s a w
+            $tv heading $col -text [mc $t]
+            $tv column  $col -anchor $a -stretch $s -width $w
+        }
+        set txt [text $f.txt -width 60 -height 15 -wrap none]
+        ttk::scrollbar $f.sy2 -command [list $txt yview]
+        ttk::scrollbar $f.sx2 -orient horizontal -command [list $txt xview]
+        $txt configure \
+            -yscrollcommand [list $f.sy2 set] \
+            -xscrollcommand [list $f.sx2 set]
+        $txt tag configure TITLE -font TkHeadingFont
+        $txt tag configure LINK -foreground blue3 -underline 1
+        $txt tag bind LINK <Enter> {%W configure -cursor hand2}
+        $txt tag bind LINK <Leave> {%W configure -cursor {}}
+        grid $tv    $f.sy1 $txt   $f.sy2 -sticky news
+        grid $f.sx1 x      $f.sx2 x      -sticky news
+        grid columnconfigure $f 2 -weight 1
+        grid rowconfigure    $f 0 -weight 1
 
-        pack $sb -side right -fill y
-        pack $tv -side right -fill both -expand 1
-
+        # channel info
         set channel [$parser channel]
         set title $url
         if {[dict exists $channel title]} {
             set title [dict get $channel title]
         }
+        $nb add $f -text $title
+
+        # iterate over data elements
         foreach item [$parser data] {
-            set da [lrange [clock format [dict get $item mtime]] 0 3]
-            set li [dict get $item link]
-            set de [dict get $item description]
-            set ti [expr {
+            set date [clock format [dict get $item mtime]]
+            set link [dict get $item link]
+            set desc [dict get $item description]
+            set auth [dict get $item author]
+            set title [expr {
                 [dict exists $item title] ?
                 [dict get $item title] :
                 "(no title)"}]
-            set tag  URL-[incr RssUrlId]
-            set tags [list $url URL ITEM $tag]
-            $tv insert {} end -values [list $da $ti $de $li] -tags $tags
-            $tv tag bind $tag <Button-1> [list ::tkchat::gotoURL $li]
-            tooltip $tv -item [$tv tag has $tag] $li
-        }
+            set id [$tv insert {} end \
+                -values [list $title [lrange $date 0 2]]]
 
-        $nb add $f -text $title
+            set text {}
+            lappend text "Title: "       TITLE $title\n\n {}
+            lappend text "Date: "        TITLE $date\n\n  {}
+            lappend text "Author: "      TITLE $auth\n\n  {}
+            lappend text "Description: " TITLE $desc\n\n  {}
+            lappend text "Link: "        TITLE $link      LINK
+            dict set data $id link $link
+            dict set data $id text $text
+            tooltip $tv -item $id $link
+        }
+        bind $tv <<TreeviewSelect>> \
+            [namespace code [list OnTreeviewSelect $tv $txt $data]]
+    }
+
+    if {[llength [$nb tabs]] == 0} {
+        destroy $nb
+        set nb [ttk::label $nb -text [mc "Error getting feeds"]]
     }
 
     ttk::button $dlg.ok -default active -text "OK" -width -12 \
@@ -186,6 +306,18 @@ proc ::tkchat::rss::ShowRssInfo {} {
     destroy $dlg
 }
 
+proc ::tkchat::rss::OnTreeviewSelect {tv txt data} {
+    set id   [$tv selection]
+    set text [dict get $data $id text]
+    set link [dict get $data $id link]
+    $txt configure -state normal
+    $txt delete 1.0 end
+    $txt insert 1.0 {*}$text
+    $txt tag bind LINK <Button-1> [list ::tkchat::gotoURL $link]
+    $txt configure -state disabled
+    tooltip $txt -tag LINK $link
+}
+
 proc ::tkchat::rss::CheckRSSFeeds {} {
     global Options
     variable RSStimer
@@ -200,7 +332,10 @@ proc ::tkchat::rss::CheckRSSFeeds {} {
     .status.rss configure -image ::tkchat::img::feedLo
     set active 0
     foreach feed [array names Options RSS,watch,*] {
-        if {$Options($feed)} { set active 1 ; break }
+        if {$Options($feed)} {
+            set active 1
+            break
+        }
     }
 
     if {$active} {
@@ -217,18 +352,18 @@ proc ::tkchat::rss::CheckRSSFeeds {} {
 
 proc ::tkchat::rss::CheckRSS {url} {
     if {[package provide rssrdr_oo] ne {}} {
-        if {[catch {
+        try {
             set hdrs [list "Accept-Charset" "ISO-8859-1,utf-8"]
             ::http::geturl $url -headers $hdrs -timeout 1000000 \
                 -command [list ::tkchat::fetchurldone [namespace origin CheckRSS_Done]]
-        } msg]} then {
+        } on error {} {
             ::tkchat::addStatus 0 "Unable to obtain RSS feed from $url" end ERROR
         }
     }
 }
 
 proc ::tkchat::rss::CheckRSS_Done {tok} {
-    if {[catch {[namespace origin CheckRSS_Inner] $tok} err]} {
+    if {[catch {CheckRSS_Inner $tok}]} {
         puts stderr $::errorInfo
     }
     return
@@ -260,7 +395,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
     set data [encoding convertfrom $enc [http::data $tok]]
     $parser parse $data
     if {[$parser status] eq "ok"} {
-        if {[catch {
+        try {
             set last 0
             if {[info exists Options(RSS,last,$feed)]} {
                 set last $Options(RSS,last,$feed)
@@ -276,19 +411,18 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
                     incr count
                 }
             }
-            append RSStip "$count new items from $title\n" 
+            append RSStip "$count new items from $title\n"
             if {$count > 0} {
                 ::tkchat::addStatus 0 "$count new items from $title"
                 .status.rss configure -image ::tkchat::img::feedHi
             }
-        } err]} then {
+        } on error {err} {
             ::tkchat::addStatus 0 "RSS Error $err" end ERROR
         }
     } else {
         ::tkchat::addStatus 0 "Failed to parse RSS data from $feed:\
             [$parser error]" end ERROR
     }
-
     return
 }
 
@@ -301,8 +435,7 @@ proc ::tkchat::rss::OptionsHook {parent} {
     set n 0
     foreach feed [array names EditOptions RSS,watch,*] {
         set url [lindex [split $feed ,] 2]
-        array set U [uri::split $url]
-        set text $U(host)
+        set text [dict get [uri::split $url] host]
         if {[info exists Options(RSS,title,$url)]} {
             if {[string length $Options(RSS,title,$url)] > 0} {
                 set text $Options(RSS,title,$url)
