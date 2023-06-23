@@ -202,72 +202,72 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
     wm title $dlg "RSS Feeds"
     wm transient $dlg .
 
-    set nb [ttk::notebook $dlg.nb]
+    tooltip clear $dlg.*
 
-    tooltip clear $dlg.nb*
+    set f $dlg
+    set colspec {
+        #0          {"Title"        0 w 300}
+        date        {"Date"         0 e 100}
+    }
+    set tv [ttk::treeview $f.tv]
+    ttk::scrollbar $f.sy1 -command [list $tv yview]
+    ttk::scrollbar $f.sx1 -orient horizontal -command [list $tv xview]
+    $tv configure \
+        -yscrollcommand [list $f.sy1 set] \
+        -xscrollcommand [list $f.sx1 set] \
+        -columns [dict keys [dict remove $colspec #0]] \
+        -selectmode browse
+    dict for {col spec} $colspec {
+        lassign $spec t s a w
+        $tv heading $col -text [mc $t]
+        $tv column  $col -anchor $a -stretch $s -width $w
+    }
+    $tv tag configure Channel -font TkHeadingFont -foreground red4
+    set txt [text $f.txt -width 60 -height 15 -wrap none]
+    ttk::scrollbar $f.sy2 -command [list $txt yview]
+    ttk::scrollbar $f.sx2 -orient horizontal -command [list $txt xview]
+    $txt configure \
+        -yscrollcommand [list $f.sy2 set] \
+        -xscrollcommand [list $f.sx2 set]
+    $txt tag configure TITLE -font TkHeadingFont
+    $txt tag configure LINK -foreground blue3 -underline 1
+    $txt tag bind LINK <Enter> {%W configure -cursor hand2}
+    $txt tag bind LINK <Leave> {%W configure -cursor {}}
+    grid $tv    $f.sy1 $txt   $f.sy2 -sticky news
+    grid $f.sx1 x      $f.sx2 x      -sticky news
+    grid columnconfigure $f 2 -weight 1
+    grid rowconfigure    $f 0 -weight 1
 
-    set page 0
+    set data {}
     dict for {url parser} $Rss {
         if {[$parser status] ne "ok"} {
             continue
         }
-        set f [ttk::frame $nb.page[incr page]]
-
-        set colspec {
-            title       {"Title"        0 w 250}
-            date        {"Date"         0 e 100}
-        }
-#           description {"Description"  0 w 260}
-#           link        {"Link"         0 w 300}
-        set tv [ttk::treeview $f.tv]
-        ttk::scrollbar $f.sy1 -command [list $tv yview]
-        ttk::scrollbar $f.sx1 -orient horizontal -command [list $tv xview]
-        $tv configure \
-            -yscrollcommand [list $f.sy1 set] \
-            -xscrollcommand [list $f.sx1 set] \
-            -columns [dict keys $colspec] \
-            -show headings \
-            -selectmode browse
-        dict for {col spec} $colspec {
-            lassign $spec t s a w
-            $tv heading $col -text [mc $t]
-            $tv column  $col -anchor $a -stretch $s -width $w
-        }
-        set txt [text $f.txt -width 60 -height 15 -wrap none]
-        ttk::scrollbar $f.sy2 -command [list $txt yview]
-        ttk::scrollbar $f.sx2 -orient horizontal -command [list $txt xview]
-        $txt configure \
-            -yscrollcommand [list $f.sy2 set] \
-            -xscrollcommand [list $f.sx2 set]
-        $txt tag configure TITLE -font TkHeadingFont
-        $txt tag configure LINK -foreground blue3 -underline 1
-        $txt tag bind LINK <Enter> {%W configure -cursor hand2}
-        $txt tag bind LINK <Leave> {%W configure -cursor {}}
-        grid $tv    $f.sy1 $txt   $f.sy2 -sticky news
-        grid $f.sx1 x      $f.sx2 x      -sticky news
-        grid columnconfigure $f 2 -weight 1
-        grid rowconfigure    $f 0 -weight 1
-
         # channel info
         set channel [$parser channel]
-        set title $url
-        if {[dict exists $channel title]} {
-            set title [dict get $channel title]
-        }
-        $nb add $f -text $title
+        set date [clock format [dict getwithdefault $channel mtime 0]]
+        set title [dict getwithdefault $channel title $url]
+        $tv insert {} end -id $url \
+	    -text $title \
+	    -values [list [lrange $date 0 2]] \
+            -tags Channel
+        set text {}
+        lappend text "Channel title: " TITLE $title\n\n {}
+        lappend text "Date: "          TITLE $date\n\n  {}
+        lappend text "URL: "           TITLE $url       LINK
+        dict set data $url text $text
+        tooltip $tv -item $url $url
 
-        # iterate over data elements
+        # iterate over channel items
         foreach item [$parser data] {
-            set date [clock format [dict get $item mtime]]
-            set link [dict get $item link]
-            set desc [dict get $item description]
-            set auth [dict get $item author]
-            set title [expr {
-                [dict exists $item title] ?
-                [dict get $item title] :
-                "(no title)"}]
-            set id [$tv insert {} end \
-                -values [list $title [lrange $date 0 2]]]
+            set date [clock format [dict getwithdefault $item mtime 0]]
+            set link [dict getwithdefault $item link "(no link)"]
+            set desc [dict getwithdefault $item description "(no description)"]
+            set auth [dict getwithdefault $item author "(no author)"]
+            set title [dict getwithdefault $item title "(no title)"]
+            set id [$tv insert $url end \
+		-text $title \
+		-values [list [lrange $date 0 2]]]
 
             set text {}
             lappend text "Title: "       TITLE $title\n\n {}
@@ -283,21 +283,13 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
             [namespace code [list OnTreeviewSelect $tv $txt $data]]
     }
 
-    if {[llength [$nb tabs]] == 0} {
-        destroy $nb
-        set nb [ttk::label $nb -text [mc "Error getting feeds"]]
-    }
-
-    ttk::button $dlg.ok -default active -text "OK" -width -12 \
+    ttk::button $f.ok -default active -text "OK" -width -12 \
         -command [list set [namespace which -variable $dlg] ok]
 
     bind $dlg <Return> [list $dlg.ok invoke]
     bind $dlg <Escape> [list $dlg.ok invoke]
 
-    grid $nb     -sticky news -padx {2 1} -pady 2
-    grid $dlg.ok -sticky e
-    grid rowconfigure $dlg 0 -weight 1
-    grid columnconfigure $dlg 0 -weight 1
+    grid $f.ok - - - -sticky e -padx 3 -pady 3
 
     wm deiconify $dlg
     focus $dlg.ok
@@ -309,7 +301,7 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
 proc ::tkchat::rss::OnTreeviewSelect {tv txt data} {
     set id   [$tv selection]
     set text [dict get $data $id text]
-    set link [dict get $data $id link]
+    set link [dict getwithdefault $data $id link ""]
     $txt configure -state normal
     $txt delete 1.0 end
     $txt insert 1.0 {*}$text
@@ -393,6 +385,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
     }
 
     set data [encoding convertfrom $enc [http::data $tok]]
+    set data [http::data $tok]
     $parser parse $data
     if {[$parser status] eq "ok"} {
         try {

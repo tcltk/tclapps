@@ -53,6 +53,10 @@ oo::class create ::rss::Rss {
     method parse {xml} {
 	my Reset
 	set rss(raw) $xml
+	# determine feed type
+	if {[string range [string trim $xml] end-6 end] eq "</feed>"} {
+	    set rss(type) atom
+	}
 	if {[catch {wrapper::parse $rss(parser) $xml} err]} {
 	    my StreamError $err
 	}
@@ -91,8 +95,8 @@ oo::class create ::rss::Rss {
 	catch {wrapper::reset $rss(parser)}
 	array set rss {
 	    status      ok
-	    data        ""
-	    xlist       ""
+	    data        {}
+	    xlist       {}
 	    type        rss
 	    channel     {}
 	}
@@ -101,11 +105,11 @@ oo::class create ::rss::Rss {
 
     method StreamStart {args} {
 	#puts "[self] start $args"
-	if {[dict exists $args xmlns] &&
-	    [dict get $args xmlns] eq "http://www.w3.org/2005/Atom"
-	} then {
-	    set rss(type) atom
-	}
+#	if {[dict exists $args xmlns] &&
+#	    [dict get $args xmlns] eq "http://www.w3.org/2005/Atom"
+#	} then {
+#	    set rss(type) atom
+#	}
 	return
     }
 
@@ -232,7 +236,7 @@ oo::class create ::rss::Rss {
 			    dict set e description [wrapper::getcdata $node]
 			}
 			default {
-			    puts "unhandle entry tag \"$ntag\""
+			    puts "unhandled entry tag \"$ntag\""
 			}
 		    }
 		}
