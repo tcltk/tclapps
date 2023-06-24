@@ -6021,6 +6021,12 @@ proc ::tkchat::GetDefaultOptions {} {
 	RSS,watch,https://wiki.tcl-lang.org/rss.xml 1
 	RSS,watch,http://paste.tclers.tk/rss.atom 1
 	RSS,watch,https://hnrss.org/newcomments?q=Tcl 1
+	RSS,watch,https://hnrss.org/newest?q=Tcl 1
+	RSS,watch,https://core.tcl-lang.org/tcl/timeline.rss 1
+	RSS,watch,https://core.tcl-lang.org/tk/timeline.rss 1
+	RSS,watch,https://core.tcl-lang.org/tcllib/timeline.rss 1
+	RSS,watch,https://core.tcl-lang.org/tklib/timeline.rss 1
+	RSS,watch,https://core.tcl-lang.org/tclapps/timeline.rss 1
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
     foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 SubjectBG ffff00 } {

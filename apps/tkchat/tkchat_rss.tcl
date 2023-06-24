@@ -18,7 +18,8 @@ proc ::tkchat::rss::Init {} {
     global Options
     global tkchat_dir
     variable RSStip {}
-    variable Rss    {}
+    variable Rss; if {![info exists Rss]} {set Rss {}}
+    variable RssUrlId; if {![info exists RssUrlId]} {set RssUrlId 0}
 
     if {![catch {package require rssrdr_oo}]} {
         if {[llength [array names Options RSS,watch,*]] > 0} {
@@ -100,7 +101,7 @@ proc ::tkchat::rss::RssUpdateTip {varname op} {
 
 proc ::tkchat::rss::ShowRssInfo {} {
     variable Rss
-    variable RssUrlId ; if {![info exists RssUrlId]} {set RssUrlId 0}
+    variable RssUrlId
     if {[winfo exists .status.rss]} {
         .status.rss configure -image ::tkchat::img::feedLo
     }
@@ -182,9 +183,6 @@ proc ::tkchat::rss::ShowRssInfo {} {
 proc ::tkchat::rss::ShowRssInfo2 {} {
     variable Rss
     variable RssUrlId
-    if {![info exists RssUrlId]} {
-        set RssUrlId 0
-    }
     if {[winfo exists .status.rss]} {
         .status.rss configure -image ::tkchat::img::feedLo
     }
@@ -223,7 +221,7 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
         $tv column  $col -anchor $a -stretch $s -width $w
     }
     $tv tag configure Channel -font TkHeadingFont -foreground red4
-    set txt [text $f.txt -width 60 -height 15 -wrap none]
+    set txt [text $f.txt -width 60 -height 15 -wrap word]
     ttk::scrollbar $f.sy2 -command [list $txt yview]
     ttk::scrollbar $f.sx2 -orient horizontal -command [list $txt xview]
     $txt configure \
@@ -231,6 +229,8 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
         -xscrollcommand [list $f.sx2 set]
     $txt tag configure TITLE -font TkHeadingFont
     $txt tag configure LINK -foreground blue3 -underline 1
+    $txt tag configure TEXT -lmargin1 5m -lmargin2 5m
+    $txt tag configure LAST -wrap none
     $txt tag bind LINK <Enter> {%W configure -cursor hand2}
     $txt tag bind LINK <Leave> {%W configure -cursor {}}
     grid $tv    $f.sy1 $txt   $f.sy2 -sticky news
@@ -248,13 +248,12 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
         set date [clock format [dict getwithdefault $channel mtime 0]]
         set title [dict getwithdefault $channel title $url]
         $tv insert {} end -id $url \
-	    -text $title \
-	    -values [list [lrange $date 0 2]] \
+            -text $title \
+            -values [list [lrange $date 0 2]] \
             -tags Channel
         set text {}
         lappend text "Channel title: " TITLE $title\n\n {}
         lappend text "Date: "          TITLE $date\n\n  {}
-        lappend text "URL: "           TITLE $url       LINK
         dict set data $url text $text
         tooltip $tv -item $url $url
 
@@ -263,18 +262,24 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
             set date [clock format [dict getwithdefault $item mtime 0]]
             set link [dict getwithdefault $item link "(no link)"]
             set desc [dict getwithdefault $item description "(no description)"]
-            set auth [dict getwithdefault $item author "(no author)"]
             set title [dict getwithdefault $item title "(no title)"]
+            # feeds could contain either "author" or "creator" tag.
+            if {[dict exists $item creator]} {
+                set atag "Creator"
+                set auth [dict get $item creator]
+            } else {
+                set atag "Author"
+                set auth [dict getwithdefault $item author "(no author)"]
+            }
             set id [$tv insert $url end \
-		-text $title \
-		-values [list [lrange $date 0 2]]]
+                -text $title \
+                -values [list [lrange $date 0 2]]]
 
             set text {}
-            lappend text "Title: "       TITLE $title\n\n {}
-            lappend text "Date: "        TITLE $date\n\n  {}
-            lappend text "Author: "      TITLE $auth\n\n  {}
-            lappend text "Description: " TITLE $desc\n\n  {}
-            lappend text "Link: "        TITLE $link      LINK
+            lappend text "Title: "       TITLE $title\n\n TEXT
+            lappend text "Date: "        TITLE $date\n\n  TEXT
+            lappend text "$atag: "       TITLE $auth\n\n  TEXT
+            lappend text "Description: " TITLE $desc\n\n  TEXT
             dict set data $id link $link
             dict set data $id text $text
             tooltip $tv -item $id $link
@@ -301,13 +306,22 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
 proc ::tkchat::rss::OnTreeviewSelect {tv txt data} {
     set id   [$tv selection]
     set text [dict get $data $id text]
-    set link [dict getwithdefault $data $id link ""]
+    if {[string match "http*" $id]} {
+        # this is a channel entry
+        set link $id
+        set last [list "URL: "]
+    } else {
+        set link [dict get $data $id link]
+        set last [list "Link: "]
+    }
+    lappend last {LAST TITLE} "$link\n\n" {LAST LINK}
     $txt configure -state normal
     $txt delete 1.0 end
-    $txt insert 1.0 {*}$text
+    $txt insert end {*}$text
+    $txt insert end {*}$last
     $txt tag bind LINK <Button-1> [list ::tkchat::gotoURL $link]
-    $txt configure -state disabled
     tooltip $txt -tag LINK $link
+    $txt configure -state disabled
 }
 
 proc ::tkchat::rss::CheckRSSFeeds {} {
