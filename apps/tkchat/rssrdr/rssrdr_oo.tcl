@@ -32,7 +32,7 @@ namespace eval ::rss {
     namespace export Parse*
 }
 
-oo::class create ::rss::Rss {
+oo::class create ::rss::Rssparser {
     variable rss
 
     constructor {} {
