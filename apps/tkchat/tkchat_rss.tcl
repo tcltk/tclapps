@@ -373,7 +373,10 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
 proc ::tkchat::rss::OnTreeviewSelect {tv txt} {
     variable RssData
 
-    set id   [$tv selection]
+    set id [$tv selection]
+    if {$id eq ""} {
+        return
+    }
     set text [dict get $RssData $id text]
     if {[string match "http*" $id]} {
         # this is a channel entry
