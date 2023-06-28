@@ -114,7 +114,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
 
     if {[winfo exists $dlg]} {
         wm deiconify $dlg
-        focus -force $dlg.ok
+        focus -force $dlg.bf.ok
         return
     }
 
@@ -124,8 +124,10 @@ proc ::tkchat::rss::ShowRssInfo {} {
     wm transient $dlg .
 
     set nb [ttk::notebook $dlg.nb]
-    
     set page 0
+
+    array set channel {}
+    array set a {}
     foreach {url token} $Rss {
         if {[$token status] ne "ok"} { continue }
         set f [ttk::frame $nb.page$page]
@@ -145,14 +147,13 @@ proc ::tkchat::rss::ShowRssInfo {} {
         grid rowconfigure $f 0 -weight 1
         grid columnconfigure $f 0 -weight 1
 
+        array unset channel *
         array set channel [$token channel]
         set title $url
-        if {[info exists channel(title)]} { set title $channel(title) }
+        if {[string length channel(title)]} { set title $channel(title) }
         foreach item [$token data] {
+            array set a {title "(no title)" description "(no description)"}
             array set a $item
-            if {![info exists a(title)] || [string length $a(title)] < 1} {
-                set a(title) "(no title)"
-            }
             set tag URL-[incr RssUrlId]
             $txt insert end $a(title) [list $url URL ITEM $tag] \
                 "\n$a(description)\n\n" [list $url ITEM]
@@ -166,20 +167,21 @@ proc ::tkchat::rss::ShowRssInfo {} {
 
         incr page
     }
-    
-    ttk::button $dlg.ok -default active -text "OK" -width -12 \
+    ttk::frame $dlg.bf
+    ttk::button $dlg.bf.ok -default active -text "OK" -width -12 \
         -command [list set [namespace which -variable $dlg] ok]
+    pack $dlg.bf.ok
 
-    bind $dlg <Return> [list $dlg.ok invoke]
-    bind $dlg <Escape> [list $dlg.ok invoke]
+    bind $dlg <Return> [list $dlg.bf.ok invoke]
+    bind $dlg <Escape> [list $dlg.bf.ok invoke]
     
     grid $nb     -sticky news -padx {2 1} -pady 2
-    grid $dlg.ok -sticky e
+    grid $dlg.bf -sticky e
     grid rowconfigure $dlg 0 -weight 1
     grid columnconfigure $dlg 0 -weight 1
 
     wm deiconify $dlg
-    focus $dlg.ok
+    focus $dlg.bf.ok
     catch {tk::PlaceWindow $dlg widget .}
     tkwait variable [namespace which -variable $dlg]
     destroy $dlg
@@ -479,7 +481,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
             }
             set item [lindex [$parser data] 0]
             set title [dict get [$parser channel] title]
-            set Options(RSS,last,$feed) [dict get $item mtime]
+            set Options(RSS,last,$feed) [dict getwithdefault $item mtime 0]
             set Options(RSS,title,$feed) $title
             if {$Options(RSS,last,$feed) > $last} {
                 foreach rss [$parser data] {
@@ -497,7 +499,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
                 set updated($feed) 1
             }
         } on error {err} {
-            ::tkchat::addStatus 0 "RSS Error $err" end ERROR
+            ::tkchat::addStatus 0 "RSS Error [list $err $feed]" end ERROR
         }
     } else {
         ::tkchat::addStatus 0 "Failed to parse RSS data from $feed:\

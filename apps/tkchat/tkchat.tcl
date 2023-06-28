@@ -78,10 +78,19 @@ package require log		; # tcllib
 package require uri             ; # tcllib
 package require uuid            ; # tcllib
 
+# this should *NOT* be optional
 catch {package require tls}	  ; # tls (optional)
+if 0 { # -servername wiki.tcl-lang.org doesn't work on some sites
 catch {::http::register https 443 \
-           [list ::tls::socket -servername wiki.tcl-lang.org \
+           [list ::tls::socket -servername wiki.tcl-lang.org -autoservername 1\
            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]};# register wiki for RSS over SSL
+}
+catch {
+    ::http::register https 443 \
+        [list ::tls::socket -autoservername 1 \
+            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
+}
+
 catch {package require picoirc}   ; # irc client (optional)
 catch {package require img::jpeg} ; # more image types (optional)
 
@@ -2177,6 +2186,10 @@ proc ::tkchat::CreateGUI {} {
     if {[tk windowingsystem] eq "aqua"} {
         source [file join $::tkchat_dir tkchat_mac_images.tcl]
         catch { createFonts }
+    }
+    if {[tk windowingsystem] eq "x11"} {
+        option add *Menu.activeBorderWidth      0
+        option add *mbar.relief                 flat
     }
     menu .mbar
 
@@ -6020,13 +6033,15 @@ proc ::tkchat::GetDefaultOptions {} {
 	WhisperIndicatorColor	#ffe0e0
 	RSS,watch,https://wiki.tcl-lang.org/rss.xml 1
 	RSS,watch,http://paste.tclers.tk/rss.atom 1
-	RSS,watch,https://hnrss.org/newcomments?q=Tcl 1
-	RSS,watch,https://hnrss.org/newest?q=Tcl 1
 	RSS,watch,https://core.tcl-lang.org/tcl/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tk/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tcllib/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tklib/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tclapps/timeline.rss 1
+	RSS,watch,https://rss.app/feeds/F1KFVp7sSTebTb5b.xml 1
+	RSS,watch,https://rss.app/feeds/CCCjMCFCNKIfM4OD.xml 1
+	RSS,watch,https://hnrss.org/newcomments?q=Tcl 0
+	RSS,watch,https://hnrss.org/newest?q=Tcl 0
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
     foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 SubjectBG ffff00 } {
