@@ -104,6 +104,7 @@ proc ::tkchat::rss::RssUpdateTip {varname op} {
 }
 
 proc ::tkchat::rss::ShowRssInfo {} {
+    global Options
     variable Rss
     variable RssUrlId
     if {[winfo exists .status.rss]} {
@@ -129,7 +130,9 @@ proc ::tkchat::rss::ShowRssInfo {} {
     array set channel {}
     array set a {}
     foreach {url token} $Rss {
-        if {[$token status] ne "ok"} { continue }
+        if {[$token status] ne "ok" ||
+            !$Options(RSS,watch,$url)
+        } then { continue }
         set f [ttk::frame $nb.page$page]
         set txt [text $f.txt -borderwidth 0 -font FNT]
         set sb [ttk::scrollbar $f.vs -command [list $txt yview]]
