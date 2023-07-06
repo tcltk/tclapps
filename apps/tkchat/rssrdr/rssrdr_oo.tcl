@@ -236,7 +236,7 @@ oo::class create ::rss::Rssparser {
 			    dict set e description [wrapper::getcdata $node]
 			}
 			default {
-			    puts "unhandled entry tag \"$ntag\""
+			    # puts "unhandled entry tag \"$ntag\""
 			}
 		    }
 		}

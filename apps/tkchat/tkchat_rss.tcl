@@ -84,9 +84,9 @@ proc ::tkchat::rss::Init {} {
         # At this time, the only interface is via the statusbar
         if {[winfo exists .status] && ![winfo exists .status.rss]} {
             ttk::label .status.rss -image ::tkchat::img::feedLo
-            bind .status.rss <Button-1> \
-                [list [namespace origin ShowRssInfo]]
             bind .status.rss <Button-3> \
+                [list [namespace origin ShowRssInfo]]
+            bind .status.rss <Button-1> \
                 [list [namespace origin ShowRssInfo2]]
 
             set var [namespace which -variable RSStip]
@@ -209,9 +209,13 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
     wm title $t "RSS Feeds"
     wm transient $t .
 
+    # format:
+    # column {heading show stretch anchor     width}
+    #         "text"  bool bool    tk_anchor  integer
     set colspec {
-        #0          {"Title"        0 w 300}
-        date        {"Date"         0 e 100}
+        #0          {"Title" 1 0 w 300}
+        date        {"Date"  1 0 e 100}
+        mtime       {""      0 0 e 0}
     }
     set tv [ttk::treeview $t.tv]
     ttk::scrollbar $t.sy1 -command [list $tv yview]
@@ -221,11 +225,16 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
         -xscrollcommand [list $t.sx1 set] \
         -columns [dict keys [dict remove $colspec #0]] \
         -selectmode browse
+    set dcols {}
     dict for {col spec} $colspec {
-        lassign $spec ht st an wi
-        $tv heading $col -text [mc $ht]
+        lassign $spec he sh st an wi
+        $tv heading $col -text [mc $he]
         $tv column  $col -anchor $an -stretch $st -width $wi
+        if {$sh} {
+            lappend dcols $col
+        }
     }
+    $tv configure -displaycolumns [lsearch -all -inline -not $dcols #0]
     $tv tag configure Channel -font TkHeadingFont -foreground red4
     set txt [text $t.txt]
     ttk::scrollbar $t.sy2 -command [list $txt yview]
@@ -305,22 +314,24 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
 
     if {[$tv exists $url]} {
         foreach child [$tv children $url] {
-            dict unset RssData $child
             $tv delete $child
             tooltip clear $tv*$child*
         }
         dict unset RssData $url
-        $tv delete $url
+        $tv item $url -text {} -values {}
         tooltip clear $tv*$url*
+    } else {
+        $tv insert {} 0 -id $url
     }
 
     # channel info
     set channel [$parser channel]
-    set date [clock format [dict getwithdefault $channel mtime 0]]
+    set mtime [dict getwithdefault $channel mtime 0]
+    set date [clock format $mtime]
     set title [dict getwithdefault $channel title $url]
-    $tv insert {} 0 -id $url \
+    $tv item $url \
         -text $title \
-        -values [list [lrange $date 0 2]] \
+        -values [list [lrange $date 0 2] $mtime] \
         -tags Channel
     set text {}
     lappend text "Channel title: " TITLE $title\n\n {}
@@ -330,7 +341,8 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
 
     # iterate over channel items
     foreach item [$parser data] {
-        set date [clock format [dict getwithdefault $item mtime 0]]
+        set mtime [dict getwithdefault $item mtime 0]
+        set date [clock format $mtime]
         set link [dict getwithdefault $item link "(no link)"]
         set desc [dict getwithdefault $item description "(no description)"]
         set title [dict getwithdefault $item title "(no title)"]
@@ -344,7 +356,7 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
         }
         set id [$tv insert $url end \
             -text $title \
-            -values [list [lrange $date 0 2]]]
+            -values [list [lrange $date 0 2] $mtime]]
 
         # perform a very simple substitution of possible markup
         foreach var {title desc} {
@@ -368,6 +380,12 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
         tooltip $tv -item $id $link
     }
 
+    # sort the children of {} by the mtime of their first child (latest first)
+    set children [$tv children {}]
+    set ochildren [lsort -integer -decreasing -index 1 [lmap child $children {
+        list $child [$tv set [lindex [$tv children $child] 0] mtime]
+    }]]
+    $tv children {} [lmap child $ochildren {lindex $child 0}]
 }
 
 proc ::tkchat::rss::OnTreeviewSelect {tv txt} {
@@ -499,7 +517,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
                 .status.rss configure -image ::tkchat::img::feedHi
                 # when the window exists, there's a trace on this variable
                 # which updates the tree
-                set updated($feed) 1
+                set updated($feed) $count
             }
         } on error {err} {
             ::tkchat::addStatus 0 "RSS Error [list $err $feed]" end ERROR

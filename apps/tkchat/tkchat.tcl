@@ -6038,8 +6038,8 @@ proc ::tkchat::GetDefaultOptions {} {
 	RSS,watch,https://core.tcl-lang.org/tcllib/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tklib/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tclapps/timeline.rss 1
-	RSS,watch,https://rss.app/feeds/F1KFVp7sSTebTb5b.xml 1
-	RSS,watch,https://rss.app/feeds/CCCjMCFCNKIfM4OD.xml 1
+	RSS,watch,https://core.tcl-lang.org/tips/timeline.rss 1
+	RSS,watch,https://www.reddit.com/r/tcl.rss 0
 	RSS,watch,https://hnrss.org/newcomments?q=Tcl 0
 	RSS,watch,https://hnrss.org/newest?q=Tcl 0
     }
