@@ -4356,7 +4356,7 @@ proc ::tkchat::logonScreen {} {
 	bind .logon.ljres <<AltUnderlined>> {focus .logon.ejres}
         bind .logon.lconf <<AltUnderlined>> {focus .logon.econf}
 	bind .logon.nossl <<AltUnderlined>> {focus .logon.nossl}
-        
+
 	trace variable Options(UseProxy)  w [list [namespace origin optSet] .logon]
 	trace variable Options(SavePW)    w [list [namespace origin optSet] .logon]
         
@@ -4928,18 +4928,17 @@ proc ::tkchat::ChangeColors {} {
     ttk::labelframe $t.f -text "Colour overrides" -height 300
     set c [canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
         -width 10 -height 300 -highlightthickness 0 -bd 0]
-    bind $t <Button-4> [list $c yview scroll -1 units]
-    bind $t <Button-5> [list $c yview scroll  1 units]
+    bind $t <MouseWheel> [list tk::MouseWheel $c y %D -40.0]
     ttk::scrollbar $t.f.scr -command [list $c yview]
     pack $c -side left -expand 1 -fill both
     pack $t.f.scr -side left -fill y
     set f [ttk::frame $c.frm -padding 5]
     $c create window 0 0 -anchor nw -window $f
-    bind $f <Configure> {
-	[winfo parent %W] configure -width %w -scrollregion [list 0 0 %w %h]
+    bind $f <Configure> [list apply {{c t w h} {
+	$c configure -width $w -scrollregion [list 0 0 $w $h]
 	update idletasks
-	wm geometry [winfo toplevel %W] {}
-    }
+	wm geometry $t {}
+    }} $c $t %w %h]
     foreach {key str} { 1 "All\nDefault" 2 "All\nInverted" 3 "All\nCustom"} {
 	ttk::button $f.all$key -text $str \
 	    -command [list [namespace which ChangeColorsAllButtons] $key]
@@ -5072,8 +5071,7 @@ proc ::tkchat::applyColors { txt jid } {
             set clr [set Options(Color,NICK-$nk) [getColor MainFG]]
         }
         $txt tag configure NOLOG-$nk -foreground "#[fadeColor $clr]"
-	.pane.names tag configure NICK-$nk -foreground "#$clr"
-	if { $Options(Visibility,STAMP) } {
+	if { ! $Options(Visibility,STAMP) } {
 	    $txt tag raise NICK-$nk STAMP
 	    $txt tag raise NOLOG-$nk STAMP
 	} else {
@@ -5081,6 +5079,7 @@ proc ::tkchat::applyColors { txt jid } {
 	    $txt tag lower NOLOG-$nk STAMP
 	}
     }
+    updateOnlineNames
 }
 
 # Point the Chat log to a new file.
