@@ -4660,54 +4660,6 @@ proc ::tkchat::resetSearch {} {
     .txt see end
 }
 
-# a couple of little helper funcs
-proc ::tkchat::newColor { w idx } {
-    variable DlgData
-
-    set init "#[lindex $DlgData(Color,$idx) 3]"
-    set tmp [tk_chooseColor -title "Select Override Color" -initialcolor $init]
-    if { $tmp ne "" } {
-	lset DlgData(Color,$idx) 3 [string range $tmp 1 end]
-	$w configure -foreground $tmp -selectcolor $tmp
-    }
-}
-
-proc ::tkchat::buildRow { f idx disp } {
-    variable DlgData
-    variable buildRow_seq
-
-    if { ![info exists buildRow_seq] } {
-	set buildRow_seq 1
-    } else {
-	incr buildRow_seq
-    }
-    set seq $buildRow_seq
-    ::tk::label $f.nm$seq -text "$disp" -anchor w -padx 0 -pady 0
-    ::tk::radiobutton $f.def$seq -padx 0 -pady 0 -indicatoron 0 \
-        -text "default" \
-        -variable ::tkchat::DlgData($idx) \
-        -value 1 \
-        -foreground  "#[lindex $DlgData(Color,$idx) 1]" \
-        -selectcolor "#[lindex $DlgData(Color,$idx) 1]"
-    ::tk::radiobutton $f.inv$seq -padx 0 -pady 0 -indicatoron 0 \
-        -text "inverted" \
-        -variable ::tkchat::DlgData($idx) \
-        -value 2 \
-        -foreground "#[lindex $DlgData(Color,$idx) 2]" \
-        -selectcolor "#[lindex $DlgData(Color,$idx) 2]"
-    ::tk::radiobutton $f.ovr$seq -padx 0 -pady 0 -indicatoron 0 \
-        -text "custom" \
-        -variable ::tkchat::DlgData($idx) \
-        -value 3 \
-        -foreground "#[lindex $DlgData(Color,$idx) 3]" \
-        -selectcolor  "#[lindex $DlgData(Color,$idx) 3]"
-    button $f.clr$seq -padx 0 -pady 0 \
-        -text "..." \
-        -command [list ::tkchat::newColor $f.ovr$seq $idx]
-    grid $f.nm$seq $f.def$seq $f.inv$seq $f.ovr$seq $f.clr$seq \
-        -padx 2 -pady 2 -sticky ew
-}
-
 proc ::tkchat::SpecifySubjects {parent} {
     set dlg [winfo toplevel $parent]
     set t [ttk::frame $parent.tkchatSubjects]
@@ -4892,10 +4844,62 @@ proc ::tkchat::MacroList {w} {
     }
 }
 
+########################################################################
+# Colors related stuff
+#
+# Helper procs
+proc ::tkchat::newColor { w idx } {
+    variable DlgData
+
+    set init "#[lindex $DlgData(Color,$idx) 3]"
+    set tmp [tk_chooseColor -title "Select Override Color" -initialcolor $init]
+    if { $tmp ne "" } {
+	lset DlgData(Color,$idx) 3 [string range $tmp 1 end]
+	$w configure -foreground $tmp -selectcolor $tmp
+    }
+}
+
+# build a row of color radiobuttons
+proc ::tkchat::buildRow { f idx disp } {
+    variable DlgData
+    variable buildRow_seq
+
+    if { ![info exists buildRow_seq] } {
+	set buildRow_seq 1
+    } else {
+	incr buildRow_seq
+    }
+    set seq $buildRow_seq
+    ttk::label $f.nm$seq -text "$disp" -anchor w
+    radiobutton $f.def$seq -padx 0 -pady 0 -indicatoron 0 \
+        -text "default" \
+        -variable ::tkchat::DlgData($idx) \
+        -value 1 \
+        -foreground  "#[lindex $DlgData(Color,$idx) 1]" \
+        -selectcolor "#[lindex $DlgData(Color,$idx) 1]"
+    radiobutton $f.inv$seq -padx 0 -pady 0 -indicatoron 0 \
+        -text "inverted" \
+        -variable ::tkchat::DlgData($idx) \
+        -value 2 \
+        -foreground "#[lindex $DlgData(Color,$idx) 2]" \
+        -selectcolor "#[lindex $DlgData(Color,$idx) 2]"
+    radiobutton $f.ovr$seq -padx 0 -pady 0 -indicatoron 0 \
+        -text "custom" \
+        -variable ::tkchat::DlgData($idx) \
+        -value 3 \
+        -foreground "#[lindex $DlgData(Color,$idx) 3]" \
+        -selectcolor  "#[lindex $DlgData(Color,$idx) 3]"
+    button $f.clr$seq -padx 0 -pady 0 \
+        -text "..." \
+        -command [list ::tkchat::newColor $f.ovr$seq $idx]
+    grid $f.nm$seq $f.def$seq $f.inv$seq $f.ovr$seq $f.clr$seq \
+        -padx 2 -pady 2 -sticky nsew
+}
+
+# Change color dialog
 proc ::tkchat::ChangeColors {} {
     global Options
     variable DlgData
-    variable DlgDone
     variable OnlineUsers
 
     # clear old data
@@ -4912,50 +4916,39 @@ proc ::tkchat::ChangeColors {} {
     set t .opts
     catch {destroy $t}
     Dialog $t
-    wm protocol $t WM_DELETE_WINDOW {set ::tkchat::DlgDone cancel}
     wm withdraw $t
     wm title $t "Color Settings"
 
     ttk::label $t.l1 -text "Posting Color"
     label $t.l2 -text "Example Text" -background white \
-	-foreground \#$DlgData(MyColor) -font ACT
-    ttk::button $t.myclr -text "Change..." -command {
-	set tmp [tk_chooseColor \
-                     -title "Select Your User Color" \
-                     -initialcolor \#$::tkchat::DlgData(MyColor)]
-	if { $tmp ne "" } {
-	    .opts.l2 configure -foreground $tmp
-	    set ::tkchat::DlgData(MyColor) [string range $tmp 1 end]
-	}
-    }
+	-foreground #$DlgData(MyColor) -font ACT
+    ttk::button $t.myclr -text "Change..." \
+        -command [list [namespace which ChangeColorsMyColor] $t.l2]
 
     ttk::labelframe $t.f -text "Colour overrides" -height 300
-    canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
-        -width 10 -height 300 -highlightthickness 0 -bd 0
-    bind $t <Button-4> [list $t.f.cvs yview scroll -1 units]
-    bind $t <Button-5> [list $t.f.cvs yview scroll  1 units]
-    ttk::scrollbar $t.f.scr -command [list $t.f.cvs yview]
-    pack $t.f.cvs -side left -expand 1 -fill both
+    set c [canvas $t.f.cvs -yscrollcommand [list $t.f.scr set] \
+        -width 10 -height 300 -highlightthickness 0 -bd 0]
+    bind $t <Button-4> [list $c yview scroll -1 units]
+    bind $t <Button-5> [list $c yview scroll  1 units]
+    ttk::scrollbar $t.f.scr -command [list $c yview]
+    pack $c -side left -expand 1 -fill both
     pack $t.f.scr -side left -fill y
-    set f [frame $t.f.cvs.frm]
-    $t.f.cvs create window 0 0 -anchor nw -window $f
+    set f [ttk::frame $c.frm -padding 5]
+    $c create window 0 0 -anchor nw -window $f
     bind $f <Configure> {
-	[winfo parent %W] configure -width [expr {%w+5}] -scrollregion [list 0 0 %w %h]
+	[winfo parent %W] configure -width %w -scrollregion [list 0 0 %w %h]
+	update idletasks
+	wm geometry [winfo toplevel %W] {}
     }
     foreach {key str} { 1 "All\nDefault" 2 "All\nInverted" 3 "All\nCustom"} {
-	button $f.all$key -text $str -command \
-            [string map [list %val% $key] {
-                foreach idx [array names DlgData Color,*] {
-                    set idx [string range $idx 6 end]
-                    set DlgData($idx) %val%
-                }
-            }]
+	ttk::button $f.all$key -text $str \
+	    -command [list [namespace which ChangeColorsAllButtons] $key]
     }
     grid x $f.all1 $f.all2 $f.all3 x -padx 1 -pady 1
     foreach {idx str} {MainBG Background MainFG Foreground SearchBG Searchbackgr SubjectBG Subjectbackgr} {
 	buildRow $f $idx $str
     }
-    grid [label $f.online -text "Online Users"] - - -
+    grid [ttk::label $f.online -text "Online Users"] - - -
     set UserList [list]
     foreach network $OnlineUsers(networks) {
 	set UserList [concat $UserList $OnlineUsers($network)]
@@ -4966,7 +4959,7 @@ proc ::tkchat::ChangeColors {} {
 	    buildRow $f NICK-$nick $nick
 	}
     }
-    grid [label $f.offline -text "Offline Users"] - - -
+    grid [ttk::label $f.offline -text "Offline Users"] - - -
     foreach nick $Options(NickList) {
 	set nick [lindex $nick 0]
 	if { $nick ni $UserList } {
@@ -4975,11 +4968,11 @@ proc ::tkchat::ChangeColors {} {
     }
     ttk::frame $t.f2
     ttk::button $t.f2.ok -text "OK" -default active\
-        -command { set ::tkchat::DlgDone ok }
+        -command [list [namespace which ChangeColorsOk] $t]
     ttk::button $t.f2.app -text "Apply" \
-        -command { set ::tkchat::DlgDone apply }
+        -command [namespace which ChangeColorsApply]
     ttk::button $t.f2.can -text "Cancel" \
-        -command { set ::tkchat::DlgDone cancel}
+        -command [list destroy $t]
     pack $t.f2.ok $t.f2.app $t.f2.can -side left -expand 1 -fill none
 
     grid $t.l1  $t.l2 $t.myclr x -padx 1 -pady 3 -sticky {}
@@ -4988,40 +4981,66 @@ proc ::tkchat::ChangeColors {} {
     grid $t.f2    -       -    - -padx 1 -pady 10 -sticky news
     grid rowconfigure $t 1 -weight 1
     grid columnconfigure $t 3 -weight 1
+
+    bind $t <Key-Escape> [list destroy $t]
+    bind $f <Destroy> [list [namespace which ChangeColorsDestroy] $t]
     wm resizable $t 0 1
     catch {::tk::PlaceWindow $t widget .}
     wm deiconify $t
-    set working 1
-    while {$working} {
-	vwait ::tkchat::DlgDone
-	switch -- $DlgDone {
-	    ok {
-		set working 0
-		set change 1
-	    }
-	    apply {
-		set working 1
-		set change 1
-	    }
-	    cancel {
-		set change 0
-		set working 0
-	    }
-	}
-	if { $change } {
-	    # apply changes for which
-	    foreach nk [array names DlgData Color,*] {
-		set nk [string range $nk 6 end]
-		lset DlgData(Color,$nk) 0 $DlgData($nk)
-	    }
-	    # propagate changes to main data
-	    array set Options [array get DlgData Color,*]
-	    set Options(MyColor) $DlgData(MyColor)
-	    # update colors
-	    applyColors .txt All
-	}
+}
+
+# process "change color" button
+proc ::tkchat::ChangeColorsMyColor {l} {
+    variable DlgData
+
+    set tmp [tk_chooseColor \
+                 -title "Select Your User Color" \
+                 -initialcolor #$DlgData(MyColor)]
+    if { $tmp ne "" } {
+        $l configure -foreground $tmp
+        set DlgData(MyColor) [string range $tmp 1 end]
     }
+}
+
+# process the "All" buttons
+proc ::tkchat::ChangeColorsAllButtons {key} {
+    variable DlgData
+
+    foreach idx [array names DlgData Color,*] {
+        set idx [string range $idx 6 end]
+        set DlgData($idx) $key
+    }
+}
+
+# process color dialog "Ok" button
+proc ::tkchat::ChangeColorsOk {t} {
+    ChangeColorsApply
     destroy $t
+}
+
+# process color dialog "Apply" button
+proc ::tkchat::ChangeColorsApply {} {
+    global Options
+    variable DlgData
+
+    foreach nk [array names DlgData Color,*] {
+	set nk [string range $nk 6 end]
+	lset DlgData(Color,$nk) 0 $DlgData($nk)
+    }
+    # propagate changes to main data
+    array set Options [array get DlgData Color,*]
+    set Options(MyColor) $DlgData(MyColor)
+    # update colors
+    applyColors .txt All
+}
+
+# cleanup variables
+proc ::tkchat::ChangeColorsDestroy {t} {
+    variable DlgData
+    variable buildRow_seq
+
+    unset DlgData
+    unset buildRow_seq
 }
 
 proc ::tkchat::applyColors { txt jid } {
