@@ -548,7 +548,7 @@ proc ::tkchat::rss::OptionsHook {parent} {
             }
         }
         ttk::checkbutton [set w $page.wf[incr n]] \
-            -text $text -underline 0 \
+            -text $text \
             -variable [namespace current]::EditOptions($feed)
         grid $w -sticky new -padx 2 -pady 2
     }
