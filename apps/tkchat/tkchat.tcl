@@ -2689,7 +2689,6 @@ proc ::tkchat::CreateGUI {} {
         -state disabled
     .pane.names tag configure STAMP
 
-    applyColors .txt All
 
     # bottom frame for entry
     ttk::frame .btm
@@ -2757,6 +2756,8 @@ proc ::tkchat::CreateGUI {} {
     # load new roster implementation (and steal Options(NamesWin) :^)
     ::newRoster::PutIntoPane
 
+    applyColors .txt All
+
     .txt configure -width 10
     .pane.names configure -width 10
     grid .txt .sbar -in .txtframe -sticky news -pady 1
@@ -2764,7 +2765,7 @@ proc ::tkchat::CreateGUI {} {
     grid configure .sbar -in .txtframe -padx {0 1}
     grid columnconfigure .txtframe 0 -weight 1
     grid rowconfigure .txtframe 0 -weight 1
-    
+
     .pane2 add .txtframe
     
     # text widget to view history:
