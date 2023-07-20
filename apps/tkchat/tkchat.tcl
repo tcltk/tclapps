@@ -356,8 +356,19 @@ image create photo ::tkchat::img::link_disconnected -file $imgdir/network-offlin
 image create photo tkchat-32 -file $imgdir/tkchat-32.png
 image create photo tkchat_warn-32 -file $imgdir/tkchat_warn-32.png
 
-tk systray create -image tkchat-32 -text "The Tcler's Chat" -button1 {if { [wm state .] eq "withdrawn" } {wm deiconify .; focus .eMsg } else {wm withdraw .}} -button3 ""
-
+# catch is needed in order to be able to reload the script from the
+# debug menu
+catch {
+    tk systray create -image tkchat-32 -text "The Tcler's Chat" \
+        -button1 {
+            if { [wm state .] eq "withdrawn" } {
+                wm deiconify .
+                focus .eMsg
+            } else {
+                wm withdraw .
+            }
+        } -button3 ""
+}
 
 
 # -------------------------------------------------------------------------
