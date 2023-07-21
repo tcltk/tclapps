@@ -7520,7 +7520,7 @@ proc ::tkjabber::PollIrcUserList {jid} {
 
 # The roster stuff...
 proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
-    if {[catch [linsert $args 0 RosterCB2 $rostName $what $jid] err]} {
+    if {[catch {RosterCB2 $rostName $what $jid {*}$args} err]} {
         set e "error handling roster update: $err"
         variable Error $::errorInfo
         ::log::log error $e
@@ -7541,7 +7541,7 @@ proc ::tkjabber::GetMucInfo {childs} {
     return $result
 }
 
-proc ::tkjabber::RosterCB2 { rostName what {jid {}} args } {
+proc ::tkjabber::RosterCB2 { rostName what jid args } {
     global Options
     variable conference
     variable grabNick
