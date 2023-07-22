@@ -74,7 +74,7 @@ proc ::tkchat::clock::OptionsHook {parent} {
     ttk::entry $lf.eft -textvariable [namespace current]::EditOptions(Format)
     ttk::label $lf.ltt -anchor w -text Tooltip
     ttk::entry $lf.ett -textvariable [namespace current]::EditOptions(Tooltip)
-    trace variable [namespace current]::EditOptions(Enabled) w \
+    trace add variable [namespace current]::EditOptions(Enabled) write \
         [list [namespace origin ClockEnable] [list $lf.etz $lf.eft $lf.ett]]
     grid $lf.ltz $lf.etz -sticky news -padx 1 -pady 1
     grid $lf.lft $lf.eft -sticky news -padx 1 -pady 1

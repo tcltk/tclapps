@@ -4369,8 +4369,10 @@ proc ::tkchat::logonScreen {} {
         bind .logon.lconf <<AltUnderlined>> {focus .logon.econf}
 	bind .logon.nossl <<AltUnderlined>> {focus .logon.nossl}
 
-	trace variable Options(UseProxy)  w [list [namespace origin optSet] .logon]
-	trace variable Options(SavePW)    w [list [namespace origin optSet] .logon]
+	trace add variable Options(UseProxy) \
+	    write [list [namespace origin optSet] .logon]
+	trace add variable Options(SavePW) \
+	    write [list [namespace origin optSet] .logon]
         
 	pack .logon.ejprt -in .logon.fjsrv -side right -fill y
 	pack .logon.ejsrv -in .logon.fjsrv -side right -fill both -expand 1
@@ -6191,23 +6193,6 @@ proc tkchat::textRestore {w save} {
 	}
     }
     $w mark set current $current
-}
-
-# -------------------------------------------------------------------------
-# Tracing variables
-# -------------------------------------------------------------------------
-#trace add variable ::tkchat::UserClicked write ::tkchat::traceVar
-
-proc ::tkchat::traceVar {varname -> action} {
-    if {[catch {
-	if {[string compare $action write] == 0} {
-	    upvar $varname v
-	    if {[catch {lindex [info level -1] 0} proc]} {
-		set proc <unknown>
-	    }
-	    ::log::log debug "TRACE: $varname set to $v in $proc"
-	}
-    } msg]} { ::log::log warning "TRACE ERROR: $msg" }
 }
 
 # -------------------------------------------------------------------------
