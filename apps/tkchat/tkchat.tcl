@@ -104,7 +104,6 @@ if {[catch {package require tooltip 1.5}]} {# tooltips (optional)
     namespace eval tooltip {
         namespace export tooltip
         proc tooltip {args} {}
-        proc clear {args} {}
     }
 }
 
