@@ -136,23 +136,6 @@ if {[tk windowingsystem] eq "aqua"} {
 
 namespace import -force ::tk::msgcat::*
 
-# 8.4 doesn't provide this - we use it for i18n on menus.
-if {[llength [info commands ::tk::AmpMenuArgs]] == 0} {
-    proc ::tk::AmpMenuArgs {widget add type args} {
-        set options {}
-        foreach {opt val} $args {
-            if {$opt eq "-label"} {
-                lassign [UnderlineAmpersand $val] newlabel under
-                lappend options -label $newlabel -underline $under
-            } else {
-                lappend options $opt $val
-            }
-        }
-        # eval [linsert $options 0 $widget add $type]
-        $widget add $type {*}$options
-    }
-}
-
 # Override the normal logging to include a timestamp
 proc ::log::Puts {level text} {
     variable channelMap
