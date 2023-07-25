@@ -815,7 +815,9 @@ proc ::tkchat::fetchurldone {cmd tok} {
 	    ::log::log info "Timeout occurred during fetch of URL"
 	}
 	error - Error - ERROR {
-	    tk_messageBox -message "Fetch URL error: [::http::error $tok]"
+	    set msg "Fetch URL error: [::http::error $tok]"
+	    ::log::log error $msg
+	    addStatus 0 $msg end ERROR
 	}
 	default {
 	    ::log::log warning "::tkchat::fetchurldone: Unknown switch option"
@@ -7724,7 +7726,7 @@ proc tkjabber::IqCB {jlibName type args} {
 }
 
 proc ::tkjabber::MsgCB {jlibName type args} {
-    if {[catch [linsert $args 0 MsgCB2 $jlibName $type] err]} {
+    if {[catch { MsgCB2 $jlibName $type {*}$args } err]} {
         set e "error handling message: $err"
         ::log::log error $e
         ::tkchat::addSystem .txt $e
