@@ -19,7 +19,8 @@
 # -------------------------------------------------------------------------
 # \
 exec wish "$0" ${1+"$@"}
-package require Tk 8.7
+# REMOVE 8.6
+package require Tk 8.6-
 
 #log background errors to console under Aqua, avoid locking up window
 if {[tk windowingsystem] eq "aqua"} {
@@ -68,8 +69,9 @@ set ::tkchat_dir [file dirname [file normalize $script]]
 set imgdir [file join $::tkchat_dir images]
 set auto_path [linsert $::auto_path 0 $::tkchat_dir [file join $::tkchat_dir lib]]
 
-package require Tcl 8.7	        ; # core Tcl
-package require Tk 8.7  	; # core Tk
+# REMOVE 8.6
+package require Tcl 8.6-        ; # core Tcl
+package require Tk 8.6-  	; # core Tk
 package require http 2		; # core Tcl
 package require msgcat		; # core Tcl
 package require textutil	; # tcllib 1.0
@@ -78,17 +80,21 @@ package require log		; # tcllib
 package require uri             ; # tcllib
 package require uuid            ; # tcllib
 
-# this should *NOT* be optional
-catch {package require tls}	  ; # tls (optional)
+catch {
+    # this should *NOT* be optional
+    package require tls; # tls (optional)
+# REMOVE 8.6
+    if {[package vsatisfies [package require http] 2.10]} {
+	::http::register https 443 [list ::tls::socket -autoservername 1 \
+            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
+    } else {
+	::http::register https 443 ::tls::socket
+    }
+}
 if 0 { # -servername wiki.tcl-lang.org doesn't work on some sites
-catch {::http::register https 443 \
+    catch {::http::register https 443 \
            [list ::tls::socket -servername wiki.tcl-lang.org -autoservername 1\
            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]};# register wiki for RSS over SSL
-}
-catch {
-    ::http::register https 443 \
-        [list ::tls::socket -autoservername 1 \
-            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
 }
 
 catch {package require picoirc}   ; # irc client (optional)
@@ -369,7 +375,6 @@ catch {
         } -button3 ""
 }
 
-
 # -------------------------------------------------------------------------
 
 ::msgcat::mcload [file join $::tkchat_dir msgs]
@@ -548,7 +553,13 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
                 # At the moment, the logs are stored in utf-8 format on the 
                 # server but get issued as iso-8859-1 due to an error in the 
                 # tclhttpd configuration.
-                if {[dict get [http::responseInfo $tok] charset] eq "iso8859-1"} {
+# REMOVE 8.6
+		if {[llength [info commands ::http::responseInfo]]} {
+		    set charset [dict get [http::responseInfo $tok] charset]
+		} else {
+		    set charset [set [set tok](charset)]
+		}
+                if {$charset eq "iso8859-1"} {
                     $I eval [encoding convertfrom utf-8 [http::data $tok]]
                 } else {
                     $I eval [http::data $tok]
@@ -1070,8 +1081,9 @@ proc ::tkchat::alertCallback {w nick msg} {
     unset -nocomplain alert_pending
     if {$Options(Alert,RAISE) && [llength [focus -displayof $top]]==0} {
 	# Only call this if the window doesn't already have focus
-        if {$Options(Alert,GROWL)} {     
-	    tk sysnotify "Message from $nick" $msg
+        if {$Options(Alert,GROWL)} {
+# REMOVE 8.6
+	    catch {tk sysnotify "Message from $nick" $msg}
         }
 	wm deiconify $top
 	raise $top
@@ -1290,8 +1302,11 @@ proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
 	set title "$MessageCounter - $chatWindowTitle"
 	wm title . $title
 	wm iconname . $title
-        tk systray configure -text "$MessageCounter - $chatWindowTitle"
-        wm iconbadge . $MessageCounter
+# REMOVE 8.6
+	if {[package vsatisfies [package require Tk] 8.7-]} {
+	    tk systray configure -text "$MessageCounter - $chatWindowTitle"
+	    wm iconbadge . $MessageCounter
+	}
     }
 }
 
@@ -1304,8 +1319,11 @@ proc ::tkchat::ResetMessageCounter {} {
 	set title $chatWindowTitle
 	wm title . $title
 	wm iconname . $title
-        tk systray configure -image tkchat-32 -text $chatWindowTitle
-        wm iconbadge . ""
+# REMOVE 8.6
+	if {[package vsatisfies [package require Tk] 8.7-]} {
+	    tk systray configure -image tkchat-32 -text $chatWindowTitle
+	    wm iconbadge . ""
+	}
     }
 }
 
@@ -2210,7 +2228,7 @@ proc ::tkchat::CreateGUI {} {
         .mbar.apple add command -label "About TkChat" -command [namespace origin About]
         .mbar add cascade -label Apple -menu .mbar.apple
     }
-    menu .mbar.file  
+    menu .mbar.file  -tearoff 0
     menu .mbar.edit  -tearoff 0
     menu .mbar.emot  -tearoff 0
     menu .mbar.vis   -tearoff 0
@@ -2534,6 +2552,12 @@ proc ::tkchat::CreateGUI {} {
             -variable Options(Alert,$tag) \
             -onvalue 1 \
             -offvalue 0
+# REMOVE 8.6
+	if {$tag eq "GROWL" && 
+	    ![package vsatisfies [package require Tk] 8.7]
+	} then {
+	    $m entryconfigure end -state disabled
+	}
     }
     $m add separator
     foreach {tag text} {
@@ -2765,8 +2789,11 @@ proc ::tkchat::CreateGUI {} {
     # using explicit rows for restart
     set Options(NamesWin) .pane.names
 
-    # load new roster implementation (and steal Options(NamesWin) :^)
-    ::newRoster::PutIntoPane
+# REMOVE 8.6
+    if {[package vsatisfies [package require Tk] 8.7-]} {
+	# load new roster implementation (and steal Options(NamesWin) :^)
+	::newRoster::PutIntoPane
+    }
 
     applyColors .txt All
 
@@ -8020,11 +8047,11 @@ proc tkjabber::PresCB2 {jlibName type args} {
 	subscribe {
 	    #after idle [list [namespace origin SubscriptionRequest] \
                        $a(-from) $a(-status)]
+	}
+	default {
+	    tkchat::addSystem .txt "Received $type presence message from $a(-from)."
+	}
     }
-    default {
-        tkchat::addSystem .txt "Received $type presence message from $a(-from)."
-    }
-}
 }
 
 # On receiving presence stanzas we get called here after the roster
@@ -8717,8 +8744,11 @@ proc ::tkchat::updateOnlineNames {} {
     .pane.names insert 1.0 "$total Users Online\n\n" TITLE
     .pane.names yview moveto [lindex $scrollview 0]
     .pane.names configure -state disabled
-    
-    after idle ::newRoster::updateOnlineNames
+
+# REMOVE 8.6
+    if {[package vsatisfies [package require Tk] 8.7-]} {
+	after idle ::newRoster::updateOnlineNames
+    }
 }
 
 proc ::tkchat::updateRosterDisplay {} {
@@ -9267,7 +9297,10 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
         tkchat::addStatus 0 "$nick is using $ver"
 
         after idle [list ::tkchat::SetUserTooltip $nick]
-        after idle [list ::newRoster::SetUserTooltip $nick]
+# REMOVE 8.6
+	if {[package vsatisfies [package require Tk] 8.7-]} {
+	    after idle [list ::newRoster::SetUserTooltip $nick]
+	}
     }
     return 1 ;# handled
 }
