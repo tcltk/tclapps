@@ -83,17 +83,14 @@ package require uuid            ; # tcllib
 catch {
     # this should *NOT* be optional
     package require tls; # tls (optional)
-    if {[package vsatisfies [package require http] 2.10]} {
+    if {[package vsatisfies [package provide tls] 1.7-]} {
 	::http::register https 443 [list ::tls::socket -autoservername 1 \
-            -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
+	    -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
     } else {
+	# older versions of tls don't support a command prefix
 	::http::register https 443 ::tls::socket
     }
-}
-if 0 { # -servername wiki.tcl-lang.org doesn't work on some sites
-    catch {::http::register https 443 \
-           [list ::tls::socket -servername wiki.tcl-lang.org -autoservername 1\
-           -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]};# register wiki for RSS over SSL
+    unset e o
 }
 
 catch {package require picoirc}   ; # irc client (optional)
