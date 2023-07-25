@@ -3377,7 +3377,6 @@ proc ::tkchat::About {} {
 }
 
 proc ::tkchat::Help {} {
-    variable rcsid
     global Options
     set title "TkChat $::tkchat::version [mc Help]"
 
@@ -8006,7 +8005,7 @@ proc ::tkjabber::parseMsg { nick msg color mark timestamp } {
 }
 
 proc tkjabber::PresCB {jlibName type args} {
-    if {[catch [linsert $args 0 PresCB2 $jlibName $type] err]} {
+    if {[catch { PresCB2 $jlibName $type {*}$args } err]} {
         ::tkchat::addSystem .txt "error handling presence stanza: $err"
     }
 }

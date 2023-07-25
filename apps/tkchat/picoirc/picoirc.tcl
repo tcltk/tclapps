@@ -80,9 +80,8 @@ proc ::picoirc::callback {context state args} {
 
 proc ::picoirc::Version {} {
     set ver "PicoIRC:[package provide picoirc]:Tcl [info patchlevel]"
-    if {[info exists ::tkchat::rcsid]} {
-        regexp -- {Id: tkchat.tcl,v (\d+\.\d+)} $::tkchat::rcsid -> rcsVersion
-        set ver "Tkchat:$rcsVersion:Tcl [info patchlevel]"
+    if {[info exists ::tkchat::version]} {
+        set ver "Tkchat:${::tkchat::version}:Tcl [info patchlevel]"
     }
     return $ver
 }
