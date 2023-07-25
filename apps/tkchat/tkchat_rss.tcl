@@ -22,28 +22,6 @@ proc ::tkchat::rss::Init {} {
         return
     }
 
-    # provide a version of [dict getwithdefault] on 8.6
-# REMOVE 8.6
-    if {[package vsatisfies [package require Tcl] 8.6-8.7]} {
-	proc ::tcl::dict::getwithdefault {dict args} {
-	    if {[llength $args] < 2} {
-		return -code error "wrong # args:\
-		    should be \"dict getwithdefault dictionary\
-		    ?key ...? key default\""
-	    }
-	    ::set default [lindex $args end]
-	    ::set keys [lrange $args 0 end-1]
-	    if {[exists $dict {*}$keys]} {
-		return [get $dict {*}$keys]
-	    } else {
-		return $default
-	    }
-	}
-	namespace ensemble configure dict -map [dict merge \
-	    [namespace ensemble configure dict -map] \
-	    [dict create getwithdefault ::tcl::dict::getwithdefault]]
-    }
-
     global Options
     variable RSStip     {}
     variable Rss        {}
@@ -497,12 +475,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
     variable updated
 
     set count 0
-# REMOVE 8.6
-    if {[llength [info commands ::http::responseInfo]]} {
-	set feed [dict get [http::responseInfo $tok] url]
-    } else {
-	set feed [set [set tok](url)]
-    }
+    set feed [dict get [http::responseInfo $tok] url]
     if {![dict exists $Rss $feed]} {
         dict set Rss $feed [set parser [::rss::Rssparser new]]
     } else {
@@ -513,13 +486,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
     # the encoding for us and we must do it here.
     # Default for xml files is utf-8.
     set encodings [string tolower [encoding names]]
-# REMOVE 8.6
-    if {[llength [info commands ::http::responseInfo]]} {
-	set encoding [string tolower \
-	    [dict get [http::responseInfo $tok] charset]]
-    } else {
-	set encoding [string tolower [set [set tok](charset)]]
-    }
+	set encoding [string tolower [dict get [http::responseInfo $tok] charset]]
     if {$encoding in $encodings} {
         set enc $encoding
     } else {

@@ -83,7 +83,6 @@ package require uuid            ; # tcllib
 catch {
     # this should *NOT* be optional
     package require tls; # tls (optional)
-# REMOVE 8.6
     if {[package vsatisfies [package require http] 2.10]} {
 	::http::register https 443 [list ::tls::socket -autoservername 1 \
             -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
@@ -536,12 +535,7 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
                 # At the moment, the logs are stored in utf-8 format on the 
                 # server but get issued as iso-8859-1 due to an error in the 
                 # tclhttpd configuration.
-# REMOVE 8.6
-		if {[llength [info commands ::http::responseInfo]]} {
-		    set charset [dict get [http::responseInfo $tok] charset]
-		} else {
-		    set charset [set [set tok](charset)]
-		}
+		set charset [dict get [http::responseInfo $tok] charset]
                 if {$charset eq "iso8859-1"} {
                     $I eval [encoding convertfrom utf-8 [http::data $tok]]
                 } else {
@@ -1065,8 +1059,7 @@ proc ::tkchat::alertCallback {w nick msg} {
     if {$Options(Alert,RAISE) && [llength [focus -displayof $top]]==0} {
 	# Only call this if the window doesn't already have focus
         if {$Options(Alert,GROWL)} {
-# REMOVE 8.6
-	    catch {tk sysnotify "Message from $nick" $msg}
+	    tk sysnotify "Message from $nick" $msg
         }
 	wm deiconify $top
 	raise $top
@@ -1285,11 +1278,8 @@ proc ::tkchat::IncrMessageCounter { nick msg msgtype args } {
 	set title "$MessageCounter - $chatWindowTitle"
 	wm title . $title
 	wm iconname . $title
-# REMOVE 8.6
-	if {[package vsatisfies [package require Tk] 8.7-]} {
-	    tk systray configure -text "$MessageCounter - $chatWindowTitle"
-	    wm iconbadge . $MessageCounter
-	}
+	tk systray configure -text "$MessageCounter - $chatWindowTitle"
+	wm iconbadge . $MessageCounter
     }
 }
 
@@ -1302,11 +1292,8 @@ proc ::tkchat::ResetMessageCounter {} {
 	set title $chatWindowTitle
 	wm title . $title
 	wm iconname . $title
-# REMOVE 8.6
-	if {[package vsatisfies [package require Tk] 8.7-]} {
-	    tk systray configure -image tkchat-32 -text $chatWindowTitle
-	    wm iconbadge . ""
-	}
+	tk systray configure -image tkchat-32 -text $chatWindowTitle
+	wm iconbadge . ""
     }
 }
 
@@ -2535,12 +2522,6 @@ proc ::tkchat::CreateGUI {} {
             -variable Options(Alert,$tag) \
             -onvalue 1 \
             -offvalue 0
-# REMOVE 8.6
-	if {$tag eq "GROWL" && 
-	    ![package vsatisfies [package require Tk] 8.7]
-	} then {
-	    $m entryconfigure end -state disabled
-	}
     }
     $m add separator
     foreach {tag text} {
