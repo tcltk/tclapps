@@ -386,7 +386,13 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
     # sort the children of {} by the mtime of their first child (latest first)
     set children [$tv children {}]
     set ochildren [lsort -integer -decreasing -index 1 [lmap child $children {
-        list $child [$tv set [lindex [$tv children $child] 0] mtime]
+        set gchild [$tv children $child]
+        if {[llength $gchild]} {
+            set mtime [$tv set [lindex $gchild 0] mtime]
+        } else {
+            set mtime 0
+        }
+        list $child $mtime
     }]]
     $tv children {} [lmap child $ochildren {lindex $child 0}]
 }
