@@ -284,8 +284,8 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
         tooltip clear $t*
     } [namespace current]] $t]
     # load feeds
-    foreach url [lreverse [dict keys $Rss]] {
-        if {$Options(RSS,watch,$url)} {
+    foreach url [dict keys $Rss] {
+        if {[info exists Options(RSS,watch,$url)] && $Options(RSS,watch,$url)} {
             FillRssData $tv $txt $url
         }
     }
