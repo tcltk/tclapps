@@ -57,6 +57,8 @@ proc ::tkchat::Whiteboard::Init {} {
             grid rowconfigure    . 0 -weight 1
             proc Status {s} {.wb.status configure -text $s}
         }
+        whiteboard eval [list ::ttk::setTheme $::ttk::currentTheme]
+
         wm deiconify $dlg
         #if {$Options(UseTkOnly)} { wm geometry $dlg 350x300 }
     }
