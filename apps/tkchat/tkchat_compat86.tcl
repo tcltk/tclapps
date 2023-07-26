@@ -35,8 +35,8 @@ proc ::tcl::dict::getwithdefault {dict args} {
 }
 namespace ensemble configure ::dict -map [dict merge \
     [namespace ensemble configure ::dict -map] \
-    [dict create getwithdefault ::tcl::dict::getwithdefault]]
-
+    [dict create getwithdefault ::tcl::dict::getwithdefault\
+	getdef ::tcl::dict::getwithdefault]]
 
 # HTTP Stuff
 proc http::responseInfo {tok} {
