@@ -775,31 +775,32 @@ proc ::tkchat::HttpServerError {token {prefix ""}} {
     set msg "$prefix error: [::http::code $token]"
 
     ::log::log error $msg
-    tk_messageBox -message $msg
+    # tk_messageBox -message $msg
+    addStatus 0 $msg end ERROR
 }
 
 proc ::tkchat::fetchurldone {cmd tok} {
-    set url [set [set tok](url)]
+    set url [dict get [http::responseInfo $tok] url]
     ::log::log info "fetchurl ($url): [::http::code $tok]"
     Progress foo 0 0
 
-    switch -- [::http::status $tok] {
-	ok - OK - Ok {
+    switch -- [string tolower [::http::status $tok]] {
+	ok {
 	    if {[::http::ncode $tok] >= 500} {
-		HttpServerError $tok
+		HttpServerError $tok $url
 	    } elseif {[::http::ncode $tok] >= 400} {
 		AuthenticationError $tok
 	    } else {
 		$cmd $tok
 	    }
 	}
-	reset - Reset - RESET {
+	reset {
 	    ::log::log info "Reset called during fetch of URL"
 	}
-	timeout - Timeout - TIMEOUT {
+	timeout {
 	    ::log::log info "Timeout occurred during fetch of URL"
 	}
-	error - Error - ERROR {
+	error {
 	    set msg "Fetch URL error: [::http::error $tok]"
 	    ::log::log error $msg
 	    addStatus 0 $msg end ERROR
