@@ -5074,6 +5074,12 @@ proc ::tkchat::applyColors { txt jid } {
             set clr [set Options(Color,NICK-$nk) [getColor MainFG]]
         }
         $txt tag configure NOLOG-$nk -foreground "#[fadeColor $clr]"
+        .pane.names tag configure NICK-$nk -foreground "#$clr"
+# REMOVE 8.6
+        if {[package vsatisfies [package provide Tk] 8.7-]} {
+            variable ::newRoster::cl
+            $cl tag configure NICK-$nk -foreground "#$clr"
+        }
 	if { ! $Options(Visibility,STAMP) } {
 	    $txt tag raise NICK-$nk STAMP
 	    $txt tag raise NOLOG-$nk STAMP
@@ -5082,7 +5088,6 @@ proc ::tkchat::applyColors { txt jid } {
 	    $txt tag lower NOLOG-$nk STAMP
 	}
     }
-    updateOnlineNames
 }
 
 # Point the Chat log to a new file.
