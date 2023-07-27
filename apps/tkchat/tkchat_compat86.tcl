@@ -18,6 +18,16 @@ proc ::wm {cmd args} {
     tailcall ::compat86::wm $cmd {*}$args
 }
 
+# provide lpop; from the original ::tkchat::Pop, but the default index
+# is "end" instead of 0. 
+#  Pop the nth element off a list. Used in options processing.
+proc lpop {varname {nth end}} {
+    upvar $varname args
+    set r [lindex $args $nth]
+    set args [lreplace $args $nth $nth]
+    return $r
+}
+
 # provide a version of [dict getwithdefault] on 8.6
 proc ::tcl::dict::getwithdefault {dict args} {
     if {[llength $args] < 2} {

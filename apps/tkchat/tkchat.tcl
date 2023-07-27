@@ -412,14 +412,6 @@ proc ::tkchat::LogLevelSet { args } {
     ::log::lvSuppress $Options(LogLevel) 0	; # unsuppress selected
 }
 
-#  Pop the nth element off a list. Used in options processing.
-proc ::tkchat::Pop {varname {nth 0}} {
-    upvar $varname args
-    set r [lindex $args $nth]
-    set args [lreplace $args $nth $nth]
-    return $r
-}
-
 # If Proxy Authentication was specified then each HTTP request
 # must have an authentication header. This procedure supports
 # proxys accepting Basic authentication by builing the header
@@ -5837,20 +5829,36 @@ proc ::tkchat::Init {args} {
     set nologin 0
     while {[string match -* [set option [lindex $args 0]]]} {
 	if {[tk windowingsystem] eq "aqua" && [string match "-psn*" $option]} {
-	    Pop args
+	    lpop args 0
 	    continue
 	}
 	switch -exact -- $option {
-	    -nologin   { set nologin 1 }
-	    -theme     { set Options(Theme) [Pop args 1] }
-	    -loglevel  { set Options(LogLevel) [Pop args 1] }
-	    -useragent { set Options(UserAgent) [Pop args 1] }
-	    -debug     { set Options(JabberDebug) 1 }
-	    -nick - -nickname { setNickname [Pop args 1] }
-	    -conference { set Options(JabberConference) [Pop args 1] }
-	    -connect   { set Options(JabberConnect) [Pop args 1] }
+	    -nologin {
+		set nologin 1
+	    }
+	    -theme {
+		set Options(Theme) [lpop args 1]
+	    }
+	    -loglevel  {
+		set Options(LogLevel) [lpop args 1]
+	    }
+	    -useragent {
+		set Options(UserAgent) [lpop args 1]
+	    }
+	    -debug {
+		set Options(JabberDebug) 1
+	    }
+	    -nick - -nickname {
+		setNickname [lpop args 1]
+	    }
+	    -conference {
+		set Options(JabberConference) [lpop args 1]
+	    }
+	    -connect {
+		set Options(JabberConnect) [lpop args 1]
+	    }
 	    -jabberserver {
-		set j [split [Pop args 1] :]
+		set j [split [lpop args 1] :]
 		if {[llength $j] > 0} {
 		    set Options(JabberServer) [lindex $j 0]
 		    if {[llength $j] > 1} {
@@ -5859,14 +5867,17 @@ proc ::tkchat::Init {args} {
 		}
 	    }
             -irc {
-                set nologin 1;
+                set nologin 1
                 if {[catch {package require picoirc} err]} {
                     return -code error $err
                 } else {
-                    after idle ::tkchat::PicoIRC [Pop args 1]
+                    after idle ::tkchat::PicoIRC [lpop args 1]
                 }
             }
-	    -- { Pop args ; break }
+	    -- {
+		lpop args 0
+		break
+	    }
 	    default {
 		return -code error "bad option \"$option\":\
 		    must be one of -nologin, -theme,\
@@ -5874,7 +5885,7 @@ proc ::tkchat::Init {args} {
                     -connect, -jabberserver, -irc or --."
 	    }
 	}
-	Pop args
+	lpop args 0
     }
 
     # Set the useragent string to something a bit more standard.
