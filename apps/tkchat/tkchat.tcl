@@ -74,7 +74,6 @@ package require Tcl 8.6-        ; # core Tcl
 package require Tk 8.6-  	; # core Tk
 package require http 2		; # core Tcl
 package require msgcat		; # core Tcl
-package require textutil	; # tcllib 1.0
 package require htmlparse	; # tcllib 1.0
 package require log		; # tcllib
 package require uri             ; # tcllib
@@ -2752,7 +2751,7 @@ proc ::tkchat::CreateGUI {} {
     set Options(NamesWin) .pane.names
 
 # REMOVE 8.6
-    if {[package vsatisfies [package require Tk] 8.7-]} {
+    if {[package vsatisfies [package provide Tk] 8.7-]} {
 	# load new roster implementation (and steal Options(NamesWin) :^)
 	::newRoster::PutIntoPane
     }
@@ -8713,7 +8712,7 @@ proc ::tkchat::updateOnlineNames {} {
     .pane.names configure -state disabled
 
 # REMOVE 8.6
-    if {[package vsatisfies [package require Tk] 8.7-]} {
+    if {[package vsatisfies [package provide Tk] 8.7-]} {
 	after idle ::newRoster::updateOnlineNames
     }
 }
@@ -9265,7 +9264,7 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
 
         after idle [list ::tkchat::SetUserTooltip $nick]
 # REMOVE 8.6
-	if {[package vsatisfies [package require Tk] 8.7-]} {
+	if {[package vsatisfies [package provide Tk] 8.7-]} {
 	    after idle [list ::newRoster::SetUserTooltip $nick]
 	}
     }
