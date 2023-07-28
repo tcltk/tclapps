@@ -5433,7 +5433,7 @@ proc ::tkchat::Debug {cmd args } {
 	    #
 	    variable ServerID
 	    if {![info exists ServerID]} {
-		if {![catch {package require dde}]} {
+		if {[package provide dde] ne ""} {
 		    set ServerID [tk appname]
 		    set count 0
 		    while {[dde services TclEval $ServerID] != {}} {
@@ -9579,85 +9579,94 @@ proc ::tkchat::ShowCertificate {owner depth info} {
 }
 
 # -------------------------------------------------------------------------
-
-proc tkchat::PasteEval {dlg} {
-    set script [string trim [$dlg.f1.txt get 1.0 {end - 1c}]]
+proc tkchat::PasteEval {txt} {
+    set script [string trim [$txt get 1.0 {end - 1c}]]
     Whiteboard::Init
     Whiteboard::Script $script
 }
 
 proc tkchat::PasteDlg {} {
-    variable paste_uid
-    if {![info exists paste_uid]} { set paste_uid 0 }
-    set wid paste[incr paste_uid]
-    set dlg [Dialog .$wid]
-    wm title $dlg [mc "Paste data to %s" paste.tclers.tk]
-    wm transient $dlg {}
-    set f [ttk::frame $dlg.f1 -borderwidth 0]
-    set f2 [ttk::frame $f.f2 -borderwidth 0]
-    ttk::label $f2.lbl -text [mc Subject]
-    set subject [ttk::entry $f2.subject -font FNT] 
-    text $f.txt -background white -font FNT -yscrollcommand [list $f.vs set]
-    ttk::scrollbar $f.vs -command [list $f.txt yview]
-    set f3 [ttk::frame $f.f3 -borderwidth 0]
-    set send [ttk::button $f3.send -text [mc "Send"] \
-                  -default active -width -12 \
-                  -command [list set [namespace current]::$wid send]]
-    set cancel [ttk::button $f3.cancel -text [mc "Cancel"] \
-                    -default normal -width -12 \
-                    -command [list set [namespace current]::$wid cancel]]
+    set id 0
+    while {[winfo exists .paste$id]} {
+        incr id
+    }
 
+    set t [Dialog .paste$id]
+    wm title $t [mc "Paste data to %s" paste.tclers.tk]
+    wm transient $t {}
+
+    # top frame. Subject and body
+    set f [ttk::frame $t.topframe]
+    ttk::label $f.label -text [mc Subject]
+    set subject [ttk::entry $f.subject]
+    set tf [ttk::frame $f.txtframe]
+    set txt [text $tf.txt -background white -yscrollcommand [list $tf.vs set]]
+    ttk::scrollbar $tf.vs -command [list $txt yview]
+
+    pack $tf.vs -side right -fill y
+    pack $txt -expand 1 -fill both
+
+    grid $f.label $subject -sticky news -padx 3 -pady 3
+    grid $tf      -        -sticky news -padx 3 -pady 3
+    grid columnconfigure $f $subject -weight 1
+    grid rowconfigure $f $tf -weight 1
+
+    # bottom frame, aka buttons frame
+    set bf [ttk::frame $t.buttonf]
+    set send [ttk::button $bf.send \
+	-text [mc "Send"] \
+	-default active \
+	-command [list [namespace which PasteDlgSend] $t $subject $txt]]
+    set cancel [ttk::button $bf.cancel \
+	-text [mc "Cancel"] \
+	-command [list destroy $t]]
+
+    pack $cancel -side right -padx 3 -pady 3
+    pack $send   -side right -padx 3 -pady 3
+
+    # prefill the paste body with the content of the clipboard
     foreach s {PRIMARY CLIPBOARD} {
 	set failed [catch {selection get -selection $s} string]
 	if {!$failed && [string length $string] > 0} {
-            $f.txt insert end $string {}
+	    $txt insert end $string
 	    break
-        }
+	}
     }
-    set m [menu $dlg.popup -tearoff 0]
-    $m add command -label [mc "Clear"] -command [list $f.txt delete 0.0 end]
-    $m add command -label [mc "Eval in whiteboard"] \
-        -command [list [namespace origin PasteEval] $dlg]
 
-    bind $f.txt <Button-3> [list tk_popup $m %X %Y]
-    
-    bind $dlg <Key-Escape> [list $cancel invoke]
-    pack $f2.lbl -side left
-    pack $subject -side right -fill x -expand 1
-    pack $cancel $send -side right
-    grid $f2    -     -sticky ew -pady 2
-    grid $f.txt $f.vs -sticky news
-    grid $f3    -     -sticky se
-    grid rowconfigure $f 1 -weight 1
-    grid columnconfigure $f 0 -weight 1
-    pack $f -side top -fill both -expand 1
-    catch {::tk::PlaceWindow $dlg widget .}
+    # an utility popup menu
+    set m [menu $t.popup -tearoff 0]
+    $m add command -label [mc "Clear"] -command [list $txt delete 0.0 end]
+    $m add command -label [mc "Eval in whiteboard"] \
+	-command [list [namespace which PasteEval] $txt]
+
+    bind $txt <Button-3> [list tk_popup $m %X %Y]
+    bind $t <Key-Escape> [list destroy $t]
+
+    pack $bf -side bottom -fill x
+    pack $f  -expand 1 -fill both
+
+    catch {::tk::PlaceWindow $t widget .}
     focus $subject
-    while {1} {
-        tkwait variable [namespace current]::$wid
-        if {[set [namespace current]::$wid] eq "send" \
-                && [string length [$subject get]] < 1} {
-            tk_messageBox -icon info -title [mc "Subject required"] \
-                -message [mc "You must provide a subject to be displayed\
-                as the title for this paste."]
-            continue
-        }
-        break
+}
+
+proc tkchat::PasteDlgSend {t subject txt} {
+    if {[string length [$subject get]] < 1} {
+	tk_messageBox -icon info -title [mc "Subject required"] \
+	    -message [mc "You must provide a subject to be displayed\
+		as the title for this paste."]
+	focus $subject
+	return
     }
-    if {[string equal [set [namespace current]::$wid] "send"]} {
-        set msg [string trim [$f.txt get 1.0 {end - 1c}]]
-        if {[string length $msg] > 0} {
-            set k {}
-            lappend k [wrapper::createtag subject -chdata [$subject get]]
-            lappend k [wrapper::createtag body -chdata $msg]
-            set m [wrapper::createtag message -subtags $k \
-                       -attrlist [list type normal to tcl@paste.tclers.tk]]
-            $::tkjabber::jabber send $m
-        }
+    set msg [string trim [$txt get 1.0 {end - 1c}]]
+    if {[string length $msg] > 0} {
+	set k {}
+	lappend k [wrapper::createtag subject -chdata [$subject get]]
+	lappend k [wrapper::createtag body -chdata $msg]
+	set m [wrapper::createtag message -subtags $k \
+	   -attrlist [list type normal to tcl@paste.tclers.tk]]
+	$::tkjabber::jabber send $m
     }
-    destroy $dlg
-    unset [namespace current]::$wid
-    return
+    destroy $t
 }
 
 # Store personal incoming messages in mbox format (as per the qmail mbox 
