@@ -185,7 +185,7 @@ proc ::tkchat::rss::ShowRssInfo {} {
 
     wm deiconify $dlg
     focus $dlg.bf.ok
-    catch {tk::PlaceWindow $dlg widget .}
+    tk::PlaceWindow $dlg widget .
     tkwait variable [namespace which -variable $dlg]
     destroy $dlg
 }
@@ -297,7 +297,7 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
     bind $t <Escape> [list $f.ok invoke]
     wm deiconify $t
     focus $f.ok
-    catch {tk::PlaceWindow $t widget .}
+    tk::PlaceWindow $t widget .
 
     return
 }

@@ -633,7 +633,7 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 
             pack $f -side top -fill both -expand 1
 	    bind $t <Return> [list $f.ok invoke]
-	    catch {::tk::PlaceWindow $t widget .}
+	    tk::PlaceWindow $t widget .
 	    wm deiconify $t
 	    tkwait visibility $t
 	    focus $f.ok
@@ -1670,7 +1670,7 @@ proc ::tkchat::ShowStatusHistory {} {
     bind $dlg <Escape> [list $f.ok invoke]
     wm title $dlg "Status history"
     wm transient $dlg .
-    catch {::tk::PlaceWindow $dlg widget .}
+    tk::PlaceWindow $dlg widget .
     wm deiconify $dlg
 }
 
@@ -1854,7 +1854,7 @@ proc ::tkchat::CreateMemoDialog {dlg jid} {
     wm protocol $dlg WM_DELETE_WINDOW \
         [namespace code [list SendMemoDone $dlg $jid cancel]]
     focus $dlg.subject
-    ::tk::PlaceWindow $dlg widget .
+    tk::PlaceWindow $dlg widget .
     return $dlg
 }
 proc ::tkchat::SendMemo {jid {subject {}} {body {}}} {
@@ -3352,7 +3352,7 @@ proc ::tkchat::About {} {
     $w.text configure -state disabled
     bind $dlg <Return> [list $w.b invoke]
     bind $dlg <Escape> [list $w.b invoke]
-    ::tk::PlaceWindow $dlg widget .
+    tk::PlaceWindow $dlg widget .
     wm deiconify $dlg
 }
 
@@ -3478,7 +3478,7 @@ proc ::tkchat::Help {} {
     insertHelpText $w.text $txt
 
     $w.text configure -state disabled
-    ::tk::PlaceWindow $w widget .
+    tk::PlaceWindow $w widget .
     wm deiconify $w
 }
 
@@ -4394,7 +4394,7 @@ proc ::tkchat::logonScreen {} {
     }
 
     optSet .logon
-    catch {::tk::PlaceWindow .logon widget .}
+    tk::PlaceWindow .logon widget .
     wm deiconify .logon
     tkwait visibility .logon
     focus -force .logon.ok
@@ -4461,7 +4461,7 @@ proc ::tkchat::IRCLogonScreen {} {
         raise $dlg
     }
 
-    catch {::tk::PlaceWindow $dlg widget .}
+    tk::PlaceWindow $dlg widget .
     wm deiconify $dlg
     tkwait visibility $dlg
     focus -force $dlg.f.ok
@@ -4547,7 +4547,7 @@ proc ::tkchat::registerScreen {} {
         grid rowconfigure $dlg 0 -weight 1
         grid columnconfigure $dlg 0 -weight 1
     }
-    catch {::tk::PlaceWindow $dlg widget .}
+    tk::PlaceWindow $dlg widget .
     wm deiconify $dlg
     tkwait visibility $dlg
     focus -force $r.efn
@@ -4978,7 +4978,7 @@ proc ::tkchat::ChangeColors {} {
     bind $t <Key-Escape> [list destroy $t]
     bind $f <Destroy> [list [namespace which ChangeColorsDestroy] $t]
     wm resizable $t 0 1
-    catch {::tk::PlaceWindow $t widget .}
+    tk::PlaceWindow $t widget .
     wm deiconify $t
 }
 
@@ -5719,9 +5719,7 @@ proc ::tkchat::ShowSmiles {} {
 	grid columnconfigure $f 0 -weight 1
         pack $f -side top -fill both -expand 1
 	wm deiconify $t
-	if {[llength [info command ::tk::PlaceWindow]] > 0} {
-	    tk::PlaceWindow $t widget .
-	}
+	tk::PlaceWindow $t widget .
     }
 }
 
@@ -6980,7 +6978,7 @@ proc ::tkchat::EditOptions {} {
 
     wm protocol $dlg WM_DELETE_WINDOW [list $b_cn invoke]
     wm resizable $dlg 0 0
-    catch {::tk::PlaceWindow $dlg widget .}
+    tk::PlaceWindow $dlg widget .
     wm deiconify $dlg
     tkwait visibility $dlg
     focus $b_ok ; grab $dlg
@@ -9574,7 +9572,7 @@ proc ::tkchat::ShowCertificate {owner depth info} {
     grid $dlg -sticky news
     grid rowconfigure $top 0 -weight 1
     grid columnconfigure $top 0 -weight 1
-    ::tk::PlaceWindow $top widget $owner
+    tk::PlaceWindow $top widget $owner
     wm deiconify $top
 }
 
@@ -9645,7 +9643,7 @@ proc tkchat::PasteDlg {} {
     pack $bf -side bottom -fill x
     pack $f  -expand 1 -fill both
 
-    catch {::tk::PlaceWindow $t widget .}
+    tk::PlaceWindow $t widget .
     focus $subject
 }
 
