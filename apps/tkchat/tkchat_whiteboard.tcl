@@ -81,10 +81,10 @@ proc ::tkchat::Whiteboard::Clear {} {
     set cmd [list .wb.c delete all]
     Script $cmd
 }
-    
+
 # called from safe interp - eval script and transmit script
 proc ::tkchat::Whiteboard::Script {script} {
-    if {[catch { whiteboard eval $script }]} {
+    if {[catch { whiteboard eval $script } err]} {
         whiteboard eval [list Status $err]
         return
     }
