@@ -511,7 +511,7 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
                 set last $Options(RSS,last,$feed)
             }
             set item [lindex [$parser data] 0]
-            set title [dict get [$parser channel] title]
+            set title [htmlparse::mapEscapes [dict get [$parser channel] title]]
             set Options(RSS,last,$feed) [dict getwithdefault $item mtime 0]
             set Options(RSS,title,$feed) $title
             if {$Options(RSS,last,$feed) > $last} {
