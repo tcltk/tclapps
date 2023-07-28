@@ -9589,7 +9589,7 @@ proc tkchat::PasteDlg {} {
         incr id
     }
 
-    set t [Dialog .paste$id]
+    set t [Dialog .paste$id -padx 3 -pady 3]
     wm title $t [mc "Paste data to %s" paste.tclers.tk]
     wm transient $t {}
 
