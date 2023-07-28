@@ -207,7 +207,7 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
         return
     }
 
-    ::tkchat::Dialog $t
+    ::tkchat::Dialog $t -padx 3 -pady 3
     wm withdraw $t
     wm title $t "RSS Feeds"
     wm transient $t .
@@ -331,7 +331,7 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
     set channel [$parser channel]
     set mtime [dict getwithdefault $channel mtime 0]
     set date [clock format $mtime]
-    set title [dict getwithdefault $channel title $url]
+    set title [htmlparse::mapEscapes [dict getwithdefault $channel title $url]]
     $tv item $url \
         -text $title \
         -values [list [lrange $date 0 2] $mtime] \
@@ -348,7 +348,8 @@ proc ::tkchat::rss::FillRssData {tv txt url} {
         set date [clock format $mtime]
         set link [dict getwithdefault $item link "(no link)"]
         set desc [dict getwithdefault $item description "(no description)"]
-        set title [dict getwithdefault $item title "(no title)"]
+        set title [htmlparse::mapEscapes \
+	    [dict getwithdefault $item title "(no title)"]]
         # feeds could contain either "author" or "creator" tag.
         if {[dict exists $item creator]} {
             set atag "Creator"
