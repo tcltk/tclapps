@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Tkchat
+Comment=Tcl/Tk XMPP Chat client
+Comment[de]=Tcl/Tk XMPP tach
+Comment[fr]=Tcl/Tk XMPP parle
+Exec=tkchat
+Icon=tkchat48.png
+Terminal=false
+Type=Application
+Categories=Application;Network;
