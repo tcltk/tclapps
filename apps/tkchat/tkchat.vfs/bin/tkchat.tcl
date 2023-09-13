@@ -5274,16 +5274,16 @@ proc ::tkchat::saveRC {} {
     # Save these options to resource file
     set keep {
 	Alert,* AnimEmoticons AskBeforeQuit AutoAway AutoAwayMsg
-	AutoBookmark AutoConnect AutoFade AutoFadeLimit BridgeNames Browser
-        BrowserTab ChatLogFile ChatLogOff Color,* DisplayUsers ClickFocusEntry
-        ElideTags Emoticons EnableWhiteboard EntryMessageColor errLog
-        ExitMessageColor Font,* Fullname FunkyTraffic Geometry HistoryLines
-        JabberConference JabberConnect JabberPort JabberResource JabberServer
-        Khim HateLolcatz LogFile LogLevel LogPrivateChat LogStderr MyColor
-        Nickname OneToOne Pane Password ProxyHost ProxyPort ProxyUsername
-        SavePW ServerLogging ShowNormalInline Style Subjects Theme Transparency
-        UnifyNicknames UseBabelfish UseJabberSSL UseProxy Username UseTkOnly
-        ValidateSSLChain Visibility,* RSS,* StartZoomed
+	AutoBookmark AutoConnect AutoFade AutoFadeLimit BridgeNames Browser BrowserTab
+	ChatLogFile ChatLogOff Color,* DisplayUsers ClickFocusEntry ElideTags
+	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
+	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
+	JabberPort JabberResource JabberServer Khim HateLolcatz
+	LogFile LogLevel LogPrivateChat LogStderr MyColor Nickname
+	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
+	ServerLogging ShowNormalInline Subjects Theme Transparency UnifyNicknames
+        UseJabberSSL UseProxy Username ValidateSSLChain
+        Visibility,* RSS,* StartZoomed
     }
 
     foreach key $keep {
@@ -7172,35 +7172,30 @@ proc ::tkjabber::connect {} {
         set socketCmd ::socket2 
         if {$have_tls} {set ::tls::socketCmd [info command ::socket2]}
     }
-    if { [info exists Options(JabberConnect)] \
-             && $Options(JabberConnect) ne ""} {
-        foreach {srv prt} [split $Options(JabberConnect) :] break
-    } else {
-        set srv $Options(JabberHost)
-    }
-    if { $prt eq "" } {
-        set prt $Options(JabberPort)
-    }
     if { [catch {
 	if { $Options(UseProxy) && [string length $Options(ProxyHost)] > 0 } {
-            ::log::log debug "ProxyConnect"
-            if {$srv ne $Options(JabberServer) || $prt ne $Options(JabberPort)} {
-                ::log::log warning "HTTP Proxy overrides JabberConnect settings"
-            }
 	    set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
                             $Options(JabberServer) $Options(JabberPort)]
 	} elseif { $have_tls && $Options(UseJabberSSL) eq "ssl" } {
-            ::log::log debug "SSL connect"
 	    set socket \
                 [tls::socket -ssl2 false -ssl3 false -tls1 true \
                      -cafile [get_cafile] \
-                     -command [namespace origin tls_callback] $srv $prt]
+                     -command [namespace origin tls_callback] \
+                     $Options(JabberServer) $Options(JabberPort)]
 	} else {
 	    if { $Options(JabberPort) == 5223 } {
 		incr Options(JabberPort) -1
 	    }
-	     ::log::log debug "JabberConnect: $srv $prt"
-            set socket [$socketCmd $srv $prt] 
+	    if { [info exists Options(JabberConnect)] \
+                     && $Options(JabberConnect) ne ""} {
+		foreach {srv prt} [split $Options(JabberConnect) :] break
+		if { $prt eq "" } {
+		    set prt $Options(JabberPort)
+		}
+		set socket [$socketCmd $srv $prt]
+	    } else {
+		set socket [$socketCmd $Options(JabberServer) $Options(JabberPort)]
+	    }
 	}
     } res] } {
 	# Connection failed.
