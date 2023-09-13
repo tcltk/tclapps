@@ -81,11 +81,11 @@ proc jlib::tls_proceed {jlibname tag xmllist} {
 
     # Make it a SSL connection.
     array set a [list -cafile "" -certfile "" -keyfile "" \
-                     -request 1 -server 0 -require 0 -ssl2 no -ssl3 yes -tls1 yes]
+                     -request 1 -server 0 -require 0 -ssl2 no -ssl3 no -tls1 yes]
     array set a $locals(tls,uargs)
     eval [linsert [array get a] 0 ::tls::import $sock]
     #tls::import $sock -cafile "" -certfile "" -keyfile "" \
-    #  -request 1 -server 0 -require 0 -ssl2 no -ssl3 yes -tls1 yes
+    #  -request 1 -server 0 -require 0 -ssl2 no -ssl3 no -tls1 yes
     set retry 0
     
     while {1} {

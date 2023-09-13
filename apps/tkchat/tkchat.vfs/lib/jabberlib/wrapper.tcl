@@ -121,7 +121,7 @@ proc wrapper::new {streamstartcmd streamendcmd parsecmd errorcmd} {
     # at least for the tcl parser!!!
 
     if {[llength [package provide tdom]]} {
-        set wrapper($id,parser) [xml::parser -namespace 1]
+        set wrapper($id,parser) [xml::parser -namespace]
         set wrapper($id,class) "tdom"
         $wrapper($id,parser) configure   \
             -final 0    \
@@ -450,7 +450,7 @@ proc wrapper::reset {id} {
 	# we can always replace it with a new one.
 	set old $wrapper($id,parser)
 	after idle [list [namespace origin free] $old]
-	set wrapper($id,parser) [xml::parser -namespace 1]
+	set wrapper($id,parser) [xml::parser -namespace]
 	
 	$wrapper($id,parser) configure \
           -final 0 \
