@@ -6073,9 +6073,9 @@ proc ::tkchat::GetDefaultOptions {} {
 	RSS,watch,https://core.tcl-lang.org/tklib/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tclapps/timeline.rss 1
 	RSS,watch,https://core.tcl-lang.org/tips/timeline.rss 1
-	RSS,watch,https://www.reddit.com/r/tcl.rss 0
-	RSS,watch,https://hnrss.org/newcomments?q=Tcl 0
-	RSS,watch,https://hnrss.org/newest?q=Tcl 0
+	RSS,watch,https://www.reddit.com/r/tcl.rss 1
+	RSS,watch,https://hnrss.org/newcomments?q=Tcl 1
+	RSS,watch,https://hnrss.org/newest?q=Tcl 1
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
     foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 SubjectBG ffff00 } {
