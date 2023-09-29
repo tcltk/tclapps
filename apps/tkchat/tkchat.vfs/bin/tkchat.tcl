@@ -6076,6 +6076,17 @@ proc ::tkchat::GetDefaultOptions {} {
 	RSS,watch,https://www.reddit.com/r/tcl.rss 0
 	RSS,watch,https://hnrss.org/newcomments?q=Tcl 0
 	RSS,watch,https://hnrss.org/newest?q=Tcl 0
+        RSS,title,http://paste.tclers.tk/rss.atom {Tcl pastes at http://paste.tclers.tk/}
+        RSS,title,https://core.tcl-lang.org/tcl/timeline.rss {Tcl Source Code}
+        RSS,title,https://core.tcl-lang.org/tclapps/timeline.rss {TclApps Library Source Code}
+        RSS,title,https://core.tcl-lang.org/tcllib/timeline.rss {Tcl Library Source Code}
+        RSS,title,https://core.tcl-lang.org/tips/timeline.rss {Tcl Improvement Proposals}
+        RSS,title,https://core.tcl-lang.org/tk/timeline.rss {Tk Source Code}
+        RSS,title,https://core.tcl-lang.org/tklib/timeline.rss {Tk Library Source Code}
+        RSS,title,https://hnrss.org/newcomments?q=Tcl {Hacker News - New Comments: "Tcl"}
+        RSS,title,https://hnrss.org/newest?q=Tcl {Hacker News - Newest: "Tcl"}
+        RSS,title,https://wiki.tcl-lang.org/rss.xml {Wiki Recent Changes}
+        RSS,title,https://www.reddit.com/r/tcl.rss {set lang Tcl}
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
     foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 SubjectBG ffff00 } {
