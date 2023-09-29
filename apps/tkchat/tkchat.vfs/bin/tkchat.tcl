@@ -5280,10 +5280,10 @@ proc ::tkchat::saveRC {} {
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
 	JabberPort JabberResource JabberServer Khim HateLolcatz
 	LogFile LogLevel LogPrivateChat LogStderr MyColor Nickname
-	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername SavePW
+	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername RSS,* SavePW
 	ServerLogging ShowNormalInline Subjects Theme Transparency UnifyNicknames
         UseJabberSSL UseProxy Username ValidateSSLChain
-        Visibility,* RSS,* StartZoomed
+        Visibility,* StartZoomed
     }
 
     foreach key $keep {
@@ -6065,17 +6065,17 @@ proc ::tkchat::GetDefaultOptions {} {
 	Visibility,TRAFFIC	0
         Visibility,ROSTER	1
 	WhisperIndicatorColor	#ffe0e0
-	RSS,watch,https://wiki.tcl-lang.org/rss.xml 1
-	RSS,watch,http://paste.tclers.tk/rss.atom 1
-	RSS,watch,https://core.tcl-lang.org/tcl/timeline.rss 1
-	RSS,watch,https://core.tcl-lang.org/tk/timeline.rss 1
-	RSS,watch,https://core.tcl-lang.org/tcllib/timeline.rss 1
-	RSS,watch,https://core.tcl-lang.org/tklib/timeline.rss 1
-	RSS,watch,https://core.tcl-lang.org/tclapps/timeline.rss 1
-	RSS,watch,https://core.tcl-lang.org/tips/timeline.rss 1
-	RSS,watch,https://www.reddit.com/r/tcl.rss 1
-	RSS,watch,https://hnrss.org/newcomments?q=Tcl 1
-	RSS,watch,https://hnrss.org/newest?q=Tcl 1
+	RSS,watch,https://wiki.tcl-lang.org/rss.xml 0
+	RSS,watch,http://paste.tclers.tk/rss.atom 0
+	RSS,watch,https://core.tcl-lang.org/tcl/timeline.rss 0
+	RSS,watch,https://core.tcl-lang.org/tk/timeline.rss 0
+	RSS,watch,https://core.tcl-lang.org/tcllib/timeline.rss 0
+	RSS,watch,https://core.tcl-lang.org/tklib/timeline.rss 0
+	RSS,watch,https://core.tcl-lang.org/tclapps/timeline.rss 0
+	RSS,watch,https://core.tcl-lang.org/tips/timeline.rss 0
+	RSS,watch,https://www.reddit.com/r/tcl.rss 0
+	RSS,watch,https://hnrss.org/newcomments?q=Tcl 0
+	RSS,watch,https://hnrss.org/newest?q=Tcl 
     }
     if {[info exists env(BROWSER)]} { set Defaults(Browser) $env(BROWSER) }
     foreach { nick clr } { MainBG ffffff MainFG 000000 SearchBG ff8c44 SubjectBG ffff00 } {
