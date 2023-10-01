@@ -4349,11 +4349,15 @@ proc ::tkchat::logonScreen {} {
         bind .logon.lconf <<AltUnderlined>> {focus .logon.econf}
 	bind .logon.nossl <<AltUnderlined>> {focus .logon.nossl}
 
-	trace add variable Options(UseProxy) \
-	    write [list [namespace origin optSet] .logon]
-	trace add variable Options(SavePW) \
-	    write [list [namespace origin optSet] .logon]
-        
+	set cback [list [namespace origin optSet] .logon]
+	trace add variable Options(UseProxy) write $cback
+	trace add variable Options(SavePW)   write $cback
+	bind .logon.nossl <Destroy> [list apply {{k1 k2 cback} {
+	    global Options
+	    trace remove variable Options($k1) write $cback
+	    trace remove variable Options($k2) write $cback
+	}} UseProxy SavePW $cback]
+
 	pack .logon.ejprt -in .logon.fjsrv -side right -fill y
 	pack .logon.ejsrv -in .logon.fjsrv -side right -fill both -expand 1
 
@@ -4408,6 +4412,270 @@ proc ::tkchat::logonScreen {} {
 
 	# connect
 	logonChat
+    }
+}
+
+proc ::tkchat::logonScreen2 {} {
+    global Options
+    variable LoggedIn
+    variable UseCustomHostPort
+
+    if {![info exists UseCustomHostPort]} {
+	set UseCustomHostPort 0
+    }
+
+if 0 { # testing
+    if {$LoggedIn} {
+	tkjabber::disconnect
+    }
+    tkjabber::cancelReconnect
+}
+
+    set d .logon
+    if {[winfo exists $d]} {
+	return
+    }
+
+    Dialog $d
+    wm withdraw $d
+    wm title $d [mc "Login"]
+
+    # we organize our dialog in tabs
+    set nb [ttk::notebook $d.nb]
+
+    # account tab
+    set t [ttk::frame $nb.accounttab]
+    $nb add $t -text [mc "Account"]
+    tk::AmpWidget ttk::label $t.lnm \
+	-text [mc "Username"]
+    ttk::entry $t.enm \
+	-textvariable Options(Username)
+    tk::AmpWidget ttk::label $t.ljsrv \
+	-text [mc "&Jabber server"]
+    ttk::entry $t.ejsrv \
+	-textvariable Options(JabberServer)
+    tk::AmpWidget ttk::label $t.lpw \
+	-text [mc "Chat p&assword"]
+    ttk::entry $t.epw \
+	-show \u2022 \
+	-textvariable Options(Password)
+    tk::AmpWidget ttk::label $t.ljres \
+	-text [mc "Jab&ber resource"]
+    ttk::entry $t.ejres \
+	-textvariable Options(JabberResource)
+    tk::AmpWidget ttk::checkbutton $t.rpw \
+	-text [mc "&Remember chat password"] \
+	-variable Options(SavePW) \
+	-command [list [namespace which SavePWCmd] $t.atc]
+    tk::AmpWidget ttk::checkbutton $t.atc \
+	-text [mc "Auto-&connect"] \
+	-variable Options(AutoConnect)
+    # lay them out
+    grid $t.lnm $t.enm $t.ljsrv $t.ejsrv -padx 2 -pady 2 -sticky ew
+    grid $t.lpw $t.epw $t.ljres $t.ejres -padx 2 -pady 2 -sticky ew
+    grid $t.rpw -      $t.atc   -        -padx 2 -pady 6 -sticky w
+    # keyboard accel
+    bind $t.lnm   <<AltUnderlined>> [list focus $t.enm]
+    bind $t.ljsrv <<AltUnderlined>> [list focus $t.ejsrv]
+    bind $t.lpw   <<AltUnderlined>> [list focus $t.epw]
+    bind $t.ljres <<AltUnderlined>> [list focus $t.ejres]
+    bind $t.rpw   <<AltUnderlined>> {focus %W; %W invoke}
+    bind $t.atc   <<AltUnderlined>> {focus %W; %W invoke}
+    # run the callback to reflect current state
+    SavePWCmd $t.atc
+
+    # proxy tab
+    set t [ttk::frame $nb.proxytab]
+    $nb add $t -text [mc "Proxy settings"]
+    tk::AmpWidget ttk::checkbutton $t.prx \
+	-text [mc "Use pro&xy"] \
+	-variable Options(UseProxy)
+    set f [ttk::frame $t.group]
+    $t.prx configure -command [list [namespace which UseProxyCmd] $f]
+    tk::AmpWidget ttk::label $f.lph \
+	-text [mc "&Proxy host"]
+    tk::AmpWidget ttk::label $f.lpp \
+	-text [mc "Proxy p&ort"]
+    ttk::entry $f.eph \
+	-textvariable Options(ProxyHost)
+    ttk::entry $f.epp \
+	-textvariable Options(ProxyPort)
+    tk::AmpWidget ttk::label $f.lpan \
+	-text [mc "Proxy auth &username"]
+    tk::AmpWidget ttk::label $f.lpap \
+	-text [mc "Proxy auth pa&ssword"]
+    ttk::entry $f.epan \
+	-textvariable Options(ProxyUsername)
+    ttk::entry $f.epap \
+	-show \u2022 \
+	-textvariable Options(ProxyPassword)
+    # lay them out
+    grid $f.lph  $f.eph  $f.lpp  $f.epp  -pady 2 -padx 2 -sticky ew
+    grid $f.lpan $f.epan $f.lpap $f.epap -pady 2 -padx 2 -sticky ew
+    pack $t.prx -padx 2 -pady 2 -anchor w
+    pack $f             -pady 2 -anchor w
+    # keyboard accel
+    bind $f.lph  <<AltUnderlined>> [list focus $f.eph]
+    bind $f.lpp  <<AltUnderlined>> [list focus $f.epp]
+    bind $f.lpan <<AltUnderlined>> [list focus $f.epan]
+    bind $f.lpap <<AltUnderlined>> [list focus $f.epap]
+    # run the callback to reflect current state
+    UseProxyCmd $f
+
+    # conference tab
+    set t [ttk::frame $nb.conferencetab]
+    $nb add $t -text [mc "Conference"]
+    tk::AmpWidget ttk::label $t.lconf \
+	-text [mc "Jabber con&ference"]
+    ttk::entry $t.econf \
+	-textvariable Options(JabberConference)
+    tk::AmpWidget ttk::label $t.lnick \
+	-text [mc "Nickname"]
+    ttk::entry $t.enick \
+	-textvariable Options(Nickname)
+    # lay them out
+    grid $t.lconf $t.econf -sticky w -pady 2 -padx 2
+    grid $t.lnick $t.enick -sticky w -pady 2 -padx 2
+    # keyboard accel
+    bind $t.lconf <<AltUnderlined>> [list focus $t.econf]
+    bind $t.lnick <<AltUnderlined>> [list focus $t.enick]
+
+    # ssl tab
+    set t [ttk::frame $nb.ssltab]
+    $nb add $t -text [mc "Encryption"]
+    tk::AmpWidget ttk::radiobutton $t.rnossl \
+	-text [mc "N&o SSL"] \
+	-variable Options(UseJabberSSL) \
+	-value "no" \
+	-command ::tkjabber::TwiddlePort
+    tk::AmpWidget ttk::radiobutton $t.rjabberssl \
+	-text [mc "Jabber SSL"] \
+	-variable Options(UseJabberSSL) \
+	-value "ssl" \
+	-command ::tkjabber::TwiddlePort
+    tk::AmpWidget ttk::radiobutton $t.rstarttls \
+	-text [mc "STARTTLS"] \
+	-variable Options(UseJabberSSL) \
+	-value "starttls" \
+	-command ::tkjabber::TwiddlePort
+    tk::AmpWidget ttk::checkbutton $t.vsc \
+	-text [mc "&Validate SSL certificates"] \
+	-variable Options(ValidateSSLChain)
+    # lay them out
+    grid $t.rnossl     -sticky w -padx 2 -pady 2
+    grid $t.rjabberssl -sticky w -padx 2 -pady 2
+    grid $t.rstarttls  -sticky w -padx 2 -pady 2
+    grid $t.vsc        -sticky w -padx 2 -pady 6
+    # keyboard accel
+    bind $t.rnossl     <<AltUnderlined>> {focus %W; %W invoke}
+    bind $t.rjabberssl <<AltUnderlined>> {focus %W; %W invoke}
+    bind $t.rstarttls  <<AltUnderlined>> {focus %W; %W invoke}
+    bind $t.vsc        <<AltUnderlined>> {focus %W; %W invoke}
+    # enable/disable tab
+    if {[package provide tls] eq ""} {
+	set Options(UseJabberSSL) "no"
+	$nb tab $t -state hidden
+    }
+
+    # connection tab
+    set t [ttk::frame $nb.connectiontab]
+    $nb add $t -text [mc "Connection"]
+    tk::AmpWidget ttk::checkbutton $t.csp \
+	-text [mc "Explicitly specify host and port to connect"] \
+	-variable [namespace current]::UseCustomHostPort
+    set f [ttk::frame $t.group]
+    $t.csp configure -command [list [namespace which UseCustomHostPortCmd] $f]
+    tk::AmpWidget ttk::label $f.lhost \
+	-text [mc "Host"]
+    ttk::entry $f.ehost \
+	-textvariable [namespace current]::CustomHost
+    tk::AmpWidget ttk::label $f.lport \
+	-text [mc "Port"]
+    ttk::entry $f.eport \
+	-textvariable [namespace current]::CustomPort
+    # lay them out
+    grid $f.lhost $f.ehost -padx 2 -pady 2
+    grid $f.lport $f.eport -padx 2 -pady 2
+    pack $t.csp -padx 2 -pady 2 -anchor w
+    pack $f             -pady 2 -anchor w
+    # keyboard accel
+    bind $f.lhost <<AltUnderlined>> [list focus $f.ehost]
+    bind $f.lport <<AltUnderlined>> [list focus $f.eport]
+    # run the callback to reflect current state
+    UseCustomHostPortCmd $f
+
+    # the button frame
+    set bf [ttk::frame $d.f]
+    tk::AmpWidget ttk::button $bf.ok \
+	-text [mc "&Login"] \
+	-default active \
+	-command [list [namespace which logonScreen2Ok] $d]
+    ttk::button $bf.cancel \
+	-text [mc "Cancel"] \
+	-command [list destroy $d]
+    tk::AmpWidget ttk::button $bf.quit \
+	-text [mc "&Quit"] \
+	-command [namespace which quit]
+    # lay them out
+    pack $bf.quit $bf.cancel $bf.ok -side right -padx 3 -pady 3
+
+    # finally, put all them in the dialog
+    pack $bf -side bottom -fill x
+    pack $nb -side top    -fill both
+
+    # enable the i18n alt key handling for this dialog
+    bind $d <Alt-Key> [list tk::AltKeyInDialog $d %A]
+
+    bind $d <Return> [list $bf.ok invoke]
+    bind $d <Escape> [list $bf.cancel invoke]
+
+    tk::PlaceWindow $d widget .
+    wm deiconify $d
+    raise $d
+    wm resizable $d 0 0
+    focus -force $bf.ok
+    grab $d
+    bind $bf <Destroy> [list grab release $d]
+}
+
+proc ::tkchat::logonScreen2Ok {d} {
+if 0 {# testing
+    global Options
+
+    unset -nocomplain Options(ProxyAuth)
+    set Options(Nickname) [jlib::resourceprep $Options(Nickname)]
+
+    destroy $d
+    # connect
+    logonChat
+}; puts OK!
+}
+
+proc ::tkchat::UseProxyCmd {f} {
+    global Options
+
+    foreach w [winfo children $f] {
+	$w state [expr {$Options(UseProxy) ? "!disabled" : "disabled"}]
+    }
+    tkjabber::TwiddlePort
+}
+
+proc ::tkchat::SavePWCmd {w} {
+    global Options
+
+    if {$Options(SavePW)} {
+	$w state !disabled
+    } else {
+	$w state disabled
+	set Options(AutoConnect) 0
+    }
+}
+
+proc ::tkchat::UseCustomHostPortCmd {f} {
+    variable UseCustomHostPort
+
+    foreach w [winfo children $f] {
+	$w state [expr {$UseCustomHostPort ? "!disabled" : "disabled"}]
     }
 }
 
@@ -9093,14 +9361,14 @@ proc ::tkjabber::LoadHistoryLines {} {
 
 proc ::tkjabber::TwiddlePort {} {
     global Options
-    if {$Options(UseJabberSSL) eq "ssl" \
-            && ($Options(JabberPort) == 5222 \
-                    || $Options(JabberPort) == 5223 \
-                    || $Options(JabberPort) == 443)} {
+    if {$Options(UseJabberSSL) eq "ssl" &&
+	$Options(JabberPort) in {5222 5223 443}
+    } then {
         set Options(JabberPort) [expr {$Options(UseProxy) ? 443 : 5223}]
-    } elseif {$Options(UseJabberSSL) ne "ssl" 
-              && ($Options(JabberPort) == 5223 
-                  || $Options(JabberPort) == 443)} {
+    } elseif {
+	$Options(UseJabberSSL) ne "ssl" &&
+	$Options(JabberPort) in {5223 443}
+    } then {
         set Options(JabberPort) 5222
     }
 }
