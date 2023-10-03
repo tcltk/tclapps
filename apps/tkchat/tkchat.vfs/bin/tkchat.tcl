@@ -4256,7 +4256,7 @@ proc ::tkchat::showExtra {{p ""}} {
     }
 }
 
-proc ::tkchat::logonScreen {} {
+proc ::tkchat::logonScreen-Old {} {
     global Options
     variable DlgDone
 
@@ -4352,11 +4352,12 @@ proc ::tkchat::logonScreen {} {
 	set cback [list [namespace origin optSet] .logon]
 	trace add variable Options(UseProxy) write $cback
 	trace add variable Options(SavePW)   write $cback
-	bind .logon.nossl <Destroy> [list apply {{k1 k2 cback} {
+	# remove traces when the dialog is closed
+	bind .logon.nossl <Destroy> [list apply {{cback} {
 	    global Options
-	    trace remove variable Options($k1) write $cback
-	    trace remove variable Options($k2) write $cback
-	}} UseProxy SavePW $cback]
+	    trace remove variable Options(UseProxy) write $cback
+	    trace remove variable Options(SavePW) write $cback
+	}} $cback]
 
 	pack .logon.ejprt -in .logon.fjsrv -side right -fill y
 	pack .logon.ejsrv -in .logon.fjsrv -side right -fill both -expand 1
@@ -4415,21 +4416,16 @@ proc ::tkchat::logonScreen {} {
     }
 }
 
-proc ::tkchat::logonScreen2 {} {
+interp alias {} ::tkchat::logonScreen {} ::tkchat::logonScreen-New
+
+proc ::tkchat::logonScreen-New {} {
     global Options
     variable LoggedIn
-    variable UseCustomHostPort
 
-    if {![info exists UseCustomHostPort]} {
-	set UseCustomHostPort 0
-    }
-
-if 0 { # testing
     if {$LoggedIn} {
 	tkjabber::disconnect
     }
     tkjabber::cancelReconnect
-}
 
     set d .logon
     if {[winfo exists $d]} {
@@ -4479,8 +4475,8 @@ if 0 { # testing
     bind $t.ljsrv <<AltUnderlined>> [list focus $t.ejsrv]
     bind $t.lpw   <<AltUnderlined>> [list focus $t.epw]
     bind $t.ljres <<AltUnderlined>> [list focus $t.ejres]
-    bind $t.rpw   <<AltUnderlined>> {focus %W; %W invoke}
-    bind $t.atc   <<AltUnderlined>> {focus %W; %W invoke}
+    bind $t.rpw   <<AltUnderlined>> {+focus %W}
+    bind $t.atc   <<AltUnderlined>> {+focus %W}
     # run the callback to reflect current state
     SavePWCmd $t.atc
 
@@ -4498,8 +4494,10 @@ if 0 { # testing
 	-text [mc "Proxy p&ort"]
     ttk::entry $f.eph \
 	-textvariable Options(ProxyHost)
-    ttk::entry $f.epp \
-	-textvariable Options(ProxyPort)
+    ttk::spinbox $f.epp \
+	-textvariable Options(ProxyPort) \
+	-from 1 \
+	-to 9999
     tk::AmpWidget ttk::label $f.lpan \
 	-text [mc "Proxy auth &username"]
     tk::AmpWidget ttk::label $f.lpap \
@@ -4567,10 +4565,10 @@ if 0 { # testing
     grid $t.rstarttls  -sticky w -padx 2 -pady 2
     grid $t.vsc        -sticky w -padx 2 -pady 6
     # keyboard accel
-    bind $t.rnossl     <<AltUnderlined>> {focus %W; %W invoke}
-    bind $t.rjabberssl <<AltUnderlined>> {focus %W; %W invoke}
-    bind $t.rstarttls  <<AltUnderlined>> {focus %W; %W invoke}
-    bind $t.vsc        <<AltUnderlined>> {focus %W; %W invoke}
+    bind $t.rnossl     <<AltUnderlined>> {+focus %W}
+    bind $t.rjabberssl <<AltUnderlined>> {+focus %W}
+    bind $t.rstarttls  <<AltUnderlined>> {+focus %W}
+    bind $t.vsc        <<AltUnderlined>> {+focus %W}
     # enable/disable tab
     if {[package provide tls] eq ""} {
 	set Options(UseJabberSSL) "no"
@@ -4580,23 +4578,25 @@ if 0 { # testing
     # connection tab
     set t [ttk::frame $nb.connectiontab]
     $nb add $t -text [mc "Connection"]
-    tk::AmpWidget ttk::checkbutton $t.csp \
+    tk::AmpWidget ttk::checkbutton $t.chp \
 	-text [mc "Explicitly specify host and port to connect"] \
-	-variable [namespace current]::UseCustomHostPort
+	-variable Options(Connect)
     set f [ttk::frame $t.group]
-    $t.csp configure -command [list [namespace which UseCustomHostPortCmd] $f]
+    $t.chp configure -command [list [namespace which UseCustomHostPortCmd] $f]
     tk::AmpWidget ttk::label $f.lhost \
 	-text [mc "Host"]
     ttk::entry $f.ehost \
-	-textvariable [namespace current]::CustomHost
+	-textvariable Options(ConnectHost)
     tk::AmpWidget ttk::label $f.lport \
 	-text [mc "Port"]
-    ttk::entry $f.eport \
-	-textvariable [namespace current]::CustomPort
+    ttk::spinbox $f.eport \
+	-textvariable Options(ConnectPort) \
+	-from 1 \
+	-to 9999
     # lay them out
-    grid $f.lhost $f.ehost -padx 2 -pady 2
-    grid $f.lport $f.eport -padx 2 -pady 2
-    pack $t.csp -padx 2 -pady 2 -anchor w
+    grid $f.lhost $f.ehost -padx 2 -pady 2 -sticky ew
+    grid $f.lport $f.eport -padx 2 -pady 2 -sticky ew
+    pack $t.chp -padx 2 -pady 2 -anchor w
     pack $f             -pady 2 -anchor w
     # keyboard accel
     bind $f.lhost <<AltUnderlined>> [list focus $f.ehost]
@@ -4639,7 +4639,6 @@ if 0 { # testing
 }
 
 proc ::tkchat::logonScreen2Ok {d} {
-if 0 {# testing
     global Options
 
     unset -nocomplain Options(ProxyAuth)
@@ -4648,7 +4647,6 @@ if 0 {# testing
     destroy $d
     # connect
     logonChat
-}; puts OK!
 }
 
 proc ::tkchat::UseProxyCmd {f} {
@@ -4672,10 +4670,10 @@ proc ::tkchat::SavePWCmd {w} {
 }
 
 proc ::tkchat::UseCustomHostPortCmd {f} {
-    variable UseCustomHostPort
+    global Options
 
     foreach w [winfo children $f] {
-	$w state [expr {$UseCustomHostPort ? "!disabled" : "disabled"}]
+	$w state [expr {$Options(Connect) ? "!disabled" : "disabled"}]
     }
 }
 
@@ -5542,16 +5540,16 @@ proc ::tkchat::saveRC {} {
     # Save these options to resource file
     set keep {
 	Alert,* AnimEmoticons AskBeforeQuit AutoAway AutoAwayMsg
-	AutoBookmark AutoConnect AutoFade AutoFadeLimit BridgeNames Browser BrowserTab
-	ChatLogFile ChatLogOff Color,* DisplayUsers ClickFocusEntry ElideTags
+	AutoBookmark AutoConnect AutoFade AutoFadeLimit BridgeNames
+	Browser BrowserTab ChatLogFile ChatLogOff Color,* Connect* DisplayUsers ClickFocusEntry ElideTags
 	Emoticons EnableWhiteboard EntryMessageColor errLog ExitMessageColor
 	Font,* Fullname FunkyTraffic Geometry HistoryLines JabberConference
 	JabberPort JabberResource JabberServer Khim HateLolcatz
 	LogFile LogLevel LogPrivateChat LogStderr MyColor Nickname
 	OneToOne Pane Password ProxyHost ProxyPort ProxyUsername RSS,* SavePW
-	ServerLogging ShowNormalInline Subjects Theme Transparency UnifyNicknames
-        UseJabberSSL UseProxy Username ValidateSSLChain
-        Visibility,* StartZoomed
+	ServerLogging ShowNormalInline Subjects Theme Transparency
+	UnifyNicknames UseJabberSSL UseProxy Username ValidateSSLChain
+	Visibility,* StartZoomed
     }
 
     foreach key $keep {
@@ -6121,7 +6119,10 @@ proc ::tkchat::Init {args} {
 		set Options(JabberConference) [lpop args 1]
 	    }
 	    -connect {
-		set Options(JabberConnect) [lpop args 1]
+		set Options(Connect) 1
+		lassign [split [lpop args 1] ":"] \
+		    Options(ConnectHost) Options(ConnectPort)
+		# set Options(JabberConnect) [lpop args 1]
 	    }
 	    -jabberserver {
 		set j [split [lpop args 1] :]
@@ -6279,6 +6280,9 @@ proc ::tkchat::GetDefaultOptions {} {
 	ChatLogFile		""
 	ChatLogOff		1
         ClickFocusEntry		1
+        Connect			0
+        ConnectHost		""
+        ConnectPort		""
 	DisplayUsers		1
 	ElideTags		{ SINGLEDOT AVAILABILITY TRAFFIC SYSTEM ERROR }
 	Emoticons		1
@@ -7448,33 +7452,38 @@ proc ::tkjabber::connect {} {
     set have_tls [expr {[package provide tls] ne {}}]
     set socketCmd [info command ::socket]
     if {[llength [package provide Iocpsock]] > 0} {
-        set socketCmd ::socket2 
+        set socketCmd ::socket2
         if {$have_tls} {set ::tls::socketCmd [info command ::socket2]}
     }
+    # the order of preference should be
+    # * User specified (Connect*)
+    # * dns query to SRV record (might return a list of server:port pairs)
+    # * fallback to JabberServer and JabberPort
+    # dns queries is still work in progress
+    if {$Options(Connect)} {
+        set host $Options(ConnectHost)
+        set port $Options(ConnectPort)
+    } else {
+        set host $Options(JabberServer)
+        set port $Options(JabberPort)
+    }
+
     if { [catch {
 	if { $Options(UseProxy) && [string length $Options(ProxyHost)] > 0 } {
-	    set socket [ProxyConnect $Options(ProxyHost) $Options(ProxyPort) \
-                            $Options(JabberServer) $Options(JabberPort)]
+	    set socket [ProxyConnect \
+		$Options(ProxyHost) $Options(ProxyPort) \
+		$host $port]
 	} elseif { $have_tls && $Options(UseJabberSSL) eq "ssl" } {
 	    set socket \
-                [tls::socket -ssl2 false -ssl3 false -tls1 true \
-                     -cafile [get_cafile] \
-                     -command [namespace origin tls_callback] \
-                     $Options(JabberServer) $Options(JabberPort)]
+		[tls::socket -ssl2 false -ssl3 false -tls1 true \
+		     -cafile [get_cafile] \
+		     -command [namespace origin tls_callback] \
+		     $host $port]
 	} else {
-	    if { $Options(JabberPort) == 5223 } {
-		incr Options(JabberPort) -1
+	    if {$port == 5223} {
+		incr port -1
 	    }
-	    if { [info exists Options(JabberConnect)] \
-                     && $Options(JabberConnect) ne ""} {
-		foreach {srv prt} [split $Options(JabberConnect) :] break
-		if { $prt eq "" } {
-		    set prt $Options(JabberPort)
-		}
-		set socket [$socketCmd $srv $prt]
-	    } else {
-		set socket [$socketCmd $Options(JabberServer) $Options(JabberPort)]
-	    }
+	    set socket [$socketCmd $host $port]
 	}
     } res] } {
 	# Connection failed.
@@ -7513,7 +7522,7 @@ proc ::tkjabber::connect {} {
 
     # The next thing which will/should happen is the a call to ConnectProc by
     # jabberlib.
-    foreach {label index} [tk::UnderlineAmpersand [mc "&Logout"]] break
+    lassign [tk::UnderlineAmpersand [mc "&Logout"]] label index
     .mbar.file entryconfigure 0 -label $label -underline $index
     set ::tkchat::LoggedIn 1
     return 1
