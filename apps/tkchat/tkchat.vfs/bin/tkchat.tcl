@@ -5554,9 +5554,10 @@ proc ::tkchat::saveRC {} {
 
     foreach key $keep {
 	foreach option [array names Options $key] {
-	    if { [info exists tmp($option)] \
-                     && [string tolower $Options($option)] \
-                     eq [string tolower $tmp($option)] } {
+	    if {[info exists tmp($option)] &&
+		( [string tolower $Options($option)] eq
+		[string tolower $tmp($option)] )
+	    } then {
 		unset -nocomplain tmp($option)
 	    } else {
 		set tmp($option) $Options($option)
@@ -5588,6 +5589,11 @@ proc ::tkchat::saveRC {} {
 	if { $keepNick } {
 	    lappend tmp(NickList) $nk
 	}
+    }
+
+    # remove Connect options if not set
+    if {! $Options(Connect)} {
+	array unset tmp Connect*
     }
 
     # Do we save password?
@@ -7470,6 +7476,7 @@ proc ::tkjabber::connect {} {
 
     if { [catch {
 	if { $Options(UseProxy) && [string length $Options(ProxyHost)] > 0 } {
+	    # should we use JabberServer and JabberPort here?
 	    set socket [ProxyConnect \
 		$Options(ProxyHost) $Options(ProxyPort) \
 		$host $port]
