@@ -540,35 +540,35 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
 }
 
 proc ::tkchat::rss::OptionsHook {parent} {
-    global Options
+    global ::Options
     variable EditOptions
-    array set EditOptions [array get Options RSS,watch,*]
+    array set EditOptions [array get ::Options RSS,watch,*]
 
     set page [ttk::frame $parent.rssOptions -borderwidth 0]
     set n 0
     foreach feed [array names EditOptions RSS,watch,*] {
         set url [lindex [split $feed ,] 2]
         set text [dict get [uri::split $url] host]
-        if {[info exists Options(RSS,title,$url)]} {
-            if {[string length $Options(RSS,title,$url)] > 0} {
-                set text $Options(RSS,title,$url)
+        if {[info exists ::Options(RSS,title,$url)]} {
+            if {[string length $::Options(RSS,title,$url)] > 0} {
+                set text $::Options(RSS,title,$url)
             }
         }
         ttk::checkbutton [set w $page.wf[incr n]] \
             -text $text \
-            -variable [namespace current]::EditOptions($feed)
+            -variable [namespace current]::EditOptions($feed) -onvalue 1
         grid $w -sticky new -padx 2 -pady 2
     }
     grid columnconfigure $page 0 -weight 1
     grid rowconfigure    $page $n -weight 1
 
     bind $page <<TkchatOptionsAccept>> [namespace code {
-        variable EditOptions; global Options
+        variable EditOptions; global ::Options
         set feed_refresh 0
         foreach feed [array names EditOptions RSS,watch,*] {
-            if {$Options($feed) != $EditOptions($feed)} {
+            if {$::Options($feed) != $EditOptions($feed)} {
                 set feed_refresh 1
-                set Options($feed) $EditOptions($feed)
+                set ::Options($feed) $EditOptions($feed)
             }
         }
         if {$feed_refresh} { after idle [namespace origin CheckRSSFeeds] }
