@@ -61,8 +61,23 @@ proc ::tkchat::clock::ClockEnable {widgets varname key op} {
     return
 }
 
+proc ::tkchat::clock::OptionsAccept {} {
+    variable Options
+    variable EditOptions
+    array set Options [array get EditOptions]
+    unset EditOptions
+    Stop
+    Init
+}
+
+proc ::tkchat::clock::OptionsCancel {} {
+    variable EditOptions
+    unset EditOptions
+}
+
 proc ::tkchat::clock::OptionsHook {parent} {
-    variable EditOptions; variable Options
+    variable Options
+    variable EditOptions
     array set EditOptions [array get Options]
     set f [ttk::frame $parent.clock]
     set eb [ttk::checkbutton $f.eb -text "Enable clock" \
@@ -84,13 +99,8 @@ proc ::tkchat::clock::OptionsHook {parent} {
     grid $lf -sticky new -padx 2 -pady 2
     grid rowconfigure $f 0 -weight 1
     grid columnconfigure $f 0 -weight 1
-    bind $f <<TkchatOptionsAccept>> [namespace code {
-        variable Options; variable EditOptions
-        array set Options [array get EditOptions]
-        unset EditOptions
-        Stop
-        Init
-    }]
+    bind $f <<TkchatOptionsAccept>> [namespace which OptionsAccept]
+    bind $f <<TkchatOptionsCancel>> [namespace which OptionsCancel]
     return [list Clock $f]
 }
    

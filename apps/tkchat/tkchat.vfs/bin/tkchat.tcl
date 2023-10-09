@@ -7056,6 +7056,31 @@ proc ::tkchat::FocusOutHandler {w args} {
 # preferences are done on the PreferencesPage and plugins can provide
 # additional pages. If we don't have ttk then a tabbed dialog is mimicked.
 # See the tkchat_clock.tcl file for a sample plugin.
+proc ::tkchat::PreferencesAccept {} {
+    global Options
+    variable EditOptions
+    set Options(Browser) $EditOptions(Browser)
+    set Options(BrowserTab) $EditOptions(BrowserTab)
+    foreach property {AutoFade AutoFadeLimit UnifyNicknames
+        AskBeforeQuit AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages
+        ClickFocusEntry LogPrivateChat ShowNormalInline
+    } {
+	if { $Options($property) ne $EditOptions($property) } {
+	    set Options($property) $EditOptions($property)
+	}
+    }
+    unset EditOptions
+}
+
+proc ::tkchat::PreferencesCancel {} {
+    # This one is the reverse of the other dialog properties. In this case
+    # the Options copy is the one always updated and the EditOptions value
+    # is the backup.
+    global Options
+    variable EditOptions
+    set Options(Transparency) $EditOptions(Transparency)
+    unset EditOptions
+}
 
 proc ::tkchat::PreferencesPage {parent} {
     global Options
@@ -7125,7 +7150,7 @@ proc ::tkchat::PreferencesPage {parent} {
     tooltip $af.abq "Display a confirmation dialog before\
         exiting to permit the user to cancel an accidental quit."
     tooltip $af.unn "Removes IRC/Slack chars and colors nick"
-    
+
     bind $dlg <Alt-s> [list $af.store invoke]
     bind $dlg <Alt-o> [list $af.norminline invoke]
     bind $dlg <Alt-h> [list $af.traffic invoke]
@@ -7204,27 +7229,8 @@ proc ::tkchat::PreferencesPage {parent} {
     }
     if {$gimmicks} { grid $gf - -sticky news -padx 2 -pady 2 }
 
-    bind $page <<TkchatOptionsAccept>> [namespace code {
-        global Options ; variable EditOptions
-	set Options(Browser) $EditOptions(Browser)
-	set Options(BrowserTab) $EditOptions(BrowserTab)
-	foreach property {AutoFade AutoFadeLimit UnifyNicknames
-            AskBeforeQuit AutoAwayMsg HateLolcatz FunkyTraffic StoreMessages
-            ClickFocusEntry LogPrivateChat ShowNormalInline} {
-	    if { $Options($property) ne $EditOptions($property) } {
-		set Options($property) $EditOptions($property)
-	    }
-	}
-        unset EditOptions
-    }]
-    # This one is the reverse of the other dialog properties. In this case
-    # the Options copy is the one always updated and the EditOptions value
-    # is the backup.
-    bind $page <<TkchatOptionsCancel>> [namespace code {
-        global Options ; variable EditOptions
-	set Options(Transparency) $EditOptions(Transparency)
-        unset EditOptions
-    }]
+    bind $page <<TkchatOptionsAccept>> [namespace which PreferencesAccept]
+    bind $page <<TkchatOptionsCancel>> [namespace which PreferencesCancel]
     return [list Preferences $page]
 }
 

@@ -539,19 +539,40 @@ proc ::tkchat::rss::CheckRSS_Inner {tok} {
     return
 }
 
-proc ::tkchat::rss::OptionsHook {parent} {
-    global ::Options
+proc ::tkchat::rss::OptionsAccept {} {
+    global Options
     variable EditOptions
-    array set EditOptions [array get ::Options RSS,watch,*]
+    set feed_refresh 0
+    foreach feed [array names EditOptions RSS,watch,*] {
+        if {$Options($feed) != $EditOptions($feed)} {
+            set feed_refresh 1
+            set Options($feed) $EditOptions($feed)
+        }
+    }
+    if {$feed_refresh} {
+	after idle [namespace origin CheckRSSFeeds]
+    }
+    unset EditOptions
+}
 
-    set page [ttk::frame $parent.rssOptions -borderwidth 0]
+proc ::tkchat::rss::OptionsCancel {} {
+    variable EditOptions
+    unset EditOptions
+}
+
+proc ::tkchat::rss::OptionsHook {parent} {
+    global Options
+    variable EditOptions
+    array set EditOptions [array get Options RSS,watch,*]
+
+    set page [ttk::frame $parent.rssOptions]
     set n 0
     foreach feed [array names EditOptions RSS,watch,*] {
         set url [lindex [split $feed ,] 2]
         set text [dict get [uri::split $url] host]
-        if {[info exists ::Options(RSS,title,$url)]} {
+        if {[info exists Options(RSS,title,$url)]} {
             if {[string length $::Options(RSS,title,$url)] > 0} {
-                set text $::Options(RSS,title,$url)
+                set text $Options(RSS,title,$url)
             }
         }
         ttk::checkbutton [set w $page.wf[incr n]] \
@@ -562,21 +583,8 @@ proc ::tkchat::rss::OptionsHook {parent} {
     grid columnconfigure $page 0 -weight 1
     grid rowconfigure    $page $n -weight 1
 
-    bind $page <<TkchatOptionsAccept>> [namespace code {
-        variable EditOptions; global ::Options
-        set feed_refresh 0
-        foreach feed [array names EditOptions RSS,watch,*] {
-            if {$::Options($feed) != $EditOptions($feed)} {
-                set feed_refresh 1
-                set ::Options($feed) $EditOptions($feed)
-            }
-        }
-        if {$feed_refresh} { after idle [namespace origin CheckRSSFeeds] }
-        unset EditOptions
-    }]
-    bind $page <<TkchatOptionsCancel>> [namespace code {
-        variable EditOptions; unset EditOptions
-    }]
+    bind $page <<TkchatOptionsAccept>> [namespace which OptionsAccept]
+    bind $page <<TkchatOptionsCancel>> [namespace which OptionsCancel]
     return [list "RSS Feeds" $page]
 }
 
