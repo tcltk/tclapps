@@ -8832,6 +8832,7 @@ proc ::tkjabber::get_participant_jid {nick_or_jid} {
 }
 
 proc ::tkjabber::query_user {user what} {
+    variable jabber
     array set q {
         version  "jabber:iq:version"
         last     "jabber:iq:last"
@@ -8845,7 +8846,7 @@ proc ::tkjabber::query_user {user what} {
     
     set jid [get_participant_jid $user]
     set xmllist [wrapper::createtag query -attrlist [list xmlns $q($what)]]
-    $tkjabber::jabber send_iq get [list $xmllist] -to $jid
+    $jabber send_iq get [list $xmllist] -to $jid
     return
 }
 
@@ -9569,7 +9570,7 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
         if {[info exists data(name)]} { append ver $data(name) }
         if {[info exists data(version)]} { append ver " " $data(version) }
         if {[info exists data(os)]} { append ver " : $data(os)" }
-        set tkchat::OnlineUsers(Jabber-$nick,version) $ver
+        set ::tkchat::OnlineUsers(Jabber-$nick,version) $ver
         tkchat::addStatus 0 "$nick is using $ver"
 
         after idle [list ::tkchat::SetUserTooltip $nick]
