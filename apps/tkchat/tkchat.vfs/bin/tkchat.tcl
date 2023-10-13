@@ -65,9 +65,9 @@ set script [file normalize [info script]]
 while {[file type $script] eq "link"} {
     set script [file join [file dirname $script] [file readlink $script]]
 }
-set ::tkchat_dir [file dirname [file normalize $script]]
-set imgdir [file join $::tkchat_dir images]
-set auto_path [linsert $::auto_path 0 $::tkchat_dir [file join $::tkchat_dir lib]]
+set tkchat_dir [file dirname [file normalize $script]]
+set imgdir [file join $tkchat_dir images]
+set auto_path [linsert $auto_path 0 $tkchat_dir [file join $tkchat_dir lib]]
 
 # REMOVE 8.6
 package require Tcl 8.6-        ; # core Tcl
@@ -206,7 +206,6 @@ if {[package provide khim] ne {}} {
 
         rename ${ns}::${t} ${ns}::khimWrapped${t}
         proc ${ns}::${t} {w args} [string map [list @ns $ns @t $t] {
-            # eval [linsert $args 0 @ns::khimWrapped@t $w]
             @ns::khimWrapped@t $w {*}$args
             bindtags $w [linsert [bindtags $w] 1 KHIM]
             return $w
@@ -355,7 +354,7 @@ catch {
 
 # -------------------------------------------------------------------------
 
-::msgcat::mcload [file join $::tkchat_dir msgs]
+::msgcat::mcload [file join $tkchat_dir msgs]
 
 # -------------------------------------------------------------------------
 
@@ -364,12 +363,12 @@ catch {
 # just before showing the logon screen (or not), call '::tkchat::rcPostload' so
 # you can also tinker with settings when the UI has been built.
 proc ::tkchat::rcPostload {} {}
-if {[info exists ::env(HOME)] \
+if {[info exists env(HOME)]
 	&& ([file readable [set rctclfile \
-                                [file join $::env(HOME) .tkchatrc.tcl]]] \
+                                [file join $env(HOME) .tkchatrc.tcl]]] \
                 || [file readable [set rctclfile \
-                                       [file join $::env(HOME) tkchatrc.tcl]]])} {
-    if { [catch { uplevel #0 source $rctclfile } err] } {
+                                       [file join $env(HOME) tkchatrc.tcl]]])} {
+    if { [catch { source $rctclfile } err] } {
 	tk_messageBox \
             -type ok \
             -icon error \
@@ -381,7 +380,6 @@ if {[info exists ::env(HOME)] \
 }
 
 proc ::tkchat::Toplevel {w args} {
-    # eval [linsert $args 0 ::toplevel $w]
     toplevel $w {*}$args]
     if {![$w cget -container]} {
         place [ttk::frame $w.tilebg] \
@@ -394,7 +392,6 @@ proc ::tkchat::Toplevel {w args} {
 
 proc ::tkchat::Dialog {w args} {
     lappend args -class Dialog
-    # set dlg [eval [linsert $args 0 Toplevel $w]]
     set dlg [Toplevel $w {*}$args]
     catch {wm attributes $w -type dialog}
     wm transient $dlg [winfo parent $dlg]
@@ -498,6 +495,7 @@ proc ::tkchat::GotHistLogIdx {tok} {
 
 proc ::tkchat::ParseHistLog {log {reverse 0}} {
     global Options
+    variable ::tkjabber::HistoryLines
 
     set url "$Options(JabberLogs)/$log"
     addStatus 0 "Loading chat history"
@@ -517,8 +515,8 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
                 set I [interp create -safe]
                 interp alias $I m {} ::tkjabber::ParseLogMsg
                 if { $reverse } {
-                    set histTmp $::tkjabber::HistoryLines
-                    set ::tkjabber::HistoryLines {}
+                    set histTmp $HistoryLines
+                    set HistoryLines {}
                 }
                 # At the moment, the logs are stored in utf-8 format on the 
                 # server but get issued as iso-8859-1 due to an error in the 
@@ -534,8 +532,7 @@ proc ::tkchat::ParseHistLog {log {reverse 0}} {
                 bgerror $err
             }
 	    if { $reverse } {
-		set ::tkjabber::HistoryLines \
-                    [concat $::tkjabber::HistoryLines $histTmp]
+		set HistoryLines [concat $HistoryLines $histTmp]
 	    }
 	}
 	reset {
@@ -582,6 +579,7 @@ proc ::tkchat::InsertHistoryMark {} {
 # logindex is a list of "filename sizeK filename...."
 proc ::tkchat::LoadHistoryFromIndex {logindex} {
     global Options
+    variable ::tkjabber::HistoryLines
 
     set loglist {}
     array set logsize {}
@@ -656,8 +654,7 @@ proc ::tkchat::LoadHistoryFromIndex {logindex} {
 	    if {[catch {ParseHistLog $log 1} new]} {
 		::log::log error "error parsing history: \"$new\""
 	    }
-	    if { [llength $::tkjabber::HistoryLines] \
-                     >= $Options(HistoryLines) } {
+	    if { [llength $HistoryLines] >= $Options(HistoryLines) } {
 		break
 	    }
 	}
@@ -704,6 +701,7 @@ proc ::tkchat::HistoryPaneToggle {} {
 
 proc ::tkchat::logonChat {} {
     global Options
+    variable LoggedIn
 
     if {[info exists Options(JabberDebug)] && $Options(JabberDebug)} {
 	set jlib::debug 2
@@ -713,8 +711,8 @@ proc ::tkchat::logonChat {} {
 
     # Logon to the jabber server.
     if {[tkjabber::connect]} {
-        if { ! $::tkchat::LoggedIn } {
-            after 1000 {::tkchat::logonScreen}
+        if { ! $LoggedIn } {
+            after 1000 ::tkchat::logonScreen
         }
     }
 }
@@ -1139,7 +1137,7 @@ proc ::tkchat::setAlert { tag } {
 }
 
 proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}} {
-    global Options
+    global Options URLID
     array set opts $extraOpts
     
     #for colors, it is better to extract the displayed nick from the one used
@@ -1201,11 +1199,11 @@ proc ::tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}}
     foreach { str url tt } [parseStr $msg] {
 	if { $url ne "" } {
 	    set urltag [concat $tags URL URL-[incr ::URLID]]
-	    $w tag bind URL-$::URLID <Button-1> [list ::tkchat::gotoURL $url]
+	    $w tag bind URL-$URLID <Button-1> [list ::tkchat::gotoURL $url]
             if {[string length $tt] > 0} {
-                tooltip $w -tag URL-$::URLID $tt
+                tooltip $w -tag URL-$URLID $tt
             } elseif {[string match "http://tinyurl.com/*" $url]} {
-                AddRedirectionTooltip $w URL-$::URLID $url
+                AddRedirectionTooltip $w URL-$URLID $url
             }
 	} else {
 	    set urltag $tags
@@ -1437,7 +1435,7 @@ proc ::tkchat::findExecutable {progname varname} {
 }
 
 proc ::tkchat::gotoURL {url} {
-    global ::tcl_platform Options
+    global tcl_platform Options
 
     # this can take a bit
     . configure -cursor watch
@@ -1457,10 +1455,10 @@ proc ::tkchat::gotoURL {url} {
     clipboard append $url
 
     # this code from  http://purl.org/mini/tcl/557.html
-    switch -- $::tcl_platform(platform) {
+    switch -- $tcl_platform(platform) {
 	"unix" {
 	    # special case for MacOS X:
-	    if {$::tcl_platform(os) eq "Darwin"} {
+	    if {$tcl_platform(os) eq "Darwin"} {
 		# assume all goes well:
 		set notOK 0
 		if { $Options(Browser) ne "" } {
@@ -1508,7 +1506,6 @@ proc ::tkchat::gotoURL {url} {
                 }
                 if {[catch {
                     log::log debug "open url with '$cmd'"
-                    # eval exec $cmd &
                     exec {*}$cmd &
                 } err]} {
                     tk_messageBox -icon error -title "Error opening browser" \
@@ -1536,11 +1533,10 @@ proc ::tkchat::gotoURL {url} {
 	    # The windows NT shell treats '&' as a special character. Using
 	    # a '^' will escape it. See http://wiki.tcl.tk/557 for more info.
 	    if {! $handled} {
-		if { $::tcl_platform(os) eq "Windows NT" } {
+		if { $tcl_platform(os) eq "Windows NT" } {
 		    set url [string map {& ^&} $url]
 		}
 		if { [catch {
-		    # eval exec [auto_execok start] [list $url] &
 		    exec {*}[auto_execok start] $url &
 		} emsg]} then {
 		    tk_messageBox -icon error -type ok -title "Failed to open url" \
@@ -1565,7 +1561,7 @@ proc ::tkchat::gotoURL {url} {
 	}
 	default {
 	    ::log::log warning \
-		"::tkchat::gotoURL: Unknown platform '$::tcl_platform(platform)'"
+		"::tkchat::gotoURL: Unknown platform '$tcl_platform(platform)'"
 	}
     }
     . configure -cursor {}
@@ -1585,16 +1581,19 @@ proc ::tkchat::addSystem { w msg {mark end} {tags SYSTEM} {timestamp 0} } {
 }
 
 proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
+    variable StatusHistory
+    variable Status
+    variable StatusAfter
+    variable ::tkjabber::conference
+    variable ::tkjabber::socket
+
     if {[winfo exists .status] && [winfo ismapped .status]} {
-        variable StatusAfter
-        if {$pane == 0 && [info exists ::tkjabber::conference]} {
+        if {$pane == 0 && [info exists conference]} {
             catch {after cancel $StatusAfter}
             set StatusAfter [after 10000 [list set [namespace which -variable \
-                                                        Status]($pane) $::tkjabber::conference]]
+                                                        Status]($pane) $conference]]
         }
-        variable StatusHistory
         lappend StatusHistory [clock seconds] $msg
-        variable Status
         set Status($pane) $msg
         if {[string equal [lindex $tags 0] ERROR]} {
             addSystem .txt $msg $mark $tags $timestamp
@@ -1603,7 +1602,7 @@ proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
             if {[string equal $msg "connected"]} {
                 .status.pane1 configure -image ::tkchat::img::link_connected
                 catch {
-                    set tip [fconfigure $::tkjabber::socket -peername]
+                    set tip [chan configure $socket -peername]
                     set tip [lindex $tip 0]:[lindex $tip 2]
                     set tip "Connected to $tip"
                     tooltip .status.pane1 $tip
@@ -1620,16 +1619,20 @@ proc ::tkchat::addStatus {pane msg {mark end} {tags SYSTEM} {timestamp 0}} {
 
 proc ::tkchat::SetServerTooltip {} {
     variable ::tkjabber::jabber
+
     if {![winfo exists .status.pane1]} { return }
     set w .status.pane1
     after idle [list $jabber iq_get jabber:iq:version \
                     -to [$jabber getstreamattr from] \
                     -command [namespace code [list SetServerTooltip2 $w]]]
 }
+
 proc ::tkchat::SetServerTooltip2 {w jlib type xmllist} {
+    variable ::tkjabber::socket
+
     if {$type ne "result"} { return }
     if {[catch {
-        set tip [fconfigure $::tkjabber::socket -peername]
+        set tip [chan configure $socket -peername]
         set tip [lindex $tip 0]:[lindex $tip 2]
         set tip "Connected to $tip"
         append tip \n [wrapper::getcdata [wrapper::getchilddeep $xmllist name]] \
@@ -1697,9 +1700,7 @@ proc ::tkchat::StatusbarAddWidget {bar slave pos} {
     if {![winfo exists $bar]} { return }
     if {![winfo ismapped $slave]} {
         set slaves [lreverse [grid slaves $bar]]
-        # eval [linsert $slaves 0 grid forget]
         grid forget {*}$slaves
-        # eval grid [linsert $slaves $pos $slave] -sticky news
         grid {*}[linsert $slaves $pos $slave] -sticky news
     }
 }
@@ -2017,9 +2018,9 @@ proc ::tkchat::nickComplete {} {
 			.txt see end
 		    }
 		    after 5500 {
-			if { [llength $::tkchat::lastCompletion] > 0 \
+			if { [llength $lastCompletion] > 0 \
                                  && [clock seconds] - 4 \
-                                 < [lindex $::tkchat::lastCompletion 0] } {
+                                 < [lindex $lastCompletion 0] } {
 			    return
 			}
 			::tkchat::deleteCompletions
@@ -2043,11 +2044,12 @@ proc ::tkchat::nickComplete {} {
 
 # Install Tkchat into GNOME or KDE desktops.
 proc ::tkchat::InstallXDG {} {
+    global tkchat_dir
+
     # The 'proper' way is to use the xdg-utils programs...
     if {[llength [set cmd [auto_execok xdg-desktop-menu]]] != 0} {
 	set tmpfile [file join /tmp tkchat.desktop]
-	file copy [file join $::tkchat_dir tkchat.desktop] $tmpfile
-	# if {[catch {eval exec $cmd install --novendor $tmpfile} err]} {}
+	file copy [file join $tkchat_dir tkchat.desktop] $tmpfile
 	if {[catch {exec {*}$cmd install --novendor $tmpfile} err]} {
 	    tk_messageBox -icon warning -title "Installation failed" \
 		-message $err -parent .
@@ -2064,14 +2066,13 @@ proc ::tkchat::InstallXDG {} {
 	}
 	set apps [file join $xdg applications]
 	file mkdir $apps
-	file copy -force [file join $::tkchat_dir tkchat.desktop] \
+	file copy -force [file join $tkchat_dir tkchat.desktop] \
 	    [file join $apps tkchat.desktop]
 	addStatus 0 "Installed tkchat desktop menu item to $apps"
     }
     if {[llength [set cmd [auto_execok xdg-icon-resource]]] != 0} {
 	set tmpfile [file join /tmp tkchat48.png]
-	file copy [file join $::tkchat_dir tkchat48.png] $tmpfile
-	# if {[catch {eval exec $cmd install --novendor --size 48 $tmpfile} err]} {}
+	file copy [file join $tkchat_dir tkchat48.png] $tmpfile
 	if {[catch {exec {*}$cmd install --novendor --size 48 $tmpfile} err]} {
 	    tk_messageBox -icon warning -title "Icon installation failed" \
 		-message $err -parent .
@@ -2088,7 +2089,7 @@ proc ::tkchat::InstallXDG {} {
 	}
 	set apps [file join $xdg icons hicolor 48x48 apps]
 	file mkdir $apps
-	file copy -force [file join $::tkchat_dir tkchat48.png] \
+	file copy -force [file join $tkchat_dir tkchat48.png] \
 	    [file join $apps tkchat48.png]
 	addStatus 0 "Installed tkchat application icon to $apps"
     }
@@ -2155,8 +2156,9 @@ proc ::tkchat::toggleUnicodePoint_e {e} {
 }
 
 proc ::tkchat::CreateGUI {} {
-    global Options
+    global Options tkchat_dir tcl_platform
     variable chatWindowTitle
+    variable FossilUrl
 
     wm title . $chatWindowTitle
     wm withdraw .
@@ -2165,15 +2167,15 @@ proc ::tkchat::CreateGUI {} {
     if {[tk windowingsystem] ne "aqua"} {
         createFonts
         image create photo ::tkchat::img::Tkchat \
-            -file [file join $::tkchat_dir tkchat48.png]
-        if {[info command ::tkchat::img::Tkchat] ne {}} {
+            -file [file join $tkchat_dir tkchat48.png]
+        if {[llength [info commands ::tkchat::img::Tkchat]] != 0} {
             wm iconphoto . -default ::tkchat::img::Tkchat
             set ::tk::icons::base_icon(.) ::tkchat::img::Tkchat
         }
     }
 
     if {[tk windowingsystem] eq "aqua"} {
-        source [file join $::tkchat_dir tkchat_mac_images.tcl]
+        source [file join $tkchat_dir tkchat_mac_images.tcl]
         catch { createFonts }
     }
     if {[tk windowingsystem] eq "x11"} {
@@ -2567,31 +2569,32 @@ proc ::tkchat::CreateGUI {} {
         -command { tkchat::OpenErrorLog pick }
 
     # Error Logging:Log Level Cascade Menu
-    foreach lvl [lsort -command ::log::lvCompare $::log::levels] {
+    foreach lvl [lsort -command ::log::lvCompare [log::levels]] {
         $m.err.lvl add radiobutton \
             -label $lvl \
             -variable Options(LogLevel) \
             -value $lvl
     }
 
+    variable _console
     $m add separator
     $m add checkbutton \
         -label [mc "Console"] \
         -variable ::tkchat::_console \
         -command { ::tkchat::Debug console } \
         -state disabled
-    set ::tkchat::_console 0
+    set _console 0
     if {[llength [info commands ::tkcon]] } {
         $m entryconfigure [mc "Console"] \
             -state normal \
             -command {
-                if { $::tkchat::_console } {
+                if { $_console } {
                     tkcon show
                 } else {
                     tkcon hide
                 }
             }
-    } elseif { $::tcl_platform(platform) ne "unix" \
+    } elseif { $tcl_platform(platform) ne "unix" \
                    && [llength [info commands ::console]] > 0 } {
         $m entryconfigure [mc "Console"] -state normal
         console eval {
@@ -2642,10 +2645,10 @@ proc ::tkchat::CreateGUI {} {
         -command [list after idle [list [namespace origin CheckVersion]]]
     tk::AmpMenuArgs $m add command -label [mc "&View changes..."] \
         -command [list after idle [list [namespace origin gotoURL] \
-                                       "${::tkchat::FossilUrl}timeline"]]
+                                       "${FossilUrl}timeline"]]
     tk::AmpMenuArgs $m add command -label [mc "&View issues..."] \
         -command [list after idle [list [namespace origin gotoURL] \
-                                       "${::tkchat::FossilUrl}reportlist"]]
+                                       "${FossilUrl}reportlist"]]
     if {[tk windowingsystem] ne "aqua"} {
         tk::AmpMenuArgs $m add command -label [mc "&About..."]\
             -command [list [namespace origin About]]
@@ -2786,7 +2789,6 @@ proc ::tkchat::CreateGUI {} {
     set lower_row [list .ml .eMsg .post .mb]
     grid .pane - -sticky news -padx 1 -pady 2
     grid .btm  - -sticky news
-    # eval grid $lower_row [list -in .btm -sticky ews -padx 2 -pady 2]
     grid {*}$lower_row -in .btm -sticky ews -padx 2 -pady 2
     grid configure .eMsg -sticky ew
 
@@ -2808,7 +2810,6 @@ proc ::tkchat::CreateGUI {} {
 
     update idletasks
     if {[info exists $Options(Pane)] && [llength $Options(Pane)] == 2 } {
-        # eval [linsert $Options(Pane) 0 .pane sashpos 0]
         .pane sashpos 0 {*}$Options(Pane)
     } else {
 	set w [expr { ([winfo width .pane] * 4) / 5 }]
@@ -3039,6 +3040,7 @@ proc ::tkchat::onLeaveURL {w x y} {
 }
 
 proc ::tkchat::SetChatWindowBindings { parent jid } {
+    variable ::tkjabber::ChatWindows
 
     set post [list ::tkchat::userPostOneToOne $parent $jid]
 
@@ -3047,17 +3049,15 @@ proc ::tkchat::SetChatWindowBindings { parent jid } {
     bind $parent.eMsg <Return>	  $post
     bind $parent.eMsg <KP_Enter>  $post
     $parent.post configure -command $post
-    wm title $parent $::tkjabber::ChatWindows(title.$jid)
+    wm title $parent $ChatWindows(title.$jid)
     wm protocol $parent WM_DELETE_WINDOW \
         [list ::tkchat::DeleteChatWindow $parent $jid]
     bind $parent <FocusIn> \
-        [list wm title $parent $::tkjabber::ChatWindows(title.$jid)]
+        [list wm title $parent $ChatWindows(title.$jid)]
     applyColors $parent.txt $jid
 }
 
 proc ::tkchat::CreateNewChatWindow { parent } {
-    global Options
-
     ttk::panedwindow $parent.pane -orient vertical
     ttk::frame $parent.txtframe -style FakeText
 
@@ -3102,7 +3102,7 @@ proc ::tkchat::DeleteChatWindow { w jid } {
 # FIXME: Work in progress for notebook style tabbed windows?
 proc ::tkchat::CreateNewChatTab { parent title } {
     set w [CreateNewChatWindow $parent]
-    SetChatWindowBindings $parent $tit
+    SetChatWindowBindings $parent $title
     return $w
 }
 
@@ -3136,6 +3136,7 @@ proc ::tkchat::PaneLeave {pane} {
 
 proc ::tkchat::DoVis { tag } {
     global Options
+    variable LoggedIn
 
     if { $Options(Visibility,$tag) } {
 	.txt tag raise $tag
@@ -3146,7 +3147,7 @@ proc ::tkchat::DoVis { tag } {
     if { $Options(AutoScroll) } {
 	.txt see end
     }
-    if { $::tkchat::LoggedIn } {
+    if { $LoggedIn } {
 	after 10 {::tkchat::updateOnlineNames}
     }
 }
@@ -3248,7 +3249,6 @@ proc ::tkchat::NickVisMenu {} {
 proc ::tkchat::ScrolledWidget {widget parent scrollx scrolly args} {
     ttk::frame $parent
     # Create widget attached to scrollbars, pass thru $args
-    # eval $widget $parent.list $args
     $widget $parent.list {*}$args
     # Create scrollbars attached to the listbox
     if {$scrollx} {
@@ -3358,7 +3358,9 @@ proc ::tkchat::About {} {
 
 proc ::tkchat::Help {} {
     global Options
-    set title "TkChat $::tkchat::version [mc Help]"
+    variable version
+
+    set title "TkChat $version [mc Help]"
 
     catch {destroy .qhelp}
     set w [Dialog .qhelp]
@@ -3795,8 +3797,11 @@ proc ::tkchat::checkAlias { msg } {
 			# NOTE: This proc should return zero to indicate
 			# "not handled" and non-zero to indicate "handled".
 			#
-			set error [catch {set result [expr {[namespace eval [namespace \
-										 current] [list $command_body $msg_array(2)]] != 0}]} alias_error]
+			set error [catch {
+			    set result [expr {
+				[namespace eval [namespace current] \
+				    [list $command_body $msg_array(2)]] != 0
+			    }]} alias_error]
 		    } else {
 			addSystem .txt "did not get exactly 2 arguments for alias \"$command_name\" ($command_type)" end ERROR
 		    }
@@ -3807,8 +3812,9 @@ proc ::tkchat::checkAlias { msg } {
 	    "script" -
 	    default  {
 		# attempt to eval the command body in this namespace...
-		set error [catch {namespace eval [namespace current] $command_body} \
-			       alias_error]
+		set error [catch {
+		    namespace eval [namespace current] $command_body
+		} alias_error]
 		#
 		# NOTE: If there is an error, we consider that to be "not handled".
 		#
@@ -3852,6 +3858,8 @@ proc ::tkchat::userPostOneToOne {p jid} {
 
 proc ::tkchat::userPost {{jid ""}} {
     global Options
+    variable eCURR
+    variable eHIST
 
     if {[winfo ismapped .eMsg]} {
         if {[.eMsg cget -state] eq "disabled"} { return }
@@ -3905,20 +3913,23 @@ proc ::tkchat::userPost {{jid ""}} {
 
     if { $msg ne "" } {
 	# add it to a recent history list
-	upvar #0 ::tkchat::eHIST hist ::tkchat::eCURR cur
-	if {[info exists hist] && [string compare $msg [lindex $hist end]]} {
+	if {[info exists eHIST] && [string compare $msg [lindex $eHIST end]]} {
 	    # append new different msg, but constrain to max of 50 last msgs
-	    set hist [lrange [lappend hist $msg] end-50 end]
+	    set eHIST [lrange [lappend eHIST $msg] end-50 end]
 	    # set current event to last
-	    set cur [llength $hist]
-	} elseif { [info exists hist] } {
-	    set cur [llength $hist]
+	    set eCURR [llength $eHIST]
+	} elseif { [info exists eHIST] } {
+	    set eCURR [llength $eHIST]
 	}
     }
 }
 
 proc ::tkchat::checkCommand { msg } {
-    global Options
+    global Options errorInfo
+    variable LoggedIn
+    variable ::tkjabber::conference
+    variable ::tkjabber::Away
+    variable ::tkjabber::AutoAway
 
     # check against commands that can be used while logged off
     set moreToGo 0
@@ -4009,7 +4020,7 @@ proc ::tkchat::checkCommand { msg } {
             set r [catch $script err]
             if {$r} {
                 tk_messageBox -icon error -title "Error in eval'd script" \
-                    -message $::errorInfo
+                    -message $errorInfo
             } elseif {[string length $err] > 0} {
                 addSystem .txt $err
             }
@@ -4031,7 +4042,7 @@ proc ::tkchat::checkCommand { msg } {
 
     # do we need to keep checking?
     if { $moreToGo } {
-	if { !$::tkchat::LoggedIn } {
+	if { !$LoggedIn } {
 	    addStatus 0 "Command unavailable when not logged in: $msg"
 	    return
 	}
@@ -4113,7 +4124,7 @@ proc ::tkchat::checkCommand { msg } {
 	    if {[regexp {^/chat\s+([^ ]+)(?:\ (.*))?} $msg -> toNick privMsg]} {
 		# Are we talking to a nick in this MUC or to an arbitrary JID?
 		if {![regexp {([^@]+)@.*} $toNick toJID toNick]} {
-		    set toJID $::tkjabber::conference/$toNick
+		    set toJID $conference/$toNick
 		}
 		set w [tkjabber::getChatWidget $toJID $toNick]
 		set privMsg [string trim $privMsg]
@@ -4132,16 +4143,16 @@ proc ::tkchat::checkCommand { msg } {
 	{^/away} {
 	    set status ""
 	    regexp {^/(?:(?:afk)|(?:away))\s*(.*)$} $msg -> status
-	    set ::tkjabber::Away 1
-	    set ::tkjabber::AutoAway 1
+	    set Away 1
+	    set AutoAway 1
 	    ::tkjabber::away $status
 	}
 	{^/dnd}  -
 	{^/busy} {
 	    set status ""
 	    regexp {^/(?:(?:dnd)|(?:busy))\s*(.*)$} $msg -> status
-	    set ::tkjabber::Away 1
-	    set ::tkjabber::AutoAway 1
+	    set Away 1
+	    set AutoAway 1
 	    ::tkjabber::away $status dnd
 	}
 	{^/back} {
@@ -4201,29 +4212,38 @@ proc ::tkchat::checkCommand { msg } {
 }
 
 proc ::tkchat::entryUp {} {
+    variable curMsg
+    variable eCURR
+    variable eHIST
+
     # Up arrow event in the message entry
     set w .eMsg
-    upvar #0 ::tkchat::eHIST hist ::tkchat::eCURR cur
-    if {$cur == 0} return
-    if {$cur == [llength $hist]} {
+    if {$eCURR == 0} return
+    if {$eCURR == [llength $eHIST]} {
 	# at the end of the history, save the current line
-	set ::tkchat::curMsg [$w get]
+	set curMsg [$w get]
     }
-    if {$cur} { incr cur -1 }
+    if {$eCURR} {
+	incr eCURR -1
+    }
     $w delete 0 end
-    set str [$w insert 0 [lindex $hist $cur]]
+    set str [$w insert 0 [lindex $eHIST $eCURR]]
 }
 
 proc ::tkchat::entryDown {} {
+    variable curMsg
+    variable eHIST
+    variable eCURR
+
     # Down arrow event in the message entry
     set w .eMsg
-    upvar #0 ::tkchat::eHIST hist ::tkchat::eCURR cur
-    if {$cur == [llength $hist]} return
-    if {[incr cur] == [llength $hist] && [info exists ::tkchat::curMsg]} {
+    if {$eCURR == [llength $eHIST]} return
+
+    if {[incr eCURR] == [llength $eHIST] && [info exists curMsg]} {
 	# at the end of the history, it is the saved current line
-	set msg $::tkchat::curMsg
+	set msg $curMsg
     } else {
-	set msg [lindex $hist $cur]
+	set msg [lindex $eHIST $eCURR]
     }
     $w delete 0 end
     set str [$w insert 0 $msg]
@@ -4259,8 +4279,9 @@ proc ::tkchat::showExtra {{p ""}} {
 proc ::tkchat::logonScreen-Old {} {
     global Options
     variable DlgDone
+    variable LoggedIn
 
-    if {$::tkchat::LoggedIn} { tkjabber::disconnect }
+    if {$LoggedIn} { tkjabber::disconnect }
     ::tkjabber::cancelReconnect
     if {![winfo exists .logon]} {
 	Dialog .logon
@@ -4680,6 +4701,7 @@ proc ::tkchat::UseCustomHostPortCmd {f} {
 proc ::tkchat::IRCLogonScreen {} {
     global Options
     variable irc
+    variable LoggedIn
 
     if {![info exists irc]} {
         array set irc {server irc.freenode.net port 6667 channel "#tcl"}
@@ -4737,7 +4759,7 @@ proc ::tkchat::IRCLogonScreen {} {
     destroy $dlg
 
     if {[set $dlg] eq "ok"} {
-        if {$::tkchat::LoggedIn} { tkjabber::disconnect }
+        if {$LoggedIn} { tkjabber::disconnect }
         set url irc://$irc(server):$irc(port)/$irc(channel)
         after idle ::tkchat::PicoIRC $url
     }
@@ -4867,8 +4889,6 @@ proc ::tkchat::Find {w str args} {
     if {![info exists case]} { lappend opts -nocase }
     if {[string match {} $str]} return
     $w mark set foundmark 1.0
-    # while {[string compare {} [set ix [eval $w search $opts -count numc -- \
-    #                                        [list $str] foundmark end]]]} {}
     while {[set ix [$w search {*}$opts -count numc -- $str foundmark end]] ne {}} {
 	$w tag add found $ix ${ix}+${numc}c
 	$w mark set foundmark ${ix}+1c
@@ -5502,13 +5522,15 @@ proc ::tkchat::quit {} {
 }
 
 proc ::tkchat::saveRC {} {
-    global Options Images
+    global Options Images env
+    variable ::tkjabber::baseNick
+
     # Exit early if there is no home directory to save to
-    if { ![info exists ::env(HOME)] } {
+    if { ![info exists env(HOME)] } {
 	return
     }
 
-    set rcfile [file join $::env(HOME) .tkchatrc]
+    set rcfile [file join $env(HOME) .tkchatrc]
     array set tmp [GetDefaultOptions]
 
     # Options that need to be computed at save time
@@ -5602,8 +5624,8 @@ proc ::tkchat::saveRC {} {
     }
 
     # Save original Nickname
-    if { [info exists ::tkjabber::baseNick] && $::tkjabber::baseNick ne "" } {
-	set tmp(Nickname) $::tkjabber::baseNick
+    if { [info exists baseNick] && $baseNick ne "" } {
+	set tmp(Nickname) $baseNick
     }
 
     foreach option [lsort -dictionary [array names tmp]] {
@@ -5658,18 +5680,19 @@ proc ::tkchat::scroll_set {sbar f1 f2} {
 }
 
 proc ::tkchat::Debug {cmd args } {
-    global Options
+    global Options argv0
+    variable _console
 
     switch -- $cmd {
 	console {
-	    if {$::tkchat::_console} {
+	    if {$_console} {
 		console show
 	    } else {
 		console hide
 	    }
 	}
 	reload {
-	    uplevel \#0 [list source $::argv0]
+	    uplevel \#0 [list source $argv0]
 	    set msg  "Script has been reloaded!\nDo you want to restart?"
 	    set a [tk_messageBox -type yesno -message $msg]
 	    if { $a eq "yes" } {
@@ -5679,9 +5702,7 @@ proc ::tkchat::Debug {cmd args } {
 	restart {
 	    tkjabber::disconnect
 	    saveRC
-	    # eval destroy [winfo children .]
 	    destroy {*}[winfo children .]
-	    # eval font delete [font names]
 	    font delete {*}[font names]
 	    while { [after info] ne "" } {
                 foreach id [after info] {
@@ -5689,7 +5710,7 @@ proc ::tkchat::Debug {cmd args } {
 		}
 	    }
 	    unset Options
-	    after 2000 [linsert $::argv 0 ::tkchat::Init]
+	    after 2000 [linsert $argv 0 ::tkchat::Init]
 	}
 	purge {
 	    .txt configure -state normal
@@ -5774,6 +5795,7 @@ proc ::tkchat::ChangeFont {opt val} {
 
 proc ::tkchat::DoAnim {} {
     global Options
+    variable img::id
 
     if {$Options(AnimEmoticons)} {
         foreach img [image names] {
@@ -5783,27 +5805,30 @@ proc ::tkchat::DoAnim {} {
             }
             if {[string match "GIF*" $fmt]} {
                 set name [lindex [split $img :] end]
-                catch {after cancel $::tkchat::img::id($name)}
+                catch {after cancel $id($name)}
                 anim $img
             }
         }
     } else {
-	foreach {nm id} [array get ::tkchat::img::id] {
-	    after cancel $id
+	foreach {nm nid} [array get id] {
+	    after cancel $nid
 	    $nm configure -format "GIF -index 0"
 	}
     }
 }
 
 proc ::tkchat::anim {image {idx -1}} {
-    namespace eval ::tkchat::img {} ; # create img namespace
+    namespace eval img {} ; # create img namespace
+    variable img::id
+    variable img::delay
+
     incr idx
     #puts stderr $image:0:$idx
     if {[catch {$image configure -format "GIF -index $idx"}]} {
         #puts stderr $image:1
 	if {$idx == 1} {
 	    # stop animating, only base image exists
-            catch {unset ::tkchat::img::id($image)}
+            catch {unset id($image)}
 	    return
 	} else {
 	    # restart the cycle
@@ -5812,9 +5837,8 @@ proc ::tkchat::anim {image {idx -1}} {
 	    $image configure -format "GIF -index $idx"
 	}
     }
-    catch {after cancel $::tkchat::img::id($image)}
-    set ::tkchat::img::id($image) \
-        [after $::tkchat::img::delay [list ::tkchat::anim $image $idx]]
+    catch {after cancel $id($image)}
+    set id($image) [after $delay [list ::tkchat::anim $image $idx]]
 }
 
 # A simple proc for retrieving the content of an URL.
@@ -5841,8 +5865,9 @@ proc ::tkchat::GET {URL} {
 
 proc ::tkchat::SmileId {name serial triggers {location {}}} {
     # Here be magic
-    variable IMG
     global Images
+    variable IMG
+    variable IMGre
 
     if {$location eq ""} {
         set location "http://tkchat.tcl.tk/emoticons/$name.gif"
@@ -5890,10 +5915,10 @@ proc ::tkchat::SmileId {name serial triggers {location {}}} {
                  \2  \\M		\3  \\Y		\0  |				\
                 ]
     # If we ever change this to use () capturing, change tkchat::Insert too.
-    if { [info exists ::tkchat::IMGre] } {
-	append ::tkchat::IMGre |[string map $map $ids]
+    if { [info exists IMGre] } {
+	append IMGre |[string map $map $ids]
     } else {
-	set ::tkchat::IMGre [string map $map $ids]
+	set IMGre [string map $map $ids]
     }
 }
 
@@ -5996,16 +6021,20 @@ proc ::tkchat::ShowSmiles {} {
 }
 
 proc ::tkchat::Init {args} {
-    global Options env
+    global Options env URLID tcl_platform
     variable OnlineUsers
+    variable eCURR
+    variable eHIST
+    variable LoggedIn
+    variable version
 
     tk appname Tkchat
 
     # set intial defaults
-    set ::URLID 0
-    set ::tkchat::eCURR 0
-    set ::tkchat::eHIST ""
-    set ::tkchat::LoggedIn 0
+    set URLID 0
+    set eCURR 0
+    set eHIST ""
+    set LoggedIn 0
     array set Options [GetDefaultOptions]
 
     # attach a trace function to the log level
@@ -6013,8 +6042,8 @@ proc ::tkchat::Init {args} {
     LogLevelSet
 
     # load RC file if it exists
-    if { [info exists ::env(HOME)] } {
-	set rcfile [file join $::env(HOME) .tkchatrc]
+    if { [info exists env(HOME)] } {
+	set rcfile [file join $env(HOME) .tkchatrc]
 	if { [file readable $rcfile] } {
 	    catch {
 		set f [open $rcfile r]
@@ -6165,10 +6194,9 @@ proc ::tkchat::Init {args} {
     if {[info exists Options(UserAgent)]} {
 	http::config -useragent $Options(UserAgent)
     } else {
-        variable version
 	http::config -useragent "Mozilla/5.0\
-	    ([string totitle $::tcl_platform(platform)]; U;\
-	    $::tcl_platform(os) $::tcl_platform(osVersion);\
+	    ([string totitle $tcl_platform(platform)]; U;\
+	    $tcl_platform(os) $tcl_platform(osVersion);\
             [::jlib::getlang])\
             Tkchat/$version Tcl/[package provide Tcl]"
     }
@@ -6215,9 +6243,9 @@ proc ::tkchat::Init {args} {
     if {$Options(UseProxy)} {
 	if {$Options(ProxyHost) ne "" && $Options(ProxyPort) ne ""} {
             # nothing
-	} elseif {[info exists ::env(http_proxy)]} {
+	} elseif {[info exists env(http_proxy)]} {
 	    if {[regexp {(?:http://)?([[:alnum:].-]+)(?::(\d+))?} \
-		     $::env(http_proxy) -> \
+		     $env(http_proxy) -> \
 		     Options(ProxyHost) \
 		     Options(ProxyPort)]} {
 	    }
@@ -6463,7 +6491,6 @@ proc tkchat::textRestore {w save} {
     foreach {key value index} $save {
 	switch $key {
 	    exec    {
-	        # eval $w $value
 	        $w {*}$value
             }
 	    image   {$w image create $index -name $value}
@@ -6488,8 +6515,10 @@ proc tkchat::textRestore {w save} {
 
 # -------------------------------------------------------------------------
 proc ::tkchat::UserInfoFetch {jid} {
+    variable ::tkjabber::jabber
+
     if {[catch {
-	$::tkjabber::jabber vcard_get $jid \
+	$jabber vcard_get $jid \
 	    [list [namespace current]::UserInfoFetchDone $jid]
     } msg]} {
 	::log::log notice "error in vcard_get: $msg"
@@ -6554,6 +6583,8 @@ proc ::tkchat::UserInfoParse {jid xmllist {prefix {}}} {
 
 proc ::tkchat::UserInfoSend {jid} {
     variable ui_$jid
+    variable ::tkjabber::jabber
+
     set xmllist [wrapper::createtag vCard -attrlist {xmlns vcard-temp}]
     foreach {tag value} [array get ui_$jid] {
 	set tags [split $tag _]
@@ -6563,7 +6594,7 @@ proc ::tkchat::UserInfoSend {jid} {
 	set xmllist [lreplace $xmllist 2 2 0]
     }
 
-    $tkjabber::jabber send_iq set [list $xmllist] \
+    $jabber send_iq set [list $xmllist] \
 	-command [namespace current]::UserInfoSent
 }
 
@@ -6631,9 +6662,10 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     variable UserInfo
     variable UserInfoBtn
     variable UserInfoWin
+    variable ::tkjabber::myId
 
     if {$jid eq {}} {
-	set jid [::tkjabber::jid !resource $::tkjabber::myId]
+	set jid [::tkjabber::jid !resource $myId]
     }
     set jid [jlib::jidprep $jid]
 
@@ -6659,7 +6691,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
 	}
     }
     if { [info exists UI(timeout)] && [::tkjabber::jid !resource $jid] \
-	     ne [::tkjabber::jid !resource $::tkjabber::myId] } {
+	     ne [::tkjabber::jid !resource $myId] } {
 	# Not available, and not the users own vcard.
 	::log::log debug "cleanup as no UI"
 	unset $uivar
@@ -6714,7 +6746,7 @@ proc ::tkchat::UserInfoDialog {{jid {}}} {
     pack $f -fill both -expand 1 -side top
 
     if { [::tkjabber::jid !resource $jid] \
-	     eq [::tkjabber::jid !resource $::tkjabber::myId] } {
+	     eq [::tkjabber::jid !resource $myId] } {
 	$btns.ok configure -state active
 	$btns.cancel configure -state normal
     }
@@ -7083,10 +7115,9 @@ proc ::tkchat::PreferencesCancel {} {
 }
 
 proc ::tkchat::PreferencesPage {parent} {
-    global Options
-    global tcl_platform
-
+    global Options tcl_platform
     variable EditOptions
+
     set EditOptions(Browser)         $Options(Browser)
     set EditOptions(BrowserTab)      $Options(BrowserTab)
     set EditOptions(AskBeforeQuit)   $Options(AskBeforeQuit)
@@ -7179,7 +7210,7 @@ proc ::tkchat::PreferencesPage {parent} {
         ttk::entry $bf.e -textvariable ::tkchat::EditOptions(Browser)
         ttk::button $bf.b -text "..."  -width 4 -command {
             if {[set file [tk_getOpenFile]] ne {}} {
-                set ::tkchat::EditOptions(Browser) $file
+                set EditOptions(Browser) $file
             }
         }
         ttk::checkbutton $bf.tab -underline 0 \
@@ -7224,7 +7255,7 @@ proc ::tkchat::PreferencesPage {parent} {
     }
 
     grid $af - -sticky news -padx 2 -pady 2
-    if {$::tcl_platform(platform) ne "windows"} {
+    if {$tcl_platform(platform) ne "windows"} {
         grid $bf - -sticky news -padx 2 -pady 2
     }
     if {$gimmicks} { grid $gf - -sticky news -padx 2 -pady 2 }
@@ -7414,6 +7445,7 @@ proc ::tkjabber::connect {} {
     variable reconnectTimer
     variable reconnectAttempts
     variable have_tls
+    variable ::tkchat::LoggedIn
 
     cancelReconnect
 
@@ -7537,7 +7569,7 @@ proc ::tkjabber::connect {} {
     # jabberlib.
     lassign [tk::UnderlineAmpersand [mc "&Logout"]] label index
     .mbar.file entryconfigure 0 -label $label -underline $index
-    set ::tkchat::LoggedIn 1
+    set LoggedIn 1
     return 1
 }
 
@@ -7558,6 +7590,7 @@ proc tkjabber::disconnect {} {
 }
 
 proc ::tkjabber::cleanup {} {
+    global errorInfo
     variable jabber
     variable muc
     variable conference
@@ -7566,6 +7599,7 @@ proc ::tkjabber::cleanup {} {
     variable baseNick
     variable PollIrcAID
     variable ::tkchat::OnlineUsers
+    variable ::tkchat::LoggedIn
 
     catch {after cancel PollIrcAID}
 
@@ -7587,14 +7621,14 @@ proc ::tkjabber::cleanup {} {
     ::tkchat::updateOnlineNames
 
     if { [catch {$jabber closestream}] } {
-	::log::log error "Closestream: $::errorInfo"
+	::log::log error "Closestream: $errorInfo"
     }
 
     catch {jlib::resetsocket $jabber}
     set socket ""
     ::tkchat::setNickname $baseNick
     .mbar.file entryconfigure 0 -label [::msgcat::mc Login]
-    set ::tkchat::LoggedIn 0
+    set LoggedIn 0
 }
 
 proc tkjabber::openStream {} {
@@ -7663,8 +7697,9 @@ proc tkjabber::SendAuth {} {
 }
 
 proc tkjabber::get_cafile {} {
-    global env
-    set path [file join $::tkchat_dir certs.pem]
+    global env tkchat_dir
+
+    set path [file join $tkchat_dir certs.pem]
     if {![file exists $path]} { return {} }
     if {[lindex [file system $path] 0] ne "native"} {
         set new {}
@@ -7808,9 +7843,11 @@ proc ::tkjabber::PollIrcUserList {jid} {
 
 # The roster stuff...
 proc ::tkjabber::RosterCB { rostName what {jid {}} args } {
+    global errorInfo
+
     if {[catch {RosterCB2 $rostName $what $jid {*}$args} err]} {
         set e "error handling roster update: $err"
-        variable Error $::errorInfo
+        variable Error $errorInfo
         ::log::log error $e
         ::tkchat::addSystem .txt $e
     }
@@ -8036,7 +8073,7 @@ proc ::tkjabber::MsgCB {jlibName type args} {
 }
 
 proc ::tkjabber::MsgCB2 {jlibName type args} {
-    global Options
+    global Options errorInfo
     variable conference
     variable muc
     variable topic
@@ -8223,12 +8260,12 @@ proc ::tkjabber::MsgCB2 {jlibName type args} {
 			if { [catch {
 			    $muc exit $conference
 			}] } {
-			    ::log::log debug "MUC EXIT: $::errorInfo"
+			    ::log::log debug "MUC EXIT: $errorInfo"
 			}
 			set msg [lindex $m(-error) 1]
 			::tkchat::addSystem .txt \
                             "$m(-from): $msg. Trying to get in again..."
-			$muc enter $::tkjabber::conference \
+			$muc enter $conference \
                             $Options(Nickname)\
                             -command ::tkjabbjler::MucEnterCB
 		    }
@@ -8351,15 +8388,16 @@ proc ::tkjabber::on_pres_subscribe {jlib from type args} {
 
 # Generate a XEP-0115 capabilities ver string (XEP-0115 section 5).
 proc ::tkjabber::get_caps_ver {} {
-    global Features ::tcl_platform
-    
+    global Features tcl_platform
+    variable ::tkchat::version
+
     set S "client/pc//tkchat<"
     foreach feature [lsort $Features] { append S $feature "<" }
     # extended feature processing as well (order counts)
     append S "urn:xmpp:dataforms:softwareinfo<"
-    append S "os<$::tcl_platform(os)<"
-    append S "os_version<$::tcl_platform(osVersion)"
-    append S "software<tkchat<software_version<$::tkchat::version<"
+    append S "os<$tcl_platform(os)<"
+    append S "os_version<$tcl_platform(osVersion)"
+    append S "software<tkchat<software_version<$version<"
     return [binary encode base64 [sha1::sha1 -bin $S]]
 }
 
@@ -8374,7 +8412,7 @@ proc ::tkjabber::get_caps {} {
 }
 
 proc ::tkjabber::on_discovery {disco type from child args} {
-    global Features ::tcl_platform
+    global Features tcl_platform
     variable jabber
     variable ::tkchat::version
 
@@ -8403,9 +8441,9 @@ proc ::tkjabber::on_discovery {disco type from child args} {
                 lappend xp [wrapper::createtag field -attrlist {var software_version} \
                                 -subtags [list [wrapper::createtag value -chdata $version]]]
                 lappend xp [wrapper::createtag field -attrlist {var os} \
-                                -subtags [list [wrapper::createtag value -chdata $::tcl_platform(os)]]]
+                                -subtags [list [wrapper::createtag value -chdata $tcl_platform(os)]]]
                 lappend xp [wrapper::createtag field -attrlist {var os_version} \
-                                -subtags [list [wrapper::createtag value -chdata $::tcl_platform(osVersion)]]]
+                                -subtags [list [wrapper::createtag value -chdata $tcl_platform(osVersion)]]]
                 
                 lappend parts [wrapper::createtag x \
                                    -attrlist {xmlns jabber:x:data type result} -subtags $xp]
@@ -8497,8 +8535,6 @@ proc ::tkjabber::LoginCB { jlibname type theQuery } {
 		if {[info exists Options(Email)]} {
 		    lappend cmd -email $Options(Email)
 		}
-		# eval [linsert $cmd 0 $jabber \
-		# 	  register_set $Options(Username) $Options(Password)]
 		$jabber register_set $Options(Username) $Options(Password)] {*}$cmd
 
 		tkchat::addSystem .txt "Registering username."
@@ -8572,6 +8608,7 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
     variable AwayStatus
     variable AutoAway
     variable mucTries; if {![info exists mucTries]} { set mucTries 0 }
+    variable HaveHistory
 
     ::log::log debug "MucEnter: type=$type, args='$args'"
     switch -- $type {
@@ -8646,7 +8683,7 @@ proc ::tkjabber::MucEnterCB { mucName type args } {
             set mucTries 0
 	    #only load history for tclers chat when it is not loaded already.
 	    if {$conference eq "tcl@tach.tclers.tk" \
-		    &&  !$::tkjabber::HaveHistory } {
+		    &&  !$HaveHistory } {
 		# Force history loading to the background
 		after idle [list after 0 ::tkchat::LoadHistory]
 	    }
@@ -8716,6 +8753,7 @@ proc tkjabber::msgSend { msg args } {
     variable conference
     variable Away
     variable Conversation
+    variable muc
 
     array set opts {
 	-type normal
@@ -8752,7 +8790,7 @@ proc tkjabber::msgSend { msg args } {
 	# lookup the real nick
 	set found 0
 	set type $opts(-type)
-	foreach person [$::tkjabber::muc participants $::tkjabber::conference] {
+	foreach person [$muc participants $conference] {
             jlib::splitjid $person conf nick
 	    if { $nick eq $user } {
 		set user $person
@@ -8801,7 +8839,6 @@ proc tkjabber::msgSend { msg args } {
                        -attrlist [list xmlns urn:tkchat:chat color $Options(MyColor)]]
     set margs [list -type $type -body $msg -xlist $xlist]
     if {$thread ne ""} {lappend margs -thread $thread}
-    # eval [linsert $margs 0 $jabber send_message $user]
     $jabber send_message $user {*}$margs
 }
 
@@ -8851,11 +8888,14 @@ proc ::tkjabber::query_user {user what} {
 }
 
 proc ::tkjabber::ping {jid} {
+    variable jabber
+
     set xmllist [wrapper::createtag ping -attrlist [list xmlns urn:xmpp:ping]]
-    $tkjabber::jabber send_iq get [list $xmllist] -to $jid \
+    $jabber send_iq get [list $xmllist] -to $jid \
         -command [namespace code [list ping_result $jid \
                                       [clock clicks -milliseconds]]]
 }
+
 proc ::tkjabber::ping_result {jid sent type result} {
     set delta [expr {[clock clicks -milliseconds] - $sent}]
     switch -exact -- $type {
@@ -8879,7 +8919,6 @@ proc ::tkjabber::on_iq_ping {token from subiq args} {
     array set a [concat -id {{}} $args]
     set opts [list -to $from]
     if {$a(-id) ne {}} { lappend opts -id $a(-id) }
-    # eval [linsert $opts 0 $token send_iq result {}]
     $token send_iq result {} {*}$opts
     return 1 ;# handled
 }
@@ -8938,8 +8977,9 @@ proc ::tkjabber::send_memo {to msg {subject Memo}} {
 }
 
 proc ::tkchat::updateOnlineNames {} {
-    global Options
+    global Options URLID
     variable OnlineUsers
+    variable ::tkjabber::conference
 
     set scrollview [.pane.names yview]
 
@@ -8998,9 +9038,8 @@ proc ::tkchat::updateOnlineNames {} {
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
                 set tags [list NICK NICK-$nick URL URL-[incr ::URLID]]
 		.pane.names insert $mark "$nick" $tags "\n" NICK
-		.pane.names tag bind URL-$::URLID <Button-1> [list \
-                                                                  ::tkjabber::getChatWidget \
-                                                                  $::tkjabber::conference/$nick $nick]
+		.pane.names tag bind URL-$URLID <Button-1> \
+		    [list ::tkjabber::getChatWidget $conference/$nick $nick]
 		.mb.mnu add command \
                     -label $nick \
                     -command [list ::tkchat::MsgTo $nick]
@@ -9010,10 +9049,10 @@ proc ::tkchat::updateOnlineNames {} {
 	    }
 
             
-                .pane.names tag bind URL-$::URLID <Button-3> \
+                .pane.names tag bind URL-$URLID <Button-3> \
 		    [list ::tkchat::OnNamePopup $nick $network %X %Y]
             
-	    .pane.names tag bind URL-$::URLID <Control-Button-1> \
+	    .pane.names tag bind URL-$URLID <Control-Button-1> \
                 [list ::tkchat::OnNamePopup $nick $network %X %Y]
 	}
 	.pane.names insert end "\n"
@@ -9031,6 +9070,7 @@ proc ::tkchat::updateOnlineNames {} {
 proc ::tkchat::updateRosterDisplay {} {
     variable OnlineUsers
     variable ::tkjabber::jabber
+
     set roster [$jabber getrostername]
     set users [$roster getusers]
     set wstate [.pane.names cget -state]
@@ -9089,16 +9129,18 @@ proc ::tkchat::OnNameToggleVis { nick } {
 }
 
 proc ::tkchat::get_role {nick} {
-    upvar #0 ::tkchat::OnlineUsers(Jabber-$nick,role) role
-    if {[info exists role]} {
-        return $role
+    variable OnlineUsers
+
+    if {[info exists OnlineUsers(Jabber-$nick,role)]} {
+        return $OnlineUsers(Jabber-$nick,role)
     }
     return participant
 }
 
 proc ::tkchat::OnNamePopup { nick network x y } {
     global Options
-    variable ::tkchat::OnlineUsers
+    variable OnlineUsers
+    variable ::tkjabber::conference
 
     set m .pane.names_popup
     catch { destroy $m }
@@ -9118,11 +9160,10 @@ proc ::tkchat::OnNamePopup { nick network x y } {
             }
             $m add command \
 		-label "Private Chat" \
-		-command [list ::tkjabber::getChatWidget \
-                              $::tkjabber::conference/$nick $nick]
+		-command [list tkjabber::getChatWidget $conference/$nick $nick]
             $m add command \
 		-label "User info" \
-		-command [list ::tkjabber::msgSend "/userinfo $nick"]
+		-command [list tkjabber::msgSend "/userinfo $nick"]
 
             $m add command \
                 -label "Version info" \
@@ -9182,8 +9223,9 @@ proc ::tkchat::Kick {nick {what kick}} {
 
 proc ::tkchat::ToggleRole {type nick} {
     global Options
+    variable OnlineUsers
 
-    upvar #0 ::tkchat::OnlineUsers(Jabber-$nick,role) role
+    set role $OnlineUsers(Jabber-$nick,role)
     switch -exact -- $type {
         voice {
             if {$role eq "visitor"} {
@@ -9250,7 +9292,7 @@ proc ::tkjabber::setNick { newnick } {
 		set attrs [list xmlns urn:tkchat:changenick]
 		set xlist [list [wrapper::createtag x -attrlist $attrs]]
 
-		$tkjabber::jabber send_message $otherjid -type chat \
+		$jabber send_message $otherjid -type chat \
                     -xlist $xlist
 		::tkchat::addStatus 0 [concat \
                                            "This nick is owned by another you, requested" \
@@ -9429,6 +9471,8 @@ proc ::tkjabber::cancelReconnect {} {
 # Respond to subscription requests
 proc tkjabber::SubscriptionRequest {from status} {
     variable subs_uid
+    variable jabber
+
     if {![info exists subs_uid]} { set subs_uid 0 }
     jlib::splitjid $from jid res
     set ttl [msgcat::mc "Subscribe request from %s" $jid]
@@ -9463,10 +9507,10 @@ proc tkjabber::SubscriptionRequest {from status} {
     destroy $dlg
     set response [set [namespace current]::$wid]
     if {$response ne "cancel"} {
-        $tkjabber::jabber send_presence -to $from -type $response
+        $jabber send_presence -to $from -type $response
         if {$response eq "subscribed"} {
             # subscription needs to be both ways.
-            $tkjabber::jabber send_presence -to $from -type subscribe
+            $jabber send_presence -to $from -type subscribe
         }
     }
     unset [namespace current]::$wid
@@ -9511,7 +9555,6 @@ proc tkjabber::on_iq_last {token from subiq args} {
     set xml [wrapper::createtag query \
          -attrlist [list xmlns jabber:iq:last \
             seconds [idle::idletime]]]
-    # eval [linsert $opts 0 $token send_iq result [list $xml]]
     $token send_iq result [list $xml] {*}$opts
     return 1 ;# handled
 }
@@ -9529,36 +9572,38 @@ proc tkjabber::on_iq_time {token from subiq args} {
                          [clock format $t -format $fmt -gmt 1] {}]
     set xml [wrapper::createtag time -subtags $subtags \
                  -attrlist [list xmlns urn:xmpp:time]]
-    # eval [linsert $opts 0 $token send_iq result [list $xml]]
     $token send_iq result [list $xml] {*}$opts
     return 1 ;# handled
 }
 
 proc tkjabber::on_iq_version {token from subiq args} {
-    global ::tcl_platform
+    global tcl_platform
+    variable ::tkchat::version
+
     tkchat::addStatus 0 "Version query from $from"
     array set a [concat -id {{}} $args]
     set opts [list -to $from]
     if {$a(-id) ne {}} { lappend opts -id $a(-id) }
-    set os $::tcl_platform(os)
-    if {[info exists ::tcl_platform(osVersion)]} {
-	append os " $::tcl_platform(osVersion)"
+    set os $tcl_platform(os)
+    if {[info exists tcl_platform(osVersion)]} {
+	append os " $tcl_platform(osVersion)"
     }
     append os "/Tcl [info patchlevel]"
 
     set subtags [list  \
                      [wrapper::createtag name    -chdata "Tkchat"]  \
-                     [wrapper::createtag version -chdata $::tkchat::version]  \
+                     [wrapper::createtag version -chdata $version]  \
                      [wrapper::createtag os      -chdata $os] ]
     set xmllist [wrapper::createtag query -subtags $subtags  \
                      -attrlist {xmlns jabber:iq:version}]
-    # eval [linsert $opts 0 $token send_iq result [list $xmllist]]
     $token send_iq result [list $xmllist] {*}$opts
     return 1 ;# handled
 }
 
 proc tkjabber::on_iq_version_result {token from xmllist args} {
     variable conference
+    variable ::tkchat::OnlineUsers
+
     array set a [concat -id {{}} $args]
     jlib::splitjid $from conf nick
     if {[jlib::jidequal $conf $conference]} {
@@ -9570,7 +9615,7 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
         if {[info exists data(name)]} { append ver $data(name) }
         if {[info exists data(version)]} { append ver " " $data(version) }
         if {[info exists data(os)]} { append ver " : $data(os)" }
-        set ::tkchat::OnlineUsers(Jabber-$nick,version) $ver
+        set OnlineUsers(Jabber-$nick,version) $ver
         tkchat::addStatus 0 "$nick is using $ver"
 
         after idle [list ::tkchat::SetUserTooltip $nick]
@@ -9800,9 +9845,11 @@ proc ::tkchat::SafeGet {arrayName key} {
     }
     return ""
 }
+
 proc ::tkchat::ShowCertificate {owner depth info} {
     variable .certificate
     variable ::tkjabber::CertChain
+
     array set C $info
     set self_signed [string equal $C(subject) $C(issuer)]
     if {[string match /* $C(subject)]} {
@@ -9950,6 +9997,8 @@ proc tkchat::PasteDlg {} {
 }
 
 proc tkchat::PasteDlgSend {t subject txt} {
+    variable ::tkjabber::jabber
+
     if {[string length [$subject get]] < 1} {
 	tk_messageBox -icon info -title [mc "Subject required"] \
 	    -message [mc "You must provide a subject to be displayed\
@@ -9964,7 +10013,7 @@ proc tkchat::PasteDlgSend {t subject txt} {
 	lappend k [wrapper::createtag body -chdata $msg]
 	set m [wrapper::createtag message -subtags $k \
 	   -attrlist [list type normal to tcl@paste.tclers.tk]]
-	$::tkjabber::jabber send $m
+	$jabber send $m
     }
     destroy $t
 }
@@ -10022,8 +10071,9 @@ proc ::tkjabber::LogPrivateChat {user spkr ztime message} {
 proc ::tkjabber::setrole {nick role reason} {
     variable muc
     variable conference
+
     if {[catch {
-        $::tkjabber::muc setrole $conference $nick $role \
+        $muc setrole $conference $nick $role \
             -reason $reason -command [namespace origin onAdminComplete]
     } err]} {
         tk_messageBox -icon error -title [mc "Error"] \
@@ -10036,8 +10086,9 @@ proc ::tkjabber::setrole {nick role reason} {
 proc ::tkjabber::setaffiliation {nick affiliation reason} {
     variable muc
     variable conference
+
     if {[catch {
-        $::tkjabber::muc setaffiliation $conference $nick $affiliation \
+        $muc setaffiliation $conference $nick $affiliation \
             -reason $reason -command [namespace origin onAdminComplete]
     } err]} {
         tk_messageBox -icon error -title [mc "Error"] \
@@ -10062,9 +10113,9 @@ proc ::tkjabber::onAdminComplete {muc what xml args} {
 # Load in plugins from our directory and ~/.tkchat_plugins or from
 # anything in env(TKCHAT_PLUGINS) which may be a tcl list of directories.
 
-set dirs [list $::tkchat_dir [file normalize ~/.tkchat_plugins]]
+set dirs [list $tkchat_dir [file normalize ~/.tkchat_plugins]]
 if {[info exists env(TKCHAT_PLUGINS)]} {
-    set dirs [linsert $env(TKCHAT_PLUGINS) 0 $::tkchat_dir]
+    set dirs [linsert $env(TKCHAT_PLUGINS) 0 $tkchat_dir]
 }
 foreach dir $dirs {
     set files [glob -nocomplain -directory $dir tkchat_*.tcl]
@@ -10084,8 +10135,7 @@ package forget app-tkchat	; # Workaround until I can convince people
 ; # that apps are not packages. :)  DGP
 package provide app-tkchat $::tkchat::version
 
-if {![info exists ::URLID]} {
-    # eval [linsert $argv 0 ::tkchat::Init]
+if {![info exists URLID]} {
     ::tkchat::Init {*}$argv
 }
 

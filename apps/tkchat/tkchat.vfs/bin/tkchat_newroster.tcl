@@ -80,9 +80,10 @@ proc ::newRoster::gui {f} {
 }
 
 proc ::newRoster::updateOnlineNames {} {
+    global Options URLID
     variable cl
     variable ::tkchat::OnlineUsers
-    global Options
+    variable ::tkjabber::conference
 
     set scrollview [$cl yview]
     # Delete all URL-* tags to prevent a huge memory leak
@@ -161,13 +162,13 @@ proc ::newRoster::updateOnlineNames {} {
 		}
 	    }
 
-	    set id URL-[incr ::URLID]
+	    set id URL-[incr URLID]
 	    set tags [list NICK NICK-$nick URL $id $network]
 	    $cl insert $where end -text $nick -tags $tags -image $image
 
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
-		$cl tag bind $id <Button-1> [list ::tkjabber::getChatWidget \
-						 $::tkjabber::conference/$nick $nick]
+		$cl tag bind $id <Button-1> \
+		    [list ::tkjabber::getChatWidget $conference/$nick $nick]
 		after idle [namespace code [list SetUserTooltip $nick]]
 	    }
 
@@ -182,6 +183,7 @@ proc ::newRoster::updateOnlineNames {} {
 }
 
 proc ::newRoster::updateRosterDisplay {} {
+    global URLID
     variable cl
     variable ::tkchat::OnlineUsers
     variable ::tkjabber::jabber
@@ -219,7 +221,7 @@ proc ::newRoster::updateRosterDisplay {} {
 	    }
 	}
 
-	set id URL-[incr ::URLID]
+	set id URL-[incr URLID]
 	set tags [list ROSTER ROSTER-$user URL $id Jabber]
 	set item [$cl insert Roster end -text $name -tags $tags -image $image]
 
