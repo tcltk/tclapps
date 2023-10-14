@@ -22,14 +22,9 @@ exec wish "$0" ${1+"$@"}
 # REMOVE 8.6
 package require Tk 8.6-
 
-#log background errors to console under Aqua, avoid locking up window
-if {[tk windowingsystem] eq "aqua"} {
-    
-    proc bgerror {args} {
-        exec syslog -s -l Error "TkChat: An error occurred: $args"
-    }
-}
-
+########################################################################
+# Setting up environment and globals
+#
 variable Features {
     "http://jabber.org/protocol/disco#info"
     "http://jabber.org/protocol/disco#items"
@@ -50,14 +45,6 @@ if {![info exists env(PATH)]} {
     set env(PATH) .
 }
 
-# Must set LD_LIBRARY_PATH for startup on X11, but must unset
-# for browser execution to work 
-if {[tk windowingsystem] eq "x11"} {
-    if {[info exists env(LD_LIBRARY_PATH)]} {
- 	unset env(LD_LIBRARY_PATH) 
-    }
-}
-
 # For development, it is very convenient to be able to drop the extra
 # packages into the CVS tree. Make sure we have the real location of 
 # the script and not a link.
@@ -69,67 +56,23 @@ set tkchat_dir [file dirname [file normalize $script]]
 set imgdir [file join $tkchat_dir images]
 set auto_path [linsert $auto_path 0 $tkchat_dir [file join $tkchat_dir lib]]
 
+########################################################################
+# Required packages.
+# Note that jabberlib requires additional ones
+
 # REMOVE 8.6
 package require Tcl 8.6-        ; # core Tcl
 package require Tk 8.6-  	; # core Tk
 package require http 2		; # core Tcl
 package require msgcat		; # core Tcl
-package require htmlparse	; # tcllib 1.0
+package require htmlparse	; # tcllib
 package require log		; # tcllib
 package require uri             ; # tcllib
 package require uuid            ; # tcllib
-
-catch {
-    # this should *NOT* be optional
-    package require tls; # tls (optional)
-    if {[package vsatisfies [package provide tls] 1.7-]} {
-	http::register https 443 [list ::tls::socket -autoservername 1 \
-	    -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
-    } else {
-	# older versions of tls don't support a command prefix
-	http::register https 443 ::tls::socket
-    }
-    unset e o
-}
-
-catch {package require picoirc}   ; # irc client (optional)
-catch {package require img::jpeg} ; # more image types (optional)
-
 package require sha1		; # tcllib
-package require jlib		; # jlib
-package require muc		; # jlib
-package require disco           ; # jlib 
-
-catch {package require khim}    ; # khim (optional)
-if {[catch {package require tooltip 1.5}]} {# tooltips (optional)
-    namespace eval tooltip {
-        namespace export tooltip
-        proc tooltip {args} {}
-    }
-}
-
-namespace eval ::idle {
-    proc idletime {} {
-        return [expr { [tk inactive] / 1000 }]
-    }
-}
-
-# enable OSX-specific (un-hide window) alerting if available
-if {[tk windowingsystem] eq "aqua"} {
-    proc tk::mac::ReopenApplication {} {
-
-        if { [wm state .] eq "withdrawn"} {
-            wm state . normal
-            raise .
-        } else {
-            wm deiconify .
-            raise .
-        }
-
-    }
-}
-
-namespace import -force ::tk::msgcat::*
+package require jlib		; # jabberlib
+package require muc		; # jabberlib
+package require disco           ; # jabberlib
 
 # Override the normal logging to include a timestamp
 proc log::Puts {level text} {
@@ -143,54 +86,25 @@ proc log::Puts {level text} {
     return
 }
 
-# In Tk 8.5a6 the tile widgets have been merged into the Tk code in the
-# ttk namespace. This provides detects the presence of themed widgets
-# and provides compatability with tile 0.7
+########################################################################
+# Optional packages
 #
-namespace eval tkchat {
-    variable useClosebutton 0
-
-    if {[tk windowingsystem] eq "win32"} {
-        # [PT]: experimental ttk styled pane closebutton.
-        catch {
-            ttk::style theme settings xpnative {
-                ttk::style element create close vsapi \
-                    EXPLORERBAR 2 {pressed 3 active 2 {} 1}
-                ttk::style layout CloseButton {
-                    CloseButton.padding -sticky news -children {
-                        Closebutton.close -sticky news
-                    }
-                }
-            }
-            set useClosebutton 1
-        }
+catch {
+    # this should *NOT* be optional
+    package require tls; # tls (optional)
+    if {[package vsatisfies [package provide tls] 1.7-]} {
+	http::register https 443 [list ::tls::socket -autoservername 1 \
+	    -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
+    } else {
+	# older versions of tls don't support a command prefix
+	http::register https 443 ::tls::socket
     }
-
-    # We don't have a ttk style for text widgets but we can co-opt
-    # the entry border and place our text widget on top of a frame
-    # with the entry border plus some padding to make it look right.
-    ttk::style theme settings default {
-        ttk::style layout FakeText {
-            FakeText.field -sticky news -border 0 -children {
-                FakeText.fill -sticky news -children {
-                    FakeText.padding -sticky news
-                }
-            }
-        }
-        ttk::style configure FakeText -padding 1 -relief sunken
-        ttk::style map FakeText -background {}
-    }
-    option add *Text.relief                     flat
-    option add *Text.borderWidth                0
-    option add *Text.highlightThickness         0
-    option add *Listbox.relief                  flat
-    option add *Listbox.borderWidth             0
-    option add *Listbox.highlightThickness      0
-
+    unset e o
 }
-
+catch {package require picoirc}   ; # irc client (optional)
+catch {package require img::jpeg} ; # more image types (optional)
+catch {package require khim}      ; # khim (optional)
 # If we're using KHIM, make all entries and texts use it.
-
 if {[package provide khim] ne {}} {
 
     foreach command {::entry ::tk::entry ::text ::tk::text ::ttk::entry} {
@@ -212,9 +126,71 @@ if {[package provide khim] ne {}} {
         }]
     }
 }
+if {[catch {package require tooltip 1.5}]} {
+    # tooltips. We provide our own noop version if missing
+    namespace eval tooltip {
+        namespace export tooltip
+        proc tooltip {args} {}
+    }
+}
+# this used to be optional, but we have now [tk inactive]
+namespace eval idle {
+    proc idletime {} {
+        return [expr { [tk inactive] / 1000 }]
+    }
+}
 
-# Under windows, we can use DDE to open urls
-if {$tcl_platform(platform) eq "windows"} {
+########################################################################
+# Platform specific stuff
+#
+# MacOS specific
+if {[tk windowingsystem] eq "aqua"} {
+    # enable OSX-specific (un-hide window) alerting if available
+    proc tk::mac::ReopenApplication {} {
+        if { [wm state .] eq "withdrawn"} {
+            wm state . normal
+            raise .
+        } else {
+            wm deiconify .
+            raise .
+        }
+    }
+    #log background errors to console under Aqua, avoid locking up window
+    proc bgerror {args} {
+        exec syslog -s -l Error "TkChat: An error occurred: $args"
+    }
+}
+
+# X11 specific
+if {[tk windowingsystem] eq "x11"} {
+    # Must set LD_LIBRARY_PATH for startup on X11, but must unset
+    # for browser execution to work 
+    if {[info exists env(LD_LIBRARY_PATH)]} {
+ 	unset env(LD_LIBRARY_PATH) 
+    }
+}
+
+# Windows specific
+namespace eval tkchat {
+    variable useClosebutton 0
+}
+if {[tk windowingsystem] eq "win32"} {
+    # [PT]: experimental ttk styled pane closebutton.
+    catch {
+        ttk::style theme settings xpnative {
+            ttk::style element create close vsapi \
+                EXPLORERBAR 2 {pressed 3 active 2 {} 1}
+            ttk::style layout CloseButton {
+                CloseButton.padding -sticky news -children {
+                    Closebutton.close -sticky news
+                }
+            }
+        }
+        namespace eval tkchat {
+	    set useClosebutton 1
+	}
+    }
+
     package require dde
 
     # Iocpsock is a Windows sockets extension that supports IPv6 sockets.
@@ -226,6 +202,38 @@ if {$tcl_platform(platform) eq "windows"} {
         }
     }
 }
+
+########################################################################
+# Option database and ttk settings
+#
+option add *Text.relief                 flat
+option add *Text.borderWidth            0
+option add *Text.highlightThickness     0
+option add *Listbox.relief              flat
+option add *Listbox.borderWidth         0
+option add *Listbox.highlightThickness  0
+option add *Menu.tearOff                0
+
+# We don't have a ttk style for text widgets but we can co-opt
+# the entry border and place our text widget on top of a frame
+# with the entry border plus some padding to make it look right.
+ttk::style theme settings default {
+    ttk::style layout FakeText {
+        FakeText.field -sticky news -border 0 -children {
+            FakeText.fill -sticky news -children {
+                FakeText.padding -sticky news
+            }
+        }
+    }
+    ttk::style configure FakeText -padding 1 -relief sunken
+    ttk::style map FakeText -background {}
+}
+
+########################################################################
+# Misc settings
+#
+# better import this stuff into namespaces
+# namespace import -force ::tk::msgcat::*
 
 #This is causing difficult-to-diagnose errors in downloading data 
 if 0 {
@@ -248,6 +256,9 @@ if 0 {
     }
 }
 
+########################################################################
+# The tkchat namespace
+# This is our main UI interface
 namespace eval tkchat {
 
     variable chatWindowTitle "The Tcler's Chat"
@@ -335,13 +346,13 @@ image create photo ::tkchat::img::link_insecure -data {
 # PNG format images
 image create photo ::tkchat::img::link_connected -file $imgdir/network-online.png
 image create photo ::tkchat::img::link_disconnected -file $imgdir/network-offline.png
-image create photo tkchat-32 -file $imgdir/tkchat-32.png
-image create photo tkchat_warn-32 -file $imgdir/tkchat_warn-32.png
+image create photo ::tkchat-32 -file $imgdir/tkchat-32.png
+image create photo ::tkchat_warn-32 -file $imgdir/tkchat_warn-32.png
 
 # catch is needed in order to be able to reload the script from the
 # debug menu
 catch {
-    tk systray create -image tkchat-32 -text "The Tcler's Chat" \
+    tk systray create -image ::tkchat-32 -text "The Tcler's Chat" \
         -button1 {
             if { [wm state .] eq "withdrawn" } {
                 wm deiconify .
@@ -363,21 +374,6 @@ catch {
 # just before showing the logon screen (or not), call 'tkchat::rcPostload' so
 # you can also tinker with settings when the UI has been built.
 proc tkchat::rcPostload {} {}
-if {[info exists env(HOME)]
-	&& ([file readable [set rctclfile \
-                                [file join $env(HOME) .tkchatrc.tcl]]] \
-                || [file readable [set rctclfile \
-                                       [file join $env(HOME) tkchatrc.tcl]]])} {
-    if { [catch { source $rctclfile } err] } {
-	tk_messageBox \
-            -type ok \
-            -icon error \
-            -title "Error while loading \"$rctclfile\"" \
-            -message $err
-	log::log error $err
-	exit
-    }
-}
 
 proc tkchat::Toplevel {w args} {
     toplevel $w {*}$args]
@@ -1198,7 +1194,7 @@ proc tkchat::addMessage {w clr nick msg msgtype mark timestamp {extraOpts ""}} {
 
     foreach { str url tt } [parseStr $msg] {
 	if { $url ne "" } {
-	    set urltag [concat $tags URL URL-[incr ::URLID]]
+	    set urltag [concat $tags URL URL-[incr URLID]]
 	    $w tag bind URL-$URLID <Button-1> [list tkchat::gotoURL $url]
             if {[string length $tt] > 0} {
                 tooltip $w -tag URL-$URLID $tt
@@ -1280,7 +1276,7 @@ proc tkchat::ResetMessageCounter {} {
 	set title $chatWindowTitle
 	wm title . $title
 	wm iconname . $title
-	tk systray configure -image tkchat-32 -text $chatWindowTitle
+	tk systray configure -image ::tkchat-32 -text $chatWindowTitle
 	wm iconbadge . ""
     }
 }
@@ -2190,17 +2186,17 @@ proc tkchat::CreateGUI {} {
     menu .mbar
 
     if {[tk windowingsystem] eq "aqua"} {
-        menu .mbar.apple -tearoff 0
+        menu .mbar.apple
         .mbar.apple add command -label "About TkChat" -command [namespace origin About]
         .mbar add cascade -label Apple -menu .mbar.apple
     }
-    menu .mbar.file  -tearoff 0
-    menu .mbar.edit  -tearoff 0
-    menu .mbar.emot  -tearoff 0
-    menu .mbar.vis   -tearoff 0
-    menu .mbar.alert -tearoff 0
-    menu .mbar.dbg   -tearoff 0
-    menu .mbar.help  -tearoff 0
+    menu .mbar.file
+    menu .mbar.edit
+    menu .mbar.emot
+    menu .mbar.vis
+    menu .mbar.alert
+    menu .mbar.dbg
+    menu .mbar.help
     tk::AmpMenuArgs .mbar add cascade -label [mc "&File"] -menu .mbar.file
     if {[tk windowingsystem] eq "aqua"} {
         proc ::tk::mac::ShowPreferences args {
@@ -2218,7 +2214,7 @@ proc tkchat::CreateGUI {} {
     if {[tk windowingsystem] eq "aqua"} {
         if {"AppKit" in [winfo server .]} {
             tk::AmpMenuArgs .mbar add cascade -label [mc "&Window"] \
-                -menu [menu .mbar.window -tearoff 0]
+                -menu [menu .mbar.window]
         }
     }
     tk::AmpMenuArgs .mbar add cascade -label [mc "&Help"] -menu .mbar.help
@@ -2309,7 +2305,7 @@ proc tkchat::CreateGUI {} {
     if { 1 } {
         set themes [lsort [ttk::themes]]
 
-        menu $m.themes -tearoff 0
+        menu $m.themes
         tk::AmpMenuArgs $m add cascade \
             -label [mc "&Tk themes"] \
             -menu $m.themes
@@ -2324,7 +2320,7 @@ proc tkchat::CreateGUI {} {
     }
     
     # Local Chat Logging Cascade Menu
-    menu $m.chatLog -tearoff 0
+    menu $m.chatLog
     tk::AmpMenuArgs $m add cascade -menu $m.chatLog \
         -label [mc "&Local chat logging"]
     tk::AmpMenuArgs $m.chatLog add radiobutton \
@@ -2340,7 +2336,7 @@ proc tkchat::CreateGUI {} {
         -command { tkchat::OpenChatLog load }
 
     # Server Chat Logging Cascade Menu
-    menu $m.chatServLog -tearoff 0
+    menu $m.chatServLog
     tk::AmpMenuArgs $m add cascade \
         -label [mc "&Server chat logging"] \
         -menu $m.chatServLog
@@ -2358,7 +2354,7 @@ proc tkchat::CreateGUI {} {
         -value none
 
     # Loading Server History Cascade Menu
-    menu $m.hist -tearoff 0
+    menu $m.hist
     tk::AmpMenuArgs $m add cascade -menu $m.hist \
         -label [mc "Loading server &history"]
     tk::AmpMenuArgs $m.hist add radiobutton \
@@ -2377,7 +2373,7 @@ proc tkchat::CreateGUI {} {
     }
 
     # One to One chats Cascade Menu
-    menu $m.chat1to1 -tearoff 0
+    menu $m.chat1to1
     tk::AmpMenuArgs $m add cascade \
         -label [mc "&One to One chats"] \
         -menu $m.chat1to1
@@ -2395,7 +2391,7 @@ proc tkchat::CreateGUI {} {
         -value tabbed
 
     # Auto Away Cascade Menu
-    menu $m.aa -tearoff 0
+    menu $m.aa
     tk::AmpMenuArgs $m add cascade \
         -label [mc "&Auto away"] \
         -menu $m.aa
@@ -2432,7 +2428,7 @@ proc tkchat::CreateGUI {} {
         -label [mc "U&pdate emoticons"] \
         -command { tkchat::Smile 1 }
     # Insert Cascade Menu
-    menu $m.mnu -tearoff 0
+    menu $m.mnu
     tk::AmpMenuArgs $m add cascade -menu $m.mnu \
         -label [mc "&Insert"]
 
@@ -2479,7 +2475,7 @@ proc tkchat::CreateGUI {} {
         -command { tkchat::NickVis 0 }
 
     # Hide Users Cascade Menu
-    menu $m.nicks -tearoff 0
+    menu $m.nicks
     tk::AmpMenuArgs $m add cascade -menu $m.nicks \
         -label [mc "&Hide users"]
     NickVisMenu
@@ -2556,8 +2552,8 @@ proc tkchat::CreateGUI {} {
     $m add separator
 
     # Error Logging Cascade Menu
-    menu $m.err -tearoff 0
-    menu $m.err.lvl -tearoff 0
+    menu $m.err
+    menu $m.err.lvl
     tk::AmpMenuArgs $m add cascade \
         -label [mc "&Error logging"] \
         -menu $m.err
@@ -2726,7 +2722,7 @@ proc tkchat::CreateGUI {} {
         -menu .mb.mnu \
         -textvariable Options(MsgTo) \
         -direction above
-    menu .mb.mnu -tearoff 0
+    menu .mb.mnu
     .mb.mnu add command \
         -label [mc "All users"] \
         -command { tkchat::MsgTo "All Users" }
@@ -2902,7 +2898,7 @@ proc tkchat::LurkMode {state} {
 
 proc tkchat::OnEntryPopup {w x y} {
     destroy $w.popup
-    set menu [menu $w.popup -tearoff 0]
+    set menu [menu $w.popup]
     if {[$w cget -state] eq "disabled"} {
 	$menu add command \
 	    -label [mc "Unlurk"] \
@@ -2920,7 +2916,7 @@ proc tkchat::OnTextPopup { w x y } {
 
     set m .txt_popup
     catch { destroy $m }
-    menu $m -tearoff 0
+    menu $m
 
     if { $w eq ".txt" } {
 	set nick [lsearch -inline [$w tag names @$x,$y] NICK-*]
@@ -7491,7 +7487,7 @@ proc tkchat::updateOnlineNames {} {
 
 # REMOVE 8.6
     if {[package vsatisfies [package provide Tk] 8.7-]} {
-	after idle ::newRoster::updateOnlineNames
+	after idle newRoster::updateOnlineNames
     }
 }
 
@@ -7572,7 +7568,7 @@ proc tkchat::OnNamePopup { nick network x y } {
 
     set m .pane.names_popup
     catch { destroy $m }
-    menu $m -tearoff 0
+    menu $m
     switch -exact -- $network {
         "IRC" {
             $m add command \
@@ -7602,7 +7598,7 @@ proc tkchat::OnNamePopup { nick network x y } {
             # an admin list
             if {[get_role $Options(Nickname)] eq "moderator"} {
                 $m add cascade -label "Admin" -underline 0 \
-                    -menu [set ma [menu $m.admin -tearoff 0]]
+                    -menu [set ma [menu $m.admin]]
                 $ma add checkbutton -label "Mute" -underline 0 \
                     -onvalue visitor -offvalue participant \
                     -variable tkchat::OnlineUsers(Jabber-$nick,role) \
@@ -7688,6 +7684,7 @@ proc tkchat::createRosterImages {} {
     }
 }
 
+# FIXME: This doesn't seem relevant today.
 proc tkchat::GetTipIndex {} {
     http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt \
         -timeout 15000 \
@@ -7881,7 +7878,7 @@ proc tkchat::PasteDlg {} {
     }
 
     # an utility popup menu
-    set m [menu $t.popup -tearoff 0]
+    set m [menu $t.popup]
     $m add command -label [mc "Clear"] -command [list $txt delete 0.0 end]
     $m add command -label [mc "Eval in whiteboard"] \
 	-command [list [namespace which PasteEval] $txt]
@@ -8368,6 +8365,7 @@ proc tkjabber::SendAuthOld {} {
 proc tkjabber::PollIrcUserList {jid} {
     variable jabber
     variable PollIrcAID
+
     catch {after cancel $PollIrcAID}
     $jabber send_message $jid -subject IrcUserList
     set PollIrcAID [after 600000 \
@@ -8884,6 +8882,7 @@ proc tkjabber::PresCB {jlibName type args} {
         tkchat::addSystem .txt "error handling presence stanza: $err"
     }
 }
+
 proc tkjabber::PresCB2 {jlibName type args} {
     log::log debug "presence $type $args"
     array set a {-from {} -to {} -status {}}
@@ -8910,10 +8909,12 @@ proc tkjabber::on_pres_available {jlib from type args} {
     #log::log debug [array get a]
     return 0
 }
+
 proc tkjabber::on_pres_unavailable {jlib from type args} {
     #puts stderr "pres unavailable $jlib $from $type $args"
     return 0
 }
+
 proc tkjabber::on_pres_subscribe {jlib from type args} {
     array set a [linsert $args 0 -status {}]
     log::log debug "presence subscribe from $from"
@@ -9873,7 +9874,7 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
         after idle [list tkchat::SetUserTooltip $nick]
 # REMOVE 8.6
 	if {[package vsatisfies [package provide Tk] 8.7-]} {
-	    after idle [list ::newRoster::SetUserTooltip $nick]
+	    after idle [list newRoster::SetUserTooltip $nick]
 	}
     }
     return 1 ;# handled
@@ -10127,6 +10128,24 @@ proc tkjabber::onAdminComplete {muc what xml args} {
     }
 }
 
+########################################################################
+# Initialization stuff
+
+if {[info exists env(HOME)] &&
+    ([file readable [set rctclfile [file join $env(HOME) .tkchatrc.tcl]]] ||
+    [file readable [set rctclfile [file join $env(HOME) tkchatrc.tcl]]])
+} then {
+    if { [catch { source $rctclfile } err] } {
+	tk_messageBox \
+            -type ok \
+            -icon error \
+            -title "Error while loading \"$rctclfile\"" \
+            -message $err
+	log::log error $err
+	exit
+    }
+}
+
 # -------------------------------------------------------------------------
 # Load in plugins from our directory and ~/.tkchat_plugins or from
 # anything in env(TKCHAT_PLUGINS) which may be a tcl list of directories.
@@ -10140,7 +10159,7 @@ foreach dir $dirs {
     foreach file $files {
         if {[file exists $file] && [file readable $file]} {
             if {[catch {source $file} err]} {
-                ::bgerror $err
+                bgerror $err
             }
         }
     }
@@ -10161,6 +10180,3 @@ if {![info exists URLID]} {
 # mode: tcl
 # indent-tabs-mode: nil
 # End:
-
-
-
