@@ -12,7 +12,7 @@
 #   XEP-0012: Last activity
 #   XEP-0030: Service discovery
 #   XEP-0090: Entity time
-#   XEP-0090: Software version
+#   XEP-0092: Software version
 #   XEP-0115: Entity capabilities
 #   XEP-0199: XMPP Ping
 #   XEP-0232: Software information
@@ -2017,14 +2017,15 @@ proc ::tkchat::nickComplete {} {
 		    if { $Options(AutoScroll) } {
 			.txt see end
 		    }
-		    after 5500 {
-			if { [llength $lastCompletion] > 0 \
-                                 && [clock seconds] - 4 \
-                                 < [lindex $lastCompletion 0] } {
-			    return
+		    after 5500 [list apply [list {} {
+			variable lastCompletion
+
+			if {[llength $lastCompletion] == 0 ||
+			    [clock seconds] - 4 >= [lindex $lastCompletion 0]
+			} then {
+			    deleteCompletions
 			}
-			::tkchat::deleteCompletions
-		    }
+		    } [namespace current]]]
 		}
 	    }
 	    set lastCompletion [list [clock seconds] $match]
