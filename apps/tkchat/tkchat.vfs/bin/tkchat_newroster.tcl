@@ -7,6 +7,7 @@ package require Tk
 namespace eval ::newRoster {
     variable cl
 
+    namespace import ::msgcat::mc
     namespace import ::tooltip::tooltip
 }
 
