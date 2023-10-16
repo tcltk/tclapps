@@ -230,10 +230,57 @@ ttk::style theme settings default {
 }
 
 ########################################################################
-# Misc settings
+# Images
 #
-# better import this stuff into namespaces
-# namespace import -force ::tk::msgcat::*
+image create photo ::tkchat::img::link_secure -data {
+    R0lGODlhEwAQAPQWAAAAAG5ICH1WDkhISFRUVGZmZnh4eIdeEptxHrSJMcid
+    RNWpUeG1YPfKfIaGhpiYmKampre3t//nqMjIyNra2ubm5v///wAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAABYALAAAAAATABAAAAXtoGVZlmVZ
+    lgUAAAAAlmVZlmVZlmVZgNSAS4IcgGVZlmVZlmUBUgMAACAcgGVZlgValmUB
+    DWBZlgUkgGVZlmVZlgUsgGVZFggogGVZlmVZlgUkAAAAAMAAlmVZlmVZIAAg
+    QEVNEYAAgGVZlmUBFXAAURQ9QACABWBZlmUB1QREkGM8DmAUgGVZlgVQEwRC
+    BgBAjmEQgGVZlgVQEQQZABAZhkEAFmhZlgVEEWQAAABARkEAlmVZFhBBjwEA
+    IABERTEAlmVZFhA9jwMBQFQUwwBYlmWBlgUYRVEYBkEMA2BZlmVZlgUAAAAA
+    AAACgGWFADs=
+}
+image create photo ::tkchat::img::link_insecure -data {
+    R0lGODlhEwAQAPQWAAAAAG5ICH1WDkZGRlRUVGZmZnh4eIdeEptxHrSJMcid
+    RNWpUeG1YPfKfIaGhpiYmKampre3t//nqMjIyNra2ubm5v///wAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAABYALAAAAAATABAAAAXtoGUBAAAA
+    gGVZlmVZlmVZFiA1S4IcgGWBlmVZlmVZgNQAAAAIB2BZlmVZlmUBDQBalmUB
+    CWBZlmVZlmUBC2BZlgUogGVZFmhZlmUBCWBZlgUwAAAAAAAAlgUggGVZIAAg
+    QEVN0QAMgAUcgGUBFRAAURQ9AzCABWABlmUB1QREkGM8zmAUgGVZlgVQEwRC
+    BgBAjmEUgGVZlgVQEQQZABAZRkEAFmhZlgVEEWQAAABARkEAlmVZFhBBjwEA
+    IABERTEAlmVZFhA9jwMBQFQUwwBYlmWBlgUYRVEYBkEMA2BZlmVZlgUAAAAA
+    AAACgGWFADs=
+}
+# PNG format images
+image create photo ::tkchat::img::link_connected -file $imgdir/network-online.png
+image create photo ::tkchat::img::link_disconnected -file $imgdir/network-offline.png
+image create photo ::tkchat-32 -file $imgdir/tkchat-32.png
+image create photo ::tkchat_warn-32 -file $imgdir/tkchat_warn-32.png
+image create photo ::tkchat::img::Tkchat -file $tkchat_dir/tkchat48.png
+
+########################################################################
+# Systray
+#
+# catch is needed in order to be able to reload the script from the
+# debug menu
+catch {
+    tk systray create -image ::tkchat-32 -text "The Tcler's Chat" \
+        -button1 {
+            if { [wm state .] eq "withdrawn" } {
+                wm deiconify .
+                focus .eMsg
+            } else {
+                wm withdraw .
+            }
+        } -button3 ""
+}
+
+# -------------------------------------------------------------------------
+::msgcat::mcload [file join $tkchat_dir msgs]
+# -------------------------------------------------------------------------
 
 #This is causing difficult-to-diagnose errors in downloading data 
 if 0 {
@@ -319,55 +366,6 @@ namespace eval tkchat {
     namespace import ::msgcat::mc
     namespace import ::tooltip::tooltip
 }
-
-image create photo ::tkchat::img::link_secure -data {
-    R0lGODlhEwAQAPQWAAAAAG5ICH1WDkhISFRUVGZmZnh4eIdeEptxHrSJMcid
-    RNWpUeG1YPfKfIaGhpiYmKampre3t//nqMjIyNra2ubm5v///wAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAABYALAAAAAATABAAAAXtoGVZlmVZ
-    lgUAAAAAlmVZlmVZlmVZgNSAS4IcgGVZlmVZlmUBUgMAACAcgGVZlgValmUB
-    DWBZlgUkgGVZlmVZlgUsgGVZFggogGVZlmVZlgUkAAAAAMAAlmVZlmVZIAAg
-    QEVNEYAAgGVZlmUBFXAAURQ9QACABWBZlmUB1QREkGM8DmAUgGVZlgVQEwRC
-    BgBAjmEQgGVZlgVQEQQZABAZhkEAFmhZlgVEEWQAAABARkEAlmVZFhBBjwEA
-    IABERTEAlmVZFhA9jwMBQFQUwwBYlmWBlgUYRVEYBkEMA2BZlmVZlgUAAAAA
-    AAACgGWFADs=
-}
-image create photo ::tkchat::img::link_insecure -data {
-    R0lGODlhEwAQAPQWAAAAAG5ICH1WDkZGRlRUVGZmZnh4eIdeEptxHrSJMcid
-    RNWpUeG1YPfKfIaGhpiYmKampre3t//nqMjIyNra2ubm5v///wAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAABYALAAAAAATABAAAAXtoGUBAAAA
-    gGVZlmVZlmVZFiA1S4IcgGWBlmVZlmVZgNQAAAAIB2BZlmVZlmUBDQBalmUB
-    CWBZlmVZlmUBC2BZlgUogGVZFmhZlmUBCWBZlgUwAAAAAAAAlgUggGVZIAAg
-    QEVN0QAMgAUcgGUBFRAAURQ9AzCABWABlmUB1QREkGM8zmAUgGVZlgVQEwRC
-    BgBAjmEUgGVZlgVQEQQZABAZRkEAFmhZlgVEEWQAAABARkEAlmVZFhBBjwEA
-    IABERTEAlmVZFhA9jwMBQFQUwwBYlmWBlgUYRVEYBkEMA2BZlmVZlgUAAAAA
-    AAACgGWFADs=
-}
-
-# PNG format images
-image create photo ::tkchat::img::link_connected -file $imgdir/network-online.png
-image create photo ::tkchat::img::link_disconnected -file $imgdir/network-offline.png
-image create photo ::tkchat-32 -file $imgdir/tkchat-32.png
-image create photo ::tkchat_warn-32 -file $imgdir/tkchat_warn-32.png
-
-# catch is needed in order to be able to reload the script from the
-# debug menu
-catch {
-    tk systray create -image ::tkchat-32 -text "The Tcler's Chat" \
-        -button1 {
-            if { [wm state .] eq "withdrawn" } {
-                wm deiconify .
-                focus .eMsg
-            } else {
-                wm withdraw .
-            }
-        } -button3 ""
-}
-
-# -------------------------------------------------------------------------
-
-::msgcat::mcload [file join $tkchat_dir msgs]
-
-# -------------------------------------------------------------------------
 
 # Maybe exec a user defined preload script at startup (to set Tk options,
 # for example.
@@ -2157,7 +2155,7 @@ proc tkchat::toggleUnicodePoint_e {e} {
 }
 
 proc tkchat::CreateGUI {} {
-    global Options tkchat_dir tcl_platform
+    global Options tcl_platform
     variable chatWindowTitle
     variable FossilUrl
 
@@ -2167,16 +2165,12 @@ proc tkchat::CreateGUI {} {
 
     if {[tk windowingsystem] ne "aqua"} {
         createFonts
-        image create photo ::tkchat::img::Tkchat \
-            -file [file join $tkchat_dir tkchat48.png]
         if {[llength [info commands ::tkchat::img::Tkchat]] != 0} {
             wm iconphoto . -default ::tkchat::img::Tkchat
             set ::tk::icons::base_icon(.) ::tkchat::img::Tkchat
         }
     }
-
     if {[tk windowingsystem] eq "aqua"} {
-        source [file join $tkchat_dir tkchat_mac_images.tcl]
         catch { createFonts }
     }
     if {[tk windowingsystem] eq "x11"} {
@@ -2302,23 +2296,20 @@ proc tkchat::CreateGUI {} {
     $m add separator
 
     # Tile Themes Cascade Menu
-    if { 1 } {
-        set themes [lsort [ttk::themes]]
-
-        menu $m.themes
-        tk::AmpMenuArgs $m add cascade \
-            -label [mc "&Tk themes"] \
-            -menu $m.themes
-        foreach theme $themes {
-            $m.themes add radiobutton \
-                -label [string totitle $theme] \
-                -variable Options(Theme) \
-                -value $theme \
-                -command [list tkchat::SetTheme $theme]
-        }
-        $m add separator
+    set themes [lsort [ttk::themes]]
+    menu $m.themes
+    tk::AmpMenuArgs $m add cascade \
+        -label [mc "&Tk themes"] \
+        -menu $m.themes
+    foreach theme $themes {
+        $m.themes add radiobutton \
+            -label [string totitle $theme] \
+            -variable Options(Theme) \
+            -value $theme \
+            -command [list tkchat::SetTheme $theme]
     }
-    
+    $m add separator
+
     # Local Chat Logging Cascade Menu
     menu $m.chatLog
     tk::AmpMenuArgs $m add cascade -menu $m.chatLog \
@@ -6209,7 +6200,7 @@ proc tkchat::Init {args} {
 	http::config -useragent "Mozilla/5.0\
 	    ([string totitle $tcl_platform(platform)]; U;\
 	    $tcl_platform(os) $tcl_platform(osVersion);\
-            [::jlib::getlang])\
+            [jlib::getlang])\
             Tkchat/$version Tcl/[package provide Tcl]"
     }
     set Options(NoProxy) [list localhost 127.0.0.1]
@@ -7460,7 +7451,7 @@ proc tkchat::updateOnlineNames {} {
 		}
 	    }
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
-                set tags [list NICK NICK-$nick URL URL-[incr ::URLID]]
+                set tags [list NICK NICK-$nick URL URL-[incr URLID]]
 		.pane.names insert $mark "$nick" $tags "\n" NICK
 		.pane.names tag bind URL-$URLID <Button-1> \
 		    [list tkjabber::getChatWidget $conference/$nick $nick]
@@ -7469,7 +7460,7 @@ proc tkchat::updateOnlineNames {} {
                     -command [list tkchat::MsgTo $nick]
 	    } else {
 		.pane.names insert $mark "$nick\n" \
-                    [list NICK NICK-$nick URL-[incr ::URLID]]
+                    [list NICK NICK-$nick URL-[incr URLID]]
 	    }
 
             
@@ -7492,7 +7483,7 @@ proc tkchat::updateOnlineNames {} {
 }
 
 proc tkchat::updateRosterDisplay {} {
-    variable OnlineUsers
+    variable OnlineUsers URLID
     variable ::tkjabber::jabber
 
     set roster [$jabber getrostername]
@@ -7520,7 +7511,7 @@ proc tkchat::updateRosterDisplay {} {
             }
         }
 
-        set link URL-[incr ::URLID]
+        set link URL-[incr URLID]
         set tags [list ROSTER ROSTER-$user URL $link]
         .pane.names insert roster $name $tags "\n" NICK
         .pane.names tag bind $link <Button-1> \
@@ -7713,7 +7704,7 @@ proc tkchat::CheckVersionDone {tok} {
     if {[dict exists $meta X-LOLCATZ]} {
         set Options(tagline) "LOLCat says \"[dict get $meta X-LOLCATZ]\""
         if {!$Options(HateLolcatz)} {
-            after 10000 [list [namespace origin addStatus] 0 $Options(tagline)]
+            after 10000 [list tkchat::addStatus 0 $Options(tagline)]
         }
     }
     # This permits the website to re-define the names of current bridges.
@@ -7988,9 +7979,9 @@ proc tkjabber::connect {} {
 
     if { !$reconnect } {
 	if { $roster eq "" } {
-	    set roster [::roster::roster ::tkjabber::RosterCB]
+	    set roster [roster::roster ::tkjabber::RosterCB]
 	}
-	set jabber [::jlib::new $roster ::tkjabber::ClientCB \
+	set jabber [jlib::new $roster ::tkjabber::ClientCB \
                         -iqcommand ::tkjabber::IqCB \
                         -messagecommand ::tkjabber::MsgCB \
                         -presencecommand ::tkjabber::PresCB \
@@ -8000,24 +7991,24 @@ proc tkjabber::connect {} {
                            [namespace origin on_discovery]]
 
 	# override the jabberlib version info query
-	::jlib::iq_register $jabber get jabber:iq:version \
+	jlib::iq_register $jabber get jabber:iq:version \
 	    [namespace origin on_iq_version] 40
-	::jlib::iq_register $jabber get jabber:iq:last \
+	jlib::iq_register $jabber get jabber:iq:last \
 	    [namespace origin on_iq_last] 40
-	::jlib::iq_register $jabber result jabber:iq:version \
+	jlib::iq_register $jabber result jabber:iq:version \
 	    [namespace origin on_iq_version_result] 40
-        ::jlib::iq_register $jabber get urn:xmpp:ping \
+        jlib::iq_register $jabber get urn:xmpp:ping \
             [namespace origin on_iq_ping] 40
-        ::jlib::iq_register $jabber get urn:xmpp:time \
+        jlib::iq_register $jabber get urn:xmpp:time \
             [namespace origin on_iq_time] 40
-        ::jlib::iq_register $jabber result jabber:iq:roster \
+        jlib::iq_register $jabber result jabber:iq:roster \
             [namespace origin on_iq_roster_result] 50
 
-        ::jlib::presence_register $jabber available \
+        jlib::presence_register $jabber available \
             [namespace origin on_pres_available]
-        ::jlib::presence_register $jabber unavailable \
+        jlib::presence_register $jabber unavailable \
             [namespace origin on_pres_unavailable]
-        ::jlib::presence_register $jabber subscribe \
+        jlib::presence_register $jabber subscribe \
             [namespace origin on_pres_subscribe]
 
     }
@@ -8220,7 +8211,7 @@ proc tkjabber::SendAuth {} {
     set pass $Options(Password)
     set ress $Options(JabberResource)
 
-    if {[info command ::jlib::havesasl] ne "" && [::jlib::havesasl]} {
+    if {[info command jlib::havesasl] ne "" && [jlib::havesasl]} {
 	jlib::auth_sasl $jabber $user $ress $pass \
 	    [namespace origin OnSaslFinish]
     } else {
