@@ -11,6 +11,7 @@ if {[catch {package require rssrdr_oo}]} { return }
 namespace eval ::tkchat::rss {
     variable version 1.0.0
 
+    namespace import ::msgcat::mc
     namespace import ::tooltip::tooltip
 }
 

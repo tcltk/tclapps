@@ -55,3 +55,18 @@ proc http::responseInfo {tok} {
     set url     [set [set tok](url)]
     return [dict create charset $charset url $url]
 }
+
+# don't bother convincing 8.6 and tclxml to process emojis
+namespace eval ::sgml {}
+proc ::sgml::PCDATA {opts pcdata} {
+    array set options $opts
+
+    if {$options(-ignorewhitespace) &&
+	![string length [string trim $pcdata]]
+    } then {
+	return {}
+    }
+
+    uplevel #0 [list {*}$options(-characterdatacommand) $pcdata]
+}
+

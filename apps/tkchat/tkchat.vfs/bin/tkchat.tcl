@@ -1381,7 +1381,7 @@ proc tkchat::Hook {do type args} {
                 # set code [catch {eval $cmd $args} err]
                 set code [catch {{*}$cmd {*}$args} err]
                 if {$code} {
-                    ::bgerror "error running \"$type\" hook: $err"
+                    bgerror "error running \"$type\" hook: $err"
                     break
                 } else {
                     lappend res $err
@@ -3290,7 +3290,6 @@ proc tkchat::About {} {
     global Options
     variable version
 
-
     # don't cache this window - if user reloads on the fly
     # we want to make sure it displays latest greatest info!
     catch {destroy .about}
@@ -3299,12 +3298,12 @@ proc tkchat::About {} {
     set w [ttk::frame $dlg.f]
     wm withdraw $dlg
     wm title $dlg [mc "About TkChat %s" $version]
-    if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
+    if {"::tkchat::img::Tkchat" in [image names]} {
 	catch {wm iconphoto $dlg ::tkchat::img::Tkchat}
     }
     set ver [mc "Using Tcl/Tk %s" [info patchlevel]]
-    if {[llength [package provide tile]] != 0} { append ver ", tile [package provide tile]" }
-    if {[llength [package provide tls]] != 0} { append ver ", tls [package provide tls]" }
+    if {[package provide tile] ne {}} { append ver ", tile [package provide tile]" }
+    if {[package provide tls] ne {}} { append ver ", tls [package provide tls]" }
     ttk::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
     ScrolledWidget text $w.text 0 1 -height 24 -width 80 \
         -padx 2 -pady 2 -font FNT
@@ -4585,7 +4584,7 @@ proc tkchat::logonScreen-New {} {
     bind $t.rstarttls  <<AltUnderlined>> {+focus %W}
     bind $t.vsc        <<AltUnderlined>> {+focus %W}
     # enable/disable tab
-    if {[package provide tls] eq ""} {
+    if {[package provide tls] eq {}} {
 	set Options(UseJabberSSL) "no"
 	$nb tab $t -state hidden
     }
@@ -5729,7 +5728,7 @@ proc tkchat::Debug {cmd args } {
 	    #
 	    variable ServerID
 	    if {![info exists ServerID]} {
-		if {[package provide dde] ne ""} {
+		if {[package provide dde] ne {}} {
 		    set ServerID [tk appname]
 		    set count 0
 		    while {[dde services TclEval $ServerID] != {}} {
@@ -7483,7 +7482,8 @@ proc tkchat::updateOnlineNames {} {
 }
 
 proc tkchat::updateRosterDisplay {} {
-    variable OnlineUsers URLID
+    global URLID
+    variable OnlineUsers
     variable ::tkjabber::jabber
 
     set roster [$jabber getrostername]
@@ -8015,7 +8015,7 @@ proc tkjabber::connect {} {
 
     set have_tls [expr {[package provide tls] ne {}}]
     set socketCmd [info command ::socket]
-    if {[llength [package provide Iocpsock]] > 0} {
+    if {[package provide Iocpsock] ne {}} {
         set socketCmd ::socket2
         if {$have_tls} {set ::tls::socketCmd [info command ::socket2]}
     }
@@ -8058,7 +8058,7 @@ proc tkjabber::connect {} {
 	    scheduleReconnect
 	} else {
             set msg "We are unable to connect to the remote site."
-            if {[package provide picoirc] ne ""} {
+            if {[package provide picoirc] ne {}} {
                 append msg " It is possible that something nasty has\
                     happened to the Tcl jabber server - perhaps you would\
                     like to try connecting via IRC?"
@@ -8791,7 +8791,7 @@ proc tkjabber::MsgCB2 {jlibName type args} {
                             "$m(-from): $msg. Trying to get in again..."
 			$muc enter $conference \
                             $Options(Nickname)\
-                            -command ::tkjabbjler::MucEnterCB
+                            -command tkjabber::MucEnterCB
 		    }
 		    default {
 			tkchat::addSystem .txt  "MsgCB (error) args='$args'"
@@ -9879,7 +9879,7 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
 
     tkchat::addStatus 0 "Connecting to proxy $proxyserver:$proxyport"
     set socketCmd [info command ::socket]
-    if {[llength [package provide Iocpsock]] > 0} {
+    if {[package provide Iocpsock] ne {}} {
         set socketCmd ::socket2
     }
     set sock [$socketCmd $proxyserver $proxyport]
@@ -9927,8 +9927,8 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
 # -------------------------------------------------------------------------
 
 proc tkjabber::getChatWidget { jid from } {
-    variable ChatWindows
     global Options
+    variable ChatWindows
     # Look in ChatWindows and maybe popup a new chat window
 
     jlib::splitjid [jlib::jidprep $jid] jwr res
