@@ -9475,6 +9475,7 @@ proc tkjabber::jid {part jid} {
 # the users canonical jid
 proc tkjabber::normalized_jid {jid} {
     global Options
+    variable ::tkchat::OnlineUsers
 
     if {[string first @ $jid] == -1} {
 	if {[info exists OnlineUsers(Jabber-$jid,jid)]} {
