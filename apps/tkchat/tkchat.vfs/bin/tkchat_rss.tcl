@@ -11,6 +11,7 @@ if {[catch {package require rssrdr_oo}]} { return }
 namespace eval ::tkchat::rss {
     variable version 1.0.0
 
+    namespace import ::msgcat::mc
     namespace import ::tooltip::tooltip
 }
 
@@ -469,8 +470,10 @@ proc ::tkchat::rss::CheckRSS {url} {
 }
 
 proc ::tkchat::rss::CheckRSS_Done {tok} {
+    global errorInfo
+
     if {[catch {CheckRSS_Inner $tok}]} {
-        puts stderr $::errorInfo
+        puts stderr $errorInfo
     }
     return
 }
@@ -571,7 +574,7 @@ proc ::tkchat::rss::OptionsHook {parent} {
         set url [lindex [split $feed ,] 2]
         set text [dict get [uri::split $url] host]
         if {[info exists Options(RSS,title,$url)]} {
-            if {[string length $::Options(RSS,title,$url)] > 0} {
+            if {[string length $Options(RSS,title,$url)] > 0} {
                 set text $Options(RSS,title,$url)
             }
         }

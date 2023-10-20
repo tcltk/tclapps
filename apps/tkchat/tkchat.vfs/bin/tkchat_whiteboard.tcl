@@ -44,7 +44,7 @@ proc ::tkchat::Whiteboard::Init {} {
             bind .wb.c <ButtonRelease-1> {
                 WhiteboardLine %W $id
             }
-            bind .wb.e <Return> {WhiteboardScript $::wbentry}
+            bind .wb.e <Return> {WhiteboardScript $wbentry}
 
             grid .wb.e .wb.bclear -sticky news
             grid .wb.c -          -sticky news
@@ -95,7 +95,7 @@ proc ::tkchat::Whiteboard::Script {script} {
 
 # Evaluate transmitted script inside the safe interp
 proc ::tkchat::Whiteboard::Eval {who script {color {}}} {
-    global Options
+    global Options errorInfo
     variable History
     if {![interp exists whiteboard]} {
         if {!$Options(EnableWhiteboard)} {
@@ -105,7 +105,7 @@ proc ::tkchat::Whiteboard::Eval {who script {color {}}} {
     }
 
     if {[catch {whiteboard eval $script} err]} {
-        log::log info $::errorInfo
+        log::log info $errorInfo
         whiteboard eval [list Status $err]
     } else {
         lappend History [list $who $script]

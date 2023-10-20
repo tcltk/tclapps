@@ -8,6 +8,7 @@
 namespace eval ::tkchat {}
 
 proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
+    global tk_library
     #####
     #
     # "console for Unix"
@@ -28,7 +29,7 @@ proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
     # this script.  That is why this script has been isolated in a file of
     # its own.
 
-    set _ [file join $::tk_library console.tcl]
+    set _ [file join $tk_library console.tcl]
     if {![file readable $_]} {
         return -code error "File not readable: $_"
     }
@@ -38,7 +39,7 @@ proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
     ########################################################################
     # 1. Create an interpreter for the console window widget and load Tk
     set consoleInterp [interp create]
-    $consoleInterp eval [list set ::tk_library $::tk_library]
+    $consoleInterp eval [list set tk_library $tk_library]
     $consoleInterp alias exit $name hide
 
     if {$parent ne {}} {
@@ -162,7 +163,7 @@ proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
         ########################################################################
         # Evaluate the Tk library script console.tcl in the console interpreter
         ########################################################################
-        $consoleInterp eval source [list [file join $::tk_library console.tcl]]
+        $consoleInterp eval source [list [file join $tk_library console.tcl]]
         $consoleInterp eval {
             if {![llength [info commands ::tkConsoleExit]]} {
                 tk::unsupported::ExposePrivateCommand tkConsoleExit
@@ -171,12 +172,6 @@ proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
         $consoleInterp eval {
             if {![llength [info commands ::tkConsoleOutput]]} {
                 tk::unsupported::ExposePrivateCommand tkConsoleOutput
-            }
-        }
-        if {[string match 8.3.4 $::tk_patchLevel]} {
-            # Workaround bug in first draft of the tkcon enhancments
-            $consoleInterp eval {
-                bind Console <Control-Key-v> {}
             }
         }
         # Restore normal [puts] if console widget goes away...
