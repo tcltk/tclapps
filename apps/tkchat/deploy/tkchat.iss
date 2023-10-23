@@ -2,14 +2,14 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "TkChat"
-#define MyAppVersion "1.500"
+#define MyAppVersion "1.510"
 #define MyAppPublisher "Tcl/Tk Community"
 #define MyAppURL "http://tkchat.tcl.tk"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-SignTool=mysign
+SignTool=codesign
 AppId={{9115ECD5-FD4F-485E-8B5B-2FA13F3DDB83}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -22,13 +22,13 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=TkChat_Setup
+OutputBaseFilename=TkChat_Setup_{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 SignedUninstaller=yes
 UninstallDisplayIcon="{app}\bin\tclkit.ico"  
-OutputDir="C:\Users\kevin\Desktop\innosetup"
+OutputDir="D:\Desktop\tkchat\installer"
 VersionInfoVersion={#MyAppVersion}
  
 
@@ -36,7 +36,7 @@ VersionInfoVersion={#MyAppVersion}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "C:\Users\Kevin\Desktop\tkchat\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "D:\Desktop\tkchat\build\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
