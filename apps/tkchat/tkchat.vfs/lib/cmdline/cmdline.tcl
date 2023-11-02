@@ -13,7 +13,7 @@
 # 
 # RCS: @(#) $Id: cmdline.tcl,v 1.23 2006/04/06 03:35:09 andreas_kupries Exp $
 
-package require Tcl 8.2
+package require Tcl 8.2-
 package provide cmdline 1.2.5
 
 namespace eval ::cmdline {

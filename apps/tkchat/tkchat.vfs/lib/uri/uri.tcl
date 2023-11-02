@@ -13,7 +13,7 @@
 #
 # CVS: $Id: uri.tcl,v 1.35 2007/01/11 19:35:23 andreas_kupries Exp $
 
-package require Tcl 8.2
+package require Tcl 8.2-
 
 namespace eval ::uri {
 
