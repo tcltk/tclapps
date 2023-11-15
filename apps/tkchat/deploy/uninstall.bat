@@ -1,13 +1,4 @@
-@echo off
- 
-call :confirm
-if "%yesno%"=="6" (
-call :remove
-) else (
-call :cancel
-)
-exit /b
- 
+
 :confirm
 ::returns 6 = Yes, 7 = No.
 set yesno=
