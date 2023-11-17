@@ -18,7 +18,7 @@
 #
 # $Id: md5x.tcl,v 1.19 2008/07/04 18:27:00 andreas_kupries Exp $
 
-package require Tcl 8.2;                # tcl minimum version
+package require Tcl 8.2-;                # tcl minimum version
 
 namespace eval ::md5 {
     variable version 2.0.7
