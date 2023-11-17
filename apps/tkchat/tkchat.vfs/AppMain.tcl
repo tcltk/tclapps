@@ -1,5 +1,3 @@
-package require Tk 8.7
-
 if {[tk windowingsystem] eq "win32"} {
 	after 500
 	update idletasks
