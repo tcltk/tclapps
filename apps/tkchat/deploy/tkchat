@@ -4,4 +4,4 @@ SCRIPT_DIR=/usr/local/tkchat
 
 export LD_LIBRARY_PATH=$SCRIPT_DIR/lib/
 
-exec $SCRIPT_DIR/bin/wish8.7 $SCRIPT_DIR/bin/AppMain.tcl
+exec $SCRIPT_DIR/bin/wish9.0 $SCRIPT_DIR/bin/AppMain.tcl
