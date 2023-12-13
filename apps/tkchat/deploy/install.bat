@@ -7,10 +7,10 @@ if not exist %install_dir% (
 mkdir %install_dir%
 )
 
-certutil -addstore -user -f "Root" "WordTech_CA.cer"
-if not %errorlevel% == 0 (
-exit
-)
+::certutil -addstore -user -f "Root" "WordTech_CA.cer"
+::if not %errorlevel% == 0 (
+::exit
+::)
 
 tar -xvzf TkChat.zip TkChat
 xcopy TkChat %install_dir% /s /i /y
