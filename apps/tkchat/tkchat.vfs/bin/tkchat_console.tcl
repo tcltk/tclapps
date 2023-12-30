@@ -166,12 +166,14 @@ proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
         $consoleInterp eval source [list [file join $tk_library console.tcl]]
         $consoleInterp eval {
             if {![llength [info commands ::tkConsoleExit]]} {
-                tk::unsupported::ExposePrivateCommand tkConsoleExit
+                # tk::unsupported::ExposePrivateCommand tkConsoleExit
+                interp alias {} ::tkConsoleExit {} ::tk::ConsoleExit
             }
         }
         $consoleInterp eval {
             if {![llength [info commands ::tkConsoleOutput]]} {
-                tk::unsupported::ExposePrivateCommand tkConsoleOutput
+                # tk::unsupported::ExposePrivateCommand tkConsoleOutput
+                interp alias {} ::tkConsoleOutput {} ::tk::ConsoleOutput
             }
         }
         # Restore normal [puts] if console widget goes away...
