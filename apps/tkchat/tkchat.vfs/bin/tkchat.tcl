@@ -9611,14 +9611,9 @@ proc tkjabber::ParseLogMsg { when nick msg {opts ""} args } {
     set HaveHistory 1
     set fail 1 ; set timestamp 0
     if {[llength $HistoryLines] < 10} { log::log debug "parsing $when" }
-    if {[package vsatisfies [package provide Tcl] 8.5]} {
-        foreach format [list "%Y-%m-%dT%H:%M:%SZ" "%Y%m%dT%H:%M:%S"] {
-            set fail [catch {clock scan $when -format $format -gmt 1} timestamp]
-            if {!$fail} break
-        }
-    } else {
-        set when [string map {- {} Z {}} $when]
-        set fail [catch {clock scan $when -gmt 1} timestamp]
+    foreach format [list "%Y-%m-%dT%H:%M:%SZ" "%Y%m%dT%H:%M:%S"] {
+        set fail [catch {clock scan $when -format $format -gmt 1} timestamp]
+        if {!$fail} break
     }
     if {$fail} {
         log::log error $timestamp
