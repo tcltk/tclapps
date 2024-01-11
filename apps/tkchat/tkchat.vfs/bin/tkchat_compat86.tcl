@@ -71,3 +71,12 @@ proc ::sgml::PCDATA {opts pcdata} {
     uplevel #0 [list {*}$options(-characterdatacommand) $pcdata]
 }
 
+# new roster stuff.
+# this should be conditional on Tk version, not Tcl's, but up to
+# 8.6 both versions match
+namespace eval ::newRoster {
+    variable cl ::compat86::noop
+}
+proc ::newRoster::PutIntoPane {args} {}
+proc ::newRoster::updateOnlineNames {args} {}
+proc ::newRoster::SetUserTooltip {args} {}

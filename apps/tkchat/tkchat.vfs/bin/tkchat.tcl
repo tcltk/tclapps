@@ -2736,12 +2736,8 @@ proc tkchat::CreateGUI {} {
 
     # using explicit rows for restart
     set Options(NamesWin) .pane.names
-
-# REMOVE 8.6
-    if {[package vsatisfies [package provide Tk] 8.7-]} {
-	# load new roster implementation (and steal Options(NamesWin) :^)
-	::newRoster::PutIntoPane
-    }
+    # load new roster implementation (and steal Options(NamesWin) :^)
+    ::newRoster::PutIntoPane
 
     applyColors .txt All
 
@@ -5352,11 +5348,8 @@ proc tkchat::applyColors { txt jid } {
         }
         $txt tag configure NOLOG-$nk -foreground "#[fadeColor $clr]"
         .pane.names tag configure NICK-$nk -foreground "#$clr"
-# REMOVE 8.6
-        if {[package vsatisfies [package provide Tk] 8.7-]} {
-            variable ::newRoster::cl
-            $cl tag configure NICK-$nk -foreground "#$clr"
-        }
+        variable ::newRoster::cl
+        $cl tag configure NICK-$nk -foreground "#$clr"
 	if { ! $Options(Visibility,STAMP) } {
 	    $txt tag raise NICK-$nk STAMP
 	    $txt tag raise NOLOG-$nk STAMP
@@ -7474,10 +7467,7 @@ proc tkchat::updateOnlineNames {} {
     .pane.names yview moveto [lindex $scrollview 0]
     .pane.names configure -state disabled
 
-# REMOVE 8.6
-    if {[package vsatisfies [package provide Tk] 8.7-]} {
-	after idle newRoster::updateOnlineNames
-    }
+    after idle newRoster::updateOnlineNames
 }
 
 proc tkchat::updateRosterDisplay {} {
@@ -9858,10 +9848,7 @@ proc tkjabber::on_iq_version_result {token from xmllist args} {
         tkchat::addStatus 0 "$nick is using $ver"
 
         after idle [list tkchat::SetUserTooltip $nick]
-# REMOVE 8.6
-	if {[package vsatisfies [package provide Tk] 8.7-]} {
-	    after idle [list newRoster::SetUserTooltip $nick]
-	}
+	after idle [list newRoster::SetUserTooltip $nick]
     }
     return 1 ;# handled
 }

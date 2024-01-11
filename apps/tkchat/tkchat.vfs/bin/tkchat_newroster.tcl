@@ -1,8 +1,7 @@
-package require Tk
-
 # new contact list implementation using [ttk::treeview]
 # mostly stolen and adapted from tkchat original contact list
-#
+# requires Tk 8.7-
+if {![package vsatisfies [package provide Tk] 8.7-]} return
 
 namespace eval ::newRoster {
     variable cl
