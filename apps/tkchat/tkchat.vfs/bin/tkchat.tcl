@@ -3355,7 +3355,6 @@ proc tkchat::About {} {
 }
 
 proc tkchat::Help {} {
-    global Options
     variable version
 
     set title "TkChat $version [mc Help]"
@@ -3369,7 +3368,7 @@ proc tkchat::Help {} {
         -yscrollcommand [list $w.vs set]
     ttk::scrollbar $w.vs -command [list $w.text yview]
     ttk::button $w.b -text [mc "Close"] -width -12 \
-        -command [list wm withdraw $w] -default active
+        -command [list destroy $w] -default active
     grid $w.text $w.vs -in $w.f -sticky news
     grid $w.b -        -in $w.f -sticky e
     grid rowconfigure $w.f 0 -weight 1
@@ -3462,7 +3461,6 @@ proc tkchat::Help {} {
     lappend txt "/op nick ?reason?" [list "Make user an administrator"]
     lappend txt "/deop nick ?reason?" [list "Remove admin privileges from user"]
     insertHelpText $w.text $txt
-    
 
     set txt ""
     $w.text insert end "Searching\n" h1
