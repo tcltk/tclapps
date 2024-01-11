@@ -3287,7 +3287,6 @@ proc tkchat::ScrolledWidgetCmd {self cmd args} {
 }
 
 proc tkchat::About {} {
-    global Options
     variable version
 
     # don't cache this window - if user reloads on the fly
@@ -3298,13 +3297,15 @@ proc tkchat::About {} {
     set w [ttk::frame $dlg.f]
     wm withdraw $dlg
     wm title $dlg [mc "About TkChat %s" $version]
-    if {"::tkchat::img::Tkchat" in [image names]} {
-	catch {wm iconphoto $dlg ::tkchat::img::Tkchat}
+    set icon [lindex [info commands ::tkchat::img::Tkchat] 0]
+    if {$icon ne ""} {
+	catch {wm iconphoto $dlg $icon}
     }
-    set ver [mc "Using Tcl/Tk %s" [info patchlevel]]
-    if {[package provide tile] ne {}} { append ver ", tile [package provide tile]" }
-    if {[package provide tls] ne {}} { append ver ", tls [package provide tls]" }
-    ttk::button $w.b -text Dismiss -width -12 -command [list wm withdraw $dlg] -default active
+    set ver [mc "Using Tcl %s, Tk %s" [package provide Tcl] [package provide Tk]]
+    if {[package provide tls] ne {}} {
+	append ver ", tls [package provide tls]"
+    }
+    ttk::button $w.b -text Dismiss -width -12 -command [list destroy $dlg] -default active
     ScrolledWidget text $w.text 0 1 -height 24 -width 80 \
         -padx 2 -pady 2 -font FNT
     grid $w.text -sticky news
@@ -3314,12 +3315,12 @@ proc tkchat::About {} {
     $w.text tag configure center -justify center
     $w.text tag configure title -justify center -font {Courier -18 bold}
     $w.text tag configure h1 -font {Sans -12 bold}
-    if {[llength [info command ::tkchat::img::Tkchat]] != 0} {
-	#$w.text image create end -image ::tkchat::img::Tkchat -name Icon -padx 20
+    if {$icon ne ""} {
+	$w.text image create end -image $icon -padx 20
+	$w.text tag add center 1.0 end
     }
     $w.text insert end \
 	"TkChat v$version\n" title "$ver\n\n" {h1 center} \
-	"$version\n\n" center \
 	[mc "Copyright (c) %s by following authors:" "2001-2022"] {} "\n\n" {}
 
     lappend txt "Bruce B Hartweg"       "<brhartweg@bigfoot.com>"

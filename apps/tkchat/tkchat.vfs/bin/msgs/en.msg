@@ -154,7 +154,7 @@
     "Are you sure you want to quit?" "Are you sure you want to quit?"
 
     "About TkChat %s" "About TkChat %s"
-    "Using Tcl/Tk %s" "Using Tcl/Tk %s"
+    "Using Tcl %s, Tk %s" "Using Tcl %s, Tk %s"
     "Copyright (c) %s by the following authors:" \
         "Copyright (c) %s by the following authors:"
     "Paste data to %s" "Paste data to %s"
