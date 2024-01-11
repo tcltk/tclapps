@@ -1,4 +1,4 @@
-if {[package vsatisfies [package require Tcl] 8.7-]} return
+if {[package vsatisfies [package provide Tcl] 8.7-]} return
 
 namespace eval compat86 {
     proc noop {args} {}
@@ -19,7 +19,7 @@ proc ::wm {cmd args} {
 }
 
 # provide lpop; from the original ::tkchat::Pop, but the default index
-# is "end" instead of 0. 
+# is "end" instead of 0.
 #  Pop the nth element off a list. Used in options processing.
 proc lpop {varname {nth end}} {
     upvar $varname args
@@ -49,7 +49,8 @@ namespace ensemble configure ::dict -map [dict merge \
 	getdef ::tcl::dict::getwithdefault]]
 
 # HTTP Stuff
-proc http::responseInfo {tok} {
+namespace eval ::http {}
+proc ::http::responseInfo {tok} {
     # fake only the values we are using
     set charset [set [set tok](charset)]
     set url     [set [set tok](url)]
