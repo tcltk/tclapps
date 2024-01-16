@@ -8140,7 +8140,7 @@ proc tkjabber::cleanup {} {
     catch {jlib::resetsocket $jabber}
     set socket ""
     tkchat::setNickname $baseNick
-    .mbar.file entryconfigure 0 -label [::msgcat::mc Login]
+    .mbar.file entryconfigure 0 -label [mc "Login"]
     set LoggedIn 0
 }
 
@@ -9704,8 +9704,8 @@ proc tkjabber::SubscriptionRequest {from status} {
 
     if {![info exists subs_uid]} { set subs_uid 0 }
     jlib::splitjid $from jid res
-    set ttl [msgcat::mc "Subscribe request from %s" $jid]
-    set msg [msgcat::mc "Do you want to let %s add you to their roster?" $jid]
+    set ttl [mc "Subscribe request from %s" $jid]
+    set msg [mc "Do you want to let %s add you to their roster?" $jid]
     set status [string trim $status]
     set wid subscriptionreq[incr subs_uid]
     set dlg [tkchat::Dialog .$wid]
@@ -9716,9 +9716,9 @@ proc tkjabber::SubscriptionRequest {from status} {
     set ls [ttk::label $f.ls -text " \"$status\"" -anchor w]
     set lm [ttk::label $f.lm -text "$msg" -anchor w]
     set fb [ttk::frame $f.fb -borderwidth 0]
-    set yes [ttk::button $fb.yes -text [msgcat::mc "Yes"] -default active \
+    set yes [ttk::button $fb.yes -text [mc "Yes"] -default active \
 		 -command [list set [namespace current]::$wid subscribed]]
-    set no  [ttk::button $fb.no -text [msgcat::mc "No"] -default normal \
+    set no  [ttk::button $fb.no -text [mc "No"] -default normal \
 		 -command [list set [namespace current]::$wid unsubscribed]]
     bind $dlg <Return>     [list $yes invoke]
     bind $dlg <Key-Escape> [list $no  invoke]

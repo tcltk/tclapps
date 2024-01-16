@@ -1,6 +1,6 @@
 # overwrite the standard "about" dialog
 # provide both credits and license information
-proc tkchat::About {} {
+proc ::tkchat::About {} {
     variable version
 
     # don't cache this window - if user reloads on the fly
@@ -67,10 +67,10 @@ proc tkchat::About {} {
     wm deiconify $w
 }
 
-proc tkchat::About-Credits {t} {
+proc ::tkchat::About-Credits {t} {
     $t configure -state normal
     $t delete 1.0 end
-    $t insert end [mc "Copyright (c) %s by following authors" "2001-2022"] \
+    $t insert end [mc "Copyright (c) %s by the following authors" "2001-2022"] \
 	{title} "\n\n"
     lappend txt "Bruce B Hartweg"	"<brhartweg@bigfoot.com>"
     lappend txt "Don Porter"		"<dgp@users.sourceforge.net>"
@@ -94,7 +94,7 @@ proc tkchat::About-Credits {t} {
     $t configure -state disabled
 }
 
-proc tkchat::About-License {t} {
+proc ::tkchat::About-License {t} {
     global tkchat_dir
 
     $t configure -state normal
