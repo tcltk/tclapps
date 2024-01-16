@@ -155,8 +155,8 @@
 
     "About TkChat %s" "About TkChat %s"
     "Using Tcl %s, Tk %s" "Using Tcl %s, Tk %s"
-    "Copyright (c) %s by the following authors:" \
-        "Copyright (c) %s by the following authors:"
+    "Copyright (c) %s by the following authors" \
+        "Copyright © %s by the following authors"
     "Paste data to %s" "Paste data to %s"
     "Eval in whiteboard" "Eval in whiteboard"
     "Subject required" "Subject required"
