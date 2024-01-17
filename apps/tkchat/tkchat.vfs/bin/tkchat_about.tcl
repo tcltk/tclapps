@@ -10,8 +10,10 @@ proc ::tkchat::About {} {
     Dialog $w
     wm withdraw $w
 
-    set icon [lindex [info commands ::tkchat::img::Tkchat] 0]
-    set ver [mc "Using Tcl %s, Tk %s" [package provide Tcl] [package provide Tk]]
+    lassign [info commands ::tkchat::img::Tkchat] icon
+    set ver [mc "Using Tcl %s, Tk %s" \
+	[package provide Tcl] \
+	[package provide Tk]]
     if {[package provide tls] ne {}} {
 	append ver ", tls [package provide tls]"
     }
@@ -28,7 +30,7 @@ proc ::tkchat::About {} {
 	-command [list destroy $w] \
 	-default active
     ttk::label $w.title \
-	-text "TkChat v$version\n" \
+	-text [mc "TkChat v%s" $version] \
 	-font {Courier -18 bold}
     ttk::label $w.ver \
 	-text $ver \
@@ -40,19 +42,18 @@ proc ::tkchat::About {} {
     }
     ScrolledWidget text $w.text 0 1 \
 	-height 20 \
-	-width 75 \
-	-padx 2 -pady 2 \
-	-font TkDefaultFont
+	-width 80 \
+	-padx 2 -pady 2
     $w.text tag configure title \
 	-justify center \
-	-font [dict merge [font actual TkDefaultFont] {-weight bold}]
+	-font [dict merge [font actual TkTextFont] {-weight bold}]
     About-Credits $w.text
 
-    pack $bf.close $bf.license $bf.credits -padx 6 -pady 6 -side right
+    pack $bf.close $bf.license $bf.credits -padx {6 0} -pady 6 -side right
     grid $w.title -pady 6
     grid $w.ver   -pady 6
-    grid $w.text  -sticky news
-    grid $bf      -sticky e
+    grid $w.text  -sticky news -padx 6
+    grid $bf      -sticky e -padx 6
     grid rowconfigure $w $w.text    -weight 1
     grid columnconfigure $w $w.text -weight 1
 
@@ -61,7 +62,7 @@ proc ::tkchat::About {} {
 
     wm title $w [mc "About TkChat %s" $version]
     if {$icon ne ""} {
-	catch {wm iconphoto $dw $icon}
+	catch {wm iconphoto $w $icon}
     }
     tk::PlaceWindow $w widget .
     wm deiconify $w
@@ -88,7 +89,7 @@ proc ::tkchat::About-Credits {t} {
     lappend txt "Steve Landers"		"<steve@digitalsmarties.com>"
     lappend txt "Elchonon Edelson"	"<eee@users.sourceforge.net>"
     lappend txt "Kevin Walzer"		"<kw@codebykevin.com>"
-    lappend txt "Emiliano Gavilan"	"<emilianogavilan@gmail.com>"
+    lappend txt "Emiliano Gavil\u00e1n" "<emilianogavilan@gmail.com>"
     insertHelpText $t $txt
     $t delete "end -1 char" end
     $t configure -state disabled
@@ -99,7 +100,7 @@ proc ::tkchat::About-License {t} {
 
     $t configure -state normal
     $t delete 1.0 end
-    $t insert end "License terms" {title} "\n\n"
+    $t insert end [mc "License terms"] {title} "\n\n"
     set fd [open [file join $tkchat_dir license.terms]]
     $t insert end [chan read -nonewline $fd]
     chan close $fd

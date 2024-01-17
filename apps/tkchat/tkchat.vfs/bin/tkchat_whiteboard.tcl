@@ -7,6 +7,8 @@ namespace eval ::tkchat::Whiteboard {
     variable version 1.0
     variable History
     if {![info exists History]} { set History [list] }
+
+    namespace import ::msgcat::mc
 }
 
 proc ::tkchat::Whiteboard::Init {} {
@@ -32,7 +34,8 @@ proc ::tkchat::Whiteboard::Init {} {
         whiteboard eval {
             ttk::frame .wb
             ttk::entry .wb.e -textvariable wbentry
-            ttk::button .wb.bclear -text Clear -command WhiteboardClear
+            # we can't use message catalogs here; set -text from master
+            ttk::button .wb.bclear -command WhiteboardClear
             ttk::label .wb.status -anchor w
             canvas .wb.c -background white -width 350 -height 300
             bind .wb.c <Button-1> {
@@ -58,6 +61,7 @@ proc ::tkchat::Whiteboard::Init {} {
             proc Status {s} {.wb.status configure -text $s}
         }
         whiteboard eval [list ::ttk::setTheme $::ttk::currentTheme]
+        whiteboard eval [list .wb.bclear configure -text [mc "Clear"]]
 
         wm deiconify $dlg
         #if {$Options(UseTkOnly)} { wm geometry $dlg 350x300 }

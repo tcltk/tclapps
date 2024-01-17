@@ -204,7 +204,7 @@ proc ::tkchat::ConsoleInit {{parent {}} {name ::console}} {
         }            
     
         unset consoleInterp
-        $name title "[wm title .] Console"
+        $name title [mc "%s Console" [wm title .]]
         $name hide
 }
 
@@ -216,8 +216,8 @@ proc ::tkchat::EmbeddedConsoleDemo {parent} {
 
     frame $nb.page1 -container 0 -background blue
 
-    $nb add $nb.page0 -text Console
-    $nb add $nb.page1 -text Second
+    $nb add $nb.page0 -text [mc "Console"]
+    $nb add $nb.page1 -text [mc "Second"]
     grid $nb -sticky news
     grid rowconfigure $dlg 0 -weight 1
     grid columnconfigure $dlg 0 -weight 1

@@ -101,6 +101,8 @@
     "&View Change&Log..."   "&View ChangeLog..."
     "&About..."             "&About..."
 
+    "Tkchat %s help"        "Tkchat %s help"
+
     "Hide user"             "Hide user"
     "Set/Unset bookmark"    "Set/Unset bookmark"
     "Prev bookmark"         "Prev bookmark"

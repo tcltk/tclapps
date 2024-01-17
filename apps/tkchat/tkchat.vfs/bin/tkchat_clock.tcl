@@ -80,14 +80,14 @@ proc ::tkchat::clock::OptionsHook {parent} {
     variable EditOptions
     array set EditOptions [array get Options]
     set f [ttk::frame $parent.clock]
-    set eb [ttk::checkbutton $f.eb -text "Enable clock" \
+    set eb [ttk::checkbutton $f.eb -text [mc "Enable clock"] \
                 -variable [namespace current]::EditOptions(Enabled)]
     set lf [ttk::labelframe $f.lf -labelwidget $eb]
-    ttk::label $lf.ltz -anchor w -text Timezone
+    ttk::label $lf.ltz -anchor w -text [mc "Timezone"]
     ttk::entry $lf.etz -textvariable [namespace current]::EditOptions(Timezone)
-    ttk::label $lf.lft -anchor w -text Format
+    ttk::label $lf.lft -anchor w -text [mc "Format"]
     ttk::entry $lf.eft -textvariable [namespace current]::EditOptions(Format)
-    ttk::label $lf.ltt -anchor w -text Tooltip
+    ttk::label $lf.ltt -anchor w -text [mc "Tooltip"]
     ttk::entry $lf.ett -textvariable [namespace current]::EditOptions(Tooltip)
     trace add variable [namespace current]::EditOptions(Enabled) write \
         [list [namespace origin ClockEnable] [list $lf.etz $lf.eft $lf.ett]]

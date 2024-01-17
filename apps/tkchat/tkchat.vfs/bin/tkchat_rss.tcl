@@ -216,11 +216,11 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
     # format:
     # column {heading show stretch anchor     width}
     #         "text"  bool bool    tk_anchor  integer
-    set colspec {
-        #0          {"Title" 1 0 w 300}
-        date        {"Date"  1 0 e 100}
-        mtime       {""      0 0 e 0}
-    }
+    set colspec [list \
+        #0          [list [mc "Title"] 1 0 w 300] \
+        date        [list [mc "Date"]  1 0 e 100] \
+        mtime       [list ""      0 0 e 0]
+    ]
     set tv [ttk::treeview $t.tv]
     ttk::scrollbar $t.sy1 -command [list $tv yview]
     ttk::scrollbar $t.sx1 -orient horizontal -command [list $tv xview]
@@ -232,7 +232,7 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
     set dcols {}
     dict for {col spec} $colspec {
         lassign $spec he sh st an wi
-        $tv heading $col -text [mc $he]
+        $tv heading $col -text $he
         $tv column  $col -anchor $an -stretch $st -width $wi
         if {$sh} {
             lappend dcols $col
@@ -259,10 +259,10 @@ proc ::tkchat::rss::ShowRssInfo2 {} {
     set f [ttk::frame $t.bf]
     ttk::button $f.ok \
         -default active \
-        -text "Ok"\
+        -text [mc "Ok"] \
         -command [list destroy $t]
     ttk::button $f.reload \
-        -text "\u27f3 Reload" \
+        -text "\u27f3 [mc "Reload"]" \
         -command [list after 10 [namespace which CheckRSSFeeds]]
     pack $f.ok $f.reload -padx 3 -pady 3 -side right
 
