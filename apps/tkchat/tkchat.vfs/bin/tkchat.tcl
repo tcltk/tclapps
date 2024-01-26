@@ -2059,7 +2059,7 @@ proc tkchat::InstallXDG {} {
 	addStatus 0 "Installed tkchat desktop menu item"
     } else {
 	# This is the Freedesktop specified location.
-	set xdg [file join ~ .local share]
+	set xdg [file join $env(HOME) .local share]
 	if {[info exists env(XDG_DATA_HOME)]} {
 	    set xdg $env(XDG_DATA_HOME) 
 	}
