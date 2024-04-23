@@ -7028,16 +7028,10 @@ proc tkchat::nickIsNoisy { nick } {
 # n must be from 1 to 100.
 #
 proc tkchat::SetAlpha {n} {
-    #global Options
-
     if {[dict exists [wm attributes .] -alpha]} {
 	if {$n < 1} {set n 1}
 	if {$n > 100} {set n 100}
-	set Options(Transparency) $n
 	wm attributes . -alpha [expr {$n / 100.0}]
-	# Work around a bug when transitioning from opaque to
-	# any transparent value the toplevel becomes topmost.
-	#if {[winfo exists .::Options]} {raise .::Options}
     }
 }
 
@@ -7107,6 +7101,7 @@ proc tkchat::PreferencesCancel {} {
     variable EditOptions
     set Options(Transparency) $EditOptions(Transparency)
     unset EditOptions
+    SetAlpha $Options(Transparency)
 }
 
 proc tkchat::PreferencesPage {parent} {
@@ -7134,27 +7129,27 @@ proc tkchat::PreferencesPage {parent} {
     set dlg [winfo toplevel $parent]
     set page [ttk::frame $parent.preferences -borderwidth 0]
 
-    set af [ttk::labelframe $page.af -text "General"]
-    ttk::checkbutton $af.store -text "Store private messages" \
+    set af [ttk::labelframe $page.af -text [mc "General"]]
+    ttk::checkbutton $af.store -text [mc "Store private messages"] \
         -variable tkchat::EditOptions(StoreMessages) \
         -underline 0 -onvalue 1 -offvalue 0
-    ttk::checkbutton $af.norminline -text "Show whispers inline" \
+    ttk::checkbutton $af.norminline -text [mc "Show whispers inline"] \
         -variable tkchat::EditOptions(ShowNormalInline) \
         -underline 2 -onvalue 1 -offvalue 0
     ttk::checkbutton $af.traffic -underline 1 \
-        -text "Show humorous entered/left messages" -offvalue 0\
+        -text [mc "Show humorous entered/left messages"] -offvalue 0\
         -variable tkchat::EditOptions(FunkyTraffic) -onvalue 1
-    ttk::checkbutton $af.catz -text "I hate LOLCATZ"  -offvalue 0 \
+    ttk::checkbutton $af.catz -text [mc "I hate LOLCATZ"] -offvalue 0 \
         -variable tkchat::EditOptions(HateLolcatz) -onvalue 1
-    ttk::checkbutton $af.cfe -text "Keep focus on entry"  -offvalue 0 \
+    ttk::checkbutton $af.cfe -text [mc "Keep focus on entry"] -offvalue 0 \
         -variable tkchat::EditOptions(ClickFocusEntry) -onvalue 1
-    ttk::checkbutton $af.lpc -text "Log private chat" -offvalue 0 \
+    ttk::checkbutton $af.lpc -text [mc "Log private chat"] -offvalue 0 \
         -variable tkchat::EditOptions(LogPrivateChat) -onvalue 1
-    ttk::checkbutton $af.abq -text "Ask before exiting" -offvalue 0 \
+    ttk::checkbutton $af.abq -text [mc "Ask before exiting"] -offvalue 0 \
         -variable tkchat::EditOptions(AskBeforeQuit) -onvalue 1
-    ttk::checkbutton $af.unn -text "Unify TkChat/IRC/Slack nicknames" -offvalue 0 \
+    ttk::checkbutton $af.unn -text [mc "Unify TkChat/IRC/Slack nicknames"] -offvalue 0 \
         -variable tkchat::EditOptions(UnifyNicknames) -onvalue 1
-    ttk::label $af.aal -text "Inactive message" -underline 0 \
+    ttk::label $af.aal -text [mc "Inactive message"] -underline 0 \
         -anchor ne
     ttk::entry $af.aae -textvariable tkchat::EditOptions(AutoAwayMsg)
 
@@ -7193,15 +7188,15 @@ proc tkchat::PreferencesPage {parent} {
     grid columnconfigure $af 1 -weight 1
 
     if {$tcl_platform(platform) ne "windows"} {
-        set bf [ttk::labelframe $page.bf -text "Preferred browser"]
+        set bf [ttk::labelframe $page.bf -text [mc "Preferred browser"]]
         $bf configure -underline 10
 
         ttk::label $bf.m -anchor nw -wraplength 4i -justify left \
-            -text "Provide the command used to launch your web browser. For\
+            -text [mc "Provide the command used to launch your web browser. For\
 	    instance /opt/bin/mozilla or xterm -e links. The URL to\
 	    be opened will be appended to the command string and for\
 	    mozilla-type browsers we will call the -remote option to\
-	    try to use a previously existing browser."
+	    try to use a previously existing browser."]
         ttk::entry $bf.e -textvariable tkchat::EditOptions(Browser)
         ttk::button $bf.b -text "..."  -width 4 -command {
             if {[set file [tk_getOpenFile]] ne {}} {
@@ -7209,7 +7204,7 @@ proc tkchat::PreferencesPage {parent} {
             }
         }
         ttk::checkbutton $bf.tab -underline 0 \
-            -text "Force new Tab, if possible (Unix only)" \
+            -text [mc "Force new Tab, if possible (Unix only)"] \
             -variable tkchat::EditOptions(BrowserTab)
 
         bind $dlg <Alt-b> [list focus $bf.e]
@@ -7223,22 +7218,24 @@ proc tkchat::PreferencesPage {parent} {
 
     # Gimmicks section.
     set gimmicks 0
-    set gf [ttk::labelframe $page.gf -text "Gimmiks"] ;#  -padx 1 -pady 1
+    set gf [ttk::labelframe $page.gf -text [mc "Gimmiks"]] ;#  -padx 1 -pady 1
     if {[dict exists [wm attributes .] -alpha]} {
 	set gimmicks 1
-	ttk::checkbutton $gf.fade -text "When not active, fade to " \
+	ttk::checkbutton $gf.fade -text [mc "When not active, fade to "] \
             -underline 2 -variable tkchat::EditOptions(AutoFade)
         ttk::spinbox $gf.fadelimit -from 1 -to 100 -width 4 \
             -validate all -format %.0f \
             -validatecommand {string is integer %P} \
             -textvariable tkchat::EditOptions(AutoFadeLimit)
 	ttk::label $gf.pct -text "%"
-	ttk::label $gf.alabel -text Transparency -underline 1 \
+	ttk::label $gf.alabel -text [mc "Transparency"] -underline 1 \
             -anchor ne
-	ttk::scale $gf.alpha -from 1 -to 100 -orient horizontal
-	$gf.alpha set $EditOptions(Transparency)
-	#[expr {int([wm attributes . -alpha] * 100)}]
-	$gf.alpha configure -command [namespace origin SetAlpha]
+	# this options works in reverse: modification takes place immediately
+	# as preview and restores the original value on cancel
+	ttk::scale $gf.alpha -from 1 -to 100 \
+	    -orient horizontal \
+	    -variable Options(Transparency) \
+	    -command [namespace origin SetAlpha]
 
 	bind $dlg <Alt-e> [list $gf.fade invoke]
 	bind $dlg <Alt-r> [list focus $gf.alpha]
@@ -7267,7 +7264,7 @@ proc tkchat::EditOptions {} {
     set dlg [Dialog .options]
     variable _editoptions {}
     wm withdraw $dlg
-    wm title $dlg "Tkchat Options"
+    wm title $dlg [mc "Tkchat Options"]
 
     set nb [ttk::notebook $dlg.nb]
 
