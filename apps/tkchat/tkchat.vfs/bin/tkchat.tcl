@@ -374,7 +374,7 @@ namespace eval tkchat {
 proc tkchat::rcPostload {} {}
 
 proc tkchat::Toplevel {w args} {
-    toplevel $w {*}$args]
+    toplevel $w {*}$args
     if {![$w cget -container]} {
         place [ttk::frame $w.tilebg] \
             -x 0 -y 0 \
