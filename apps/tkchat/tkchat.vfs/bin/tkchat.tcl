@@ -7028,11 +7028,9 @@ proc tkchat::nickIsNoisy { nick } {
 # n must be from 1 to 100.
 #
 proc tkchat::SetAlpha {n} {
-    if {[dict exists [wm attributes .] -alpha]} {
-	if {$n < 1} {set n 1}
-	if {$n > 100} {set n 100}
-	wm attributes . -alpha [expr {$n / 100.0}]
-    }
+    if {$n < 1} {set n 1}
+    if {$n > 100} {set n 100}
+    wm attributes . -alpha [expr {$n / 100.0}]
 }
 
 proc tkchat::FadeAlpha {} {
@@ -7041,8 +7039,11 @@ proc tkchat::FadeAlpha {} {
     if {$Options(AutoFade)} {
 	variable FadeId
 	set alpha [wm attributes . -alpha]
-	if {($alpha * 100) > $Options(AutoFadeLimit)} {
-	    wm attributes . -alpha [expr {$alpha - 0.01}]
+	set limit [expr {$Options(AutoFadeLimit) / 100.0}]
+	set delta [expr {$alpha - $limit}]
+	set new   [expr {$alpha + ($delta > 0 ? -0.01 : 0.01)}]
+	if {abs($alpha - $limit) >= 0.01} {
+	    wm attributes . -alpha $new
 	    set FadeId [after 200 [namespace origin FadeAlpha]]
 	}
     }
@@ -7051,15 +7052,12 @@ proc tkchat::FadeAlpha {} {
 proc tkchat::FadeCancel {} {
     global Options
 
-    if {$Options(AutoFade) == 0} {
-	set n [expr {$Options(Transparency) / 100.0}]
-	after idle [list wm attributes . -alpha $n]
-    } else {
+    if {$Options(AutoFade)} {
 	variable FadeId
 	catch {after cancel $FadeId}
 	unset -nocomplain FadeId
-	catch {wm attributes . -alpha 0.999}
     }
+    SetAlpha $Options(Transparency)
 }
 
 proc tkchat::FocusInHandler {w args} {
@@ -7067,7 +7065,7 @@ proc tkchat::FocusInHandler {w args} {
 }
 
 proc tkchat::FocusOutHandler {w args} {
-    if {[string length [focus]] == 0} {
+    if {[focus] eq ""} {
 	after idle [namespace origin FadeAlpha]
     }
 }
@@ -7240,7 +7238,7 @@ proc tkchat::PreferencesPage {parent} {
 	bind $dlg <Alt-e> [list $gf.fade invoke]
 	bind $dlg <Alt-r> [list focus $gf.alpha]
 
-	grid $gf.fade   - $gf.fadelimit $gf.pct x -sticky w -padx 2
+	grid $gf.fade - $gf.fadelimit $gf.pct x -sticky w -padx 2
 	grid $gf.alabel $gf.alpha - - - -sticky we -padx 2
 	grid configure $gf.alabel -pady {20 0} -sticky w
 	grid columnconfigure $gf 4 -weight 1
