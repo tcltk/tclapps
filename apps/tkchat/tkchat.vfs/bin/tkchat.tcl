@@ -7685,16 +7685,20 @@ proc tkchat::CheckVersionDone {tok} {
     global Options
     variable version
 
-    set meta [http::meta $tok]
-    if {[dict exists $meta X-LOLCATZ]} {
-        set Options(tagline) "LOLCat says \"[dict get $meta X-LOLCATZ]\""
+    # make the dict keys lowercase
+    set meta [dict map {k v} [http::meta $tok] {
+	set k [string tolower $k]
+	set v
+    }]
+    if {[dict exists $meta x-lolcatz]} {
+        set Options(tagline) "LOLCat says \"[dict get $meta x-lolcatz]\""
         if {!$Options(HateLolcatz)} {
             after 10000 [list tkchat::addStatus 0 $Options(tagline)]
         }
     }
     # This permits the website to re-define the names of current bridges.
-    if {[dict exists $meta X-BridgeNames]} {
-        set bridges [dict get $meta X-BridgeNames]
+    if {[dict exists $meta x-bridgenames]} {
+        set bridges [dict get $meta x-bridgenames]
         if {[llength $bridges] > 0} {
             lappend Options(BridgeNames) {*}$bridges
         }
