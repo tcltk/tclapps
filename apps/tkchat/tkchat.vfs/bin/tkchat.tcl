@@ -94,7 +94,8 @@ catch {
     package require tls; # tls (optional)
     if {[package vsatisfies [package provide tls] 1.7-]} {
 	http::register https 443 [list ::tls::socket -autoservername 1 \
-	    -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 1]
+	    -request 0 -require 0 -ssl2 0 -ssl3 0 -tls1 no -tls1.1 yes \
+	    -tls1.2 yes]
     } else {
 	# older versions of tls don't support a command prefix
 	http::register https 443 ::tls::socket
@@ -8023,11 +8024,14 @@ proc tkjabber::connect {} {
 		$Options(ProxyHost) $Options(ProxyPort) \
 		$host $port]
 	} elseif { $have_tls && $Options(UseJabberSSL) eq "ssl" } {
-	    set socket \
-		[tls::socket -ssl2 false -ssl3 false -tls1 true \
-		     -cafile [get_cafile] \
-		     -command [namespace origin tls_callback] \
-		     $host $port]
+	    set sockopt [list -ssl2 false -ssl3 false -tls1 false \
+		    -tls1.1 true -tls1.2 true \
+		    -cafile [get_cafile] \
+		    -command [namespace origin tls_callback]]
+	    if {[package vsatisfies [package provide tls] 1.8]} {
+		lappend sockopt -validatecommand [namespace which tls_validate]
+	    }
+	    set socket [tls::socket {*}$sockopt $host $port]
 	} else {
 	    if {$port == 5223} {
 		incr port -1
@@ -8167,9 +8171,12 @@ proc tkjabber::ConnectProc {jlibName args} {
     # Now send authentication details:
     if {$have_tls && $Options(UseJabberSSL) eq "starttls"} {
         variable CertChain {}
-	jlib::starttls $jabber [namespace origin OnStartTlsFinish] \
-            -cafile [get_cafile] \
-            -command [namespace origin tls_callback]
+	set sockopt [list -cafile [get_cafile] \
+	    -command [namespace origin tls_callback]]
+	if {[package vsatisfies [package provide tls] 1.8]} {
+	    lappend sockopt -validatecommand [namespace which tls_validate]
+	}
+	jlib::starttls $jabber [namespace origin OnStartTlsFinish] {*}$sockopt
     } else {
 	SendAuth
     }
@@ -8233,6 +8240,27 @@ proc tkjabber::get_cafile {} {
     return $path
 }
 
+proc tkjabber::tls_validate {type args} {
+    global Options
+    variable CertChain
+
+    switch -exact -- $type {
+	verify {
+	    lassign $args channel depth cert status error
+	    #tkchat::addSystem .txt "status $status depth $depth\n$cert\n$error" end TLSVERIFY
+	    lappend CertChain [dict create \
+		depth $depth status $status error $error cert $cert]
+	    if {$Options(ValidateSSLChain)} {
+		return $status
+	    }
+	    return 1
+	}
+	default {
+	    return 1
+	}
+    }
+}
+
 # This callback is used to check the certificate chain. We provide a compound X509 file
 # that contains some root certificates for CAcert, Equifax and the Jabber Foundation.
 # OpenSSL can check the chain using these certificates and we can choose to fail
@@ -8241,24 +8269,19 @@ proc tkjabber::tls_callback {type args} {
     global Options
     variable CertChain
     switch -exact -- $type {
-        info {
-            #foreach {channel major minor message} $args break
-            #tkchat::addSystem .txt "$major/$minor $message" end TLSINFO
-        }
         verify {
-            foreach {channel depth cert status error} $args break
-            #tkchat::addSystem .txt "status $status depth $depth\n$cert\n$error" end TLSVERIFY
-            lappend CertChain [list depth $depth status $status error $error cert $cert]
-            if {$Options(ValidateSSLChain)} {
-                return $status
-            }
-            return 1
+	    return [tls_validate $type {*}$args]
         }
         error {
             tkchat::addSystem .txt "tls error: $args" end TLSERROR
         }
+        info - session -
+        message {
+	    log::log debug "$type: | [join $args " | "] |"
+        }
         default {
-            return -code error "unexpected type in tls_callback"
+            # return -code error "unexpected type in tls_callback"
+            tailcall ::tls::callback $type {*}$args
         }
     }
     return 1
@@ -9889,9 +9912,14 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
     if {$code >= 200 && $code < 300} {
 	if {$have_tls && $Options(UseJabberSSL) eq "ssl"} {
             tkchat::addStatus 0 "Securing network link"
-	    tls::import $sock -ssl2 false -ssl3 true -tls1 true \
-                -cafile [get_cafile] \
-                -command [namespace origin tls_callback]
+            set sockopt [list -ssl2 false -ssl3 true -tls1 false \
+		-tls1.1 true -tls1.2 true \
+		-cafile [get_cafile] \
+		-command [namespace origin tls_callback]]
+	    if {[package vsatisfies [package provide tls] 1.8]} {
+		lappend sockopt -validatecommand [namespace which tls_validate]
+	    }
+	    tls::import $sock {*}$sockopt
 	} else {
             tkchat::addStatus 0 "Connected"
         }
@@ -10118,10 +10146,18 @@ if {[info exists env(HOME)] &&
 # Load in plugins from our directory and ~/.tkchat_plugins or from
 # anything in env(TKCHAT_PLUGINS) which may be a tcl list of directories.
 
-set dirs [list $tkchat_dir [file normalize ~/.tkchat_plugins]]
+# On 8.*, tildes "~" and "~/" expands to $env(HOME)
+# On 9.*, [file tildeexpand] has the same semantics as 8.*
+# So this should work on both versions
 if {[info exists env(TKCHAT_PLUGINS)]} {
-    set dirs [linsert $env(TKCHAT_PLUGINS) 0 $tkchat_dir]
+    set dirs [list {*}$env(TKCHAT_PLUGINS) $tkchat_dir]
+} else {
+    set dirs $tkchat_dir
+    if {[info exists env(HOME)]} {
+	lappend dirs [file normalize [file join $env(HOME) .tkchat_plugins]]
+    }
 }
+
 foreach dir $dirs {
     set files [glob -nocomplain -directory $dir tkchat_*.tcl]
     foreach file $files {
