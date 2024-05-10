@@ -2677,7 +2677,7 @@ proc tkchat::CreateGUI {} {
 
     # bottom frame for entry
     ttk::frame .btm
-    ttk::button .ml
+    ttk::button .ml -default disabled
     ttk::entry .eMsg
     if {[tk windowingsystem] ne "aqua"} {
         .eMsg configure -foreground black -font FNT
@@ -2708,7 +2708,8 @@ proc tkchat::CreateGUI {} {
     text .tMsg -height 6 -font FNT
     bind .tMsg <Key-Tab>	{ tkchat::nickComplete ; break }
 
-    ttk::button .post -text [mc Post] -command [namespace code userPost]
+    ttk::button .post -text [mc Post] -command [namespace code userPost] \
+	-default disabled
 
     ttk::menubutton .mb \
         -menu .mb.mnu \
