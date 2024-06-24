@@ -1,16 +1,21 @@
 if {[package vsatisfies [package present Tcl] 8.5-]} {
-	package ifneeded tls 1.7.23 [list apply {{dir} {
-		if {{shared} eq "static"} {
-			load {} Tls
-		} else {
-		    load [file join $dir tcltls[info sharedlibextension]] Tls
-		}
-
-		set tlsTclInitScript [file join $dir tls.tcl]
-		if {[file exists $tlsTclInitScript]} {
-			source $tlsTclInitScript
-		}
-	}} $dir]
-} elseif {[package vsatisfies [package present Tcl] 8.4]} {
-	package ifneeded tls 1.7.23 [list load [file join $dir tcltls[info sharedlibextension]] Tls]
+    if {$::tcl_platform(os) eq "Darwin"} {
+	package ifneeded tls 1.8.0
+	load [file join $dir libtcl9tls1.8.0.dylib] Tls
+	return
+    }
+	if {$::tcl_platform(os) eq "Windows NT"} {
+	package ifneeded tls 1.7.23 
+	load [file join $dir tcl9tls1723.dll] Tls
+	return
+    }
+	if {$::tcl_platform(os) eq "Linux"} {
+	package ifneeded tls 1.7.23 
+	load [file join $dir tcltls.so] Tls
+	return
+    }
+	set tlsTclInitScript [file join $dir tls.tcl]
+	if {[file exists $tlsTclInitScript]} {
+		source $tlsTclInitScript
+	}
 }
