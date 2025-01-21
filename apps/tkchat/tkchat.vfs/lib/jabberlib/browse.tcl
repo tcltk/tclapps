@@ -638,7 +638,7 @@ proc browse::hasnamespace {browsename jid ns} {
 #       Could be called with type='remove' attribute.
 #       For 'user' elements we need to build a table that maps the
 #       'roomname@server/hexname' with the nick name.
-#       It also keeps a list of all 'user'«s in a room.
+#       It also keeps a list of all 'user's in a room.
 #       
 # Arguments:
 #       browsename:   the instance of this conference browse.
@@ -830,7 +830,7 @@ proc browse::setsinglejid {browsename parentJid jid xmllist {browsedjid 0}} {
 		    set locals($jid,name) $attrArr(name)
 		}
 		
-		# Keep list of all 'user'«s in a room. The 'parentJid' must
+		# Keep list of all 'user's in a room. The 'parentJid' must
 		# be the room's jid here.
 		lappend locals($parentJid,allusers) $jid
 		set locals($parentJid,allusers)  \
