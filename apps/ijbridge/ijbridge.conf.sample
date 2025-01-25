@@ -12,27 +12,38 @@
 # Jabber connection information
 #
 JabberServer   YOUR.JABBER.SERVER
-JabberPort     5222
+JabberPort     5223
+JabberTLS      1
 JabberResource ijbridge
 JabberUser     VALIDJABBERUSERID
 JabberPassword VALIDJABBERPASSWORD
 
 # Details for the Jabber conference room to join to.
 #
-Conference      ROOM@CONFERENCE.JABBER.SERVERk
+Conference      ROOM@CONFERENCE.JABBER.SERVER
 ConferenceNick  ijchain
 
 # IRC connection details
 #
 IrcServer      IRC.SERVER.NAME
 IrcPort        6667
+IrcTLS         1
 IrcUser        IRCNICK
 IrcChannel     #IRCCHANNEL
+SuppressTraffic 1
+
+# Values for LiberaChat
+# IrcServer       irc.libera.chat
+# IrcPort         6697
+# IrcTLS          1
+# IrcUser         Ijchain
+# IrcChannel      #tcl
 
 # FreeNode restricts PRIVMSG to identified users.
 # Provide your IrcUser nick's pasword for use in identifying this
 # client to FreenNode's nickserv.
-#
+# On LiberaChat, set this to the empty string if joining as an
+# unidentified user
 IrcNickPasswd  IRCNICKSERVPASSWORD
 #
 # If you want to maintain a running statistics count between invocations

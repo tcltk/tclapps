@@ -12,6 +12,7 @@
 # -------------------------------------------------------------------------
 
 package require jlib;                   # jabberlib
+catch {package require tls;}
 package require browse;                 # jabberlib
 package require muc;                    # jabberlib
 package require wrapper;                # jabberlib
@@ -24,33 +25,35 @@ namespace eval client {}
 namespace eval ::ijbridge {
 
     variable version 1.1.1
-    variable rcsid {$Id: ijbridge.tcl,v 1.37 2009/01/29 20:45:44 patthoyts Exp $}
 
     # This array MUST be set up by reading the configuration file. The
-    # member names given here define the settings permitted in the 
+    # member names given here define the settings permitted in the
     # config file.
-    # This script will not work by default - you MUST provide suitable 
+    # This script will not work by default - you MUST provide suitable
     # connection details.
     #
     variable Options
     if {![info exists Options]} {
         array set Options {
-            JabberServer   {}
-            JabberPort     5222
-            JabberUser     {}
-            JabberPassword {}
-            JabberResource ijbridge
-            Conference     {}
-            ConferenceNick {}
-            
-            IrcServer      irc.freenode.net
-            IrcPort        6667
-            IrcUser        {}
-            IrcChannel     {}
-            IrcNickPasswd  {}
-            StatisticsFile {}
+            JabberServer     {}
+            JabberPort       5222
+            JabberUser       {}
+            JabberPassword   {}
+            JabberResource   ijbridge
+            JabberTLS        0
+            Conference       {}
+            ConferenceNick   {}
+
+            IrcServer        irc.freenode.net
+            IrcPort          6667
+            IrcTLS           0
+            IrcUser          {}
+            IrcChannel       {}
+            SuppressTraffic  0
+            IrcNickPasswd    {}
+            StatisticsFile   {}
             NotificationPort {}
-            ColorsFile     {}
+            ColorsFile       {}
         }
     }
 
@@ -89,7 +92,7 @@ proc ::ijbridge::connect {{server {}} {port {}}} {
     variable Options
     variable conn
     array set conn {}
-    
+
     # If roster is unset this is a new connection.
     if {![info exists conn(roster)]} {
         log::log debug "Creating new jabber client instance"
@@ -115,8 +118,12 @@ proc ::ijbridge::connect {{server {}} {port {}}} {
         set conn(port) $port
     }
 
-    set conn(sock) [socket $conn(server) $conn(port)]
-    $conn(jabber) setsockettransport $conn(sock)    
+    set socketcmd socket
+    if {$Options(JabberTLS)} {
+	set socketcmd tls::socket
+    }
+    set conn(sock) [$socketcmd $conn(server) $conn(port)]
+    $conn(jabber) setsockettransport $conn(sock)
     $conn(jabber) openstream $Options(JabberServer) \
         -cmd [namespace current]::OnConnect -socket $conn(sock)
 
@@ -216,7 +223,7 @@ proc ::ijbridge::DumpColors {} {
 proc ::ijbridge::OnConnect {token args} {
     variable Options
     variable conn
-    
+
     log::log debug "OnConnect $token $args"
     array set info $args
     set conn(info) $args
@@ -420,7 +427,7 @@ proc ::ijbridge::OnIqGet {token args} {
                 default {
                     set r [IqError $iqns feature-not-implemented \
                                $a(-id) $a(-to) $a(-from) cancel 501]
-                }                    
+                }
             }
         }
         jabber:iq:version {
@@ -719,13 +726,17 @@ proc ::ijbridge::OnPresenceChange2 {token jid type args} {
         switch -exact -- $type {
             available {
                 # Ignore the presence state change messages
-                if {[lsearch -exact $MucUserList $a(-from)] == -1} {
-                    xmit "PRIVMSG $::client::channel :\001ACTION $nick has joined the jabber conference\001"
+                if {$a(-from) ni $MucUserList} {
+		    if {! $Options(SuppressTraffic)} {
+			xmit "PRIVMSG $::client::channel :\001ACTION $nick has joined the jabber conference\001"
+		    }
                     lappend MucUserList $a(-from)
                 }
             }
             unavailable {
-                xmit "PRIVMSG $::client::channel :\001ACTION $nick left the jabber conference\001"
+		if {! $Options(SuppressTraffic)} {
+		    xmit "PRIVMSG $::client::channel :\001ACTION $nick left the jabber conference\001"
+		}
                 if {[set ndx [lsearch -exact $MucUserList $a(-from)]] != -1} {
                     set MucUserList [lreplace $MucUserList $ndx $ndx]
                 }
@@ -754,10 +765,7 @@ proc ::ijbridge::IrcToJabber {who msg emote} {
     }
 
     # Eliminate known bridge prefixes (ircbridge is a webchat to irc bridge)
-    if {[string equal $who "azbridge"] 
-	|| [string equal $who "webchain"]
-	|| [string equal $who "wubchain"]
-	|| [string equal $who "ircbridge"]} {
+    if { $who in {azbridge webchain wubchain ircbridge ischain} } {
         regexp {^<(.*?)> (.*)$}  $msg -> who msg
         set emote [regexp {^\*{1,3} (\w+) (.*)$} $msg -> who msg]
     }
@@ -939,14 +947,14 @@ proc ::ijbridge::send {args} {
         return -code error "wrong \# args:\
             should be \"send ?option value? message\""
     }
-    if {[string length $opts(-id)] < 1} {
+    if { $opts(-id) eq "" } {
         set opts(-id) $conn(id)
     }
-    if {[string length $opts(user)] < 1} {
+    if { $opts(user) eq "" } {
         set opts(user) $Options(Conference)
         set opts(-type) groupchat
     }
-    
+
     log::log debug "send: [lindex $args 0]"
     eval [linsert [array get opts -*] 0 $conn(jabber) \
               send_message $opts(user) -body [lindex $args 0]]
@@ -954,7 +962,7 @@ proc ::ijbridge::send {args} {
 
 # ijbridge::xmit --
 #
-#	This is where we send messages to the IRC channel. IRC requires 
+#	This is where we send messages to the IRC channel. IRC requires
 #	rate limiting. A client can be kicked for sending too much in
 #	too short a period so here we deal with this.
 #
@@ -983,7 +991,7 @@ proc ::ijbridge::xmit {str} {
         after 1000 [namespace origin XmitFromQueue]
         return
     }
-    $client::cn send $str
+    $::client::cn send $str
 }
 
 # ijbridge::XmitFromQueue --
@@ -1002,7 +1010,7 @@ proc ::ijbridge::XmitFromQueue {} {
     }
     set Limit(queue) [lreplace $Limit(queue) 0 0]
     ::log::log debug "sending from queue"
-    $client::cn send $str
+    $::client::cn send $str
     # send next line
     after 1200 [namespace origin XmitFromQueue]
 }
@@ -1105,7 +1113,7 @@ proc client::registerhandlers {} {
 	}
         foreach u $users {lappend users_tmp $u}
     }
-    
+
     $cn registerevent 366 {
         # End of NAMES list
         # Copy the new user list to the main list.
@@ -1130,9 +1138,9 @@ proc client::registerhandlers {} {
         # topicinfo - a handy marker for 'we just joined a channel'
         # Ask Chanserv to op us.
         cmd-send "PRIVMSG Chanserv :op $::client::channel $::client::nick"
-    } 
-   
-    # WHOIS handling from Jabber user 
+    }
+
+    # WHOIS handling from Jabber user
     $cn registerevent 311 {set ::client::whois(realname) [msg];set ::client::whois(address) [additional]}
     $cn registerevent 312 {set ::client::whois(url) [msg]}
     $cn registerevent 319 {set ::client::whois(channels) [msg]}
@@ -1175,18 +1183,18 @@ proc client::registerhandlers {} {
             PONG {}
             KICK {
                 #::ijbridge::send "[who] kicked someone \"[msg]\""
-                ::log::log notice "[action]:[who]:[target]:[msg]" 
+                ::log::log notice "[action]:[who]:[target]:[msg]"
             }
             MODE -
             default {
-                ::log::log notice "[action]:[who]:[target]:[msg]" 
+                ::log::log notice "[action]:[who]:[target]:[msg]"
             }
         }
     }
 
     $cn registerevent PRIVMSG {
         if {[catch {
-            if { [string equal [target] $client::channel] } {
+            if { [string equal [target] $::client::channel] } {
                 set emote 0
                 set msg [msg]
                 if { [string match "\001*\001" [msg]] } {
@@ -1195,7 +1203,7 @@ proc client::registerhandlers {} {
                     }
                 }
                 ijbridge::IrcToJabber [who] $msg $emote
-            } elseif {[string equal [target] $client::nick]} {
+            } elseif {[string equal [target] $::client::nick]} {
                 ::ijbridge::BotCommand [who] [who] [msg]
             } else {
                 log::log debug "[action]:[who]:[target]:[msg]"
@@ -1205,7 +1213,7 @@ proc client::registerhandlers {} {
 
     $cn registerevent PART {
         variable ::ijbridge::IrcUserList
-	if { [target] eq $client::channel && [who] ne $client::nick } {
+	if { [target] eq $::client::channel && [who] ne $::client::nick } {
 	    set IrcUserList \
 		    [lsearch -all -inline -exact -not $IrcUserList [who]]
 	    ijbridge::send "*** [who] leaves"
@@ -1215,9 +1223,9 @@ proc client::registerhandlers {} {
 
     $cn registerevent JOIN {
         variable ::ijbridge::IrcUserList
-	if { [lsearch -exact {ircbridge azbridge ijbridge ijchain} [who]] == -1 \
-		&& [who] ne $client::nick } {
-	    if { [lsearch -exact $IrcUserList [who]] == -1 } {
+	if {    [who] ni {ircbridge azbridge ijbridge ijchain} &&
+		[who] ne $::client::nick } {
+	    if { [who] ni $IrcUserList } {
 		lappend IrcUserList [who]
 	    }
 	    ijbridge::send "*** [who] joins"
@@ -1231,7 +1239,7 @@ proc client::registerhandlers {} {
 	} else {
 	    set IrcUserList \
 		    [lsearch -all -inline -exact -not $IrcUserList [who]]
-	    if { [lsearch -exact $IrcUserList [msg]] == -1 } {
+	    if { [msg] ni $IrcUserList } {
 		lappend IrcUserList [msg]
 	    }
 	    ijbridge::send "*** [who] is now known as [msg]"
@@ -1254,6 +1262,7 @@ proc client::registerhandlers {} {
 # connect to the server and register
 
 proc client::connect {cn server port} {
+    variable ::ijbridge::Options
     variable ::ijbridge::Limit
     variable nick
     # set up variable for rate limiting
@@ -1264,7 +1273,10 @@ proc client::connect {cn server port} {
         after 10000 [list [namespace current]::connect $cn $server $port]
         return
     }
-    fconfigure [$cn socket] -encoding utf-8 ;# We shall always be utf-8
+    fconfigure [$cn socket] -encoding utf-8 -profile replace ;# We shall always be utf-8
+    if {$Options(IrcTLS)} {
+	tls::import [$cn socket]
+    }
     $cn user $nick localhost domain "Tcl Jabber-IRC bridge"
     $cn nick $nick
     ping
@@ -1291,7 +1303,7 @@ proc bgerror {args} {
 # ijbridge::ReadControl --
 #
 #	Reads commands from stdin and evaluates them. This permits
-#	us to issue commands to the server while it is still 
+#	us to issue commands to the server while it is still
 #	running. Suitable commands are ijbridge::presence and
 #	ijbridge::say or ijbridge::xmit.
 #
@@ -1342,7 +1354,7 @@ proc ::ijbridge::NotificationGet {chan} {
     variable Options
     upvar #0 [namespace current]::$chan state
     if {[gets $chan line] != -1} {
-        foreach {len hash data} $line break
+        lassign $line len hash data
         set data [base64::decode $data]
         set check [md5::md5 -hex $data]
         if {[string length $data] != $len} {
@@ -1350,10 +1362,10 @@ proc ::ijbridge::NotificationGet {chan} {
         } elseif {$check ne $hash} {
             puts stderr "failed checksum from $state(addr):$state(port)"
         } else {
-            foreach {user channel url title} $data break
-            if {$channel eq [jid node $Options(Conference)] \
-                    || $channel eq $Options(IrcChannel) \
-                    || $channel eq [string map [list "#" ""] $Options(IrcChannel)]} {
+            lassign $data user channel url title
+            if {$channel eq [jid node $Options(Conference)] ||
+		$channel eq $Options(IrcChannel)            ||
+		$channel eq [string map [list "#" ""] $Options(IrcChannel)]} {
                 BotSay $::client::channel \
                     "$user has created a new paste at $url \"$title\""
             } else {
@@ -1403,7 +1415,7 @@ proc Main {args} {
         $ijbridge::Options(IrcPort) \
         $ijbridge::Options(IrcUser) \
         $ijbridge::Options(IrcChannel)
-    
+
     # Connect to Jabber.
     eval [linsert $args 0 ::ijbridge::connect]
     set ::ijbridge::statid [after 3600000 ::ijbridge::DumpStats]
@@ -1426,7 +1438,7 @@ proc Main {args} {
             }
         }
     }
-    
+
     # Record the statistics to file
     ::ijbridge::DumpStats
 }
