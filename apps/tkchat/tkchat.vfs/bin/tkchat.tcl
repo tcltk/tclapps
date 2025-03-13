@@ -127,7 +127,7 @@ if {[package provide khim] ne {}} {
         }]
     }
 }
-if {[catch {package require tooltip 1.5}]} {
+if {[catch {package require tooltip 1.5 2}]} {
     # tooltips. We provide our own noop version if missing
     namespace eval tooltip {
         namespace export tooltip
@@ -522,6 +522,7 @@ proc tkchat::ParseHistLog {log {reverse 0}} {
                 } else {
                     $I eval [http::data $tok]
                 }
+                interp delete $I
             } err]} then {
                 log::log error $err
                 bgerror $err
@@ -5419,6 +5420,7 @@ proc tkchat::LoadChatLog { loadFileName } {
 	interp alias $I m {} ::tkjabber::ParseLogMsg
 	$I eval [read $f]
 	close $f
+	interp delete $I
     } err] } then {
 	# Handle file access problems.
 	log::log error $err
