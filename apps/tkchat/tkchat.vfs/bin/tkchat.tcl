@@ -7703,7 +7703,12 @@ proc tkchat::CheckVersionDone {tok} {
     if {[dict exists $meta x-bridgenames]} {
         set bridges [dict get $meta x-bridgenames]
         if {[llength $bridges] > 0} {
-            lappend Options(BridgeNames) {*}$bridges
+	    # append unknown bridge names only
+	    foreach bridge $bridges {
+		if {$bridge ni $Options(BridgeNames)} {
+		    lappend Options(BridgeNames) $bridge
+		}
+	    }
         }
     }
     set url [string trim [http::data $tok]]
