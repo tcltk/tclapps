@@ -7382,7 +7382,8 @@ proc tkchat::PicoIrcCallback {context state args} {
 }
 
 proc tkchat::updateOnlineNames {} {
-    global Options URLID
+    global Options
+    variable URLIDN 0
     variable OnlineUsers
     variable ::tkjabber::conference
 
@@ -7441,23 +7442,23 @@ proc tkchat::updateOnlineNames {} {
 		}
 	    }
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
-                set tags [list NICK NICK-$nick URL URL-[incr URLID]]
+                set tags [list NICK NICK-$nick URL URL-[incr URLIDN]]
 		.pane.names insert $mark "$nick" $tags "\n" NICK
-		.pane.names tag bind URL-$URLID <Button-1> \
+		.pane.names tag bind URL-$URLIDN <Button-1> \
 		    [list tkjabber::getChatWidget $conference/$nick $nick]
 		.mb.mnu add command \
                     -label $nick \
                     -command [list tkchat::MsgTo $nick]
 	    } else {
 		.pane.names insert $mark "$nick\n" \
-                    [list NICK NICK-$nick URL-[incr URLID]]
+                    [list NICK NICK-$nick URL-[incr URLIDN]]
 	    }
 
             
-                .pane.names tag bind URL-$URLID <Button-3> \
+                .pane.names tag bind URL-$URLIDN <Button-3> \
 		    [list tkchat::OnNamePopup $nick $network %X %Y]
             
-	    .pane.names tag bind URL-$URLID <Control-Button-1> \
+	    .pane.names tag bind URL-$URLIDN <Control-Button-1> \
                 [list tkchat::OnNamePopup $nick $network %X %Y]
 	}
 	.pane.names insert end "\n"
@@ -7470,7 +7471,7 @@ proc tkchat::updateOnlineNames {} {
 }
 
 proc tkchat::updateRosterDisplay {} {
-    global URLID
+    variable URLIDN
     variable OnlineUsers
     variable ::tkjabber::jabber
 
@@ -7499,7 +7500,7 @@ proc tkchat::updateRosterDisplay {} {
             }
         }
 
-        set link URL-[incr URLID]
+        set link URL-[incr URLIDN]
         set tags [list ROSTER ROSTER-$user URL $link]
         .pane.names insert roster $name $tags "\n" NICK
         .pane.names tag bind $link <Button-1> \

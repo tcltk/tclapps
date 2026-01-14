@@ -80,7 +80,8 @@ proc ::newRoster::gui {f} {
 }
 
 proc ::newRoster::updateOnlineNames {} {
-    global Options URLID
+    global Options
+    variable URLID 0
     variable cl
     variable ::tkchat::OnlineUsers
     variable ::tkjabber::conference
@@ -142,7 +143,7 @@ proc ::newRoster::updateOnlineNames {} {
 	    if {$role eq "visitor"} {
 		set status disabled
 	    }
-	    
+
 	    #Custom colors do not work well on Aqua because
 	    #of Dark Mode, use defaults instead.
 	    if {[tk windowingsystem] ne "aqua"} {
@@ -183,7 +184,7 @@ proc ::newRoster::updateOnlineNames {} {
 }
 
 proc ::newRoster::updateRosterDisplay {} {
-    global URLID
+    variable URLID
     variable cl
     variable ::tkchat::OnlineUsers
     variable ::tkjabber::jabber
