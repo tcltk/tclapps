@@ -8041,7 +8041,7 @@ proc tkjabber::connect {} {
 		    -tls1.1 true -tls1.2 true \
 		    -cafile [get_cafile] \
 		    -command [namespace origin tls_callback]]
-	    if {[package vsatisfies [package provide tls] 1.8]} {
+	    if {[package vsatisfies [package provide tls] 1.8-]} {
 		lappend sockopt -validatecommand [namespace which tls_validate]
 	    }
 	    set socket [tls::socket {*}$sockopt $host $port]
@@ -8186,7 +8186,7 @@ proc tkjabber::ConnectProc {jlibName args} {
         variable CertChain {}
 	set sockopt [list -cafile [get_cafile] \
 	    -command [namespace origin tls_callback]]
-	if {[package vsatisfies [package provide tls] 1.8]} {
+	if {[package vsatisfies [package provide tls] 1.8-]} {
 	    lappend sockopt -validatecommand [namespace which tls_validate]
 	}
 	jlib::starttls $jabber [namespace origin OnStartTlsFinish] {*}$sockopt
@@ -9929,7 +9929,7 @@ proc tkjabber::ProxyConnect {proxyserver proxyport jabberserver jabberport} {
 		-tls1.1 true -tls1.2 true \
 		-cafile [get_cafile] \
 		-command [namespace origin tls_callback]]
-	    if {[package vsatisfies [package provide tls] 1.8]} {
+	    if {[package vsatisfies [package provide tls] 1.8-]} {
 		lappend sockopt -validatecommand [namespace which tls_validate]
 	    }
 	    tls::import $sock {*}$sockopt
