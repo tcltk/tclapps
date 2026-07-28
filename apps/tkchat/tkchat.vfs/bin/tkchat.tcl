@@ -9823,16 +9823,22 @@ proc tkjabber::on_iq_time {token from subiq args} {
     tkchat::addStatus 0 "Time (XEP-0202) query from $from"
     set opts [list -to $from]
     array set a [linsert $args 0 -id {}]
-    if {$a(-id) ne {}} { lappend opts -id $a(-id) }
-    set t [clock seconds]
-    set fmt "%Y-%m-%dT%H:%M:%SZ"
-    lappend subtags [wrapper::createtag tzo {} 1 \
-                         [clock format $t -format "%z" -gmt 0] {}]
-    lappend subtabs [wrapper::createtag utc {} 1 \
-                         [clock format $t -format $fmt -gmt 1] {}]
-    set xml [wrapper::createtag time -subtags $subtags \
-                 -attrlist [list xmlns urn:xmpp:time]]
-    $token send_iq result [list $xml] {*}$opts
+    if {$a(-id) ne {}} {
+	lappend opts -id $a(-id)
+    }
+
+    # build <utc> and <tzo>
+    set secs [clock seconds]
+    set utc  [clock format $secs -format "%Y-%m-%dT%H:%M:%SZ" -gmt 1]
+    set tzo  [clock format $secs -format "%z" -gmt 0]
+    set tzo  [string range $tzo 0 end-2]:[string range $tzo end-1 end]
+
+    lappend subtags [wrapper::createtag utc -chdata $utc]
+    lappend subtags [wrapper::createtag tzo -chdata $tzo]
+    set xmllist [wrapper::createtag time \
+	-subtags $subtags \
+	-attrlist {xmlns urn:xmpp:time}]
+    $token send_iq result [list $xmllist] {*}$opts
     return 1 ;# handled
 }
 
