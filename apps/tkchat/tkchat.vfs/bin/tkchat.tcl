@@ -918,13 +918,13 @@ proc tkchat::parseStr {str} {
 	    set str $post
 	}
         # Render words of 10..40 characters as links to fossil
-        # artifact IDs on core.tcl.tk
+        # artifact IDs on core.tcl-lang.org
         while {[regexp -- {^(.*?)(\m[[:xdigit:]]{10,40}\M)(.*?)$} \
                     $str -> pre id post]} {
             if {[string length $pre]} {
                 lappend out $pre {} {}
             }
-            set url "http://core.tcl.tk/redirect?name=$id"
+            set url "http://core.tcl-lang.org/redirect?name=$id"
             lappend out $id $url $url
             set str $post
         }
@@ -938,7 +938,7 @@ proc tkchat::parseStr {str} {
                     set tt $tip(Title)
                 }
             }
-            lappend out "tip $id" "http://tip.tcl.tk/$id" $tt
+            lappend out "tip $id" "https://core.tcl-lang.org/tips/doc/trunk/tip/$id.md" $tt
             set str $post
         }
 	if {[string length $str]} {
@@ -2633,7 +2633,7 @@ proc tkchat::CreateGUI {} {
             -command [list [namespace origin Help]]
     }
     tk::AmpMenuArgs $m add command -label [mc "Help (&wiki)..."] \
-        -command [list [namespace origin gotoURL] http://wiki.tcl.tk/tkchat]
+        -command [list [namespace origin gotoURL] http://wiki.tcl-lang.org/tkchat]
     $m add separator
     tk::AmpMenuArgs $m add command -label [mc "&Check version"] \
         -command [list after idle [list [namespace origin CheckVersion]]]
@@ -3961,7 +3961,7 @@ proc tkchat::checkCommand { msg } {
 	}
 	{^/(urn:)?tip\M} {
 	    if {[regexp {(?:urn:)?tip[: ](\d+)} $msg -> tip]} {
-		gotoURL http://tip.tcl.tk/$tip
+		gotoURL https://core.tcl-lang.org/tips/doc/trunk/tip/$tip.md
                 addStatus 0 "Opening TIP \#$tip in your browser..."
             } else {
                 addStatus 0 "usage: /tip <tip number>"
@@ -3972,10 +3972,10 @@ proc tkchat::checkCommand { msg } {
 	}
 	{^/wiki[:\s]} {
 	    set q [http::formatQuery [string range $msg 6 end]]
-	    gotoURL http://wiki.tcl.tk/$q
+	    gotoURL http://wiki.tcl-lang.org/$q
 	}
 	{^/help} {
-	    gotoURL http://wiki.tcl.tk/tkchat
+	    gotoURL http://wiki.tcl-lang.org/tkchat
 	}
 	{^/google\s} {
 	    set msg [string range $msg 8 end]
@@ -5868,7 +5868,7 @@ proc tkchat::SmileId {name serial triggers {location {}}} {
     variable IMGre
 
     if {$location eq ""} {
-        set location "http://tkchat.tcl.tk/emoticons/$name.gif"
+        set location "http://tkchat.tclers.tk/emoticons/$name.gif"
     }
     
     if {![info exists Images($name,data)] || $Images($name,serial) < $serial} {
@@ -5950,7 +5950,7 @@ proc tkchat::Smile {{force 0}} {
         }
     }
     $slave alias SmileId ::tkchat::SmileId
-    set code [GET "http://tkchat.tcl.tk/emoticons/emoticons.tcl"]
+    set code [GET "http://tkchat.tclers.tk/emoticons/emoticons.tcl"]
     $slave eval $code
     interp delete $slave
 
@@ -7666,7 +7666,7 @@ proc tkchat::createRosterImages {} {
 
 # FIXME: This doesn't seem relevant today.
 proc tkchat::GetTipIndex {} {
-    http::geturl http://www.tcl.tk/cgi-bin/tct/tip/tclIndex.txt \
+    http::geturl http://www.tcl-lang.org/cgi-bin/tct/tip/tclIndex.txt \
         -timeout 15000 \
         -progress tkchat::Progress \
         -command [list [namespace origin fetchurldone] \
@@ -7679,7 +7679,7 @@ proc tkchat::GetTipIndexDone {tok} {
 }
 
 proc tkchat::CheckVersion {} {
-    http::geturl http://tkchat.tcl.tk/current.html \
+    http::geturl http://tkchat.tclers.tk/current.html \
         -timeout 15000 \
         -command [list [namespace origin fetchurldone] \
                       [namespace origin CheckVersionDone]]
