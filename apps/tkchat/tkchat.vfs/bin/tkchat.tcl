@@ -7670,7 +7670,7 @@ proc tkchat::GetTipIndex {} {
 	return
     }
 
-    http::geturl https://www.tcl-lang.org/tips/doc/trunk/index.dict \
+    http::geturl https://core.tcl-lang.org/tips/doc/trunk/index.dict \
         -timeout 15000 \
         -progress tkchat::Progress \
         -command [list [namespace origin fetchurldone] \
