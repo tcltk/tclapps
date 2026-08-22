@@ -933,9 +933,8 @@ proc tkchat::parseStr {str} {
             if {[string length $pre]} { lappend out $pre {} {} }
             set tt ""
             catch {
-                if {[info exists TipIndex] && $id < [llength $TipIndex] && $id >= 0} {
-                    array set tip [lindex $TipIndex $id]
-                    set tt $tip(Title)
+                if {[info exists TipIndex] && $id < [dict size $TipIndex] && $id >= 0} {
+		    set tt [dict get $TipIndex $id title]
                 }
             }
             lappend out "tip $id" "https://core.tcl-lang.org/tips/doc/trunk/tip/$id.md" $tt
@@ -7664,9 +7663,14 @@ proc tkchat::createRosterImages {} {
     }
 }
 
-# FIXME: This doesn't seem relevant today.
+# get the TIP index; it is used to display TIPs titles in tooltips
 proc tkchat::GetTipIndex {} {
-    http::geturl http://www.tcl-lang.org/cgi-bin/tct/tip/tclIndex.txt \
+    if {[package provide tls] eq {}} {
+	# only available over https
+	return
+    }
+
+    http::geturl https://www.tcl-lang.org/tips/doc/trunk/index.dict \
         -timeout 15000 \
         -progress tkchat::Progress \
         -command [list [namespace origin fetchurldone] \
