@@ -3970,7 +3970,7 @@ proc tkchat::checkCommand { msg } {
 	    doBug [split $msg ": "]
 	}
 	{^/wiki[:\s]} {
-	    set q [http::formatQuery [string range $msg 6 end]]
+	    set q [string range $msg 6 end]
 	    gotoURL http://wiki.tcl-lang.org/$q
 	}
 	{^/help} {
@@ -8943,21 +8943,23 @@ proc tkjabber::get_caps_ver {} {
     variable ::tkchat::version
 
     set S "client/pc//tkchat<"
-    foreach feature [lsort $Features] { append S $feature "<" }
+    foreach feature [lsort $Features] {
+	append S $feature "<"
+    }
     # extended feature processing as well (order counts)
     append S "urn:xmpp:dataforms:softwareinfo<"
     append S "os<$tcl_platform(os)<"
-    append S "os_version<$tcl_platform(osVersion)"
+    append S "os_version<$tcl_platform(osVersion)<"
     append S "software<tkchat<software_version<$version<"
     return [binary encode base64 [sha1::sha1 -bin $S]]
 }
 
 proc tkjabber::get_caps {} {
-    
+
     set caps [wrapper::createtag c -attrlist \
                   [list xmlns "http://jabber.org/protocol/caps" \
                        hash "sha-1"\
-                       node "http://tkchat.tcl.tk/caps" \
+                       node "http://tkchat.tclers.tk/caps" \
                        ver [get_caps_ver]]]
     return $caps
 }
