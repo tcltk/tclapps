@@ -49,6 +49,9 @@ proc ::newRoster::gui {f} {
     $cl tag configure SUBTITLE \
         -font TkHeadingFont \
         -background gray85
+    $cl tag configure MULTIPLE \
+        -font TkHeadingFont \
+        -background gray92
 
     set indent    0
     # determine the row height
@@ -59,6 +62,8 @@ proc ::newRoster::gui {f} {
             ttk::style configure Roster.Treeview \
                 -indent $indent \
                 -rowheight $rowheight
+            # remove focus indicator in the roster
+            ttk::style map Roster.Treeview.Row -focusthickness {}
         }
     }
 
@@ -72,6 +77,9 @@ proc ::newRoster::gui {f} {
             after idle [list ttk::style configure Roster.Treeview \
                     -indent $indent \
                     -rowheight $rowheight]
+        }
+        if {[ttk::style map Roster.Treeview.Row -focusthickness] ne ""} {
+            ttk::style map Roster.Treeview.Row -focusthickness {}
         }
     }} $indent $rowheight]
 
@@ -197,45 +205,123 @@ proc ::newRoster::updateRosterDisplay {} {
 	return
     }
 
-    foreach user $users {
+    foreach user [lsort $users] {
 	set name [$roster getname $user]
 	if {$name eq ""} {
 	    set name [tkjabber::jid node $user]
 	}
-	set resource [$roster gethighestresource $user]
-	foreach pres [$roster getpresence $user] {
-	    array set a [linsert $pres 0 -show online -type unavailable]
-	    if {$resource eq $a(-resource)} {
-		if {$a(-type) eq ""} {
-		    set img online
+	set allpres [$roster getpresence $user -type available]
+	set len [llength $allpres]
+
+	switch -- $len {
+	    0 - 1 {
+		# unavailable or only one resource online
+		set pres [lindex $allpres 0]
+		if {$len == 1} {
+		    set user $user/[dict get $pres -resource]
 		}
-		if {$a(-show) ne ""} {
-		    set img $a(-show)
+		InsertRosterItem $user $name $pres Roster
+	    }
+	    default {
+		# more than one resource available
+		set parent [$cl insert Roster end \
+		    -text "$name ($len)" \
+		    -tags MULTIPLE \
+		    -image ::tkchat::roster::online]
+		foreach pres $allpres {
+		    set resource [dict get $pres -resource]
+		    set userres $user/$resource
+		    InsertRosterItem $userres $resource $pres $parent
 		}
-		if {$a(-type) eq "unavailable"} {
-		    set img "disabled"
-		}
-		if {$img eq "offline"} {
-		    set img "disabled"
-		}
-		set image ::tkchat::roster::$img
 	    }
 	}
-
-	set id URL-[incr URLID]
-	set tags [list ROSTER ROSTER-$user URL $id Jabber]
-	set item [$cl insert Roster end -text $name -tags $tags -image $image]
-
-	$cl tag bind $id <Button-1> [list tkjabber::getChatWidget \
-					 $user/$resource $name]
-
-	set tip $user
-	if {$resource ne {}} {append tip /$resource}
-	foreach res [$roster getresources $user] {
-	    append tip "\n  $res"
-	}
-	tooltip $cl -item $item $tip
     }
+}
+
+proc ::newRoster::InsertRosterItem {user name pres parent} {
+    variable cl
+    variable URLID
+
+    set img "disabled"
+    if {[dict size $pres] != 0} {
+	# online
+	if {[dict exists $pres -show]} {
+	    set img [dict get $pres -show]
+	} else {
+	    set img "online"
+	}
+    }
+    set id URL-[incr URLID]
+    set tags [list ROSTER ROSTER-$user URL $id Jabber]
+    set item [$cl insert $parent end \
+	-text $name \
+	-tags $tags \
+	-image ::tkchat::roster::$img]
+    $cl tag bind $id <Button-1> [list tkjabber::getChatWidget \
+	$user $name]
+    tooltip $cl -item $item $user
+
+    set script [list newRoster::RosterPopup $user $name %X %Y]
+    $cl tag bind $id <Button-3> $script
+    $cl tag bind $id <Control-Button-1> $script
+}
+
+proc ::newRoster::RosterPopup {user name x y} {
+    variable cl
+
+    set m [winfo parent $cl].rostermenu
+    destroy $m
+    menu $m
+    $m add command \
+	-label [mc "Send message"] \
+	-command [list tkchat::SendMemo $user]
+    $m add command \
+	-label [mc "Private chat"] \
+	-command [list tkjabber::getChatWidget $user $name]
+    $m add command \
+	-label [mc "User info"] \
+	-command [list tkchat::UserInfoDialog $user]
+    if {[string match "*/*" $user]} {
+	$m add command \
+	    -label [mc "Version info"] \
+	    -command [list newRoster::queryVersion $user]
+    }
+    tk_popup $m $x $y
+}
+
+proc ::newRoster::queryVersion {jid} {
+    variable ::tkjabber::jabber
+
+    set xmllist [wrapper::createtag query -attrlist {xmlns jabber:iq:version}]
+    $jabber send_iq get [list $xmllist] \
+	-to $jid \
+	-command [list newRoster::gotVersion $jid]
+}
+
+proc ::newRoster::gotVersion {jid type xmllist} {
+    variable cl
+
+    if {$type ne "result"} {
+	tkchat::addStatus 0 [mc "error getting version for %s" $jid]
+	return
+    }
+    set data {}
+    foreach sub [wrapper::getchildren $xmllist] {
+	dict set data [wrapper::gettag $sub] [wrapper::getcdata $sub]
+    }
+    set ver ""
+    if {[dict exists $data name]} {
+	append ver [dict get $data name]
+    }
+    if {[dict exists $data version]} {
+	append ver " " [dict get $data version]
+    }
+    if {[dict exists $data os]} {
+	append ver " : [dict get $data os]"
+    }
+    tkchat::addStatus 0 "$jid is using $ver"
+    tooltip $cl -item [$cl tag has ROSTER-$jid] $jid\n$ver
+    return 1
 }
 
 proc ::newRoster::PutIntoPane {} {
@@ -261,9 +347,13 @@ proc ::newRoster::SetUserTooltip {nick} {
     variable cl
     variable ::tkchat::OnlineUsers
 
-    if {![info exists OnlineUsers(Jabber-$nick,jid)]} { return }
+    if {![info exists OnlineUsers(Jabber-$nick,jid)]} {
+	return
+    }
     set tip [string trim $OnlineUsers(Jabber-$nick,jid)]
-    if {$tip eq ""} { append tip $nick }
+    if {$tip eq ""} {
+	append tip $nick
+    }
     if {[info exists OnlineUsers(Jabber-$nick,version)]} {
         append tip "\n$OnlineUsers(Jabber-$nick,version)"
     }
