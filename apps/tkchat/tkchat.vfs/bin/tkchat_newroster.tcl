@@ -172,7 +172,7 @@ proc ::newRoster::updateOnlineNames {} {
 	    }
 
 	    set id URL-[incr URLID]
-	    set tags [list NICK NICK-$nick URL $id $network]
+	    set tags [list NICK-$nick $id $network]
 	    $cl insert $where end -text $nick -tags $tags -image $image
 
 	    if { [info exists OnlineUsers($network-$nick,jid)] } {
@@ -197,7 +197,10 @@ proc ::newRoster::updateRosterDisplay {} {
     variable ::tkchat::OnlineUsers
     variable ::tkjabber::jabber
 
-    $cl delete [$cl children Roster]
+    $cl delete [$cl tag has ROSTER]
+    foreach tag [lsearch -all -inline [$cl tag names] ROSTER-*] {
+	$cl tag delete $tag
+    }
 
     set roster [$jabber getrostername]
     set users [$roster getusers]
@@ -224,10 +227,15 @@ proc ::newRoster::updateRosterDisplay {} {
 	    }
 	    default {
 		# more than one resource available
-		set parent [$cl insert Roster end \
-		    -text "$name ($len)" \
-		    -tags MULTIPLE \
-		    -image ::tkchat::roster::online]
+		set parent [$cl tag has MULTIPLE-$user]
+		if {$parent eq ""} {
+		    set parent [$cl insert Roster end \
+			-text "$name ($len)" \
+			-tags [list MULTIPLE MULTIPLE-$user] \
+			-image ::tkchat::roster::online]
+		} else {
+		    $cl move $parent {} end
+		}
 		foreach pres $allpres {
 		    set resource [dict get $pres -resource]
 		    set userres $user/$resource
@@ -236,11 +244,18 @@ proc ::newRoster::updateRosterDisplay {} {
 	    }
 	}
     }
+    # remove empty items with tag MULTIPLE
+    foreach item [$cl tag has MULTIPLE] {
+	if {[$cl children $item] eq ""} {
+	    set tag [lsearch -inline -not [$cl item $item -tags] MULTIPLE]
+	    $cl tag delete $tag
+	    $cl delete $item
+	}
+    }
 }
 
 proc ::newRoster::InsertRosterItem {user name pres parent} {
     variable cl
-    variable URLID
 
     set img "disabled"
     if {[dict size $pres] != 0} {
@@ -251,8 +266,8 @@ proc ::newRoster::InsertRosterItem {user name pres parent} {
 	    set img "online"
 	}
     }
-    set id URL-[incr URLID]
-    set tags [list ROSTER ROSTER-$user URL $id Jabber]
+    set id ROSTER-$user
+    set tags [list ROSTER $id Jabber]
     set item [$cl insert $parent end \
 	-text $name \
 	-tags $tags \
