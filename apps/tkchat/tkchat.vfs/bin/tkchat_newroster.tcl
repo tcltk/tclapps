@@ -5,6 +5,7 @@ if {![package vsatisfies [package provide Tk] 8.7-]} return
 
 namespace eval ::newRoster {
     variable cl
+    variable versions {} ; # cache for jabber:iq:version for user's roster
 
     namespace import ::msgcat::mc
     namespace import ::tooltip::tooltip
@@ -192,8 +193,8 @@ proc ::newRoster::updateOnlineNames {} {
 }
 
 proc ::newRoster::updateRosterDisplay {} {
-    variable URLID
     variable cl
+    variable versions
     variable ::tkchat::OnlineUsers
     variable ::tkjabber::jabber
 
@@ -208,6 +209,7 @@ proc ::newRoster::updateRosterDisplay {} {
 	return
     }
 
+    set online {}; # list of online users, with resource
     foreach user [lsort $users] {
 	set name [$roster getname $user]
 	if {$name eq ""} {
@@ -222,6 +224,7 @@ proc ::newRoster::updateRosterDisplay {} {
 		set pres [lindex $allpres 0]
 		if {$len == 1} {
 		    set user $user/[dict get $pres -resource]
+		    lappend online $user
 		}
 		InsertRosterItem $user $name $pres Roster
 	    }
@@ -234,12 +237,14 @@ proc ::newRoster::updateRosterDisplay {} {
 			-tags [list MULTIPLE MULTIPLE-$user] \
 			-image ::tkchat::roster::online]
 		} else {
-		    $cl move $parent {} end
+		    $cl move $parent Roster end
+		    $cl item $parent -text "$name ($len)"
 		}
 		foreach pres $allpres {
 		    set resource [dict get $pres -resource]
 		    set userres $user/$resource
 		    InsertRosterItem $userres $resource $pres $parent
+		    lappend online $userres
 		}
 	    }
 	}
@@ -247,19 +252,24 @@ proc ::newRoster::updateRosterDisplay {} {
     # remove empty items with tag MULTIPLE
     foreach item [$cl tag has MULTIPLE] {
 	if {[$cl children $item] eq ""} {
-	    set tag [lsearch -inline -not [$cl item $item -tags] MULTIPLE]
+	    set tag [lindex [$cl item $item -tags] 1]
 	    $cl tag delete $tag
 	    $cl delete $item
 	}
     }
+    # remove offline cached versions
+    set versions [dict filter $versions script {k v} {
+	expr {$k in $online}
+    }]
 }
 
 proc ::newRoster::InsertRosterItem {user name pres parent} {
     variable cl
+    variable versions
 
     set img "disabled"
     if {[dict size $pres] != 0} {
-	# online
+	# item is online
 	if {[dict exists $pres -show]} {
 	    set img [dict get $pres -show]
 	} else {
@@ -272,10 +282,15 @@ proc ::newRoster::InsertRosterItem {user name pres parent} {
 	-text $name \
 	-tags $tags \
 	-image ::tkchat::roster::$img]
+    # set up tip
+    set tip $user
+    if {[dict exists $versions $user]} {
+	append tip "\n" [dict get $versions $user]
+    }
+    tooltip $cl -item $item $tip
+    # item bindings
     $cl tag bind $id <Button-1> [list tkjabber::getChatWidget \
 	$user $name]
-    tooltip $cl -item $item $user
-
     set script [list newRoster::RosterPopup $user $name %X %Y]
     $cl tag bind $id <Button-3> $script
     $cl tag bind $id <Control-Button-1> $script
@@ -315,6 +330,7 @@ proc ::newRoster::queryVersion {jid} {
 
 proc ::newRoster::gotVersion {jid type xmllist} {
     variable cl
+    variable versions
 
     if {$type ne "result"} {
 	tkchat::addStatus 0 [mc "error getting version for %s" $jid]
@@ -334,6 +350,7 @@ proc ::newRoster::gotVersion {jid type xmllist} {
     if {[dict exists $data os]} {
 	append ver " : [dict get $data os]"
     }
+    dict set versions $jid $ver
     tkchat::addStatus 0 "$jid is using $ver"
     tooltip $cl -item [$cl tag has ROSTER-$jid] $jid\n$ver
     return 1
