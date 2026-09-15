@@ -5,7 +5,8 @@ if {![package vsatisfies [package provide Tk] 8.7-]} return
 
 namespace eval ::newRoster {
     variable cl
-    variable versions {} ; # cache for jabber:iq:version for user's roster
+    variable versions  {}; # cache for jabber:iq:version for user's roster
+    variable discosent {}; # cache of disco#info queries sent
 
     namespace import ::msgcat::mc
     namespace import ::tooltip::tooltip
@@ -195,8 +196,10 @@ proc ::newRoster::updateOnlineNames {} {
 proc ::newRoster::updateRosterDisplay {} {
     variable cl
     variable versions
+    variable discosent
     variable ::tkchat::OnlineUsers
     variable ::tkjabber::jabber
+    variable ::tkjabber::discovery
 
     $cl delete [$cl tag has ROSTER]
     foreach tag [lsearch -all -inline [$cl tag names] ROSTER-*] {
@@ -215,6 +218,22 @@ proc ::newRoster::updateRosterDisplay {} {
 	if {$name eq ""} {
 	    set name [tkjabber::jid node $user]
 	}
+
+	set ct [$discovery get info cattypes $user]
+	if {$ct eq "" && ![dict exists $discosent $user]} {
+	    $discovery send_get info $user [namespace code GotInfo]
+	    dict set discosent $user 1
+	    continue
+	}
+	if {"conference/text" in $ct} {
+	    set item [$cl insert Roster end \
+		-text $name \
+		-image ::tkchat::roster::muc \
+		-tags [list ROSTER ROSTER-$user]]
+	    tooltip $cl -item $item $user
+	    continue
+	}
+
 	set allpres [$roster getpresence $user -type available]
 	set len [llength $allpres]
 
@@ -294,6 +313,13 @@ proc ::newRoster::InsertRosterItem {user name pres parent} {
     set script [list newRoster::RosterPopup $user $name %X %Y]
     $cl tag bind $id <Button-3> $script
     $cl tag bind $id <Control-Button-1> $script
+    return $item
+}
+
+proc ::newRoster::GotInfo {disco type from xmllist args} {
+    set cmd [namespace code updateRosterDisplay]
+    after cancel $cmd
+    after 100 $cmd
 }
 
 proc ::newRoster::RosterPopup {user name x y} {

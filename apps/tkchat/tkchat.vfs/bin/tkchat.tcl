@@ -7657,7 +7657,7 @@ proc tkchat::ToggleRole {type nick} {
 
 proc tkchat::createRosterImages {} {
     global imgdir
-    foreach type {chat online away dnd xa disabled} {
+    foreach type {chat online away dnd xa disabled muc} {
         image create photo ::tkchat::roster::$type \
             -file $imgdir/roster_$type.png
     }
