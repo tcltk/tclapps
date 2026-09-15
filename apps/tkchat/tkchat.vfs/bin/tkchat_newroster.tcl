@@ -230,7 +230,7 @@ proc ::newRoster::updateRosterDisplay {} {
 		-text $name \
 		-image ::tkchat::roster::muc \
 		-tags [list ROSTER ROSTER-$user]]
-	    tooltip $cl -item $item $user
+	    SetMucTooltip $item $user
 	    continue
 	}
 
@@ -322,6 +322,28 @@ proc ::newRoster::GotInfo {disco type from xmllist args} {
     after 100 $cmd
 }
 
+proc ::newRoster::SetMucTooltip {item jid} {
+    variable cl
+    variable ::tkjabber::discovery
+
+    set tip "$jid (muc)"
+    set xmllist [$discovery get info xml $jid]
+    set form [wrapper::getfirstchild $xmllist x "jabber:x:data"]
+    foreach field [wrapper::getchildswithtag $form field] {
+	if {[wrapper::getattribute $field "var"] in
+		"FORM_TYPE muc#roominfo_occupants"
+	} then {
+	    # skip these fields
+	    continue
+	}
+	set value [wrapper::getcdata \
+	    [lindex [wrapper::getchildswithtag $field "value"] 0]]
+	append tip "\n   " [wrapper::getattribute $field "label"] \
+		": " $value
+    }
+    tooltip $cl -item $item $tip
+}
+
 proc ::newRoster::RosterPopup {user name x y} {
     variable cl
 
@@ -340,21 +362,21 @@ proc ::newRoster::RosterPopup {user name x y} {
     if {[string match "*/*" $user]} {
 	$m add command \
 	    -label [mc "Version info"] \
-	    -command [list newRoster::queryVersion $user]
+	    -command [list newRoster::QueryVersion $user]
     }
     tk_popup $m $x $y
 }
 
-proc ::newRoster::queryVersion {jid} {
+proc ::newRoster::QueryVersion {jid} {
     variable ::tkjabber::jabber
 
     set xmllist [wrapper::createtag query -attrlist {xmlns jabber:iq:version}]
     $jabber send_iq get [list $xmllist] \
 	-to $jid \
-	-command [list newRoster::gotVersion $jid]
+	-command [list newRoster::GotVersion $jid]
 }
 
-proc ::newRoster::gotVersion {jid type xmllist} {
+proc ::newRoster::GotVersion {jid type xmllist} {
     variable cl
     variable versions
 
