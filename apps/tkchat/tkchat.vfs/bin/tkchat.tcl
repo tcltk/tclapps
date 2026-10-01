@@ -7889,7 +7889,8 @@ proc tkchat::PasteDlg {} {
 proc tkchat::PasteDlgSend {t subject txt} {
     variable ::tkjabber::jabber
 
-    if {[string length [$subject get]] < 1} {
+    set subj [$subject get]
+    if {[string length $subj] < 1} {
 	tk_messageBox -icon info -title [mc "Subject required"] \
 	    -message [mc "You must provide a subject to be displayed\
 		as the title for this paste."]
@@ -7898,12 +7899,7 @@ proc tkchat::PasteDlgSend {t subject txt} {
     }
     set msg [string trim [$txt get 1.0 {end - 1c}]]
     if {[string length $msg] > 0} {
-	set k {}
-	lappend k [wrapper::createtag subject -chdata [$subject get]]
-	lappend k [wrapper::createtag body -chdata $msg]
-	set m [wrapper::createtag message -subtags $k \
-	   -attrlist [list type normal to tcl@paste.tclers.tk]]
-	$jabber send $m
+	$jabber send_message tcl@paste.tclers.tk -subject $subj -body $msg
     }
     destroy $t
 }
