@@ -1,10 +1,12 @@
 #
-# Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com> 
+# Support functions for the TLS extension
+#
+# Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
 #
 namespace eval tls {
     variable logcmd tclLog
     variable debug 0
- 
+
     # Default flags passed to tls::import
     variable defaults {}
 
@@ -15,7 +17,7 @@ namespace eval tls {
     # Over-ride this if you are using a different socket command
     variable socketCmd
     if {![info exists socketCmd]} {
-        set socketCmd [info command ::socket]
+	set socketCmd [info command ::socket]
     }
 
     # This is the possible arguments to tls::socket and tls::init
@@ -28,27 +30,39 @@ namespace eval tls {
     #### iopts: [tls::import] option
     ### How many arguments the following the option to consume
     variable socketOptionRules {
-        {0 -async sopts 0}
-        {* -myaddr sopts 1}
-        {0 -myport sopts 1}
-        {* -type sopts 1}
-        {* -cadir iopts 1}
-        {* -cafile iopts 1}
-        {* -certfile iopts 1}
-        {* -cipher iopts 1}
-        {* -command iopts 1}
-        {* -dhparams iopts 1}
-        {* -keyfile iopts 1}
-        {* -password iopts 1}
-        {* -request iopts 1}
-        {* -require iopts 1}
-        {* -autoservername discardOpts 1}
-        {* -servername iopts 1}
-        {* -ssl2 iopts 1}
-        {* -ssl3 iopts 1}
-        {* -tls1 iopts 1}
-        {* -tls1.1 iopts 1}
-        {* -tls1.2 iopts 1}
+	{0 -async sopts 0}
+	{* -myaddr sopts 1}
+	{0 -myport sopts 1}
+	{* -type sopts 1}
+	{* -alpn iopts 1}
+	{* -cadir iopts 1}
+	{* -cafile iopts 1}
+	{* -castore iopts 1}
+	{* -cert iopts 1}
+	{* -certfile iopts 1}
+	{* -cipher iopts 1}
+	{* -ciphersuites iopts 1}
+	{* -command iopts 1}
+	{* -dhparams iopts 1}
+	{* -key iopts 1}
+	{* -keyfile iopts 1}
+	{* -password iopts 1}
+	{* -post_handshake iopts 1}
+	{* -request iopts 1}
+	{* -require iopts 1}
+	{* -securitylevel iopts 1}
+	{* -autoservername discardOpts 1}
+	{* -server iopts 1}
+	{* -servername iopts 1}
+	{* -session_id iopts 1}
+	{* -ssl2 iopts 1}
+	{* -ssl3 iopts 1}
+	{* -tls1 iopts 1}
+	{* -tls1.1 iopts 1}
+	{* -tls1.2 iopts 1}
+	{* -tls1.3 iopts 1}
+	{* -validatecommand iopts 1}
+	{* -vcmd iopts 1}
     }
 
     # tls::socket and tls::init options as a humane readable string
@@ -67,7 +81,7 @@ proc tls::_initsocketoptions {} {
 
     # Do not re-run if we have already been initialized
     if {[info exists socketOptionsSwitchBody]} {
-        return
+	return
     }
 
     # Create several structures from our list of options
@@ -78,43 +92,43 @@ proc tls::_initsocketoptions {} {
     set options(1) [list]
     set argSwitchBody [list]
     foreach optionRule $socketOptionRules {
-        set ruleServer [lindex $optionRule 0]
-        set ruleOption [lindex $optionRule 1]
-        set ruleVarToUpdate [lindex $optionRule 2]
-        set ruleVarArgsToConsume [lindex $optionRule 3]
+	set ruleServer [lindex $optionRule 0]
+	set ruleOption [lindex $optionRule 1]
+	set ruleVarToUpdate [lindex $optionRule 2]
+	set ruleVarArgsToConsume [lindex $optionRule 3]
 
-        foreach server [list 0 1] {
-            if {![string match $ruleServer $server]} {
-                continue
-            }
+	foreach server [list 0 1] {
+	    if {![string match $ruleServer $server]} {
+		continue
+	    }
 
-            lappend options($server) $ruleOption
-        }
+	    lappend options($server) $ruleOption
+	}
 
-        switch -- $ruleVarArgsToConsume {
-            0 {
-                set argToExecute {
-                    lappend @VAR@ $arg
-                    set argsArray($arg) true
-                } 
-            }
-            1 {
-                set argToExecute {
-                    incr idx
-                    if {$idx >= [llength $args]} {
-                        return -code error "\"$arg\" option must be followed by value"
-                    }
-                    set argValue [lindex $args $idx]
-                    lappend @VAR@ $arg $argValue
-                    set argsArray($arg) $argValue
-                }
-            }
-            default {
-                return -code error "Internal argument construction error"
-            }
-        }
+	switch -- $ruleVarArgsToConsume {
+	    0 {
+		set argToExecute {
+		    lappend @VAR@ $arg
+		    set argsArray($arg) true
+		}
+	    }
+	    1 {
+		set argToExecute {
+		    incr idx
+		    if {$idx >= [llength $args]} {
+			return -code error "\"$arg\" option must be followed by value"
+		    }
+		    set argValue [lindex $args $idx]
+		    lappend @VAR@ $arg $argValue
+		    set argsArray($arg) $argValue
+		}
+	    }
+	    default {
+		return -code error "Internal argument construction error"
+	    }
+	}
 
-        lappend argSwitchBody $ruleServer,$ruleOption [string map [list @VAR@ $ruleVarToUpdate] $argToExecute]
+	lappend argSwitchBody $ruleServer,$ruleOption [string map [list @VAR@ $ruleVarToUpdate] $argToExecute]
     }
 
     # Add in the final options
@@ -141,7 +155,7 @@ proc tls::initlib {dir dll} {
 	# the tls dll. We choose to make them siblings of the executable.
 	package require starkit
 	set dst [file nativename [file dirname $starkit::topdir]]
-	foreach sdll [glob -nocomplain -directory $dir -tails *eay32.dll] {
+	foreach sdll [glob -nocomplain -directory $dir -tails libssl32.dll libcrypto*.dll libssl*.dll libssp*.dll] {
 	    catch {file delete -force            $dst/$sdll}
 	    catch {file copy   -force $dir/$sdll $dst/$sdll}
 	}
@@ -204,12 +218,12 @@ proc tls::socket {args} {
 	set args [lreplace $args $idx [expr {$idx+1}]]
 
 	set usage "wrong # args: should be \"tls::socket -server command ?options? port\""
-        set options $socketOptionsServer
+	set options $socketOptionsServer
     } else {
 	set server 0
 
 	set usage "wrong # args: should be \"tls::socket ?options? host port\""
-        set options $socketOptionsNoServer
+	set options $socketOptionsNoServer
     }
 
     # Combine defaults with current options
@@ -244,13 +258,20 @@ proc tls::socket {args} {
 	set host [lindex $args [expr {$argc-2}]]
 	set port [lindex $args [expr {$argc-1}]]
 
-        # If an "-autoservername" option is found, honor it
-        if {[info exists argsArray(-autoservername)] && $argsArray(-autoservername)} {
-            if {![info exists argsArray(-servername)]} {
-                set argsArray(-servername) $host
-                lappend iopts -servername $host
-            }
-        }
+	# If an "-autoservername" option is found, honor it
+	if {[info exists argsArray(-autoservername)] && $argsArray(-autoservername)} {
+	    if {![info exists argsArray(-servername)]} {
+		set argsArray(-servername) $host
+		lappend iopts -servername $host
+	    }
+	}
+
+	# Use host as SNI server name without -autoservername and -servername args
+	if {![info exists argsArray(-autoservername)] && 
+		![info exists argsArray(-servername)]} {
+	    set argsArray(-servername) $host
+	    lappend iopts -servername $host
+	}
 
 	lappend sopts $host $port
     }
@@ -302,31 +323,81 @@ proc tls::_accept { iopts callback chan ipaddr port } {
 	log 2 "tls::_accept - called \"$callback\" succeeded"
     }
 }
+
 #
-# Sample callback for hooking: -
+# Sample callback for status data from OpenSSL
 #
-# error
-# verify
-# info
-#
-proc tls::callback {option args} {
+proc tls::callback {option chan args} {
     variable debug
 
-    #log 2 [concat $option $args]
-
     switch -- $option {
-	"error"	{
-	    foreach {chan msg} $args break
+	"error" {
+	    lassign $args msg
 
 	    log 0 "TLS/$chan: error: $msg"
 	}
-	"verify"	{
-	    # poor man's lassign
-	    foreach {chan depth cert rc err} $args break
+	"info" {
+	    set type ""
+	    lassign $args major minor msg type
+
+	    if {$msg ne ""} {
+		append state ": $msg"
+	    }
+	    # For tracing
+	    upvar #0 tls::$chan cb
+	    set cb($major) $minor
+
+	    log 2 "TLS/$chan: $major/$minor: $state"
+	}
+	"message" {
+	    lassign $args direction version content_type msg
+
+	    log 0 "TLS/$chan: info: $direction $msg"
+	}
+	"session" {
+	    lassign $args session_id ticket lifetime
+
+	    log 0 "TLS/$chan: session: lifetime $lifetime"
+	}
+	"verify" {
+	    # Backwards compatible for v1.7
+	    return [tls::validate_command $option $chan {*}$args]
+	}
+	default	{
+	    return -code error "bad option \"$option\":\
+		    must be one of error, info, message, or session"
+	}
+    }
+}
+
+#
+# Sample callback when return value is needed. New for TLS 1.8+.
+#
+proc tls::validate_command {option chan args} {
+    variable debug
+
+    switch -- $option {
+	"alpn" {
+	    lassign $args protocol match
+
+	    log 0 "TLS/$chan: alpn: $protocol $match"
+	}
+	"hello" {
+	   lassign $args servername
+
+	    log 0 "TLS/$chan: hello: $servername"
+	}
+	"sni" {
+	    lassign $args servername
+
+	    log 0 "TLS/$chan: sni: $servername"
+	}
+	"verify" {
+	    lassign $args depth cert rc err
 
 	    array set c $cert
 
-	    if {$rc != "1"} {
+	    if {$rc ne "1"} {
 		log 1 "TLS/$chan: verify/$depth: Bad Cert: $err (rc = $rc)"
 	    } else {
 		log 2 "TLS/$chan: verify/$depth: $c(subject)"
@@ -337,31 +408,19 @@ proc tls::callback {option args} {
 		return $rc
 	    }
 	}
-	"info"	{
-	    # poor man's lassign
-	    foreach {chan major minor state msg} $args break
-
-	    if {$msg != ""} {
-		append state ": $msg"
-	    }
-	    # For tracing
-	    upvar #0 tls::$chan cb
-	    set cb($major) $minor
-
-	    log 2 "TLS/$chan: $major/$minor: $state"
-	}
 	default	{
 	    return -code error "bad option \"$option\":\
-		    must be one of error, info, or verify"
+		    must be one of alpn, hello, sni, or verify"
 	}
     }
+    return 1
 }
 
 proc tls::xhandshake {chan} {
     upvar #0 tls::$chan cb
 
     if {[info exists cb(handshake)] && \
-	$cb(handshake) == "done"} {
+	$cb(handshake) eq "done"} {
 	return 1
     }
     while {1} {
@@ -375,7 +434,10 @@ proc tls::xhandshake {chan} {
     }
 }
 
-proc tls::password {} {
+#
+# Sample callback to get password when needed. Args are new for TLS 1.8+.
+#
+proc tls::password {{option password} {rwflag 0} {size 0}} {
     log 0 "TLS/Password: did you forget to set your passwd!"
     # Return the worlds best kept secret password.
     return "secret"
@@ -385,7 +447,7 @@ proc tls::log {level msg} {
     variable debug
     variable logcmd
 
-    if {$level > $debug || $logcmd == ""} {
+    if {$level > $debug || $logcmd eq ""} {
 	return
     }
     set cmd $logcmd
