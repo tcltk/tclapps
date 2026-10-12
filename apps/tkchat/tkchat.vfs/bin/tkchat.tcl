@@ -311,7 +311,7 @@ namespace eval tkchat {
 
     variable chatWindowTitle "The Tcler's Chat"
 
-    variable version 1.520
+    variable version 1.60
     variable FossilUrl "https://core.tcl-lang.org/tclapps/"
 
     variable MSGS
