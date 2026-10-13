@@ -1727,7 +1727,7 @@ proc tkchat::addTraffic { w nick action mark timestamp } {
     global Options
     variable MSGS
     variable OnlineUsers
-
+	
     set newnick ""
     set network ""
     if { [llength $action] != 1 } {
@@ -2964,7 +2964,10 @@ proc tkchat::CreateTxtAndSbar { {parent ""} } {
 
     $txt tag configure MSG -lmargin2 50
     $txt tag configure INFO -lmargin2 50
-    $txt tag configure NICK -font NAME
+	#bold tags misbehave on X11 and Windows - just don't tag it
+	if {[tk windowingsystem] eq "aqua"} {
+	$txt tag configure NICK -font NAME
+	}
     $txt tag configure ACTION -font ACT
     $txt tag configure NOLOG -font NOLOG
     $txt tag configure AVAILABILITY -font SYS
