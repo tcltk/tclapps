@@ -19,8 +19,7 @@
 # -------------------------------------------------------------------------
 # \
 exec wish "$0" ${1+"$@"}
-# REMOVE 8.6
-package require Tk 8.6-
+package require tk 9-
 
 ########################################################################
 # Setting up environment and globals
@@ -60,9 +59,8 @@ set auto_path [linsert $auto_path 0 $tkchat_dir [file join $tkchat_dir lib]]
 # Required packages.
 # Note that jabberlib requires additional ones
 
-# REMOVE 8.6
-package require Tcl 8.6-        ; # core Tcl
-package require Tk 8.6-  	; # core Tk
+package require tcl 9-	    ; #core Tcl
+package require tk  9-     ; #core Tk
 package require http 2		; # core Tcl
 package require msgcat		; # core Tcl
 package require htmlparse	; # tcllib
